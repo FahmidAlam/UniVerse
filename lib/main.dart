@@ -1,122 +1,328 @@
 import 'package:flutter/material.dart';
+import 'package:universe_v1/core/app_colors.dart';
+import 'package:universe_v1/core/app_theme.dart';
 
 void main() {
-  runApp(const MyApp());
+  // Ensure framework services are initialized before setting up system flags
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Set up transparent status bar and orientation configurations from your theme
+  AppTheme.setSystemUI();
+  
+  runApp(const UniVerseApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class UniVerseApp extends StatelessWidget {
+  const UniVerseApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      title: 'UniVerse',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.dark, // Applies your warm dark academia design system
+      home: const MainNavigationShell(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class MainNavigationShell extends StatefulWidget {
+  const MainNavigationShell({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<MainNavigationShell> createState() => _MainNavigationShellState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _MainNavigationShellState extends State<MainNavigationShell> {
+  int _currentIndex = 0;
 
-  void _incrementCounter() {
+  // Initializing mock screens for state and feature validation
+  final List<Widget> _screens = [
+    const StudentDashboardMock(),
+    const AIAssistantMock(),
+    const ProfileRoleMock(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _screens,
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        backgroundColor: AppColors.bgPrimary,
+        selectedItemColor: const Color(0xFFFF7A00), // Warm Orange Accent
+        unselectedItemColor: const Color(0xFF6E7278), // Secondary Text
+        type: BottomNavigationBarType.fixed,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard_rounded),
+            label: 'Dashboard',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.psychology_rounded),
+            label: 'AI Assistant',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline_rounded),
+            label: 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// --- INTERACTIVE MOCK 1: STUDENT DASHBOARD ---
+class StudentDashboardMock extends StatefulWidget {
+  const StudentDashboardMock({super.key});
+
+  @override
+  State<StudentDashboardMock> createState() => _StudentDashboardMockState();
+}
+
+class _StudentDashboardMockState extends State<StudentDashboardMock> {
+  bool _isAttendingAlgorithmClass = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('UniVerse Dashboard', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: AppColors.bgPrimary,
+        elevation: 0,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Welcome Back, Student',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Leading University | Batch 62, Section G',
+              style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+            ),
+            const SizedBox(height: 24),
+            // Mock Academic Card
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A1A1C), // AppColors.bgCard fallback
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF2A2C30)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Next Up: CSE-3240 (Project I)',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFFFF7A00)),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text('Advisor: Kazi Md. Jahid Hasan', style: TextStyle(color: Colors.white70)),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Mark Attendance for today:', style: TextStyle(color: Colors.white)),
+                      Switch(
+                        value: _isAttendingAlgorithmClass,
+                        activeColor: const Color(0xFFFF7A00),
+                        onChanged: (value) {
+                          setState(() {
+                            _isAttendingAlgorithmClass = value;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  Text(
+                    _isAttendingAlgorithmClass ? 'Status: Marked Present' : 'Status: Absent / Not Checked',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _isAttendingAlgorithmClass ? Colors.green : Colors.redAccent,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// --- INTERACTIVE MOCK 2: AI ASSISTANT CHAT SYSTEM ---
+class AIAssistantMock extends StatefulWidget {
+  const AIAssistantMock({super.key});
+
+  @override
+  State<AIAssistantMock> createState() => _AIAssistantMockState();
+}
+
+class _AIAssistantMockState extends State<AIAssistantMock> {
+  final TextEditingController _chatController = TextEditingController();
+  final List<Map<String, String>> _messages = [
+    {'sender': 'ai', 'text': 'Hello! I am your UniVerse Campus Companion. How can I help with your routine or grades today?'}
+  ];
+
+  void _sendMessage() {
+    if (_chatController.text.trim().isEmpty) return;
+    
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      _messages.add({'sender': 'user', 'text': _chatController.text});
+      // Simulate an automated contextual response
+      _messages.add({
+        'sender': 'ai', 
+        'text': 'Received: "${_chatController.text}". RAG and Gemini backend integration will process this prompt soon!'
+      });
+      _chatController.clear();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: const Text('UniVerse AI Assistant'),
+        backgroundColor: AppColors.bgPrimary,
+        elevation: 0,
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _messages.length,
+              itemBuilder: (context, index) {
+                final msg = _messages[index];
+                final isUser = msg['sender'] == 'user';
+                return Align(
+                  alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 6),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isUser ? const Color(0xFFFF7A00) : const Color(0xFF1A1A1C),
+                      borderRadius: BorderRadius.circular(12),
+                      border: isUser ? null : Border.all(color: const Color(0xFF2A2C30)),
+                    ),
+                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+                    child: Text(
+                      msg['text']!,
+                      style: TextStyle(color: isUser ? Colors.black : Colors.white),
+                    ),
+                  ),
+                );
+              },
             ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _chatController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Ask about routines, class cancellations...',
+                      hintStyle: const TextStyle(color: Colors.grey),
+                      filled: true,
+                      fillColor: const Color(0xFF1A1A1C),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: const BorderSide(color: Color(0xFF2A2C30)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: const BorderSide(color: Color(0xFFFF7A00)),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.send_rounded, color: Color(0xFFFF7A00)),
+                  onPressed: _sendMessage,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// --- INTERACTIVE MOCK 3: PROFILE & ROLE VALIDATOR ---
+class ProfileRoleMock extends StatelessWidget {
+  const ProfileRoleMock({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Account Profile'),
+        backgroundColor: AppColors.bgPrimary,
+        elevation: 0,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            const CircleAvatar(
+              radius: 40,
+              backgroundColor: Color(0xFF1A1A1C),
+              child: const Icon(Icons.person, size: 48, color: Color(0xFFFF7A00)),
+            ),
+            const SizedBox(height: 16),
+            const Text('Team Sherlocked', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            const SizedBox(height: 4),
+            Text('Fahmid | Swadheen | Ratul', style: TextStyle(color: Colors.grey[400])),
+            const SizedBox(height: 32),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Actor Shell Access Verification:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+            ),
+            const SizedBox(height: 12),
+            _buildRoleTile('Student Actor Context', true),
+            _buildRoleTile('Teacher Actor Context', false),
+            _buildRoleTile('Admin Actor Context', false),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+    );
+  }
+
+  Widget _buildRoleTile(String roleName, bool isCurrent) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1C),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: isCurrent ? const Color(0xFFFF7A00) : const Color(0xFF2A2C30)),
+      ),
+      child: ListTile(
+        title: Text(roleName, style: const TextStyle(color: Colors.white, fontSize: 14)),
+        trailing: isCurrent 
+          ? const Icon(Icons.check_circle, color: Color(0xFFFF7A00)) 
+          : const Icon(Icons.radio_button_off, color: Colors.grey),
+      ),
     );
   }
 }
