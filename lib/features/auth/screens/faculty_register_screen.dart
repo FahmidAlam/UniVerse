@@ -1,0 +1,338 @@
+// ============================================================
+// FILE: lib/features/auth/screens/faculty_register_screen.dart
+// PURPOSE: Form for new faculty members.
+// Fields: Full name, Employee ID, Department, Designation.
+// Same OAuth flow as student register.
+// ============================================================
+
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:universe_v1/core/constants/app_constants.dart';
+import 'package:universe_v1/core/router/route_names.dart';
+import 'package:universe_v1/core/app_colors.dart';
+import 'package:universe_v1/core/app_spacing.dart';
+import 'package:universe_v1/core/app_text_styles.dart';
+import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
+import 'package:universe_v1/features/auth/widgets/google_sign_in_button.dart';
+
+class FacultyRegisterScreen extends StatefulWidget {
+  final AuthController authController;
+
+  const FacultyRegisterScreen({super.key, required this.authController});
+
+  @override
+  State<FacultyRegisterScreen> createState() => _FacultyRegisterScreenState();
+}
+
+class _FacultyRegisterScreenState extends State<FacultyRegisterScreen> {
+  final _formKey    = GlobalKey<FormState>();
+  final _nameCtrl   = TextEditingController();
+  final _idCtrl     = TextEditingController();
+  String? _selectedDepartment;
+  String? _selectedDesignation;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.authController.addListener(_onAuthChange);
+  }
+
+  @override
+  void deactivate() {
+    widget.authController.removeListener(_onAuthChange);
+    super.deactivate();
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _idCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onAuthChange() async {
+    if (!mounted) return;
+    final status = widget.authController.status;
+
+    if (status == AuthStatus.authenticated) {
+      final success = await widget.authController.completeFacultyRegistration(
+        name: _nameCtrl.text.trim(),
+        employeeId: _idCtrl.text.trim(),
+        department: _selectedDepartment!,
+        designation: _selectedDesignation!,
+      );
+
+      if (!success && mounted) {
+        _showError(
+          widget.authController.errorMessage ?? 'Registration failed.',
+        );
+      }
+    } else if (status == AuthStatus.notWhitelisted) {
+      if (mounted) context.go(RouteNames.notWhitelisted);
+    } else if (status == AuthStatus.error) {
+      if (mounted) {
+        _showError(
+          widget.authController.errorMessage ?? 'Something went wrong.',
+        );
+      }
+    }
+  }
+
+  Future<void> _register() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedDepartment == null) {
+      _showError('Please select your department.');
+      return;
+    }
+    if (_selectedDesignation == null) {
+      _showError('Please select your designation.');
+      return;
+    }
+    await widget.authController.signInWithGoogle();
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message,
+            style: AppTextStyles.bodySm.copyWith(color: AppColors.textPrimary)),
+        backgroundColor: AppColors.bgElevated,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: AppSpacing.radiusMd,
+          side: const BorderSide(color: AppColors.error),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: widget.authController,
+      builder: (context, _) {
+        final isLoading = widget.authController.isLoading;
+
+        return Scaffold(
+          backgroundColor: AppColors.bgPrimary,
+          appBar: AppBar(
+            backgroundColor: AppColors.bgPrimary,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(PhosphorIconsRegular.arrowLeft),
+              onPressed: () => context.go(RouteNames.roleSelection),
+            ),
+            title: Text('Create account', style: AppTextStyles.h2),
+          ),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: AppSpacing.screenPaddingScrollable,
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Teacher role badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.xs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.roleTeacher.withValues(alpha: 0.12),
+                        borderRadius: AppSpacing.radiusFull,
+                        border: Border.all(
+                          color: AppColors.roleTeacher.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            PhosphorIconsRegular.chalkboardTeacher,
+                            color: AppColors.roleTeacher,
+                            size: AppSpacing.iconSm,
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Text(
+                            'Faculty',
+                            style: AppTextStyles.chip.copyWith(
+                              color: AppColors.roleTeacher,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    AppSpacing.lgGap,
+
+                    // ── Full name ────────────────────────────
+                    _buildLabel('Full name'),
+                    AppSpacing.smGap,
+                    _buildField(
+                      controller: _nameCtrl,
+                      hint: 'e.g. Dr. Aminul Islam',
+                      icon: PhosphorIconsRegular.user,
+                      validator: (v) =>
+                          v == null || v.trim().isEmpty ? 'Name is required' : null,
+                    ),
+
+                    AppSpacing.lgGap,
+
+                    // ── Employee ID ──────────────────────────
+                    _buildLabel('Employee ID'),
+                    AppSpacing.smGap,
+                    _buildField(
+                      controller: _idCtrl,
+                      hint: 'e.g. LU-CSE-001',
+                      icon: PhosphorIconsRegular.identificationBadge,
+                      validator: (v) =>
+                          v == null || v.trim().isEmpty ? 'Employee ID is required' : null,
+                    ),
+
+                    AppSpacing.lgGap,
+
+                    // ── Department ───────────────────────────
+                    _buildLabel('Department'),
+                    AppSpacing.smGap,
+                    _buildDropdown(
+                      hint: 'Select department',
+                      icon: PhosphorIconsRegular.buildings,
+                      value: _selectedDepartment,
+                      items: AppConstants.departments,
+                      onChanged: (v) => setState(() => _selectedDepartment = v),
+                    ),
+
+                    AppSpacing.lgGap,
+
+                    // ── Designation ──────────────────────────
+                    _buildLabel('Designation'),
+                    AppSpacing.smGap,
+                    _buildDropdown(
+                      hint: 'Select designation',
+                      icon: PhosphorIconsRegular.medal,
+                      value: _selectedDesignation,
+                      items: AppConstants.designations,
+                      onChanged: (v) => setState(() => _selectedDesignation = v),
+                    ),
+
+                    const SizedBox(height: AppSpacing.x3l),
+
+                    // ── Register button ───────────────────────
+                    GoogleSignInButton(
+                      onTap: isLoading ? null : _register,
+                      isLoading: isLoading,
+                      label: 'Register with Google',
+                    ),
+
+                    AppSpacing.lgGap,
+
+                    Center(
+                      child: Text(
+                        'Your information must match university HR records.',
+                        style: AppTextStyles.caption,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLabel(String text) => Text(text, style: AppTextStyles.label);
+
+  Widget _buildField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      style: AppTextStyles.input,
+      validator: validator,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: AppTextStyles.placeholder,
+        prefixIcon: Icon(icon, size: AppSpacing.iconMd),
+        filled: true,
+        fillColor: AppColors.bgElevated,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: AppSpacing.radiusMd,
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: AppSpacing.radiusMd,
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: AppSpacing.radiusMd,
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: AppSpacing.radiusMd,
+          borderSide: const BorderSide(color: AppColors.error),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: AppSpacing.radiusMd,
+          borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropdown({
+    required String hint,
+    required IconData icon,
+    required String? value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return DropdownButtonFormField<String>(
+      initialValue: value,
+      style: AppTextStyles.input,
+      dropdownColor: AppColors.bgElevated,
+      hint: Text(hint, style: AppTextStyles.placeholder),
+      decoration: InputDecoration(
+        prefixIcon: Icon(icon, size: AppSpacing.iconMd),
+        filled: true,
+        fillColor: AppColors.bgElevated,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: AppSpacing.radiusMd,
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: AppSpacing.radiusMd,
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: AppSpacing.radiusMd,
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+      ),
+      icon: const Icon(
+        PhosphorIconsRegular.caretDown,
+        color: AppColors.textMuted,
+        size: AppSpacing.iconMd,
+      ),
+      items: items
+          .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+          .toList(),
+      onChanged: onChanged,
+    );
+  }
+}
