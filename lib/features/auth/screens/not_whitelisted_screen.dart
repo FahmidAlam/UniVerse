@@ -1,9 +1,9 @@
 // ============================================================
 // FILE: lib/features/auth/screens/not_whitelisted_screen.dart
-// PURPOSE: Shown when a user signs in with Google but their
-// email isn't in the whitelists table.
-// Tells them to contact admin. Has a "Sign out" button
-// so they can try a different account.
+// PURPOSE: Shown ONLY when someone tries to sign in as admin
+// but their email is not in the whitelists table.
+// Students and teachers are never sent here — they
+// can sign up and log in freely without whitelisting.
 // ============================================================
 
 import 'package:flutter/material.dart';
@@ -11,9 +11,9 @@ import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universe_v1/core/router/route_names.dart';
-import 'package:universe_v1/core/app_colors.dart';
-import 'package:universe_v1/core/app_spacing.dart';
-import 'package:universe_v1/core/app_text_styles.dart';
+import 'package:universe_v1/core/theme/app_colors.dart';
+import 'package:universe_v1/core/theme/app_spacing.dart';
+import 'package:universe_v1/core/theme/app_text_styles.dart';
 import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
 
 class NotWhitelistedScreen extends StatelessWidget {
@@ -55,12 +55,12 @@ class NotWhitelistedScreen extends StatelessWidget {
 
               const SizedBox(height: AppSpacing.x3l),
 
-              Text('Access Restricted', style: AppTextStyles.h2),
+              Text('Admin Access Required', style: AppTextStyles.h2),
 
               AppSpacing.lgGap,
 
               Text(
-                'Your Google account is not registered in the system.',
+                'This account is not registered as an admin.',
                 style: AppTextStyles.body.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -91,8 +91,8 @@ class NotWhitelistedScreen extends StatelessWidget {
               AppSpacing.lgGap,
 
               Text(
-                'Please ask your department admin to add your email '
-                'to the system, then try signing in again.',
+                'Admin accounts are created directly by the department head. '
+                'Contact your HOD to get admin access, then try signing in again.',
                 style: AppTextStyles.bodySm,
                 textAlign: TextAlign.center,
               ),

@@ -11,15 +11,14 @@ import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:universe_v1/core/constants/app_constants.dart';
 import 'package:universe_v1/core/router/route_names.dart';
-import 'package:universe_v1/core/app_colors.dart';
-import 'package:universe_v1/core/app_spacing.dart';
-import 'package:universe_v1/core/app_text_styles.dart';
+import 'package:universe_v1/core/theme/app_colors.dart';
+import 'package:universe_v1/core/theme/app_spacing.dart';
+import 'package:universe_v1/core/theme/app_text_styles.dart';
 import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
 import 'package:universe_v1/features/auth/widgets/google_sign_in_button.dart';
 
 class StudentRegisterScreen extends StatefulWidget {
   final AuthController authController;
-
   const StudentRegisterScreen({super.key, required this.authController});
 
   @override
@@ -27,12 +26,24 @@ class StudentRegisterScreen extends StatefulWidget {
 }
 
 class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
-  final _formKey    = GlobalKey<FormState>();
-  final _nameCtrl   = TextEditingController();
-  final _idCtrl     = TextEditingController();
-  final _batchCtrl  = TextEditingController();
+  final _formKey     = GlobalKey<FormState>();
+  final _nameCtrl    = TextEditingController();
+  final _idCtrl      = TextEditingController();
+  final _batchCtrl   = TextEditingController();
   final _sectionCtrl = TextEditingController();
   int? _selectedSemester;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.authController.addListener(_onAuthChange);
+  }
+
+  @override
+  void deactivate() {
+    widget.authController.removeListener(_onAuthChange);
+    super.deactivate();
+  }
 
   @override
   void dispose() {
@@ -43,32 +54,20 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
     super.dispose();
   }
 
-  Future<void> _register() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_selectedSemester == null) {
-      _showError('Please select your semester.');
-      return;
-    }
-
-    // Step 1: Trigger Google OAuth (session created by Supabase)
-    await widget.authController.signInWithGoogle();
-
-    // Step 2: After OAuth callback fires (handled by GoRouter →
-    // authController.handleOAuthCallback), we update the profile.
-    // But we still need the form data — so we listen to auth
-    // state and complete registration when session is ready.
-    // 
-    // The flow: Google sign-in → Supabase session → 
-    // handleOAuthCallback → if success, completeStudentRegistration
-    // We handle this by watching authController in _onAuthChange.
-  }
-
+  // Called when Google OAuth completes and status → registering.
+  // At this point we have a session but no profile yet —
+  // completeStudentRegistration() creates it with role='student'.
   void _onAuthChange() async {
     if (!mounted) return;
     final status = widget.authController.status;
 
-    if (status == AuthStatus.authenticated) {
-      // OAuth done, now fill in the student-specific profile data
+    if (status == AuthStatus.registering) {
+      // Validate form data is still present
+      if (_nameCtrl.text.trim().isEmpty || _selectedSemester == null) {
+        _showError('Please fill in all fields before registering.');
+        return;
+      }
+
       final success = await widget.authController.completeStudentRegistration(
         name: _nameCtrl.text.trim(),
         studentId: _idCtrl.text.trim(),
@@ -82,7 +81,7 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
           widget.authController.errorMessage ?? 'Registration failed.',
         );
       }
-      // GoRouter redirect handles navigation to dashboard
+      // GoRouter redirect handles navigation to student dashboard
     } else if (status == AuthStatus.notWhitelisted) {
       if (mounted) context.go(RouteNames.notWhitelisted);
     } else if (status == AuthStatus.error) {
@@ -94,16 +93,37 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    widget.authController.addListener(_onAuthChange);
+  // Google OAuth path — validates form first, then triggers OAuth.
+  // _onAuthChange fires when OAuth session is ready.
+  Future<void> _registerWithGoogle() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedSemester == null) {
+      _showError('Please select your semester.');
+      return;
+    }
+    await widget.authController.signInWithGoogle();
   }
 
-  @override
-  void deactivate() {
-    widget.authController.removeListener(_onAuthChange);
-    super.deactivate();
+  // Email path — validates form, stores data in SharedPrefs so
+  // EmailSignupScreen can retrieve it after verification completes.
+  // Then navigates to email signup.
+  void _registerWithEmail() {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedSemester == null) {
+      _showError('Please select your semester.');
+      return;
+    }
+    // Store registration form data so it survives navigation
+    // EmailSignupScreen will call completeStudentRegistration after
+    // email is verified and session is active.
+    widget.authController.storePendingStudentData(
+      name: _nameCtrl.text.trim(),
+      studentId: _idCtrl.text.trim(),
+      batch: _batchCtrl.text.trim(),
+      section: _sectionCtrl.text.trim().toUpperCase(),
+      semester: _selectedSemester!,
+    );
+    context.go(RouteNames.emailSignup);
   }
 
   void _showError(String message) {
@@ -181,33 +201,32 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
 
                     AppSpacing.lgGap,
 
-                    // ── Full name ────────────────────────────
                     _buildLabel('Full name'),
                     AppSpacing.smGap,
                     _buildField(
                       controller: _nameCtrl,
                       hint: 'e.g. Fahmid Alam',
                       icon: PhosphorIconsRegular.user,
-                      validator: (v) =>
-                          v == null || v.trim().isEmpty ? 'Name is required' : null,
+                      validator: (v) => v == null || v.trim().isEmpty
+                          ? 'Name is required'
+                          : null,
                     ),
 
                     AppSpacing.lgGap,
 
-                    // ── Student ID ───────────────────────────
                     _buildLabel('Student ID'),
                     AppSpacing.smGap,
                     _buildField(
                       controller: _idCtrl,
                       hint: 'e.g. 0182320012101309',
                       icon: PhosphorIconsRegular.identificationCard,
-                      validator: (v) =>
-                          v == null || v.trim().isEmpty ? 'Student ID is required' : null,
+                      validator: (v) => v == null || v.trim().isEmpty
+                          ? 'Student ID is required'
+                          : null,
                     ),
 
                     AppSpacing.lgGap,
 
-                    // ── Batch & Section (side by side) ────────
                     Row(
                       children: [
                         Expanded(
@@ -220,9 +239,10 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                                 controller: _batchCtrl,
                                 hint: 'e.g. 62',
                                 icon: PhosphorIconsRegular.users,
-                                validator: (v) => v == null || v.trim().isEmpty
-                                    ? 'Required'
-                                    : null,
+                                validator: (v) =>
+                                    v == null || v.trim().isEmpty
+                                        ? 'Required'
+                                        : null,
                               ),
                             ],
                           ),
@@ -238,9 +258,10 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                                 controller: _sectionCtrl,
                                 hint: 'e.g. G',
                                 icon: PhosphorIconsRegular.tag,
-                                validator: (v) => v == null || v.trim().isEmpty
-                                    ? 'Required'
-                                    : null,
+                                validator: (v) =>
+                                    v == null || v.trim().isEmpty
+                                        ? 'Required'
+                                        : null,
                               ),
                             ],
                           ),
@@ -250,16 +271,35 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
 
                     AppSpacing.lgGap,
 
-                    // ── Semester dropdown ─────────────────────
                     _buildLabel('Semester'),
                     AppSpacing.smGap,
                     _buildSemesterDropdown(),
 
                     const SizedBox(height: AppSpacing.x3l),
 
-                    // ── Register button ───────────────────────
+                    // Register with Email
+                    SizedBox(
+                      width: double.infinity,
+                      height: AppSpacing.buttonHeight,
+                      child: ElevatedButton(
+                        onPressed: isLoading ? null : _registerWithEmail,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          disabledBackgroundColor: AppColors.bgElevated,
+                          shape: const RoundedRectangleBorder(
+                              borderRadius: AppSpacing.radiusMd),
+                          elevation: 0,
+                        ),
+                        child: Text('Register with Email',
+                            style: AppTextStyles.button),
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.sm),
+
+                    // Register with Google
                     GoogleSignInButton(
-                      onTap: isLoading ? null : _register,
+                      onTap: isLoading ? null : _registerWithGoogle,
                       isLoading: isLoading,
                       label: 'Register with Google',
                     ),
@@ -283,9 +323,7 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
     );
   }
 
-  Widget _buildLabel(String text) {
-    return Text(text, style: AppTextStyles.label);
-  }
+  Widget _buildLabel(String text) => Text(text, style: AppTextStyles.label);
 
   Widget _buildField({
     required TextEditingController controller,
@@ -310,25 +348,22 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
           vertical: AppSpacing.md,
         ),
         border: OutlineInputBorder(
-          borderRadius: AppSpacing.radiusMd,
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
+            borderRadius: AppSpacing.radiusMd,
+            borderSide: const BorderSide(color: AppColors.border)),
         enabledBorder: OutlineInputBorder(
-          borderRadius: AppSpacing.radiusMd,
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
+            borderRadius: AppSpacing.radiusMd,
+            borderSide: const BorderSide(color: AppColors.border)),
         focusedBorder: OutlineInputBorder(
-          borderRadius: AppSpacing.radiusMd,
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-        ),
+            borderRadius: AppSpacing.radiusMd,
+            borderSide:
+                const BorderSide(color: AppColors.primary, width: 1.5)),
         errorBorder: OutlineInputBorder(
-          borderRadius: AppSpacing.radiusMd,
-          borderSide: const BorderSide(color: AppColors.error),
-        ),
+            borderRadius: AppSpacing.radiusMd,
+            borderSide: const BorderSide(color: AppColors.error)),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: AppSpacing.radiusMd,
-          borderSide: const BorderSide(color: AppColors.error, width: 1.5),
-        ),
+            borderRadius: AppSpacing.radiusMd,
+            borderSide:
+                const BorderSide(color: AppColors.error, width: 1.5)),
       ),
     );
   }
@@ -340,10 +375,8 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
       dropdownColor: AppColors.bgElevated,
       hint: Text('Select semester', style: AppTextStyles.placeholder),
       decoration: InputDecoration(
-        prefixIcon: const Icon(
-          PhosphorIconsRegular.bookOpen,
-          size: AppSpacing.iconMd,
-        ),
+        prefixIcon: const Icon(PhosphorIconsRegular.bookOpen,
+            size: AppSpacing.iconMd),
         filled: true,
         fillColor: AppColors.bgElevated,
         contentPadding: const EdgeInsets.symmetric(
@@ -351,23 +384,18 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
           vertical: AppSpacing.md,
         ),
         border: OutlineInputBorder(
-          borderRadius: AppSpacing.radiusMd,
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
+            borderRadius: AppSpacing.radiusMd,
+            borderSide: const BorderSide(color: AppColors.border)),
         enabledBorder: OutlineInputBorder(
-          borderRadius: AppSpacing.radiusMd,
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
+            borderRadius: AppSpacing.radiusMd,
+            borderSide: const BorderSide(color: AppColors.border)),
         focusedBorder: OutlineInputBorder(
-          borderRadius: AppSpacing.radiusMd,
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-        ),
+            borderRadius: AppSpacing.radiusMd,
+            borderSide:
+                const BorderSide(color: AppColors.primary, width: 1.5)),
       ),
-      icon: const Icon(
-        PhosphorIconsRegular.caretDown,
-        color: AppColors.textMuted,
-        size: AppSpacing.iconMd,
-      ),
+      icon: const Icon(PhosphorIconsRegular.caretDown,
+          color: AppColors.textMuted, size: AppSpacing.iconMd),
       items: AppConstants.semesters
           .map((s) => DropdownMenuItem(
                 value: s,

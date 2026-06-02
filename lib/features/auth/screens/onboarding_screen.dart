@@ -9,9 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:universe_v1/core/router/route_names.dart';
-import 'package:universe_v1/core/app_colors.dart';
-import 'package:universe_v1/core/app_spacing.dart';
-import 'package:universe_v1/core/app_text_styles.dart';
+import 'package:universe_v1/core/theme/app_colors.dart';
+import 'package:universe_v1/core/theme/app_spacing.dart';
+import 'package:universe_v1/core/theme/app_text_styles.dart';
 import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
 import 'package:universe_v1/features/auth/widgets/onboard_slide.dart';
 

@@ -1,243 +1,3 @@
-// // ============================================================
-// // FILE: lib/features/auth/services/auth_service.dart
-// // PURPOSE: All raw Supabase auth operations live here.
-// // AuthController calls this; screens call the controller.
-// // This layer never touches Flutter UI.
-// //
-// // RESPONSIBILITIES:
-// // - Google OAuth sign-in / sign-out
-// // - Whitelist check (is this email registered by admin?)
-// // - Profile creation (first login only)
-// // - Profile fetch (every login)
-// // - Session restore on app restart
-// // ============================================================
-
-// import 'package:supabase_flutter/supabase_flutter.dart';
-// import 'package:universe_v1/core/constants/app_constants.dart';
-
-// // ─── Data model returned after a successful auth check ────
-// class AuthResult {
-//   final bool success;
-//   final String? role;         // 'student' | 'teacher' | 'admin'
-//   final Map<String, dynamic>? profile;
-//   final String? errorMessage;
-
-//   const AuthResult({
-//     required this.success,
-//     this.role,
-//     this.profile,
-//     this.errorMessage,
-//   });
-
-//   factory AuthResult.failure(String message) =>
-//       AuthResult(success: false, errorMessage: message);
-// }
-
-// class AuthService {
-//   final SupabaseClient _supabase = Supabase.instance.client;
-
-//   // ─── Current session user ─────────────────────────────────
-//   User? get currentUser => _supabase.auth.currentUser;
-//   bool get isLoggedIn   => currentUser != null;
-
-//   // ─── Sign in with Google ──────────────────────────────────
-//   // Opens the Google OAuth flow. On web this does a redirect;
-//   // on mobile Supabase handles the deep link automatically.
-//   Future<void> signInWithGoogle() async {
-//     await _supabase.auth.signInWithOAuth(
-//       OAuthProvider.google,
-//       redirectTo: 'io.supabase.universe://login-callback/',
-//       authScreenLaunchMode: LaunchMode.externalApplication,
-//     );
-//   }
-
-//   // ─── Check whitelist + fetch/create profile ───────────────
-//   // Called after the OAuth redirect completes and we have a
-//   // confirmed session. Returns AuthResult with role or error.
-//   Future<AuthResult> handlePostLogin() async {
-//     try {
-//       final user = currentUser;
-//       if (user == null) {
-//         return AuthResult.failure('No active session found.');
-//       }
-
-//       final email = user.email;
-//       if (email == null) {
-//         return AuthResult.failure('Could not read email from Google account.');
-//       }
-
-//       // 1. Check whitelist
-//       final whitelistRow = await _supabase
-//           .from(AppConstants.tableWhitelists)
-//           .select()
-//           .eq('email', email)
-//           .maybeSingle();
-
-//       if (whitelistRow == null) {
-//         // Admin hasn't pre-registered this email
-//         await signOut(); // Clear the session so they can't stay logged in
-//         return AuthResult.failure('not_whitelisted');
-//       }
-
-//       final role = whitelistRow['role'] as String;
-
-//       // 2. Check if profile already exists
-//       final existingProfile = await _supabase
-//           .from(AppConstants.tableProfiles)
-//           .select()
-//           .eq('id', user.id)
-//           .maybeSingle();
-
-//       if (existingProfile != null) {
-//         // Returning user — just return existing profile
-//         return AuthResult(
-//           success: true,
-//           role: role,
-//           profile: existingProfile,
-//         );
-//       }
-
-//       // 3. First login — create profile from whitelist data
-//       final newProfile = {
-//         'id': user.id,
-//         'email': email,
-//         'role': role,
-//         'name': whitelistRow['name'] ?? user.userMetadata?['full_name'] ?? '',
-//         'avatar_url': user.userMetadata?['avatar_url'],
-//         'batch': whitelistRow['batch'],
-//         'section': whitelistRow['section'],
-//         'semester': whitelistRow['semester'],
-//         'student_id': null, // set by student during register
-//         'teacher_code': whitelistRow['teacher_code'],
-//         'designation': whitelistRow['designation'],
-//         'department': whitelistRow['department'],
-//         'photo_url': user.userMetadata?['avatar_url'],
-//         'courses': const [],
-//       };
-
-//       await _supabase
-//           .from(AppConstants.tableProfiles)
-//           .insert(newProfile);
-
-//       return AuthResult(
-//         success: true,
-//         role: role,
-//         profile: newProfile,
-//       );
-//     } on PostgrestException catch (e) {
-//       return AuthResult.failure('Database error: ${e.message}');
-//     } catch (e) {
-//       return AuthResult.failure('Unexpected error: $e');
-//     }
-//   }
-
-//   // ─── Complete registration (student) ─────────────────────
-//   // Called from StudentRegisterScreen after user fills the form.
-//   // Updates their profile with student-specific academic info.
-//   Future<AuthResult> completeStudentRegistration({
-//     required String name,
-//     required String studentId,
-//     required String batch,
-//     required String section,
-//     required int semester,
-//   }) async {
-//     try {
-//       final user = currentUser;
-//       if (user == null) return AuthResult.failure('Not signed in.');
-
-//       await _supabase.from(AppConstants.tableProfiles).upsert({
-//         'id': user.id,
-//         'email': user.email,
-//         'role': AppConstants.roleStudent,
-//         'name': name,
-//         'student_id': studentId,
-//         'batch': batch,
-//         'section': section,
-//         'semester': semester,
-//         'avatar_url': user.userMetadata?['avatar_url'],
-//       });
-
-//       final profile = await _supabase
-//           .from(AppConstants.tableProfiles)
-//           .select()
-//           .eq('id', user.id)
-//           .single();
-
-//       return AuthResult(
-//         success: true,
-//         role: AppConstants.roleStudent,
-//         profile: profile,
-//       );
-//     } on PostgrestException catch (e) {
-//       return AuthResult.failure(e.message);
-//     } catch (e) {
-//       return AuthResult.failure('$e');
-//     }
-//   }
-
-//   // ─── Complete registration (faculty) ─────────────────────
-//   Future<AuthResult> completeFacultyRegistration({
-//     required String name,
-//     required String employeeId,
-//     required String department,
-//     required String designation,
-//   }) async {
-//     try {
-//       final user = currentUser;
-//       if (user == null) return AuthResult.failure('Not signed in.');
-
-//       await _supabase.from(AppConstants.tableProfiles).upsert({
-//         'id': user.id,
-//         'email': user.email,
-//         'role': AppConstants.roleTeacher,
-//         'name': name,
-//         'student_id': employeeId, // reusing field for employee ID
-//         'department': department,
-//         'designation': designation,
-//         'avatar_url': user.userMetadata?['avatar_url'],
-//       });
-
-//       final profile = await _supabase
-//           .from(AppConstants.tableProfiles)
-//           .select()
-//           .eq('id', user.id)
-//           .single();
-
-//       return AuthResult(
-//         success: true,
-//         role: AppConstants.roleTeacher,
-//         profile: profile,
-//       );
-//     } on PostgrestException catch (e) {
-//       return AuthResult.failure(e.message);
-//     } catch (e) {
-//       return AuthResult.failure('$e');
-//     }
-//   }
-
-//   // ─── Fetch profile by user id ─────────────────────────────
-//   Future<Map<String, dynamic>?> fetchProfile(String userId) async {
-//     try {
-//       return await _supabase
-//           .from(AppConstants.tableProfiles)
-//           .select()
-//           .eq('id', userId)
-//           .maybeSingle();
-//     } catch (_) {
-//       return null;
-//     }
-//   }
-
-//   // ─── Sign out ─────────────────────────────────────────────
-//   Future<void> signOut() async {
-//     await _supabase.auth.signOut();
-//   }
-
-//   // ─── Auth state stream ────────────────────────────────────
-//   // GoRouter listens to this to redirect after OAuth completes.
-//   Stream<AuthState> get authStateChanges =>
-//       _supabase.auth.onAuthStateChange;
-// }
 // ============================================================
 // FILE: lib/features/auth/services/auth_service.dart
 // PURPOSE: All raw Supabase auth operations.
@@ -310,17 +70,9 @@ class AuthService {
     required String password,
   }) async {
     try {
-      // First check whitelist — only pre-registered emails allowed
-      final whitelistRow = await _supabase
-          .from(AppConstants.tableWhitelists)
-          .select()
-          .eq('email', email.trim().toLowerCase())
-          .maybeSingle();
-
-      if (whitelistRow == null) {
-        return AuthResult.failure('not_whitelisted');
-      }
-
+      // No whitelist check here — students and teachers sign up freely.
+      // Admin accounts are created directly by the department head
+      // and only sign in, never self-register via this screen.
       final response = await _supabase.auth.signUp(
         email: email.trim().toLowerCase(),
         password: password,
@@ -331,17 +83,13 @@ class AuthService {
         return AuthResult.failure('Sign-up failed. Please try again.');
       }
 
-      // If email confirmation is required, user.identities will be
-      // empty on the response — we tell the UI to show verify screen
-      final needsVerification =
-          response.session == null; // no session = email not confirmed yet
-
+      // No session = email confirmation required
+      final needsVerification = response.session == null;
       if (needsVerification) {
         return AuthResult.needsVerification();
       }
 
-      // Rare case: email confirmation disabled in Supabase →
-      // session is immediately available, proceed to profile setup
+      // Email confirmation disabled in Supabase dashboard → proceed
       return await handlePostLogin();
     } on AuthException catch (e) {
       return AuthResult.failure(_friendlyAuthError(e.message));
@@ -440,21 +188,8 @@ class AuthService {
       final email = user.email;
       if (email == null) return AuthResult.failure('Could not read email.');
 
-      // 1. Check whitelist
-      final whitelistRow = await _supabase
-          .from(AppConstants.tableWhitelists)
-          .select()
-          .eq('email', email.toLowerCase())
-          .maybeSingle();
-
-      if (whitelistRow == null) {
-        await signOut();
-        return AuthResult.failure('not_whitelisted');
-      }
-
-      final role = whitelistRow['role'] as String;
-
-      // 2. Check if profile already exists
+      // ── Step 1: Check if profile already exists ─────────────
+      // Returning users skip all whitelist logic entirely.
       final existingProfile = await _supabase
           .from(AppConstants.tableProfiles)
           .select()
@@ -462,23 +197,61 @@ class AuthService {
           .maybeSingle();
 
       if (existingProfile != null) {
-        return AuthResult(success: true, role: role, profile: existingProfile);
+        final role = existingProfile['role'] as String;
+        return AuthResult(
+            success: true, role: role, profile: existingProfile);
       }
 
-      // 3. First login — create profile from whitelist data
+      // ── Step 2: First login — check whitelist for admin gate ─
+      // Whitelist is ONLY enforced for admin accounts.
+      // Students and teachers can sign up freely.
+      final whitelistRow = await _supabase
+          .from(AppConstants.tableWhitelists)
+          .select()
+          .eq('email', email.toLowerCase())
+          .maybeSingle();
+
+      // ── Step 3: Determine role ────────────────────────────────
+      // If whitelisted → use the role from whitelist (covers admin).
+      // If NOT whitelisted → default to student.
+      //   Teachers self-identify during registration via
+      //   completeFacultyRegistration() which sets role explicitly.
+      //   Admin without whitelist entry → blocked.
+      String role;
+
+      if (whitelistRow != null) {
+        role = whitelistRow['role'] as String;
+      } else {
+        // Not in whitelist — allowed only as student or teacher.
+        // Admin accounts MUST be whitelisted — block them here.
+        // (Teachers arrive here via completeFacultyRegistration,
+        //  which upserts the profile with role='teacher' before
+        //  handlePostLogin is called, so existingProfile catches
+        //  them above. This fallback is for Google OAuth students.)
+        role = AppConstants.roleStudent;
+      }
+
+      // Extra safety: if somehow an admin is not whitelisted, block.
+      if (role == AppConstants.roleAdmin && whitelistRow == null) {
+        await signOut();
+        return AuthResult.failure('not_whitelisted');
+      }
+
+      // ── Step 4: Create profile for first-time user ────────────
       final newProfile = {
         'id': user.id,
         'email': email,
         'role': role,
-        'name': whitelistRow['name'] ?? user.userMetadata?['full_name'] ?? '',
+        'name': whitelistRow?['name'] ??
+            user.userMetadata?['full_name'] ?? '',
         'avatar_url': user.userMetadata?['avatar_url'],
-        'batch': whitelistRow['batch'],
-        'section': whitelistRow['section'],
-        'semester': whitelistRow['semester'],
+        'batch': whitelistRow?['batch'],
+        'section': whitelistRow?['section'],
+        'semester': whitelistRow?['semester'],
         'student_id': null,
-        'teacher_code': whitelistRow['teacher_code'],
-        'designation': whitelistRow['designation'],
-        'department': whitelistRow['department'],
+        'teacher_code': whitelistRow?['teacher_code'],
+        'designation': whitelistRow?['designation'],
+        'department': whitelistRow?['department'],
         'photo_url': user.userMetadata?['avatar_url'],
         'courses': const [],
       };

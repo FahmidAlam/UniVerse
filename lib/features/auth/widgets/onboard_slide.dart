@@ -6,9 +6,9 @@
 // ============================================================
 
 import 'package:flutter/material.dart';
-import 'package:universe_v1/core/app_colors.dart';
-import 'package:universe_v1/core/app_spacing.dart';
-import 'package:universe_v1/core/app_text_styles.dart';
+import 'package:universe_v1/core/theme/app_colors.dart';
+import 'package:universe_v1/core/theme/app_spacing.dart';
+import 'package:universe_v1/core/theme/app_text_styles.dart';
 
 class OnboardSlide extends StatelessWidget {
   final IconData icon;
