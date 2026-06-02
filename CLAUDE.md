@@ -1,5 +1,6 @@
 # CLAUDE.md — UniVerse Project Context
 > Load this at the start of every session. Dense reference only — no fluff.
+> Last updated: June 2026 (post-auth implementation + hybrid search design)
 
 ---
 
@@ -13,23 +14,55 @@
 | Department | CSE |
 | Course | CSE-3240 (Project I) |
 | Team name | Sherlocked |
-| Advisor | Kazi Md. Jahid Hasan |
+| Advisor | Jaminur Rahman |
 | Defense deadline | 30 days from Day 1 (started May 2026) |
-| Flutter package name | `universe` |
+| Flutter package name | `universe_v1` |
 | Android applicationId | `com.example.universe_v1` |
 
-**Three actor types:** Student · Teacher · Admin  
+**Three actor types:** Student · Teacher · Admin
 **Critical differentiator (advisor-required):** Automatic department timetable generator using OR-Tools CP-SAT
 
 ---
 
-## TEAM ROLES
+## TEAM ROLES — FEATURE-BASED OWNERSHIP
 
-| Member | ID | Role |
-|---|---|---|
-| Fahmid Alam | 0182320012101309 | Project Lead · Backend · AI pipeline · Architecture · Admin screens |
-| Swadheen Islam Robi | 0182320012101278 | UI/UX · Frontend · Feature modules · Student core screens |
-| Shahriar Rashid Ratul | 0182320012101276 | QA · Testing · Notifications · Data seeding · Polish |
+> Each member owns complete vertical slices: screen + controller + service + tests.
+> Never touch another member's feature branch. Shared infrastructure = Fahmid only.
+
+### Fahmid Alam — ID: 0182320012101309
+**Owns: Architecture, Shared Infrastructure, AI Pipeline, Timetable Engine, Admin**
+- `lib/core/` — all theme, router, constants, utils (sole owner)
+- `lib/shared/widgets/` — all reusable u_* widgets (sole owner)
+- `lib/features/auth/` — complete auth system (done)
+- `lib/features/ai_assistant/` — RAG pipeline, chat UI, Gemini integration
+- `lib/features/admin/` — all 5 admin screens + controller + service
+- `engine/` — FastAPI + OR-Tools timetable backend (Python, separate repo)
+- `main.dart`, `pubspec.yaml`, `AndroidManifest.xml` (sole owner)
+- **Branch:** `feature/app-foundation`, `feature/auth`, `feature/admin-screens`, `feature/timetable-engine`
+
+### Swadheen Islam Robi — ID: 0182320012101278
+**Owns: Student-Facing Features, Teacher Screens**
+- `lib/features/dashboard/` — student dashboard, live class card, countdown
+- `lib/features/routine/screens/student_routine_screen.dart` — student routine view
+- `lib/features/routine/screens/teacher_routine_screen.dart` — teacher routine view
+- `lib/features/routine/` — routine controller + service (shared with teacher)
+- `lib/features/resources/` — resource hub, filter, PDF viewer, Drive links
+- `lib/features/teacher/` — manage classes screen, cancel sheet, notice sheet
+- **Branch:** `feature/student-core`, `feature/teacher-screens`
+- **Uses mock data** until Fahmid's timetable engine merges to develop
+
+### Shahriar Rashid Ratul — ID: 0182320012101276
+**Owns: Notifications, Profile, QA, Data Seeding**
+- `lib/features/notifications/` — feed UI, filter chips, Realtime subscription, badge count
+- `lib/features/profile/` — profile screen, stats, settings tiles, sign out
+- Demo data seed scripts (20 teachers, full routine, 15+ resources, 10 notifications)
+- End-to-end testing, device testing, APK build verification
+- `README.md`, screenshots for defense
+- **Branch:** `feature/notifications-profile`
+
+### Conflict-free shared file rule
+If ANY file outside your feature folder needs changing → open a PR to develop and tag Fahmid.
+Never directly edit: `app_router.dart`, `route_names.dart`, `app_constants.dart`, `pubspec.yaml`.
 
 ---
 
@@ -54,280 +87,362 @@ shared_preferences: ^2.3.2
 
 ### Backend / Services
 - **Supabase** — PostgreSQL + pgvector + Auth + Storage + Realtime
-- **Gemini API** — `text-embedding-004` (768-dim vectors) + `gemini-2.0-flash` (generation)
+- **Gemini API** — `text-embedding-004` (768-dim) + `gemini-2.0-flash` (generation)
 - **Google OAuth** — via Supabase Auth, PKCE flow
 - **FastAPI (Python)** — timetable engine, deployed on Railway/Render free tier
 - **OR-Tools CP-SAT** — constraint solver for timetable generation
 
-### Auth deep link scheme
+### Auth deep link schemes
 ```
-com.example.universe_v1://login-callback/
-com.example.universe_v1://reset-callback/
+com.example.universe_v1://login-callback/   <- Google OAuth + email verify
+com.example.universe_v1://reset-callback/  <- password reset
 ```
 
 ---
 
 ## DESIGN SYSTEM
 
-> All tokens are in `lib/core/theme/`. **Never hardcode hex values or raw numbers in widgets.**
+> All tokens in `lib/core/theme/`. **Never hardcode hex values or raw numbers in widgets.**
 
-### Color tokens (`app_colors.dart`) — KEY VALUES
+### Color tokens (`app_colors.dart`)
 ```dart
-bgPrimary   = #0F0F10   // screen background
-bgCard      = #1A1A1C   // card surfaces
-bgElevated  = #222325   // inputs, chips
-primary     = #FF7A00   // orange — CTA, active nav, live badge
-primarySoft = #2A1A0A   // orange badge backgrounds
-primaryMuted= #3D2000   // selected chip backgrounds
-textPrimary = #FFFFFF
-textSecondary = #B0B3B8
-textMuted   = #6E7278
-border      = #2A2C30
-navBg       = #111113
-success     = #22C55E / successSoft = #0D2E1A
-info        = #3B82F6 / infoSoft    = #0D1F3C
-warning     = #F59E0B / warningSoft = #2D1E00
-error       = #EF4444 / errorSoft   = #2D0D0D
+bgPrimary    = #0F0F10   // screen background
+bgCard       = #1A1A1C   // card surfaces
+bgElevated   = #222325   // inputs, chips
+bgSubtle     = #1C1C1E   // pressed states, skeletons
+primary      = #FF7A00   // orange - CTA, active nav, live badge
+primaryDark  = #E66A00   // pressed state
+primarySoft  = #2A1A0A   // orange badge backgrounds
+primaryMuted = #3D2000   // selected chip backgrounds
+textPrimary  = #FFFFFF
+textSecondary= #B0B3B8
+textMuted    = #6E7278
+textDisabled = #4A4D52
+border       = #2A2C30
+borderFocus  = #FF7A00
+borderError  = #EF4444
+navBg        = #111113
+success=#22C55E / successSoft=#0D2E1A
+info   =#3B82F6 / infoSoft   =#0D1F3C
+warning=#F59E0B / warningSoft=#2D1E00
+error  =#EF4444 / errorSoft  =#2D0D0D
+done   =#6E7278 / doneSoft   =#1A1C1F
 ```
 
 ### Text styles (`app_text_styles.dart`)
-`h1` 24/700 · `h2` 18/600 · `h3` 16/600 · `h4` 14/600  
-`body` 14/400 · `bodyMedium` 14/500 · `bodySm` 13/400  
-`badge` 10/700 uppercase · `chip` 12/500 · `label` 12/500  
-`button` 15/600 · `link` 13/500 orange · `danger` 14/500 red  
-`countdown` 30/700 orange · `statNumber` 22/700 orange  
+`h1` 24/700 · `h2` 18/600 · `h3` 16/600 · `h4` 14/600
+`body` 14/400 · `bodyMedium` 14/500 · `bodySm` 13/400 (color: textSecondary)
+`badge` 10/700 uppercase ls:0.8 · `chip` 12/500 · `label` 12/500 ls:0.3
+`button` 15/600 · `link` 13/500 orange · `danger` 14/500 red
+`countdown` 30/700 orange ls:-1.5 · `statNumber` 22/700 orange
+`onboardTitle` 22/700 · `input` 14/400 · `placeholder` 14/400 muted
 
 ### Spacing (`app_spacing.dart`)
-`xs=4 sm=8 md=12 lg=16 xl=20 xxl=24 x3l=32 x4l=40 x5l=48`  
-`screenH=20 screenV=16` · `buttonHeight=52` · `inputHeight=52`  
-`radiusSm=8 radiusMd=12 radiusLg=16 radiusXl=20 radiusFull=100`  
-`borderAccent=3` (notification left border)
+`xs=4 sm=8 md=12 lg=16 xl=20 xxl=24 x3l=32 x4l=40 x5l=48`
+`screenH=20 screenV=16` · `buttonHeight=52` · `inputHeight=52` · `chipHeight=34`
+`radiusSm=8 radiusMd=12 radiusLg=16 radiusXl=20 radiusFull=100`
+`borderThin=0.5 borderNormal=1.0 borderThick=2.0 borderAccent=3.0`
 
-### Theme entry point
-`AppTheme.dark` — wire in `MaterialApp.router(theme: AppTheme.dark)`  
-`AppTheme.setSystemUI()` — call once in `main()` before `runApp()`  
-Font: **Inter** via `GoogleFonts.interTextTheme()` — set in app_theme.dart, inherited everywhere  
-Icons: **phosphor_flutter** — always use `PhosphorIconsRegular.*`
+### Theme
+`AppTheme.dark` -> wire in `MaterialApp.router(theme: AppTheme.dark)`
+`AppTheme.setSystemUI()` -> call once in `main()` before `runApp()`
+Font: **Inter** via `GoogleFonts.interTextTheme()` — inherited everywhere, never specify fontFamily in widgets
+Icons: **phosphor_flutter** -> always `PhosphorIconsRegular.*`
 
 ---
 
 ## ARCHITECTURE RULES
 
-### Layer structure (feature-first)
+### Folder structure
 ```
 lib/
-  main.dart
+  main.dart                   <- Fahmid only
   core/
-    theme/         ← app_colors, app_text_styles, app_spacing, app_theme
-    router/        ← app_router, route_names
-    constants/     ← app_constants
-    utils/         ← date_utils, extensions, validators  [TO BUILD]
+    theme/                    <- 4 files, all done, Fahmid only
+    router/                   <- app_router + route_names, Fahmid only
+    constants/                <- app_constants, Fahmid only
+    utils/                    <- date_utils, validators, extensions [TO BUILD]
   shared/
-    widgets/       ← reusable u_* widgets + domain cards  [TO BUILD]
+    widgets/                  <- all u_* widgets [TO BUILD - Fahmid]
   features/
-    auth/          ← screens, controllers, services, widgets
-    dashboard/     [TO BUILD]
-    routine/       [TO BUILD]
-    ai_assistant/  [TO BUILD]
-    resources/     [TO BUILD]
-    notifications/ [TO BUILD]
-    profile/       [TO BUILD]
-    teacher/       [TO BUILD]
-    admin/         [TO BUILD]
+    auth/                     <- DONE - Fahmid
+    dashboard/                <- Robi
+    routine/                  <- Robi
+    ai_assistant/             <- Fahmid
+    resources/                <- Robi
+    notifications/            <- Ratul
+    profile/                  <- Ratul
+    teacher/                  <- Robi
+    admin/                    <- Fahmid
 ```
 
-### Hard folder rules
-- Screens only in `features/<feature>/screens/`
-- Reusable widgets only in `shared/widgets/` or `features/<feature>/widgets/`
-- All Supabase calls only in `features/<feature>/services/`
-- Controllers only call services, never call Supabase directly
-- Screens only call controllers, never call services directly
+### Layer rules (enforced — no exceptions)
+- Screens -> call controllers only, never Supabase directly
+- Controllers -> call services only, never Supabase directly
+- Services -> only layer that touches Supabase
+- Shared widgets -> import from `shared/widgets/` never from feature folders
+- Each feature folder: `screens/` + `controllers/` + `services/` + `widgets/`
 
 ### State management
 - `ChangeNotifier` + `ListenableBuilder` — **no Riverpod, no Bloc, no Provider**
-- `setState` allowed for local UI state (toggle, form, animation)
-- Supabase Realtime streams for live notifications
+- `setState` for local UI state only (toggle, animation, form field)
+- Supabase Realtime streams for live notifications (Ratul's feature)
 
 ### Navigation
-- **GoRouter ^14** — single `AppRouter` instance, passed to `MaterialApp.router`
-- All route paths as constants in `RouteNames`
-- `redirect` logic in `AppRouter` — screens never guard themselves
-- `authController` is the `refreshListenable` — changing status triggers redirect
+- **GoRouter ^14** — single `AppRouter` instance in `main.dart`
+- All paths as constants in `RouteNames` — never hardcode strings
+- Redirect logic lives only in `AppRouter.redirect()` — screens never guard themselves
+- `authController` is the `refreshListenable`
+
+---
+
+## AUTH SYSTEM (COMPLETE)
+
+### Two methods supported
+1. **Google OAuth** — PKCE, `signInWithOAuth(OAuthProvider.google)`
+2. **Email + Password** — `signUp()` + email verification + `signInWithPassword()`
+
+### Whitelist gate — ADMIN ONLY
+- Students and teachers sign up/login freely — no whitelist check
+- Only admin accounts require pre-registration in `whitelists` table
+- `handlePostLogin()` in `auth_service.dart` enforces this
+- Non-whitelisted admin -> signed out -> `NotWhitelistedScreen`
+
+### AuthStatus enum
+```dart
+initial · loading · authenticated · unauthenticated ·
+registering · notWhitelisted · awaitingVerification · error
+```
+
+### Pending registration data (email path)
+- Register screen calls `storePendingStudentData()` / `storePendingFacultyData()` on controller
+- Then navigates to `EmailSignupScreen`
+- After email verified, `EmailSignupScreen` reads `pendingStudentData` / `pendingFacultyData`
+- Calls `completeStudentRegistration()` / `completeFacultyRegistration()` to create profile
+- `clearPendingData()` called automatically on success or sign out
+
+### Full auth flow
+```
+Splash -> initialize()
+  |- session + verified     -> load profile -> role dashboard
+  |- session + unverified   -> VerifyEmailScreen
+  +- no session             -> onboarding check -> Login or Onboarding
+
+Login
+  |- Google OAuth           -> whitelist check (admin only) -> dashboard
+  |- Email/password         -> dashboard / VerifyEmailScreen
+  +- Create account         -> RoleSelection -> Student/FacultyRegister
+
+Email registration path:
+  RegisterScreen -> storePendingData() -> EmailSignupScreen
+  -> signUp() -> VerifyEmailScreen (polls + resend + 60s cooldown)
+  -> verified -> handlePostLogin() -> completeRegistration() -> dashboard
+
+Password reset path:
+  ForgotPasswordScreen -> sendPasswordResetEmail()
+  -> deep link fires AuthChangeEvent.passwordRecovery
+  -> main.dart routes to ResetPasswordScreen -> updatePassword() -> login
+```
 
 ---
 
 ## SUPABASE SCHEMA
 
-### Tables (all created)
-| Table | Purpose |
+### Current tables (live in production)
+
+| Table | Key detail |
 |---|---|
-| `whitelists` | Admin pre-registers emails before users can join |
-| `profiles` | Extended user data linked to `auth.users` |
-| `routines` | Weekly class schedule entries |
-| `cancellations` | Teacher class cancellations |
-| `notifications` | All notification types |
-| `resources` | Academic resources (PDFs, Drive links) |
-| `assignments` | Teacher-created assignments |
-| `submissions` | Student file submissions with `is_late` trigger |
-| `documents` | RAG vector store (content + embedding VECTOR(768)) |
-| `generated_timetable` | Output of OR-Tools timetable engine |
+| `whitelists` | Admin-only gate. `role` constrained to student/teacher/admin |
+| `profiles` | Extends `auth.users`, created on first login |
+| `routines` | Weekly schedule. Filtered by batch+section for students |
+| `cancellations` | Teacher cancellations, triggers Realtime push |
+| `notifications` | All types. `type` constrained by CHECK constraint |
+| `resources` | PDFs + Drive links, filtered by semester + category |
+| `assignments` | Teacher-created, targets batch+section |
+| `submissions` | `is_late` set by PostgreSQL trigger, never in Dart |
+| `documents` | RAG vector store — `embedding VECTOR(768)`, `category TEXT` |
+| `generated_timetable` | OR-Tools output, stored after generation |
 
-### Key schema details
-- `submissions.is_late` — set by PostgreSQL trigger `calculate_is_late`, NOT in Dart code
-- `documents.embedding` — `VECTOR(768)`, requires `pgvector` extension
-- `match_documents(query_embedding, match_count)` — Postgres RPC for cosine similarity search
-- HNSW index on `documents.embedding` for fast vector search
+### `documents` table — current state vs planned state
 
-### RLS pattern (applied to all tables)
+**Current columns (live):**
+```sql
+id        UUID  PRIMARY KEY
+content   TEXT  NOT NULL
+embedding VECTOR(768)        -- pgvector, HNSW indexed
+category  TEXT  NOT NULL     -- e.g. 'routine', 'resource', 'policy'
+```
+
+**Planned additions — DO NOT RUN until ai_assistant_service.dart is being built:**
+```sql
+-- 1. namespace column for scoped retrieval
+ALTER TABLE documents ADD COLUMN namespace TEXT NOT NULL DEFAULT 'admin_global';
+-- Values: 'student_{uuid}' | 'course_{code}' | 'admin_global'
+
+-- 2. Full-text search column (auto-generated, Dart never touches it)
+ALTER TABLE documents ADD COLUMN content_tsv TSVECTOR
+  GENERATED ALWAYS AS (to_tsvector('english', content)) STORED;
+
+CREATE INDEX idx_documents_tsv ON documents USING GIN(content_tsv);
+```
+
+**Why deferred:** Adding `namespace` requires updating every Dart INSERT call simultaneously.
+Do the migration and write `ai_assistant_service.dart` in the same sitting to avoid broken state.
+
+### Namespace routing (when implemented)
+
+| Who is querying | Namespace value to pass |
+|---|---|
+| Student querying their own uploaded notes | `student_{userId}` |
+| Student asking about a course | `course_{courseCode}` |
+| Anyone querying university-wide info | `admin_global` |
+| Admin querying everything | `null` (no filter applied) |
+
+### Critical schema notes
+- `submissions.is_late` -> PostgreSQL trigger `calculate_is_late` — **never compute in Dart**
+- `documents.embedding` -> `VECTOR(768)`, requires `pgvector` extension (enabled)
+- HNSW index on `documents.embedding` for fast cosine search
+- `match_documents(query_embedding, match_count)` -> current Postgres RPC for RAG queries
+- `category` != `namespace` — category describes content type, namespace scopes access
+
+### RLS pattern (all tables)
 ```sql
 ALTER TABLE t ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "read_all" ON t FOR SELECT USING (true);
 CREATE POLICY "admin_write" ON t FOR INSERT
-  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
+  ));
 ```
 
 ### Storage buckets
-`avatars` (public) · `resources` (public) · `assignments` (public)  
+`avatars` (public) · `resources` (public) · `assignments` (public)
 Open storage policy for MVP — tighten before production.
-
-### Auth methods supported
-1. **Google OAuth** — PKCE flow via `supabase.auth.signInWithOAuth(OAuthProvider.google)`
-2. **Email + Password** — `signUp()` + `signInWithPassword()` + email verification
-
-### Whitelist gate
-Every sign-in (both OAuth and email) checks `whitelists` table by email.  
-If email not found → sign out user → redirect to `not_whitelisted` screen.  
-Profile created from whitelist data on first login only.
-
----
-
-## AUTH FLOW (COMPLETE)
-
-```
-Splash → check session
-  ├─ session exists + verified  → load profile → role dashboard
-  ├─ session exists + unverified → VerifyEmailScreen
-  └─ no session → check SharedPrefs
-        ├─ onboarding not seen → OnboardingScreen
-        └─ onboarding seen → LoginScreen
-
-LoginScreen
-  ├─ Continue with Google → OAuth → whitelist check → dashboard
-  ├─ Email/password form → whitelist check → dashboard / verify screen
-  └─ Create account → RoleSelectionScreen
-        ├─ Student → StudentRegisterScreen → Google OAuth → profile upsert
-        ├─ Teacher → FacultyRegisterScreen → Google OAuth → profile upsert
-        └─ Admin   → info sheet (admin accounts created by dept head)
-
-Email signup path:
-  EmailSignupScreen → signUp() → VerifyEmailScreen (polls + resend)
-  → user clicks link → session refresh → handlePostLogin() → dashboard
-
-Password reset path:
-  ForgotPasswordScreen → resetPasswordForEmail() → email sent
-  → user clicks link (deep link) → ResetPasswordScreen → updateUser()
-```
-
-### AuthStatus enum
-`initial · loading · authenticated · unauthenticated · notWhitelisted · awaitingVerification · error`
-
----
-
-## SCREEN INVENTORY
-
-| # | Screen | Route | Status |
-|---|---|---|---|
-| 1 | Splash | `/` | ✅ Built |
-| 2 | Onboarding (3 slides) | `/onboarding` | ✅ Built |
-| 3 | Login (Google + email) | `/login` | ✅ Built |
-| 4 | Email Sign In | `/login/email` | ✅ Built |
-| 5 | Email Sign Up | `/signup/email` | ✅ Built |
-| 6 | Verify Email | `/verify-email` | ✅ Built |
-| 7 | Forgot Password | `/forgot-password` | ⚠️ Route wired, screen file missing |
-| 8 | Role Selection | `/role-selection` | ✅ Built |
-| 9 | Student Register | `/register/student` | ✅ Built |
-| 10 | Faculty Register | `/register/faculty` | ✅ Built |
-| 11 | Not Whitelisted | `/not-whitelisted` | ✅ Built |
-| 12 | Student Dashboard | `/student/dashboard` | 🔲 Placeholder |
-| 13 | AI Chat Assistant | `/student/ai-assistant` | 🔲 Placeholder |
-| 14 | Student Routine | `/student/routine` | 🔲 Placeholder |
-| 15 | Resource Hub | `/student/resources` | 🔲 Placeholder |
-| 16 | Notifications | `/notifications` | 🔲 Placeholder |
-| 17 | Profile | `/profile` | 🔲 Placeholder |
-| 18 | Teacher Dashboard | `/teacher/dashboard` | 🔲 Placeholder |
-| 19 | Teacher Routine | `/teacher/routine` | 🔲 Placeholder |
-| 20 | Manage Classes & Notice | `/teacher/manage-classes` | 🔲 Placeholder |
-| 21 | Admin Dashboard | `/admin/dashboard` | 🔲 Placeholder |
-| 22 | Routine Management | `/admin/routine` | 🔲 Placeholder |
-| 23 | Campus Broadcast | `/admin/broadcast` | 🔲 Placeholder |
-| 24 | Admin Registration | `/admin/registration` | 🔲 Placeholder |
-| 25 | Manage Users | `/admin/users` | 🔲 Placeholder |
 
 ---
 
 ## FILES ALREADY CREATED
 
-### Core
-| Path | Purpose |
+### Core (Fahmid — all done)
+| Path | Status |
 |---|---|
-| `lib/main.dart` | App entry — Supabase init, AppTheme, GoRouter, auth stream |
-| `lib/core/theme/app_colors.dart` | All color tokens |
-| `lib/core/theme/app_text_styles.dart` | All text styles |
-| `lib/core/theme/app_spacing.dart` | All spacing/radius/dimension tokens |
-| `lib/core/theme/app_theme.dart` | Full ThemeData wiring all tokens |
-| `lib/core/router/route_names.dart` | All route path constants |
-| `lib/core/router/app_router.dart` | GoRouter with full role-based redirect logic |
-| `lib/core/constants/app_constants.dart` | Supabase URLs, table names, slots, semesters |
+| `lib/core/theme/app_colors.dart` | Done |
+| `lib/core/theme/app_text_styles.dart` | Done |
+| `lib/core/theme/app_spacing.dart` | Done |
+| `lib/core/theme/app_theme.dart` | Done |
+| `lib/core/router/route_names.dart` | Done |
+| `lib/core/router/app_router.dart` | Done |
+| `lib/core/constants/app_constants.dart` | Done |
+| `lib/main.dart` | Done |
+| `pubspec.yaml` | Done |
+| `android/app/src/main/AndroidManifest.xml` | Done |
 
-### Auth feature
-| Path | Purpose |
+### Auth feature (Fahmid — all done)
+| Path | Status |
 |---|---|
-| `lib/features/auth/services/auth_service.dart` | All Supabase auth ops — Google OAuth + email/password |
-| `lib/features/auth/controllers/auth_controller.dart` | ChangeNotifier state manager for all auth flows |
-| `lib/features/auth/screens/splash_screen.dart` | Animated logo, session check, routing |
-| `lib/features/auth/screens/onboarding_screen.dart` | 3-slide PageView, SharedPrefs flag |
-| `lib/features/auth/screens/login_screen.dart` | Google + email/password login, animated form |
-| `lib/features/auth/screens/email_login_screen.dart` | Dedicated email sign-in screen |
-| `lib/features/auth/screens/email_signup_screen.dart` | Email sign-up with password strength bar |
-| `lib/features/auth/screens/verify_email_screen.dart` | Email verification — polling + resend + cooldown |
-| `lib/features/auth/screens/role_selection_screen.dart` | Student/Teacher/Admin role cards |
-| `lib/features/auth/screens/student_register_screen.dart` | Student registration form + Google OAuth |
-| `lib/features/auth/screens/faculty_register_screen.dart` | Faculty registration form + Google OAuth |
-| `lib/features/auth/screens/not_whitelisted_screen.dart` | Email not in whitelist — contact admin |
-| `lib/features/auth/screens/placeholder_screen.dart` | Temporary screen for unbuilt routes |
-| `lib/features/auth/widgets/onboard_slide.dart` | Single onboarding slide widget |
-| `lib/features/auth/widgets/google_sign_in_button.dart` | White Google OAuth button |
-
-### Config
-| Path | Purpose |
-|---|---|
-| `pubspec.yaml` | All dependencies pinned |
+| `lib/features/auth/services/auth_service.dart` | Done |
+| `lib/features/auth/controllers/auth_controller.dart` | Done |
+| `lib/features/auth/screens/splash_screen.dart` | Done |
+| `lib/features/auth/screens/onboarding_screen.dart` | Done |
+| `lib/features/auth/screens/login_screen.dart` | Done |
+| `lib/features/auth/screens/email_login_screen.dart` | Done |
+| `lib/features/auth/screens/email_signup_screen.dart` | Done |
+| `lib/features/auth/screens/verify_email_screen.dart` | Done |
+| `lib/features/auth/screens/forgot_password_screen.dart` | Done |
+| `lib/features/auth/screens/reset_password_screen.dart` | Done |
+| `lib/features/auth/screens/role_selection_screen.dart` | Done |
+| `lib/features/auth/screens/student_register_screen.dart` | Done |
+| `lib/features/auth/screens/faculty_register_screen.dart` | Done |
+| `lib/features/auth/screens/not_whitelisted_screen.dart` | Done |
+| `lib/features/auth/screens/placeholder_screen.dart` | Done |
+| `lib/features/auth/widgets/onboard_slide.dart` | Done |
+| `lib/features/auth/widgets/google_sign_in_button.dart` | Done |
 
 ---
 
-## WHAT STILL NEEDS BUILDING
+## SCREEN INVENTORY
 
-### Immediate (to complete auth)
-- [ ] `lib/features/auth/screens/forgot_password_screen.dart` — email field + send reset
-- [ ] `lib/features/auth/screens/reset_password_screen.dart` — new password form (deep link entry)
+| # | Screen | Route | Owner | Status |
+|---|---|---|---|---|
+| 1 | Splash | `/` | Fahmid | Built |
+| 2 | Onboarding | `/onboarding` | Fahmid | Built |
+| 3 | Login | `/login` | Fahmid | Built |
+| 4 | Email Sign In | `/login/email` | Fahmid | Built |
+| 5 | Email Sign Up | `/signup/email` | Fahmid | Built |
+| 6 | Verify Email | `/verify-email` | Fahmid | Built |
+| 7 | Forgot Password | `/forgot-password` | Fahmid | Built |
+| 8 | Reset Password | `/reset-password` | Fahmid | Built |
+| 9 | Role Selection | `/role-selection` | Fahmid | Built |
+| 10 | Student Register | `/register/student` | Fahmid | Built |
+| 11 | Faculty Register | `/register/faculty` | Fahmid | Built |
+| 12 | Not Whitelisted | `/not-whitelisted` | Fahmid | Built |
+| 13 | Student Dashboard | `/student/dashboard` | Robi | Placeholder |
+| 14 | AI Chat Assistant | `/student/ai-assistant` | Fahmid | Placeholder |
+| 15 | Student Routine | `/student/routine` | Robi | Placeholder |
+| 16 | Resource Hub | `/student/resources` | Robi | Placeholder |
+| 17 | Notifications | `/notifications` | Ratul | Placeholder |
+| 18 | Profile | `/profile` | Ratul | Placeholder |
+| 19 | Teacher Dashboard | `/teacher/dashboard` | Robi | Placeholder |
+| 20 | Teacher Routine | `/teacher/routine` | Robi | Placeholder |
+| 21 | Manage Classes | `/teacher/manage-classes` | Robi | Placeholder |
+| 22 | Admin Dashboard | `/admin/dashboard` | Fahmid | Placeholder |
+| 23 | Routine Management | `/admin/routine` | Fahmid | Placeholder |
+| 24 | Campus Broadcast | `/admin/broadcast` | Fahmid | Placeholder |
+| 25 | Admin Registration | `/admin/registration` | Fahmid | Placeholder |
+| 26 | Manage Users | `/admin/users` | Fahmid | Placeholder |
 
-### Next up (shared widgets — build in this order)
-1. `u_button.dart` · `u_text_field.dart` · `u_card.dart` · `u_divider.dart`
-2. `u_badge.dart` · `u_chip.dart` · `u_avatar.dart` · `u_app_bar.dart`
-3. `u_bottom_nav.dart` · `u_section_header.dart` · `u_empty_state.dart` · `u_loading.dart`
-4. `class_card.dart` · `live_class_card.dart` · `notification_tile.dart`
-5. `resource_card.dart` · `chat_bubble.dart` · `day_selector.dart`
-6. `role_card.dart` · `stat_card.dart` · `info_row.dart` · `settings_tile.dart` · `quick_action_card.dart`
+---
 
-### Then core utils
-- `date_utils.dart` — countdown timer logic, time slot helpers
-- `validators.dart` — form validation functions
-- `extensions.dart` — String, DateTime convenience extensions
+## WHAT NEEDS BUILDING NEXT
 
-### Then feature screens (30-day roadmap order)
-Week 2: Teacher Directory · Resource Hub · Notification feed  
-Week 3: RAG ingestion pipeline · AI chat · Teacher cancellation · Supabase Realtime  
-Week 4: Polish · Assignment screens · Timetable engine (stretch goal Day 28)
+### Fahmid — immediate
+- [ ] `lib/core/utils/date_utils.dart` — countdown logic, time slot helpers
+- [ ] `lib/core/utils/validators.dart` — form validation functions
+- [ ] `lib/core/utils/extensions.dart` — String, DateTime extensions
+- [ ] All 23 shared widgets in `lib/shared/widgets/` (build in order below)
+
+### Shared widgets build order (Fahmid)
+Robi needs widgets 1-4 + 13 + 14 first to unblock dashboard.
+Ratul needs widgets 1-4 + 15 first to unblock notifications.
+Build in this sequence — do not skip ahead.
+
+```
+1.  u_button.dart          primary / secondary / danger variants       <- Robi + Ratul unblock
+2.  u_text_field.dart      label, error state, prefix/suffix           <- Robi + Ratul unblock
+3.  u_card.dart            base dark card surface                      <- Robi + Ratul unblock
+4.  u_divider.dart         subtle separator                            <- Robi + Ratul unblock
+5.  u_badge.dart           ClassStatus enum: live/next/done/cancelled/upcoming
+6.  u_chip.dart            active/inactive filter pill
+7.  u_avatar.dart          initials fallback + network image
+8.  u_app_bar.dart         consistent top bar
+9.  u_bottom_nav.dart      5-tab with unread badge support
+10. u_section_header.dart  title + optional "See all"
+11. u_empty_state.dart     icon + message + optional action
+12. u_loading.dart         skeleton + spinner
+13. class_card.dart        all status states                           <- Robi unblock
+14. live_class_card.dart   hero card with countdown timer             <- Robi unblock
+15. notification_tile.dart 3px colored left border                    <- Ratul unblock
+16. resource_card.dart     PDF / Drive variants
+17. chat_bubble.dart       user (right) and AI (left) variants
+18. day_selector.dart      scrollable day pills
+19. role_card.dart         Student / Teacher / Admin
+20. stat_card.dart         number + label
+21. info_row.dart          label : value pair
+22. settings_tile.dart     chevron row
+23. quick_action_card.dart dashboard 2x2 grid item
+```
+
+### Robi — unblocked after widgets 1-4 + 13 + 14 land on develop
+- [ ] Student dashboard (mock data first)
+- [ ] Student routine screen
+- [ ] Resource hub
+- [ ] Teacher routine screen
+- [ ] Manage classes screen
+
+### Ratul — unblocked after widgets 1-4 + 15 land on develop
+- [ ] Notification feed + Realtime subscription
+- [ ] Profile screen
+- [ ] Demo data seeding scripts
 
 ---
 
@@ -335,45 +450,82 @@ Week 4: Polish · Assignment screens · Timetable engine (stretch goal Day 28)
 
 - Language: Python · Framework: FastAPI · Solver: `ortools` CP-SAT
 - Deployed: Railway or Render free tier
-- Endpoints:
-  - `POST /api/timetable/generate` — upload Excel, returns `job_id`
-  - `GET /api/timetable/status/{job_id}` — poll every 3s during solve
-  - `GET /api/timetable/download/{job_id}` — get filled Excel
-  - `GET /api/timetable/result/{job_id}` — get JSON for Supabase insert
-- Real data: 343 offerings · 686 class slots · 76 teachers · 68 sections · 27 rooms · 5 days · 5 slots/day
+- Start command: `uvicorn engine:app --host 0.0.0.0 --port $PORT`
+- Endpoints: `POST /api/timetable/generate` · `GET /api/timetable/status/{job_id}` · `GET /api/timetable/download/{job_id}` · `GET /api/timetable/result/{job_id}`
+- Real data: 343 offerings · 686 slots · 76 teachers · 68 sections · 27 rooms · 5 days · 5 slots/day
 - Teacher day-offs: `EBH` Thu · `RLP` Thu · `STA` Sun · `JIM` Sun
-- Phase 1: CP-SAT assigns (day, slot) — hard constraints: teacher no-conflict, section no-conflict, different days for same offering's two classes
-- Phase 2: Greedy room assignment — sessionals → labs first (ACL-1/2/NL/GL/ECL), theory → any of 20 theory rooms
+- Phase 1: CP-SAT assigns (day, slot) — hard: teacher/section/day-conflict · soft: spread daily load
+- Phase 2: Greedy room assignment — sessionals -> labs first (ACL-1/2/NL/GL/ECL/ChL/PhL), theory -> any of 20 theory rooms
+- Flutter polls `status` endpoint every 3s during solve (30-120s expected)
 
 ---
 
 ## RAG AI PIPELINE (Gemini — Fahmid)
 
-- Embedding: `POST https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent`
-- Generation: Gemini Flash with constrained prompt ("Answer only using this context")
-- Ingestion: DB rows → natural language sentences → embed → bulk insert `documents` table
-- Query: embed question → `match_documents()` RPC → top 3 chunks → Gemini Flash → chat UI
-- No relevant chunks → return `"I don't have information about that yet."`
-- Supabase RPC: `supabase.rpc('match_documents', params: {'query_embedding': vector, 'match_count': 3})`
+### Current implementation (live design)
+- Embed: `POST .../models/text-embedding-004:embedContent` -> 768-dim vector
+- Generate: Gemini Flash, constrained prompt: "Answer ONLY using this context: [chunks]. Question: [q]"
+- Ingestion: DB rows -> natural language sentences -> embed -> bulk insert `documents`
+- Query: embed question -> `match_documents()` RPC (top 3) -> Gemini Flash -> chat UI
+- No relevant chunks -> return "I don't have information about that yet."
+- RPC call: `supabase.rpc('match_documents', params: {'query_embedding': vector, 'match_count': 3})`
 
----
+### Planned: hybrid search (implement with ai_assistant_service.dart — same sitting as DB migration)
 
-## HARD CONSTRAINTS
+Why hybrid: Pure vector search misses exact terms — course codes, teacher initials, room numbers.
+Hybrid merges vector similarity (semantic) + PostgreSQL full-text search (keyword).
 
-- **Never hardcode hex colors** — always `AppColors.*`
-- **Never hardcode spacing numbers** — always `AppSpacing.*`
-- **Never write raw `TextStyle()`** — always `AppTextStyles.*` with `.copyWith()` for overrides
-- **Never use `MaterialPageRoute`** — always `context.go()` / `context.push()` with `RouteNames.*`
-- **Never call Supabase from a screen** — always via controller → service
-- **Never call Supabase from a controller** — only via service layer
-- **`is_late` in submissions is a DB trigger** — never compute it in Dart
-- **Never use `Provider`, `Riverpod`, or `Bloc`** — only `ChangeNotifier`
-- **Never hardcode route strings** — always `RouteNames.*`
-- **All icons from `phosphor_flutter`** — `PhosphorIconsRegular.*`
-- **Font is Inter** — set globally in `app_theme.dart`, never specify `fontFamily` in widgets
-- **App name is always UniVerse** — never "EduPilot" or any other name
-- **Only one `ThemeData`** — `AppTheme.dark` — no light theme exists
-- **`forgot_password_screen.dart` is missing** — router imports it, build it before running
+**Updated RPC signature (run only after namespace + content_tsv columns are added):**
+```sql
+CREATE OR REPLACE FUNCTION match_documents(
+  query_embedding VECTOR(768),
+  query_text      TEXT,
+  match_count     INT     DEFAULT 3,
+  p_namespace     TEXT    DEFAULT NULL
+)
+RETURNS TABLE (id UUID, content TEXT, namespace TEXT, score FLOAT)
+LANGUAGE sql AS $$
+  WITH vector_results AS (
+    SELECT id, content, namespace,
+           1 - (embedding <=> query_embedding) AS vector_score,
+           0::FLOAT AS text_score
+    FROM documents
+    WHERE (p_namespace IS NULL OR namespace = p_namespace)
+  ),
+  text_results AS (
+    SELECT id, content, namespace,
+           0::FLOAT AS vector_score,
+           ts_rank(content_tsv, plainto_tsquery('english', query_text)) AS text_score
+    FROM documents
+    WHERE (p_namespace IS NULL OR namespace = p_namespace)
+      AND content_tsv @@ plainto_tsquery('english', query_text)
+  ),
+  combined AS (
+    SELECT id, content, namespace,
+           COALESCE(v.vector_score, 0) * 0.7 +
+           COALESCE(t.text_score,  0) * 0.3 AS score
+    FROM vector_results v
+    FULL OUTER JOIN text_results t USING (id, content, namespace)
+  )
+  SELECT id, content, namespace, score
+  FROM combined
+  ORDER BY score DESC
+  LIMIT match_count;
+$$;
+```
+
+**Dart call (planned — do not write until migration is done):**
+```dart
+final results = await supabase.rpc('match_documents', params: {
+  'query_embedding': embedding,
+  'query_text':      question,
+  'match_count':     3,
+  'p_namespace':     namespace,   // e.g. 'course_CSE301' or 'admin_global'
+});
+```
+
+Weights: vector 0.7 + text 0.3 — tunable.
+For exact campus terms (room numbers, teacher codes) consider 0.6 / 0.4.
 
 ---
 
@@ -381,17 +533,57 @@ Week 4: Polish · Assignment screens · Timetable engine (stretch goal Day 28)
 
 ```
 main (protected — tagged releases only: v1.0.0-defense)
-develop (integration — all PRs merge here)
-  feature/app-foundation   (Fahmid, Days 1–6)
-  feature/auth             (Fahmid, Days 2–7)
-  feature/student-core     (Robi, Days 7–14)
-  feature/notifications-profile (Ratul, Days 7–14)
-  feature/teacher-screens  (Robi, Week 3)
-  feature/admin-screens    (Fahmid, Week 3)
-  feature/timetable-engine (Fahmid, separate Python repo)
+develop (integration — all PRs target here, always runnable)
+  |
+  |-- feature/app-foundation        Fahmid  Days 1-6   MERGED
+  |-- feature/auth                  Fahmid  Days 2-7   MERGED
+  |-- feature/shared-widgets        Fahmid  Days 6-8   NEXT
+  |-- feature/student-core          Robi    Days 7-14  blocked on shared-widgets
+  |-- feature/notifications-profile Ratul   Days 7-14  blocked on shared-widgets
+  |-- feature/teacher-screens       Robi    Week 3     pending
+  |-- feature/admin-screens         Fahmid  Week 3     pending
+  +-- feature/timetable-engine      Fahmid  Day 28     stretch goal (Python repo)
 ```
 
-Commit format: `feat|fix|chore|refactor(module): description`
+**Branch protection on main:** require PR + 1 approval · no force push
+**Commit format:** `feat|fix|chore|refactor(module): description`
+**Examples:** `feat(routine): add live countdown timer` · `fix(ai): handle empty pgvector result`
+
+---
+
+## HARD CONSTRAINTS — NEVER VIOLATE
+
+- **No hardcoded hex colors** -> always `AppColors.*`
+- **No raw spacing numbers** -> always `AppSpacing.*`
+- **No raw `TextStyle()`** -> always `AppTextStyles.*` with `.copyWith()` for overrides
+- **No `MaterialPageRoute`** -> always `context.go()` with `RouteNames.*`
+- **No Supabase calls in screens** -> controller -> service only
+- **No Supabase calls in controllers** -> service layer only
+- **`is_late` is a DB trigger** -> never compute in Dart
+- **No Riverpod, Bloc, or Provider** -> `ChangeNotifier` only
+- **No hardcoded route strings** -> `RouteNames.*` only
+- **All icons from phosphor_flutter** -> `PhosphorIconsRegular.*`
+- **Font is Inter, set globally** -> never set `fontFamily` in individual widgets
+- **App name is UniVerse** -> never "EduPilot" or any other variant
+- **One ThemeData only** -> `AppTheme.dark` — no light theme
+- **`setPendingRole()` does not exist** -> removed; role assigned by service or registration completion
+- **`value` on DropdownButtonFormField is deprecated** (after Flutter v3.33.0-1.0.pre) -> use `initialValue:` instead
+- **Shared infrastructure files** -> only Fahmid edits `app_router`, `route_names`, `app_constants`, `pubspec.yaml`, `main.dart`
+- **`documents.category` != namespace** -> category = content type label, namespace = access scope (column to be added later)
+- **Never run documents migration** without simultaneously updating `ai_assistant_service.dart`
+
+---
+
+## IMPORT CONVENTION
+
+```dart
+// Always package imports — never relative imports
+import 'package:universe_v1/core/theme/app_colors.dart';
+import 'package:universe_v1/core/theme/app_text_styles.dart';
+import 'package:universe_v1/core/theme/app_spacing.dart';
+import 'package:universe_v1/core/constants/app_constants.dart';
+import 'package:universe_v1/core/router/route_names.dart';
+```
 
 ---
 
@@ -399,22 +591,26 @@ Commit format: `feat|fix|chore|refactor(module): description`
 
 ### Add a new screen
 1. Create file in `features/<feature>/screens/`
-2. Add route constant in `route_names.dart`
-3. Add `GoRoute` in `app_router.dart`
-4. Add to `authPages` list in router if it's an auth screen
+2. Add constant in `route_names.dart` (Fahmid)
+3. Add `GoRoute` in `app_router.dart` (Fahmid)
+4. Add to `authPages` list if it's an auth screen
 
 ### Add a new Supabase table
-1. Run SQL in Supabase editor
+1. Run SQL in Supabase SQL editor
 2. Add table name constant in `app_constants.dart`
 3. Create service method in `features/<feature>/services/`
-4. Add RLS policies (read_all + admin_write pattern)
+4. Add RLS policies (read_all + admin_write pattern above)
 
-### Import convention
-```dart
-// Always use package imports, never relative
-import 'package:universe/core/theme/app_colors.dart';
-import 'package:universe/core/theme/app_text_styles.dart';
-import 'package:universe/core/theme/app_spacing.dart';
-import 'package:universe/core/constants/app_constants.dart';
-import 'package:universe/core/router/route_names.dart';
-```
+### Add a new shared widget
+1. Create in `lib/shared/widgets/`
+2. Import `AppColors`, `AppTextStyles`, `AppSpacing` — nothing else from core
+3. Accept all configuration via constructor params — no hardcoded values
+
+### Documents table migration checklist (do ALL steps in one sitting)
+- [ ] Add `namespace TEXT NOT NULL DEFAULT 'admin_global'`
+- [ ] Add `content_tsv TSVECTOR GENERATED ALWAYS AS (...) STORED`
+- [ ] Create GIN index on `content_tsv`
+- [ ] Replace `match_documents()` RPC with hybrid version above
+- [ ] Update all Dart INSERT calls to pass `namespace`
+- [ ] Update `ai_assistant_service.dart` RPC call to pass `query_text` + `p_namespace`
+- [ ] Test: exact term query (e.g. "JIM", "ACL-1") returns correct chunks
