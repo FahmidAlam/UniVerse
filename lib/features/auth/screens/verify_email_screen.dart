@@ -85,7 +85,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
   Future<void> _handleVerified() async {
     setState(() => _checkingVerification = true);
-    final result = await widget.authController.handleOAuthCallback();
+    await widget.authController.handleOAuthCallback();
     if (mounted) setState(() => _checkingVerification = false);
     // GoRouter redirect takes over once status → authenticated
   }

@@ -58,6 +58,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     return score;
   }
 
+  Future<void> _signOutAndLogin() async {
+    await widget.authController.signOut();
+    if (!mounted) return;
+    context.go(RouteNames.emailLogin);
+  }
+
   Future<void> _updatePassword() async {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
@@ -309,10 +315,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           width: double.infinity,
           height: AppSpacing.buttonHeight,
           child: ElevatedButton(
-            onPressed: () async {
-              await widget.authController.signOut();
-              if (context.mounted) context.go(RouteNames.emailLogin);
-            },
+            onPressed: _signOutAndLogin,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               shape: const RoundedRectangleBorder(
