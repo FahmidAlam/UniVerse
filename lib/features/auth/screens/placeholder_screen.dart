@@ -19,6 +19,7 @@ import 'package:universe_v1/core/theme/app_colors.dart';
 import 'package:universe_v1/core/theme/app_spacing.dart';
 import 'package:universe_v1/core/theme/app_text_styles.dart';
 import 'package:universe_v1/shared/widgets/u_bottom_nav.dart';
+import 'package:universe_v1/shared/widgets/u_button.dart';
 
 class PlaceholderScreen extends StatelessWidget {
   final String title;
@@ -27,10 +28,16 @@ class PlaceholderScreen extends StatelessWidget {
   /// this tab. Null = no bottom nav (e.g. teacher/admin placeholders).
   final int? bottomNavIndex;
 
+  /// Temporary links to built screens that don't yet have a permanent
+  /// entry point (e.g. Resources hangs off the not-yet-built dashboard).
+  /// Rendered as secondary buttons. Remove when the real screen lands.
+  final List<({String label, String route})> quickLinks;
+
   const PlaceholderScreen({
     super.key,
     required this.title,
     this.bottomNavIndex,
+    this.quickLinks = const [],
   });
 
   void _onNavTap(BuildContext context, int i) {
@@ -88,6 +95,21 @@ class PlaceholderScreen extends StatelessWidget {
               'This screen is under construction',
               style: AppTextStyles.bodySm,
             ),
+            if (quickLinks.isNotEmpty) ...[
+              AppSpacing.xxlGap,
+              for (final link in quickLinks)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.x4l,
+                    vertical: AppSpacing.xs,
+                  ),
+                  child: UButton(
+                    label: link.label,
+                    variant: UButtonVariant.secondary,
+                    onPressed: () => context.push(link.route),
+                  ),
+                ),
+            ],
           ],
         ),
       ),
