@@ -33,6 +33,8 @@ import 'package:universe_v1/features/auth/screens/not_whitelisted_screen.dart';
 import 'package:universe_v1/features/auth/screens/placeholder_screen.dart';
 import 'package:universe_v1/features/notifications/screens/notifications_screen.dart';
 import 'package:universe_v1/features/profile/screens/profile_screen.dart';
+import 'package:universe_v1/features/routine/screens/routine_screen.dart';
+import 'package:universe_v1/features/resources/screens/resources_screen.dart';
 
 class AppRouter {
   final AuthController authController;
@@ -152,10 +154,23 @@ class AppRouter {
       ),
 
       // Student
-      GoRoute(path: RouteNames.studentDashboard, builder: (c, s) => const PlaceholderScreen(title: 'Student Dashboard', bottomNavIndex: 0)),
-      GoRoute(path: RouteNames.studentRoutine,   builder: (c, s) => const PlaceholderScreen(title: 'My Routine', bottomNavIndex: 1)),
+      GoRoute(
+        path: RouteNames.studentDashboard,
+        builder: (c, s) => const PlaceholderScreen(
+          title: 'Student Dashboard',
+          bottomNavIndex: 0,
+          quickLinks: [(label: 'Browse Resources', route: RouteNames.resources)],
+        ),
+      ),
+      GoRoute(
+        path: RouteNames.studentRoutine,
+        builder: (c, s) => RoutineScreen(authController: authController),
+      ),
       GoRoute(path: RouteNames.aiAssistant,      builder: (c, s) => const PlaceholderScreen(title: 'AI Assistant', bottomNavIndex: 2)),
-      GoRoute(path: RouteNames.resources,        builder: (c, s) => const PlaceholderScreen(title: 'Resources')),
+      GoRoute(
+        path: RouteNames.resources,
+        builder: (c, s) => ResourcesScreen(authController: authController),
+      ),
       GoRoute(
         path: RouteNames.notifications,
         builder: (c, s) =>
@@ -168,7 +183,10 @@ class AppRouter {
 
       // Teacher
       GoRoute(path: RouteNames.teacherDashboard, builder: (c, s) => const PlaceholderScreen(title: 'Teacher Dashboard')),
-      GoRoute(path: RouteNames.teacherRoutine,   builder: (c, s) => const PlaceholderScreen(title: 'My Classes')),
+      GoRoute(
+        path: RouteNames.teacherRoutine,
+        builder: (c, s) => RoutineScreen(authController: authController),
+      ),
       GoRoute(path: RouteNames.manageClasses,    builder: (c, s) => const PlaceholderScreen(title: 'Manage Classes')),
 
       // Admin
