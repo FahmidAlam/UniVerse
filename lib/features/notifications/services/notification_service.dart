@@ -1,0 +1,93 @@
+// ============================================================
+// FILE: lib/features/notifications/services/notification_service.dart
+// PURPOSE: The ONLY layer that touches Supabase for notifications.
+// Resolves per-user read-state against notification_reads and
+// exposes a Realtime subscription for new broadcasts.
+// NotificationController calls this; screens never touch it.
+// ============================================================
+
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:universe_v1/core/constants/app_constants.dart';
+import 'package:universe_v1/core/models/notification_model.dart';
+import 'package:universe_v1/core/models/profile_model.dart';
+
+class NotificationService {
+  final SupabaseClient _supabase = Supabase.instance.client;
+
+  // ─── Fetch notifications for a given user ──────────────────
+  // Pulls all broadcasts + this user's read-marks, merges them,
+  // then filters down to the audience this user belongs to.
+  Future<List<NotificationItem>> fetchNotifications(Profile me) async {
+    final rows = await _supabase
+        .from(AppConstants.tableNotifications)
+        .select()
+        .order('created_at', ascending: false);
+
+    final readRows = await _supabase
+        .from(AppConstants.tableNotificationReads)
+        .select('notification_id')
+        .eq('user_id', me.id);
+
+    final readIds = (readRows as List)
+        .map((r) => r['notification_id'] as String)
+        .toSet();
+
+    return (rows as List)
+        .map((r) {
+          final map = r as Map<String, dynamic>;
+          return NotificationItem.fromMap(
+            map,
+            isRead: readIds.contains(map['id']),
+          );
+        })
+        .where((n) => n.matchesAudience(
+              role: me.role,
+              batch: me.batch,
+              section: me.section,
+            ))
+        .toList();
+  }
+
+  // ─── Mark a single notification read for this user ─────────
+  Future<void> markAsRead({
+    required String userId,
+    required String notificationId,
+  }) async {
+    await _supabase.from(AppConstants.tableNotificationReads).upsert(
+      {'user_id': userId, 'notification_id': notificationId},
+      onConflict: 'user_id,notification_id',
+    );
+  }
+
+  // ─── Mark many notifications read in one round-trip ────────
+  Future<void> markAllAsRead({
+    required String userId,
+    required List<String> notificationIds,
+  }) async {
+    if (notificationIds.isEmpty) return;
+    final rows = notificationIds
+        .map((id) => {'user_id': userId, 'notification_id': id})
+        .toList();
+    await _supabase.from(AppConstants.tableNotificationReads).upsert(
+          rows,
+          onConflict: 'user_id,notification_id',
+        );
+  }
+
+  // ─── Realtime: fire `onInsert` when a new broadcast lands ──
+  RealtimeChannel subscribeToInserts(void Function() onInsert) {
+    return _supabase
+        .channel('public:notifications')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: AppConstants.tableNotifications,
+          callback: (_) => onInsert(),
+        )
+        .subscribe();
+  }
+
+  Future<void> unsubscribe(RealtimeChannel channel) async {
+    await _supabase.removeChannel(channel);
+  }
+}

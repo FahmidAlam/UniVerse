@@ -91,6 +91,7 @@ abstract class AppConstants {
   static const String tableRoutines         = 'routines';
   static const String tableCancellations    = 'cancellations';
   static const String tableNotifications    = 'notifications';
+  static const String tableNotificationReads = 'notification_reads';
   static const String tableResources        = 'resources';
   static const String tableAssignments      = 'assignments';
   static const String tableSubmissions      = 'submissions';

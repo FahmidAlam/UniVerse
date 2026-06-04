@@ -31,6 +31,8 @@ import 'package:universe_v1/features/auth/screens/student_register_screen.dart';
 import 'package:universe_v1/features/auth/screens/faculty_register_screen.dart';
 import 'package:universe_v1/features/auth/screens/not_whitelisted_screen.dart';
 import 'package:universe_v1/features/auth/screens/placeholder_screen.dart';
+import 'package:universe_v1/features/notifications/screens/notifications_screen.dart';
+import 'package:universe_v1/features/profile/screens/profile_screen.dart';
 
 class AppRouter {
   final AuthController authController;
@@ -150,12 +152,19 @@ class AppRouter {
       ),
 
       // Student
-      GoRoute(path: RouteNames.studentDashboard, builder: (c, s) => const PlaceholderScreen(title: 'Student Dashboard')),
-      GoRoute(path: RouteNames.studentRoutine,   builder: (c, s) => const PlaceholderScreen(title: 'My Routine')),
-      GoRoute(path: RouteNames.aiAssistant,      builder: (c, s) => const PlaceholderScreen(title: 'AI Assistant')),
+      GoRoute(path: RouteNames.studentDashboard, builder: (c, s) => const PlaceholderScreen(title: 'Student Dashboard', bottomNavIndex: 0)),
+      GoRoute(path: RouteNames.studentRoutine,   builder: (c, s) => const PlaceholderScreen(title: 'My Routine', bottomNavIndex: 1)),
+      GoRoute(path: RouteNames.aiAssistant,      builder: (c, s) => const PlaceholderScreen(title: 'AI Assistant', bottomNavIndex: 2)),
       GoRoute(path: RouteNames.resources,        builder: (c, s) => const PlaceholderScreen(title: 'Resources')),
-      GoRoute(path: RouteNames.notifications,    builder: (c, s) => const PlaceholderScreen(title: 'Notifications')),
-      GoRoute(path: RouteNames.profile,          builder: (c, s) => const PlaceholderScreen(title: 'Profile')),
+      GoRoute(
+        path: RouteNames.notifications,
+        builder: (c, s) =>
+            NotificationsScreen(authController: authController),
+      ),
+      GoRoute(
+        path: RouteNames.profile,
+        builder: (c, s) => ProfileScreen(authController: authController),
+      ),
 
       // Teacher
       GoRoute(path: RouteNames.teacherDashboard, builder: (c, s) => const PlaceholderScreen(title: 'Teacher Dashboard')),
