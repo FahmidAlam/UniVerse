@@ -252,7 +252,6 @@ class AuthService {
         'teacher_code': whitelistRow?['teacher_code'],
         'designation': whitelistRow?['designation'],
         'department': whitelistRow?['department'],
-        'photo_url': user.userMetadata?['avatar_url'],
         'courses': const [],
       };
 
@@ -323,7 +322,7 @@ class AuthService {
         'email': user.email,
         'role': AppConstants.roleTeacher,
         'name': name,
-        'student_id': employeeId,
+        'teacher_code': employeeId,
         'department': department,
         'designation': designation,
         'avatar_url': user.userMetadata?['avatar_url'],
