@@ -4,29 +4,30 @@
 // Shows the screen name so navigation can be tested
 // end-to-end before each feature screen is implemented.
 //
-// When `bottomNavIndex` is provided, the screen also renders the
-// 5-tab bottom nav so the built tabs (Alerts, Profile) are
-// reachable from the not-yet-built student tabs.
-// DELETE this file (and the bottomNavIndex wiring) once all
-// screens are built.
+// When `authController` + `navRoute` are provided, the screen renders
+// the role-aware bottom nav (AppBottomNav) highlighting `navRoute`, so
+// the not-yet-built tabs stay reachable from the built ones.
+// DELETE this file (and its wiring) once all screens are built.
 // ============================================================
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:universe_v1/core/router/route_names.dart';
 import 'package:universe_v1/core/theme/app_colors.dart';
 import 'package:universe_v1/core/theme/app_spacing.dart';
 import 'package:universe_v1/core/theme/app_text_styles.dart';
-import 'package:universe_v1/shared/widgets/u_bottom_nav.dart';
+import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
+import 'package:universe_v1/shared/widgets/app_bottom_nav.dart';
 import 'package:universe_v1/shared/widgets/u_button.dart';
 
 class PlaceholderScreen extends StatelessWidget {
   final String title;
 
-  /// When set (0..4), renders the student bottom nav highlighting
-  /// this tab. Null = no bottom nav (e.g. teacher/admin placeholders).
-  final int? bottomNavIndex;
+  /// When both [authController] and [navRoute] are set, renders the
+  /// role-aware bottom nav highlighting [navRoute]. Null = no nav
+  /// (e.g. a secondary screen).
+  final AuthController? authController;
+  final String? navRoute;
 
   /// Temporary links to built screens that don't yet have a permanent
   /// entry point (e.g. Resources hangs off the not-yet-built dashboard).
@@ -36,28 +37,15 @@ class PlaceholderScreen extends StatelessWidget {
   const PlaceholderScreen({
     super.key,
     required this.title,
-    this.bottomNavIndex,
+    this.authController,
+    this.navRoute,
     this.quickLinks = const [],
   });
 
-  void _onNavTap(BuildContext context, int i) {
-    if (i == bottomNavIndex) return;
-    switch (i) {
-      case 0:
-        context.go(RouteNames.studentDashboard);
-      case 1:
-        context.go(RouteNames.studentRoutine);
-      case 2:
-        context.go(RouteNames.aiAssistant);
-      case 3:
-        context.go(RouteNames.notifications);
-      case 4:
-        context.go(RouteNames.profile);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final showNav = authController != null && navRoute != null;
+
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
       appBar: AppBar(
@@ -65,12 +53,12 @@ class PlaceholderScreen extends StatelessWidget {
         elevation: 0,
         title: Text(title, style: AppTextStyles.h2),
       ),
-      bottomNavigationBar: bottomNavIndex == null
-          ? null
-          : UBottomNav(
-              currentIndex: bottomNavIndex!,
-              onTap: (i) => _onNavTap(context, i),
-            ),
+      bottomNavigationBar: showNav
+          ? AppBottomNav(
+              role: authController!.role,
+              currentRoute: navRoute!,
+            )
+          : null,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

@@ -8,7 +8,6 @@
 // ============================================================
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:universe_v1/core/constants/app_enums.dart';
 import 'package:universe_v1/core/router/route_names.dart';
@@ -17,9 +16,9 @@ import 'package:universe_v1/core/theme/app_spacing.dart';
 import 'package:universe_v1/core/theme/app_text_styles.dart';
 import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
 import 'package:universe_v1/features/notifications/controllers/notification_controller.dart';
+import 'package:universe_v1/shared/widgets/app_bottom_nav.dart';
 import 'package:universe_v1/shared/widgets/notification_tile.dart';
 import 'package:universe_v1/shared/widgets/u_app_bar.dart';
-import 'package:universe_v1/shared/widgets/u_bottom_nav.dart';
 import 'package:universe_v1/shared/widgets/u_chip.dart';
 import 'package:universe_v1/shared/widgets/u_empty_state.dart';
 import 'package:universe_v1/shared/widgets/u_loading.dart';
@@ -81,25 +80,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  void _onNavTap(int i) {
-    final isTeacher = widget.authController.role == 'teacher';
-    switch (i) {
-      case 0:
-        context.go(isTeacher
-            ? RouteNames.teacherDashboard
-            : RouteNames.studentDashboard);
-      case 1:
-        context.go(
-            isTeacher ? RouteNames.teacherRoutine : RouteNames.studentRoutine);
-      case 2:
-        context.go(RouteNames.aiAssistant);
-      case 3:
-        break; // already here
-      case 4:
-        context.go(RouteNames.profile);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -118,10 +98,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 ),
             ],
           ),
-          bottomNavigationBar: UBottomNav(
-            currentIndex: 3,
+          bottomNavigationBar: AppBottomNav(
+            role: widget.authController.role,
+            currentRoute: RouteNames.notifications,
             unreadNotifCount: _controller.unreadCount,
-            onTap: _onNavTap,
           ),
           body: Column(
             children: [

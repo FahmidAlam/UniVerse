@@ -8,17 +8,16 @@
 // ============================================================
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:universe_v1/core/router/route_names.dart';
 import 'package:universe_v1/core/theme/app_colors.dart';
 import 'package:universe_v1/core/theme/app_spacing.dart';
 import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
 import 'package:universe_v1/features/routine/controllers/routine_controller.dart';
+import 'package:universe_v1/shared/widgets/app_bottom_nav.dart';
 import 'package:universe_v1/shared/widgets/class_card.dart';
 import 'package:universe_v1/shared/widgets/day_selector.dart';
 import 'package:universe_v1/shared/widgets/u_app_bar.dart';
-import 'package:universe_v1/shared/widgets/u_bottom_nav.dart';
 import 'package:universe_v1/shared/widgets/u_empty_state.dart';
 import 'package:universe_v1/shared/widgets/u_loading.dart';
 
@@ -47,24 +46,6 @@ class _RoutineScreenState extends State<RoutineScreen> {
     super.dispose();
   }
 
-  void _onNavTap(int i) {
-    final isTeacher = widget.authController.role == 'teacher';
-    switch (i) {
-      case 0:
-        context.go(isTeacher
-            ? RouteNames.teacherDashboard
-            : RouteNames.studentDashboard);
-      case 1:
-        break; // already here
-      case 2:
-        context.go(RouteNames.aiAssistant);
-      case 3:
-        context.go(RouteNames.notifications);
-      case 4:
-        context.go(RouteNames.profile);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -76,7 +57,12 @@ class _RoutineScreenState extends State<RoutineScreen> {
             title: _controller.isTeacherView ? 'My Classes' : 'My Routine',
             showBackButton: false,
           ),
-          bottomNavigationBar: UBottomNav(currentIndex: 1, onTap: _onNavTap),
+          bottomNavigationBar: AppBottomNav(
+            role: widget.authController.role,
+            currentRoute: _controller.isTeacherView
+                ? RouteNames.teacherRoutine
+                : RouteNames.studentRoutine,
+          ),
           body: Column(
             children: [
               Padding(
