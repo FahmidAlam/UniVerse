@@ -8,6 +8,7 @@
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universe_v1/core/constants/app_constants.dart';
+import 'package:universe_v1/core/constants/app_enums.dart';
 import 'package:universe_v1/core/models/notification_model.dart';
 import 'package:universe_v1/core/models/profile_model.dart';
 
@@ -72,6 +73,48 @@ class NotificationService {
           rows,
           onConflict: 'user_id,notification_id',
         );
+  }
+
+  // ─── Admin: create a broadcast ─────────────────────────────
+  // Inserting a row is what the student devices pick up live via the
+  // Realtime subscription below. `sentBy` records the admin (audit;
+  // column is nullable). Null target fields = broadcast to everyone.
+  Future<void> createBroadcast({
+    required NotifType type,
+    required String title,
+    required String body,
+    String? sentBy,
+    String? targetRole,
+    String? targetBatch,
+    String? targetSection,
+  }) async {
+    await _supabase.from(AppConstants.tableNotifications).insert({
+      'type': type.dbValue,
+      'title': title,
+      'body': body,
+      'sent_by': sentBy,
+      'target_role': targetRole,
+      'target_batch': targetBatch,
+      'target_section': targetSection,
+    });
+  }
+
+  // ─── Admin: every broadcast, unfiltered by audience ────────
+  Future<List<NotificationItem>> fetchAllForAdmin() async {
+    final rows = await _supabase
+        .from(AppConstants.tableNotifications)
+        .select()
+        .order('created_at', ascending: false);
+    return (rows as List)
+        .map((r) => NotificationItem.fromMap(r as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> deleteBroadcast(String id) async {
+    await _supabase
+        .from(AppConstants.tableNotifications)
+        .delete()
+        .eq('id', id);
   }
 
   // ─── Realtime: fire `onInsert` when a new broadcast lands ──

@@ -35,6 +35,11 @@ import 'package:universe_v1/features/notifications/screens/notifications_screen.
 import 'package:universe_v1/features/profile/screens/profile_screen.dart';
 import 'package:universe_v1/features/routine/screens/routine_screen.dart';
 import 'package:universe_v1/features/resources/screens/resources_screen.dart';
+import 'package:universe_v1/features/admin/screens/admin_dashboard_screen.dart';
+import 'package:universe_v1/features/admin/screens/campus_broadcast_screen.dart';
+import 'package:universe_v1/features/admin/screens/routine_management_screen.dart';
+import 'package:universe_v1/features/admin/screens/admin_registration_screen.dart';
+import 'package:universe_v1/features/admin/screens/manage_users_screen.dart';
 
 class AppRouter {
   final AuthController authController;
@@ -156,17 +161,27 @@ class AppRouter {
       // Student
       GoRoute(
         path: RouteNames.studentDashboard,
-        builder: (c, s) => const PlaceholderScreen(
+        builder: (c, s) => PlaceholderScreen(
           title: 'Student Dashboard',
-          bottomNavIndex: 0,
-          quickLinks: [(label: 'Browse Resources', route: RouteNames.resources)],
+          authController: authController,
+          navRoute: RouteNames.studentDashboard,
+          quickLinks: const [
+            (label: 'Browse Resources', route: RouteNames.resources)
+          ],
         ),
       ),
       GoRoute(
         path: RouteNames.studentRoutine,
         builder: (c, s) => RoutineScreen(authController: authController),
       ),
-      GoRoute(path: RouteNames.aiAssistant,      builder: (c, s) => const PlaceholderScreen(title: 'AI Assistant', bottomNavIndex: 2)),
+      GoRoute(
+        path: RouteNames.aiAssistant,
+        builder: (c, s) => PlaceholderScreen(
+          title: 'AI Assistant',
+          authController: authController,
+          navRoute: RouteNames.aiAssistant,
+        ),
+      ),
       GoRoute(
         path: RouteNames.resources,
         builder: (c, s) => ResourcesScreen(authController: authController),
@@ -182,19 +197,48 @@ class AppRouter {
       ),
 
       // Teacher
-      GoRoute(path: RouteNames.teacherDashboard, builder: (c, s) => const PlaceholderScreen(title: 'Teacher Dashboard')),
+      GoRoute(
+        path: RouteNames.teacherDashboard,
+        builder: (c, s) => PlaceholderScreen(
+          title: 'Teacher Dashboard',
+          authController: authController,
+          navRoute: RouteNames.teacherDashboard,
+        ),
+      ),
       GoRoute(
         path: RouteNames.teacherRoutine,
         builder: (c, s) => RoutineScreen(authController: authController),
       ),
-      GoRoute(path: RouteNames.manageClasses,    builder: (c, s) => const PlaceholderScreen(title: 'Manage Classes')),
+      GoRoute(
+        path: RouteNames.manageClasses,
+        builder: (c, s) => PlaceholderScreen(
+          title: 'Manage Classes',
+          authController: authController,
+          navRoute: RouteNames.manageClasses,
+        ),
+      ),
 
       // Admin
-      GoRoute(path: RouteNames.adminDashboard,    builder: (c, s) => const PlaceholderScreen(title: 'Admin Dashboard')),
-      GoRoute(path: RouteNames.routineManagement, builder: (c, s) => const PlaceholderScreen(title: 'Routine Management')),
-      GoRoute(path: RouteNames.campusBroadcast,   builder: (c, s) => const PlaceholderScreen(title: 'Campus Broadcast')),
-      GoRoute(path: RouteNames.adminRegistration, builder: (c, s) => const PlaceholderScreen(title: 'Admin Registration')),
-      GoRoute(path: RouteNames.manageUsers,       builder: (c, s) => const PlaceholderScreen(title: 'Manage Users')),
+      GoRoute(
+        path: RouteNames.adminDashboard,
+        builder: (c, s) => AdminDashboardScreen(authController: authController),
+      ),
+      GoRoute(
+        path: RouteNames.routineManagement,
+        builder: (c, s) => const RoutineManagementScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.campusBroadcast,
+        builder: (c, s) => CampusBroadcastScreen(authController: authController),
+      ),
+      GoRoute(
+        path: RouteNames.adminRegistration,
+        builder: (c, s) => const AdminRegistrationScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.manageUsers,
+        builder: (c, s) => const ManageUsersScreen(),
+      ),
     ],
   );
 
