@@ -153,6 +153,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget _buildActions() {
     final actions = <Widget>[
       QuickActionCard(
+        label: 'Generate Timetable',
+        icon: PhosphorIconsRegular.magicWand,
+        color: AppColors.warning,
+        onTap: () => context.push(RouteNames.generateTimetable),
+      ),
+      QuickActionCard(
         label: 'Campus Broadcast',
         icon: PhosphorIconsRegular.bellRinging,
         color: AppColors.primary,

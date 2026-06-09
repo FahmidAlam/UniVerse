@@ -38,6 +38,7 @@ import 'package:universe_v1/features/resources/screens/resources_screen.dart';
 import 'package:universe_v1/features/admin/screens/admin_dashboard_screen.dart';
 import 'package:universe_v1/features/admin/screens/campus_broadcast_screen.dart';
 import 'package:universe_v1/features/admin/screens/routine_management_screen.dart';
+import 'package:universe_v1/features/admin/screens/generate_timetable_screen.dart';
 import 'package:universe_v1/features/admin/screens/admin_registration_screen.dart';
 import 'package:universe_v1/features/admin/screens/manage_users_screen.dart';
 
@@ -226,6 +227,10 @@ class AppRouter {
       GoRoute(
         path: RouteNames.routineManagement,
         builder: (c, s) => const RoutineManagementScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.generateTimetable,
+        builder: (c, s) => const GenerateTimetableScreen(),
       ),
       GoRoute(
         path: RouteNames.campusBroadcast,

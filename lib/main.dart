@@ -73,4 +73,3 @@ class UniVerseApp extends StatelessWidget {
     );
   }
 }
-

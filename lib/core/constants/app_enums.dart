@@ -52,7 +52,7 @@ enum NotifType {
   String get label {
     switch (this) {
       case NotifType.university:
-        return 'University';
+        return 'Notice';
       case NotifType.classCancel:
         return 'Class Cancellation';
       case NotifType.roomChange:
