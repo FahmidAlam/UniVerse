@@ -43,3 +43,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Python (timetable engine)
+.venv/
+__pycache__/
+
+# Local build-time secrets/config (share with teammates out-of-band)
+dart_defines.json
