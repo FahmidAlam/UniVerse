@@ -19,6 +19,7 @@
 // actual push when an admin inserts a broadcast.
 // ============================================================
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -50,6 +51,7 @@ class PushService {
 
   bool _initialized = false;
   String? _lastToken;
+  StreamSubscription<String>? _refreshSub;
 
   /// Called by main.dart when a notification is tapped, so the app can
   /// route to the notifications screen. Set from main() where the router
@@ -116,10 +118,19 @@ class PushService {
         _lastToken = token;
         await _upsertToken(userId, token);
       }
-      // Tokens rotate; persist refreshes for the same user.
-      _fcm.onTokenRefresh.listen((t) {
+      // Tokens rotate; persist refreshes for the same user. Replace any
+      // listener left by a previous sign-in — stacked listeners would
+      // keep writing the OLD user's id, which RLS rejects (42501).
+      await _refreshSub?.cancel();
+      _refreshSub = _fcm.onTokenRefresh.listen((t) async {
         _lastToken = t;
-        _upsertToken(userId, t);
+        try {
+          await _upsertToken(userId, t);
+        } catch (e) {
+          // Must not escape the stream — an uncaught async error here
+          // halts the debugger / crashes release builds.
+          debugPrint('[push] refresh upsert failed: $e');
+        }
       });
     } catch (e) {
       debugPrint('[push] registerToken failed: $e');
@@ -127,21 +138,37 @@ class PushService {
   }
 
   Future<void> _upsertToken(String userId, String token) async {
-    await _supabase.from(AppConstants.tableDeviceTokens).upsert(
-      {
-        'token': token,
-        'user_id': userId,
-        'platform': 'android',
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
-      },
-      onConflict: 'token',
-    );
+    try {
+      // SECURITY DEFINER RPC (migration 005): clears a stale row left by
+      // another user for the same token, then upserts as auth.uid().
+      // A plain upsert can't do that — RLS forbids updating a row that
+      // still belongs to the previous user.
+      await _supabase.rpc('register_device_token', params: {
+        'p_token': token,
+        'p_platform': 'android',
+      });
+    } on PostgrestException catch (e) {
+      // PGRST202 = function not deployed yet — fall back to direct upsert
+      // so push registration keeps working until migration 005 is run.
+      if (e.code != 'PGRST202') rethrow;
+      await _supabase.from(AppConstants.tableDeviceTokens).upsert(
+        {
+          'token': token,
+          'user_id': userId,
+          'platform': 'android',
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        },
+        onConflict: 'token',
+      );
+    }
   }
 
   /// Remove this device's token on sign-out so a signed-out phone
   /// stops receiving pushes for the previous user.
   Future<void> unregisterToken() async {
     try {
+      await _refreshSub?.cancel();
+      _refreshSub = null;
       final token = _lastToken ?? await _fcm.getToken();
       if (token != null) {
         await _supabase
