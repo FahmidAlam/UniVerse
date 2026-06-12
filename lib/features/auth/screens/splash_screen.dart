@@ -84,8 +84,17 @@ class _SplashScreenState extends State<SplashScreen>
 
     final status = widget.authController.status;
 
-    if (status == AuthStatus.authenticated) {
-      // GoRouter redirect will handle sending to dashboard
+    if (status == AuthStatus.authenticated ||
+        status == AuthStatus.awaitingVerification ||
+        status == AuthStatus.notWhitelisted) {
+      // GoRouter redirect handles these (dashboard / verify / blocked)
+      return;
+    }
+
+    if (status == AuthStatus.registering) {
+      // Session exists but registration unfinished — resume it. Splash
+      // is an allowed auth page, so the router won't move us on its own.
+      context.go(RouteNames.roleSelection);
       return;
     }
 

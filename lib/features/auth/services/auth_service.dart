@@ -5,8 +5,10 @@
 // AuthController calls this; screens never touch this directly.
 // ============================================================
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universe_v1/core/constants/app_constants.dart';
+import 'package:universe_v1/core/services/push_service.dart';
 
 // ─── Data model returned after every auth operation ───────
 class AuthResult {
@@ -28,10 +30,8 @@ class AuthResult {
   factory AuthResult.failure(String message) =>
       AuthResult(success: false, errorMessage: message);
 
-  factory AuthResult.needsVerification() => const AuthResult(
-        success: false,
-        emailNeedsVerification: true,
-      );
+  factory AuthResult.needsVerification() =>
+      const AuthResult(success: false, emailNeedsVerification: true);
 }
 
 class AuthService {
@@ -39,11 +39,10 @@ class AuthService {
 
   // ─── Current session ──────────────────────────────────────
   User? get currentUser => _supabase.auth.currentUser;
-  bool get isLoggedIn   => currentUser != null;
+  bool get isLoggedIn => currentUser != null;
 
   // ─── Auth state stream ────────────────────────────────────
-  Stream<AuthState> get authStateChanges =>
-      _supabase.auth.onAuthStateChange;
+  Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
 
   // ===========================================================
   // GOOGLE OAUTH
@@ -161,12 +160,37 @@ class AuthService {
     }
   }
 
+  // ─── Verify email with 6-digit OTP code ───────────────────
+  // Used instead of the email link: the "Confirm signup" template
+  // shows {{ .Token }} and the user types it into VerifyEmailScreen.
+  // Immune to email-client link prefetch consuming the token.
+  // On success Supabase confirms the email AND establishes a session.
+  Future<AuthResult> verifyEmailOtp({
+    required String email,
+    required String token,
+  }) async {
+    try {
+      final response = await _supabase.auth.verifyOTP(
+        type: OtpType.signup,
+        email: email.trim().toLowerCase(),
+        token: token.trim(),
+      );
+
+      if (response.session == null) {
+        return AuthResult.failure('Invalid or expired code. Try resending.');
+      }
+      return const AuthResult(success: true);
+    } on AuthException catch (e) {
+      return AuthResult.failure(_friendlyAuthError(e.message));
+    } catch (e) {
+      return AuthResult.failure('Unexpected error: $e');
+    }
+  }
+
   // ─── Update password (from reset link) ───────────────────
   Future<AuthResult> updatePassword(String newPassword) async {
     try {
-      await _supabase.auth.updateUser(
-        UserAttributes(password: newPassword),
-      );
+      await _supabase.auth.updateUser(UserAttributes(password: newPassword));
       return const AuthResult(success: true);
     } on AuthException catch (e) {
       return AuthResult.failure(_friendlyAuthError(e.message));
@@ -198,8 +222,7 @@ class AuthService {
 
       if (existingProfile != null) {
         final role = existingProfile['role'] as String;
-        return AuthResult(
-            success: true, role: role, profile: existingProfile);
+        return AuthResult(success: true, role: role, profile: existingProfile);
       }
 
       // ── Step 2: First login — check whitelist for admin gate ─
@@ -211,47 +234,35 @@ class AuthService {
           .eq('email', email.toLowerCase())
           .maybeSingle();
 
-      // ── Step 3: Determine role ────────────────────────────────
-      // If whitelisted → use the role from whitelist (covers admin).
-      // If NOT whitelisted → default to student.
-      //   Teachers self-identify during registration via
-      //   completeFacultyRegistration() which sets role explicitly.
-      //   Admin without whitelist entry → blocked.
-      String role;
-
-      if (whitelistRow != null) {
-        role = whitelistRow['role'] as String;
-      } else {
-        // Not in whitelist — allowed only as student or teacher.
-        // Admin accounts MUST be whitelisted — block them here.
-        // (Teachers arrive here via completeFacultyRegistration,
-        //  which upserts the profile with role='teacher' before
-        //  handlePostLogin is called, so existingProfile catches
-        //  them above. This fallback is for Google OAuth students.)
-        role = AppConstants.roleStudent;
+      // ── Step 3: No whitelist entry → registration completes it ─
+      // Students and teachers create their profile explicitly via
+      // complete{Student,Faculty}Registration. Returning profile=null
+      // here puts the controller in `registering` so the register
+      // screens (or pending registration data) can finish the job.
+      // Auto-creating a default student row here would skip
+      // registration entirely and mislabel faculty as students.
+      if (whitelistRow == null) {
+        return const AuthResult(success: true);
       }
 
-      // Extra safety: if somehow an admin is not whitelisted, block.
-      if (role == AppConstants.roleAdmin && whitelistRow == null) {
-        await signOut();
-        return AuthResult.failure('not_whitelisted');
-      }
-
-      // ── Step 4: Create profile for first-time user ────────────
+      // ── Step 4: Whitelisted (pre-provisioned) account — create
+      // the profile directly from the whitelist row.
+      final role = whitelistRow['role'] as String;
       final newProfile = {
         'id': user.id,
         'email': email,
         'role': role,
-        'name': whitelistRow?['name'] ??
-            user.userMetadata?['full_name'] ?? '',
+        'name': whitelistRow['name'] ?? user.userMetadata?['full_name'] ?? '',
         'avatar_url': user.userMetadata?['avatar_url'],
-        'batch': whitelistRow?['batch'],
-        'section': whitelistRow?['section'],
-        'semester': whitelistRow?['semester'],
+        'batch': whitelistRow['batch'],
+        'section': whitelistRow['section'],
+        'semester': whitelistRow['semester'],
         'student_id': null,
-        'teacher_code': whitelistRow?['teacher_code'],
-        'designation': whitelistRow?['designation'],
-        'department': whitelistRow?['department'],
+        'teacher_code': whitelistRow['teacher_code'],
+        // whitelists has no designation/department columns — admins
+        // don't need them; lookups stay null-safe if added later.
+        'designation': whitelistRow['designation'],
+        'department': whitelistRow['department'],
         'courses': const [],
       };
 
@@ -299,7 +310,10 @@ class AuthService {
           .single();
 
       return AuthResult(
-          success: true, role: AppConstants.roleStudent, profile: profile);
+        success: true,
+        role: AppConstants.roleStudent,
+        profile: profile,
+      );
     } on PostgrestException catch (e) {
       return AuthResult.failure(e.message);
     } catch (e) {
@@ -335,7 +349,10 @@ class AuthService {
           .single();
 
       return AuthResult(
-          success: true, role: AppConstants.roleTeacher, profile: profile);
+        success: true,
+        role: AppConstants.roleTeacher,
+        profile: profile,
+      );
     } on PostgrestException catch (e) {
       return AuthResult.failure(e.message);
     } catch (e) {
@@ -358,6 +375,11 @@ class AuthService {
 
   // ─── Sign out ─────────────────────────────────────────────
   Future<void> signOut() async {
+    // Delete this device's push token while the session is still alive —
+    // after auth.signOut() the request runs as anon and RLS silently
+    // deletes nothing, leaving a stale row that breaks the next user's
+    // token upsert with a row-level security violation.
+    if (!kIsWeb) await PushService.instance.unregisterToken();
     await _supabase.auth.signOut();
   }
 
