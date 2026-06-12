@@ -9,12 +9,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:universe_v1/core/router/route_names.dart';
 import 'package:universe_v1/core/theme/app_colors.dart';
 import 'package:universe_v1/core/theme/app_spacing.dart';
 import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
 import 'package:universe_v1/features/routine/controllers/routine_controller.dart';
-import 'package:universe_v1/shared/widgets/app_bottom_nav.dart';
 import 'package:universe_v1/shared/widgets/class_card.dart';
 import 'package:universe_v1/shared/widgets/day_selector.dart';
 import 'package:universe_v1/shared/widgets/u_app_bar.dart';
@@ -56,12 +54,6 @@ class _RoutineScreenState extends State<RoutineScreen> {
           appBar: UAppBar(
             title: _controller.isTeacherView ? 'My Classes' : 'My Routine',
             showBackButton: false,
-          ),
-          bottomNavigationBar: AppBottomNav(
-            role: widget.authController.role,
-            currentRoute: _controller.isTeacherView
-                ? RouteNames.teacherRoutine
-                : RouteNames.studentRoutine,
           ),
           body: Column(
             children: [

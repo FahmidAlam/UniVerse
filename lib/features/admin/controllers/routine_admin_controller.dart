@@ -6,12 +6,13 @@
 // the already-built student/teacher routine views.
 // ============================================================
 
-import 'package:flutter/material.dart';
 import 'package:universe_v1/core/constants/app_constants.dart';
 import 'package:universe_v1/core/models/routine_model.dart';
+import 'package:universe_v1/core/utils/safe_change_notifier.dart';
 import 'package:universe_v1/features/routine/services/routine_service.dart';
 
-class RoutineAdminController extends ChangeNotifier {
+// SafeChangeNotifier: async loads/saves may outlive the screen.
+class RoutineAdminController extends SafeChangeNotifier {
   final RoutineService _service = RoutineService();
 
   List<RoutineEntry> _all = [];

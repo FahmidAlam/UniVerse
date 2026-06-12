@@ -1,9 +1,10 @@
 // ============================================================
 // FILE: lib/shared/widgets/app_bottom_nav.dart
 // PURPOSE: Role-aware bottom navigation. ONE place defines the tab set
-// for each role; every top-level screen renders this and passes its own
-// route. It computes the active tab from the current route and routes
-// taps via context.go — so shared screens (Profile/Notifications) always
+// for each role. Rendered ONLY by AppShell (core/router/app_shell.dart),
+// which passes the current router location — individual screens never
+// place this widget. Active tab is computed from the route; taps go
+// via context.go, so shared screens (Profile/Notifications) always
 // show the correct tabs for whoever is logged in.
 //
 // Convention: top-level destinations live here. Secondary screens

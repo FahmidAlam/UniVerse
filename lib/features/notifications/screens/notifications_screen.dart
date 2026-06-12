@@ -3,20 +3,19 @@
 // PURPOSE: Alerts tab. Audience-filtered broadcast feed with
 // type filter chips, unread badge, tap-to-read, mark-all-read,
 // and live updates via Supabase Realtime.
-// Owns its NotificationController lifecycle (so the Realtime
-// channel is disposed when the screen leaves the tree).
+// Uses the app-scoped NotificationController owned by AppRouter —
+// the same instance drives the shell's nav badge, so marking
+// items read here updates the badge everywhere instantly.
 // ============================================================
 
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:universe_v1/core/constants/app_enums.dart';
-import 'package:universe_v1/core/router/route_names.dart';
 import 'package:universe_v1/core/theme/app_colors.dart';
 import 'package:universe_v1/core/theme/app_spacing.dart';
 import 'package:universe_v1/core/theme/app_text_styles.dart';
 import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
 import 'package:universe_v1/features/notifications/controllers/notification_controller.dart';
-import 'package:universe_v1/shared/widgets/app_bottom_nav.dart';
 import 'package:universe_v1/shared/widgets/notification_tile.dart';
 import 'package:universe_v1/shared/widgets/u_app_bar.dart';
 import 'package:universe_v1/shared/widgets/u_chip.dart';
@@ -26,14 +25,22 @@ import 'package:universe_v1/shared/widgets/u_loading.dart';
 class NotificationsScreen extends StatefulWidget {
   final AuthController authController;
 
-  const NotificationsScreen({super.key, required this.authController});
+  /// App-scoped controller shared with the shell's nav badge.
+  /// Owned by AppRouter — never disposed here.
+  final NotificationController controller;
+
+  const NotificationsScreen({
+    super.key,
+    required this.authController,
+    required this.controller,
+  });
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  late final NotificationController _controller;
+  NotificationController get _controller => widget.controller;
 
   // Filter chips: null == All, then one per NotifType.
   static const List<NotifType?> _filters = [
@@ -45,21 +52,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     NotifType.assignment,
     NotifType.exam,
   ];
-
-  @override
-  void initState() {
-    super.initState();
-    _controller =
-        NotificationController(authController: widget.authController);
-    _controller.load();
-    _controller.startRealtime();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   String _filterLabel(NotifType? type) {
     switch (type) {
@@ -97,11 +89,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   child: Text('Mark all read', style: AppTextStyles.link),
                 ),
             ],
-          ),
-          bottomNavigationBar: AppBottomNav(
-            role: widget.authController.role,
-            currentRoute: RouteNames.notifications,
-            unreadNotifCount: _controller.unreadCount,
           ),
           body: Column(
             children: [

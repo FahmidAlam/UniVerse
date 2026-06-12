@@ -6,13 +6,14 @@
 // recent-broadcasts list for review/delete.
 // ============================================================
 
-import 'package:flutter/material.dart';
 import 'package:universe_v1/core/constants/app_enums.dart';
 import 'package:universe_v1/core/models/notification_model.dart';
+import 'package:universe_v1/core/utils/safe_change_notifier.dart';
 import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
 import 'package:universe_v1/features/notifications/services/notification_service.dart';
 
-class BroadcastController extends ChangeNotifier {
+// SafeChangeNotifier: async sends/loads may outlive the screen.
+class BroadcastController extends SafeChangeNotifier {
   final NotificationService _service = NotificationService();
   final AuthController authController;
 

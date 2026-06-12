@@ -6,11 +6,12 @@
 // Edge Function and is out of scope.)
 // ============================================================
 
-import 'package:flutter/material.dart';
 import 'package:universe_v1/core/models/profile_model.dart';
+import 'package:universe_v1/core/utils/safe_change_notifier.dart';
 import 'package:universe_v1/features/admin/services/admin_service.dart';
 
-class ManageUsersController extends ChangeNotifier {
+// SafeChangeNotifier: async loads may outlive the screen.
+class ManageUsersController extends SafeChangeNotifier {
   final AdminService _service = AdminService();
 
   List<Profile> _all = [];

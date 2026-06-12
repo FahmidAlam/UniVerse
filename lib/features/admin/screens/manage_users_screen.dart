@@ -10,12 +10,10 @@ import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:universe_v1/core/constants/app_constants.dart';
 import 'package:universe_v1/core/models/profile_model.dart';
-import 'package:universe_v1/core/router/route_names.dart';
 import 'package:universe_v1/core/theme/app_colors.dart';
 import 'package:universe_v1/core/theme/app_spacing.dart';
 import 'package:universe_v1/core/theme/app_text_styles.dart';
 import 'package:universe_v1/features/admin/controllers/manage_users_controller.dart';
-import 'package:universe_v1/shared/widgets/app_bottom_nav.dart';
 import 'package:universe_v1/shared/widgets/u_app_bar.dart';
 import 'package:universe_v1/shared/widgets/u_avatar.dart';
 import 'package:universe_v1/shared/widgets/u_card.dart';
@@ -140,10 +138,6 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
       appBar: const UAppBar(title: 'Manage Users', showBackButton: false),
-      bottomNavigationBar: const AppBottomNav(
-        role: AppConstants.roleAdmin,
-        currentRoute: RouteNames.manageUsers,
-      ),
       body: ListenableBuilder(
         listenable: _controller,
         builder: (context, _) {

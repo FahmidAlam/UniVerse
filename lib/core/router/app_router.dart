@@ -16,8 +16,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:universe_v1/core/router/app_shell.dart';
 import 'package:universe_v1/core/router/route_names.dart';
 import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
+import 'package:universe_v1/features/notifications/controllers/notification_controller.dart';
 import 'package:universe_v1/features/auth/screens/splash_screen.dart';
 import 'package:universe_v1/features/auth/screens/onboarding_screen.dart';
 import 'package:universe_v1/features/auth/screens/login_screen.dart';
@@ -45,6 +47,11 @@ class AppRouter {
   final AuthController authController;
 
   AppRouter({required this.authController});
+
+  // App-scoped: one Realtime subscription + one unread count shared by
+  // the shell's nav badge and the notifications screen.
+  late final NotificationController notificationController =
+      NotificationController(authController: authController);
 
   late final GoRouter router = GoRouter(
     initialLocation: RouteNames.splash,
@@ -84,6 +91,13 @@ class AppRouter {
         return location == RouteNames.verifyEmail
             ? null
             : RouteNames.verifyEmail;
+      }
+
+      // registering = session exists but no profile yet (Google OAuth first-time
+      // sign-in, or email OTP verified before pending data was consumed).
+      // Allow auth pages so the register screens are reachable.
+      if (status == AuthStatus.registering) {
+        return authPages.contains(location) ? null : RouteNames.roleSelection;
       }
 
       if (status == AuthStatus.unauthenticated ||
@@ -158,86 +172,94 @@ class AppRouter {
             NotWhitelistedScreen(authController: authController),
       ),
 
-      // Student
-      GoRoute(
-        path: RouteNames.studentDashboard,
-        builder: (c, s) => PlaceholderScreen(
-          title: 'Student Dashboard',
+      // ── Tab shell ─────────────────────────────────────────
+      // One Scaffold owns the bottom nav for every top-level tab;
+      // screens inside render content only. Secondary screens
+      // (Resources, Admin Registration) stay outside — they are
+      // pushed and use a back button, per the nav convention.
+      ShellRoute(
+        builder: (c, s, child) => AppShell(
           authController: authController,
-          navRoute: RouteNames.studentDashboard,
-          quickLinks: const [
-            (label: 'Browse Resources', route: RouteNames.resources)
-          ],
+          notificationController: notificationController,
+          child: child,
         ),
+        routes: [
+          // Student
+          GoRoute(
+            path: RouteNames.studentDashboard,
+            builder: (c, s) => PlaceholderScreen(
+              title: 'Student Dashboard',
+              quickLinks: const [
+                (label: 'Browse Resources', route: RouteNames.resources)
+              ],
+            ),
+          ),
+          GoRoute(
+            path: RouteNames.studentRoutine,
+            builder: (c, s) => RoutineScreen(authController: authController),
+          ),
+          GoRoute(
+            path: RouteNames.aiAssistant,
+            builder: (c, s) => const PlaceholderScreen(title: 'AI Assistant'),
+          ),
+          GoRoute(
+            path: RouteNames.notifications,
+            builder: (c, s) => NotificationsScreen(
+              authController: authController,
+              controller: notificationController,
+            ),
+          ),
+          GoRoute(
+            path: RouteNames.profile,
+            builder: (c, s) => ProfileScreen(authController: authController),
+          ),
+
+          // Teacher
+          GoRoute(
+            path: RouteNames.teacherDashboard,
+            builder: (c, s) =>
+                const PlaceholderScreen(title: 'Teacher Dashboard'),
+          ),
+          GoRoute(
+            path: RouteNames.teacherRoutine,
+            builder: (c, s) => RoutineScreen(authController: authController),
+          ),
+          GoRoute(
+            path: RouteNames.manageClasses,
+            builder: (c, s) =>
+                const PlaceholderScreen(title: 'Manage Classes'),
+          ),
+
+          // Admin
+          GoRoute(
+            path: RouteNames.adminDashboard,
+            builder: (c, s) =>
+                AdminDashboardScreen(authController: authController),
+          ),
+          GoRoute(
+            path: RouteNames.routineManagement,
+            builder: (c, s) => const RoutineManagementScreen(),
+          ),
+          GoRoute(
+            path: RouteNames.campusBroadcast,
+            builder: (c, s) =>
+                CampusBroadcastScreen(authController: authController),
+          ),
+          GoRoute(
+            path: RouteNames.manageUsers,
+            builder: (c, s) => const ManageUsersScreen(),
+          ),
+        ],
       ),
-      GoRoute(
-        path: RouteNames.studentRoutine,
-        builder: (c, s) => RoutineScreen(authController: authController),
-      ),
-      GoRoute(
-        path: RouteNames.aiAssistant,
-        builder: (c, s) => PlaceholderScreen(
-          title: 'AI Assistant',
-          authController: authController,
-          navRoute: RouteNames.aiAssistant,
-        ),
-      ),
+
+      // Secondary screens (pushed, back button, no tab bar)
       GoRoute(
         path: RouteNames.resources,
         builder: (c, s) => ResourcesScreen(authController: authController),
       ),
       GoRoute(
-        path: RouteNames.notifications,
-        builder: (c, s) =>
-            NotificationsScreen(authController: authController),
-      ),
-      GoRoute(
-        path: RouteNames.profile,
-        builder: (c, s) => ProfileScreen(authController: authController),
-      ),
-
-      // Teacher
-      GoRoute(
-        path: RouteNames.teacherDashboard,
-        builder: (c, s) => PlaceholderScreen(
-          title: 'Teacher Dashboard',
-          authController: authController,
-          navRoute: RouteNames.teacherDashboard,
-        ),
-      ),
-      GoRoute(
-        path: RouteNames.teacherRoutine,
-        builder: (c, s) => RoutineScreen(authController: authController),
-      ),
-      GoRoute(
-        path: RouteNames.manageClasses,
-        builder: (c, s) => PlaceholderScreen(
-          title: 'Manage Classes',
-          authController: authController,
-          navRoute: RouteNames.manageClasses,
-        ),
-      ),
-
-      // Admin
-      GoRoute(
-        path: RouteNames.adminDashboard,
-        builder: (c, s) => AdminDashboardScreen(authController: authController),
-      ),
-      GoRoute(
-        path: RouteNames.routineManagement,
-        builder: (c, s) => const RoutineManagementScreen(),
-      ),
-      GoRoute(
-        path: RouteNames.campusBroadcast,
-        builder: (c, s) => CampusBroadcastScreen(authController: authController),
-      ),
-      GoRoute(
         path: RouteNames.adminRegistration,
         builder: (c, s) => const AdminRegistrationScreen(),
-      ),
-      GoRoute(
-        path: RouteNames.manageUsers,
-        builder: (c, s) => const ManageUsersScreen(),
       ),
     ],
   );

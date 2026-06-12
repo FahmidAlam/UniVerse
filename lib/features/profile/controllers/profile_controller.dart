@@ -6,12 +6,12 @@
 // AuthController so the GoRouter redirect fires correctly.
 // ============================================================
 
-import 'package:flutter/material.dart';
 import 'package:universe_v1/core/models/profile_model.dart';
+import 'package:universe_v1/core/utils/safe_change_notifier.dart';
 import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
 import 'package:universe_v1/features/profile/services/profile_service.dart';
 
-class ProfileController extends ChangeNotifier {
+class ProfileController extends SafeChangeNotifier {
   final ProfileService _service = ProfileService();
   final AuthController authController;
 

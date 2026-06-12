@@ -5,10 +5,13 @@
 // the screen rebuilds via ListenableBuilder.
 // ============================================================
 
-import 'package:flutter/material.dart';
+import 'package:universe_v1/core/utils/safe_change_notifier.dart';
 import 'package:universe_v1/features/admin/services/admin_service.dart';
 
-class AdminDashboardController extends ChangeNotifier {
+// SafeChangeNotifier: load() can still be awaiting when navigation
+// disposes the screen (e.g. session expiry redirecting
+// /admin/dashboard → /login) — the late notifyListeners() must no-op.
+class AdminDashboardController extends SafeChangeNotifier {
   final AdminService _service = AdminService();
 
   AdminCounts _counts = const AdminCounts();

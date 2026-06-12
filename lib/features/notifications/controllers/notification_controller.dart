@@ -6,15 +6,15 @@
 // Plain ChangeNotifier — no Riverpod/Bloc/Provider.
 // ============================================================
 
-import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universe_v1/core/constants/app_enums.dart';
 import 'package:universe_v1/core/models/notification_model.dart';
 import 'package:universe_v1/core/models/profile_model.dart';
+import 'package:universe_v1/core/utils/safe_change_notifier.dart';
 import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
 import 'package:universe_v1/features/notifications/services/notification_service.dart';
 
-class NotificationController extends ChangeNotifier {
+class NotificationController extends SafeChangeNotifier {
   final NotificationService _service = NotificationService();
   final AuthController authController;
 
