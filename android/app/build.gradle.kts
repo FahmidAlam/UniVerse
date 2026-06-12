@@ -1,12 +1,14 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
+    // Firebase: must be applied after the Android/Kotlin plugins, before Flutter's.
+    id("com.google.gms.google-services")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
-    namespace = "com.example.universe_v1"
+    namespace = "com.example.universe_v1" 
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

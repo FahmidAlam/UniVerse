@@ -41,6 +41,25 @@ class RoutineEntry {
     this.isActive = true,
   });
 
+  /// Column map for INSERT/UPDATE from the admin Routine Manager.
+  /// Excludes `id` (Postgres generates it) and `created_at`.
+  Map<String, dynamic> toMap() {
+    return {
+      'day': day,
+      'time_start': timeStart,
+      'time_end': timeEnd,
+      'subject': subject,
+      'subject_code': subjectCode,
+      'teacher_name': teacherName,
+      'teacher_code': teacherCode,
+      'room': room,
+      'batch': batch,
+      'section': section,
+      'semester': semester,
+      'is_active': isActive,
+    };
+  }
+
   factory RoutineEntry.fromMap(Map<String, dynamic> map) {
     return RoutineEntry(
       id: map['id'] as String,

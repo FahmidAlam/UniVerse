@@ -1,28 +1,37 @@
 import 'package:flutter/material.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:universe_v1/core/theme/app_colors.dart';
 import 'package:universe_v1/core/theme/app_spacing.dart';
 import 'package:universe_v1/core/theme/app_text_styles.dart';
 
+/// One destination in the bottom nav. Presentational only — the icon
+/// + label. Routing is decided by the caller (see AppBottomNav).
+class UNavItem {
+  final IconData icon;
+  final String label;
+
+  const UNavItem({required this.icon, required this.label});
+}
+
+/// Pure presentational bottom navigation bar. It renders whatever
+/// [items] it is given and reports taps by index — it knows nothing
+/// about roles or routes. AppBottomNav supplies the per-role items.
 class UBottomNav extends StatelessWidget {
+  final List<UNavItem> items;
   final int currentIndex;
   final ValueChanged<int> onTap;
+
+  /// Index that shows the unread dot (e.g. the Alerts tab). -1 = none.
+  final int badgeIndex;
   final int unreadNotifCount;
 
   const UBottomNav({
     super.key,
+    required this.items,
     required this.currentIndex,
     required this.onTap,
+    this.badgeIndex = -1,
     this.unreadNotifCount = 0,
   });
-
-  static const List<_NavItem> _items = [
-    _NavItem(icon: PhosphorIconsRegular.house, label: 'Home'),
-    _NavItem(icon: PhosphorIconsRegular.calendarBlank, label: 'Routine'),
-    _NavItem(icon: PhosphorIconsRegular.sparkle, label: 'AI'),
-    _NavItem(icon: PhosphorIconsRegular.bell, label: 'Alerts'),
-    _NavItem(icon: PhosphorIconsRegular.user, label: 'Profile'),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -38,10 +47,10 @@ class UBottomNav extends StatelessWidget {
         ),
       ),
       child: Row(
-        children: List.generate(_items.length, (i) {
+        children: List.generate(items.length, (i) {
           final isActive = currentIndex == i;
-          final item = _items[i];
-          final showBadge = i == 3 && unreadNotifCount > 0;
+          final item = items[i];
+          final showBadge = i == badgeIndex && unreadNotifCount > 0;
 
           return Expanded(
             child: GestureDetector(
@@ -93,11 +102,4 @@ class UBottomNav extends StatelessWidget {
       ),
     );
   }
-}
-
-class _NavItem {
-  final IconData icon;
-  final String label;
-
-  const _NavItem({required this.icon, required this.label});
 }

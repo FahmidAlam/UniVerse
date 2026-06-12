@@ -582,14 +582,14 @@ import 'package:universe_v1/core/constants/app_constants.dart';
 import 'package:universe_v1/features/auth/services/auth_service.dart';
 
 enum AuthStatus {
-  initial,              // App just launched, checking session
-  loading,              // Async operation in progress
-  authenticated,        // Logged in with a loaded profile
-  unauthenticated,      // Not logged in
-  registering,          // OAuth done, no profile yet — register screens complete it
-  notWhitelisted,       // Admin account not in whitelist
+  initial, // App just launched, checking session
+  loading, // Async operation in progress
+  authenticated, // Logged in with a loaded profile
+  unauthenticated, // Not logged in
+  registering, // OAuth done, no profile yet — register screens complete it
+  notWhitelisted, // Admin account not in whitelist
   awaitingVerification, // Signed up, email not yet confirmed
-  error,                // Something went wrong
+  error, // Something went wrong
 }
 
 class AuthController extends ChangeNotifier {
@@ -609,13 +609,13 @@ class AuthController extends ChangeNotifier {
   Map<String, dynamic>? _pendingFacultyData;
 
   // ─── Getters ──────────────────────────────────────────────
-  AuthStatus get status             => _status;
+  AuthStatus get status => _status;
   Map<String, dynamic>? get profile => _profile;
-  String? get errorMessage          => _errorMessage;
-  bool get isLoading                => _isLoading;
-  String? get role                  => _profile?['role'] as String?;
-  bool get isAuthenticated          => _status == AuthStatus.authenticated;
-  String? get pendingEmail          => _pendingEmail;
+  String? get errorMessage => _errorMessage;
+  bool get isLoading => _isLoading;
+  String? get role => _profile?['role'] as String?;
+  bool get isAuthenticated => _status == AuthStatus.authenticated;
+  String? get pendingEmail => _pendingEmail;
   Map<String, dynamic>? get pendingStudentData => _pendingStudentData;
   Map<String, dynamic>? get pendingFacultyData => _pendingFacultyData;
 
@@ -681,7 +681,10 @@ class AuthController extends ChangeNotifier {
         _profile = profile;
         _status = AuthStatus.authenticated;
       } else {
-        _status = AuthStatus.unauthenticated;
+        // Verified session but registration never finished (e.g. app
+        // closed on the register screen). Resume it instead of dumping
+        // the user on login with a live session.
+        _status = AuthStatus.registering;
       }
     } else {
       _status = AuthStatus.unauthenticated;
@@ -705,10 +708,35 @@ class AuthController extends ChangeNotifier {
     _setLoading(false);
   }
 
-  // Called by main.dart auth stream when OAuth callback fires.
-  Future<void> handleOAuthCallback() async {
+  // Called after any event that establishes a session: the OAuth deep
+  // link (main.dart stream), email OTP verification, the verify-email
+  // poll timer, or the manual "check status" button. These can fire
+  // concurrently — the in-flight future is shared so handlePostLogin
+  // runs exactly once and every caller awaits the same resolution.
+  Future<void>? _postLoginInFlight;
+
+  Future<void> handleOAuthCallback() {
+    return _postLoginInFlight ??= _resolvePostLogin().whenComplete(() {
+      _postLoginInFlight = null;
+    });
+  }
+
+  Future<void> _resolvePostLogin() async {
     _setLoading(true);
     _clearError();
+
+    // Email registration path: the register screen stored the user's
+    // details before sign-up. Build the real profile from them instead
+    // of letting handlePostLogin leave us in `registering`.
+    if (_pendingStudentData != null || _pendingFacultyData != null) {
+      final ok = await _completeFromPendingData();
+      if (ok) {
+        _setLoading(false);
+        return;
+      }
+      // Completion failed — fall through so at least the session state
+      // resolves (user lands on register screens via `registering`).
+    }
 
     final result = await _authService.handlePostLogin();
 
@@ -728,6 +756,29 @@ class AuthController extends ChangeNotifier {
     }
 
     _setLoading(false);
+  }
+
+  Future<bool> _completeFromPendingData() async {
+    if (_pendingStudentData != null) {
+      final d = _pendingStudentData!;
+      return completeStudentRegistration(
+        name: d['name'] as String,
+        studentId: d['studentId'] as String,
+        batch: d['batch'] as String,
+        section: d['section'] as String,
+        semester: d['semester'] as int,
+      );
+    }
+    if (_pendingFacultyData != null) {
+      final d = _pendingFacultyData!;
+      return completeFacultyRegistration(
+        name: d['name'] as String,
+        employeeId: d['employeeId'] as String,
+        department: d['department'] as String,
+        designation: d['designation'] as String,
+      );
+    }
+    return false;
   }
 
   // ===========================================================
@@ -756,6 +807,14 @@ class AuthController extends ChangeNotifier {
     }
 
     if (result.success) {
+      if (result.profile == null) {
+        // Email confirmation disabled in Supabase — session is live but
+        // no profile yet. Resolve via the shared path so pending
+        // registration data is consumed.
+        await handleOAuthCallback();
+        return _status == AuthStatus.authenticated ||
+            _status == AuthStatus.registering;
+      }
       _profile = result.profile;
       _status = AuthStatus.authenticated;
       notifyListeners();
@@ -794,6 +853,13 @@ class AuthController extends ChangeNotifier {
     }
 
     if (result.success) {
+      if (result.profile == null) {
+        // Verified session but registration was never finished —
+        // router sends them to role selection to complete it.
+        _status = AuthStatus.registering;
+        notifyListeners();
+        return true;
+      }
       _profile = result.profile;
       _status = AuthStatus.authenticated;
       notifyListeners();
@@ -838,6 +904,40 @@ class AuthController extends ChangeNotifier {
     return false;
   }
 
+  // ─── Verify email with OTP code ──────────────────────────
+  // Called by VerifyEmailScreen when the user types the code from
+  // the confirmation email. After verifying, auto-completes profile
+  // creation using pending registration data (stored by the register
+  // screens before email sign-up). Google OAuth users have no pending
+  // data — they land on registering status and the router sends them
+  // to role selection.
+  Future<bool> verifyEmailCode(String code) async {
+    if (_pendingEmail == null) return false;
+    _setLoading(true);
+    _clearError();
+
+    final result = await _authService.verifyEmailOtp(
+      email: _pendingEmail!,
+      token: code,
+    );
+
+    if (!result.success) {
+      _setLoading(false);
+      _setError(result.errorMessage ?? 'Invalid or expired code.');
+      return false;
+    }
+
+    // Session established — resolve profile / whitelist / registration
+    // state. Pending registration data (stored by the register screens)
+    // is consumed inside, so email registrants land authenticated with
+    // a complete profile. No pending data + registering = OAuth user;
+    // the router sends them to role selection.
+    await handleOAuthCallback();
+
+    return _status == AuthStatus.authenticated ||
+        _status == AuthStatus.registering;
+  }
+
   // ─── Check email verified (manual check button) ───────────
   Future<bool> checkEmailVerified() async {
     _setLoading(true);
@@ -846,14 +946,11 @@ class AuthController extends ChangeNotifier {
     final user = _authService.currentUser;
 
     if (user?.emailConfirmedAt != null) {
-      final result = await _authService.handlePostLogin();
-      if (result.success) {
-        _profile = result.profile;
-        _status = AuthStatus.authenticated;
-        clearPendingData();
-        _setLoading(false);
-        return true;
-      }
+      // Shared resolution path — consumes pending registration data
+      // and dedupes against the poll timer / auth stream listener.
+      await handleOAuthCallback();
+      return _status == AuthStatus.authenticated ||
+          _status == AuthStatus.registering;
     }
 
     _setLoading(false);

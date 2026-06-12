@@ -6,11 +6,9 @@
 // ============================================================
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:universe_v1/core/constants/app_constants.dart';
 import 'package:universe_v1/core/models/profile_model.dart';
-import 'package:universe_v1/core/router/route_names.dart';
 import 'package:universe_v1/core/theme/app_colors.dart';
 import 'package:universe_v1/core/theme/app_spacing.dart';
 import 'package:universe_v1/core/theme/app_text_styles.dart';
@@ -21,7 +19,6 @@ import 'package:universe_v1/shared/widgets/settings_tile.dart';
 import 'package:universe_v1/shared/widgets/stat_card.dart';
 import 'package:universe_v1/shared/widgets/u_app_bar.dart';
 import 'package:universe_v1/shared/widgets/u_avatar.dart';
-import 'package:universe_v1/shared/widgets/u_bottom_nav.dart';
 import 'package:universe_v1/shared/widgets/u_button.dart';
 import 'package:universe_v1/shared/widgets/u_card.dart';
 import 'package:universe_v1/shared/widgets/u_loading.dart';
@@ -49,25 +46,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void dispose() {
     _controller.dispose();
     super.dispose();
-  }
-
-  void _onNavTap(int i) {
-    final isTeacher = widget.authController.role == 'teacher';
-    switch (i) {
-      case 0:
-        context.go(isTeacher
-            ? RouteNames.teacherDashboard
-            : RouteNames.studentDashboard);
-      case 1:
-        context.go(
-            isTeacher ? RouteNames.teacherRoutine : RouteNames.studentRoutine);
-      case 2:
-        context.go(RouteNames.aiAssistant);
-      case 3:
-        context.go(RouteNames.notifications);
-      case 4:
-        break; // already here
-    }
   }
 
   Future<void> _confirmSignOut() async {
@@ -117,7 +95,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
       appBar: const UAppBar(title: 'Profile', showBackButton: false),
-      bottomNavigationBar: UBottomNav(currentIndex: 4, onTap: _onNavTap),
       body: ListenableBuilder(
         listenable: _controller,
         builder: (context, _) {

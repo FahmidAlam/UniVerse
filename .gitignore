@@ -18,10 +18,8 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# The .vscode folder holds per-developer editor settings — keep it local.
+.vscode/
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -31,6 +29,8 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+# Gradle/Android build output lives outside the root /build/ too.
+**/build/
 /coverage/
 
 # Symbolication related
@@ -43,3 +43,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Python (timetable engine)
+.venv/
+__pycache__/
+
+# Local build-time secrets/config (share with teammates out-of-band)
+dart_defines.json

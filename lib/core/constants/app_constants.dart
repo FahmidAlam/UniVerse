@@ -97,12 +97,20 @@ abstract class AppConstants {
   static const String tableSubmissions      = 'submissions';
   static const String tableDocuments        = 'documents';
   static const String tableGeneratedTimetable = 'generated_timetable';
+  static const String tableDeviceTokens     = 'device_tokens';
 
   // ─── Storage Buckets ──────────────────────────────────────
   static const String bucketAvatars     = 'avatars';
   static const String bucketResources   = 'resources';
   static const String bucketSubmissions = 'submissions';
   static const String bucketTimetables  = 'timetables';
+
+  // ─── Push Notifications (FCM) ─────────────────────────────
+  // Channel id MUST match AndroidManifest's default_notification_channel_id.
+  static const String pushChannelId   = 'universe_high_importance';
+  static const String pushChannelName = 'UniVerse Alerts';
+  static const String pushChannelDesc =
+      'Class cancellations, room changes, and campus announcements.';
 
   // ─── RAG ──────────────────────────────────────────────────
   static const int embeddingDimension = 768;
