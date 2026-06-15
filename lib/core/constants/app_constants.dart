@@ -116,6 +116,10 @@ abstract class AppConstants {
   static const String tableSubmissions      = 'submissions';
   static const String tableDocuments        = 'documents';
   static const String tableGeneratedTimetable = 'generated_timetable';
+  static const String tableTimetableRooms    = 'timetable_rooms';
+  static const String tableTimetableFaculty  = 'timetable_faculty';
+  static const String tableTimetableSettings = 'timetable_settings';
+  static const String tableTimetableRuns     = 'timetable_runs';
 
   // ─── Storage Buckets ──────────────────────────────────────
   static const String bucketAvatars     = 'avatars';

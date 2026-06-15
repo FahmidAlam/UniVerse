@@ -41,6 +41,11 @@ import 'package:universe_v1/features/admin/screens/routine_management_screen.dar
 import 'package:universe_v1/features/admin/screens/generate_timetable_screen.dart';
 import 'package:universe_v1/features/admin/screens/admin_registration_screen.dart';
 import 'package:universe_v1/features/admin/screens/manage_users_screen.dart';
+import 'package:universe_v1/features/admin/screens/manage_rooms_screen.dart';
+import 'package:universe_v1/features/admin/screens/manage_faculty_screen.dart';
+import 'package:universe_v1/features/admin/screens/timetable_settings_screen.dart';
+import 'package:universe_v1/features/admin/screens/timetable_grid_screen.dart';
+import 'package:universe_v1/core/models/routine_model.dart';
 
 class AppRouter {
   final AuthController authController;
@@ -243,6 +248,24 @@ class AppRouter {
       GoRoute(
         path: RouteNames.manageUsers,
         builder: (c, s) => const ManageUsersScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.manageRooms,
+        builder: (c, s) => const ManageRoomsScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.manageFaculty,
+        builder: (c, s) => const ManageFacultyScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.timetableSettings,
+        builder: (c, s) => const TimetableSettingsScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.timetableGrid,
+        builder: (c, s) => TimetableGridScreen(
+          rows: (s.extra as List<RoutineEntry>?) ?? const [],
+        ),
       ),
     ],
   );

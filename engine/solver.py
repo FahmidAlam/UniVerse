@@ -1,119 +1,104 @@
 # ============================================================
 # FILE: engine/solver.py
-# PURPOSE: Two-phase department timetable generator.
-#   Phase 1 (CP-SAT): assign each class meeting a (day, slot).
-#     Hard:  no teacher double-booking, no section double-booking,
-#            teacher day-offs, labs occupy consecutive slots inside
-#            one block, per-slot room-count <= available rooms.
-#     Soft:  spread each section's daily load (penalise heavy days).
-#   Phase 2 (greedy): assign a concrete room to every meeting —
-#     labs -> lab rooms first, theory -> theory rooms.
+# PURPOSE: Department timetable generator (CP-SAT + greedy rooms),
+#   driven by ingest.py output and a config dict (rooms / faculty
+#   off-days / period grid / weights). Replaces the demo solver.
 #
-# Output rows match the Supabase `routines` columns so the Flutter
-# client can publish them verbatim and the existing routine viewer
-# shows them with no extra code.
+#   Phase 1 (CP-SAT): assign each session a (day, period).
+#     HARD: exactly-once; no teacher / cohort double-book; per-slot
+#           room-count <= rooms available (so Phase 2 always succeeds);
+#           teacher day-offs; Friday has no Period 4; online column off.
+#     SOFT (weighted, minimized):
+#           S1 the two sessions of one offering on DIFFERENT days;
+#           S3 cohort compactness (fewer distinct class-days);
+#           S7 avoid the last in-person period.
+#   Phase 2 (greedy): labs -> lab rooms, theory -> theory rooms/galleries.
+#
+#   Service / non-CSE sessions are solved as resource-only: they hold
+#   teacher + room time (so a CSE class never clashes with a teacher's
+#   service class) but are NOT emitted as published/rendered rows.
+#
+# Output rows match the Supabase `routines` columns.
 # ============================================================
 
 from __future__ import annotations
 
 import json
+import os
 import time
-from dataclasses import dataclass, field
 from pathlib import Path
 
 from ortools.sat.python import cp_model
 
-FIXTURES = Path(__file__).parent / "fixtures" / "offerings.json"
+CONFIG_PATH = Path(__file__).parent / "config.json"
+
+# CP-SAT worker threads. More workers = faster but more memory. Free
+# hosting tiers (e.g. Render 512 MB) can OOM with 8 — override with the
+# SOLVER_WORKERS env var (2 is a safe default for constrained instances).
+SOLVER_WORKERS = int(os.environ.get("SOLVER_WORKERS", "8"))
 
 
-# ─── Domain types ─────────────────────────────────────────────
+# ─── Config ───────────────────────────────────────────────────
 
-@dataclass
-class Session:
-    """One atomic class meeting that needs a (day, start_slot)."""
-    sid: int
-    subject: str
-    subject_code: str
-    teacher_code: str
-    section: str
-    is_lab: bool
-    length: int  # number of consecutive slots occupied
+def load_config(override: dict | None = None) -> dict:
+    if override:
+        return _normalize_config(override)
+    return _normalize_config(json.loads(CONFIG_PATH.read_text(encoding="utf-8")))
 
 
-@dataclass
-class Dataset:
-    days: list[str]
-    slots: list[dict]
-    theory_rooms: list[str]
-    lab_rooms: list[str]
-    teachers: dict[str, dict]  # code -> {name, day_off}
-    batch: str
-    semester: int
-    sessions: list[Session] = field(default_factory=list)
+def _normalize_config(cfg: dict) -> dict:
+    """Accept either the engine config.json shape or the DB-sourced shape
+    (rooms[], faculty[], settings{}) and normalise to one internal form."""
+    days = cfg.get("days") or ["Sunday", "Monday", "Tuesday", "Wednesday",
+                               "Thursday", "Friday", "Saturday"]
+    settings = cfg.get("settings", cfg)
+    periods = cfg.get("periods") or settings.get("periods")
+    friday_no_p4 = cfg.get("friday_no_p4", settings.get("friday_no_p4", True))
+    weights = settings.get("weights", {"different_days": 8, "compactness": 3,
+                                       "spread": 2, "late_slot": 1})
+
+    # Rooms: list of {name,is_lab,is_gallery}
+    rooms = cfg.get("rooms") or []
+    lab_rooms, theory_rooms = [], []
+    for r in rooms:
+        (lab_rooms if r.get("is_lab") else theory_rooms).append(r["name"])
+    if not rooms:  # fall back to flat lists
+        lab_rooms = cfg.get("lab_rooms", [])
+        theory_rooms = cfg.get("theory_rooms", [])
+
+    # Teachers -> off-days map. Accept dict{acronym:{off_days}} or list[].
+    teachers = cfg.get("teachers", {})
+    off_days: dict[str, set[str]] = {}
+    names: dict[str, str] = {}
+    if isinstance(teachers, dict):
+        for ac, t in teachers.items():
+            off_days[ac] = set(t.get("off_days") or [])
+            if t.get("full_name"):
+                names[ac] = t["full_name"]
+    else:  # list of faculty rows
+        for t in teachers:
+            ac = t.get("acronym")
+            if ac:
+                off_days[ac] = set(t.get("off_days") or [])
+                if t.get("full_name"):
+                    names[ac] = t["full_name"]
+
+    return {
+        "days": days,
+        "periods": periods,
+        "friday_no_p4": friday_no_p4,
+        "weights": weights,
+        "lab_rooms": lab_rooms,
+        "theory_rooms": theory_rooms,
+        "off_days": off_days,
+        "names": names,
+        "semester_label": settings.get("semester_label"),
+    }
 
 
-def load_dataset(path: Path | None = None, override: dict | None = None) -> Dataset:
-    data = override if override is not None else json.loads((path or FIXTURES).read_text(encoding="utf-8"))
-    meta = data.get("meta", {})
-    teachers = {t["code"]: t for t in data["teachers"]}
-
-    sessions: list[Session] = []
-    sid = 0
-    for off in data["offerings"]:
-        is_lab = off.get("type") == "lab"
-        length = int(off.get("length", 2 if is_lab else 1))
-        for _ in range(int(off.get("sessions", 1))):
-            sessions.append(Session(
-                sid=sid,
-                subject=off["subject"],
-                subject_code=off["subject_code"],
-                teacher_code=off["teacher_code"],
-                section=off["section"],
-                is_lab=is_lab,
-                length=length,
-            ))
-            sid += 1
-
-    return Dataset(
-        days=data["days"],
-        slots=data["slots"],
-        theory_rooms=data["rooms"]["theory"],
-        lab_rooms=data["rooms"]["lab"],
-        teachers=teachers,
-        batch=str(meta.get("batch", "63")),
-        semester=int(meta.get("semester", 5)),
-        sessions=sessions,
-    )
-
-
-# ─── Slot blocks (a multi-slot lab must stay inside one block) ──
-
-def _blocks(slots: list[dict]) -> list[list[int]]:
-    """Group slot indices by their 'block' tag, preserving order."""
-    groups: dict[str, list[int]] = {}
-    for s in slots:
-        groups.setdefault(s.get("block", "all"), []).append(s["index"])
-    return list(groups.values())
-
-
-def _allowed_starts(slots: list[dict], length: int) -> list[int]:
-    """Start slots where a meeting of `length` fits inside one block."""
-    if length <= 1:
-        return [s["index"] for s in slots]
-    starts: list[int] = []
-    for block in _blocks(slots):
-        for i in range(len(block) - length + 1):
-            # Contiguous within the block (indices are consecutive there).
-            window = block[i:i + length]
-            if window == list(range(window[0], window[0] + length)):
-                starts.append(window[0])
-    return starts
-
-
-# ─── Phase 1: CP-SAT day/slot assignment ──────────────────────
+# ─── Progress hook ────────────────────────────────────────────
 
 class _Progress:
-    """Tiny callback hook so the API can report rough progress."""
     def __init__(self, cb=None):
         self.cb = cb
 
@@ -122,201 +107,293 @@ class _Progress:
             self.cb(value)
 
 
-def solve(ds: Dataset, time_limit_s: float = 20.0, progress: _Progress | None = None) -> dict:
+# ─── Solve ────────────────────────────────────────────────────
+
+def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
+          progress: _Progress | None = None) -> dict:
     progress = progress or _Progress()
-    n_days = len(ds.days)
-    slot_idx = [s["index"] for s in ds.slots]
-    n_slots = len(slot_idx)
+    cfg = config
+    days = cfg["days"]
+    # In-person periods only: idx 1..6 (drop online P7). Map idx -> meta.
+    periods = [p for p in cfg["periods"] if int(p["idx"]) <= 6]
+    pidx = [int(p["idx"]) for p in periods]
+    pmeta = {int(p["idx"]): p for p in periods}
+    off_days = cfg["off_days"]
+    n_lab = len(cfg["lab_rooms"])
+    n_theory = len(cfg["theory_rooms"])
+    w = cfg["weights"]
+
+    sessions = dataset["sessions"]
+
+    def valid_slots(s) -> list[tuple[int, int]]:
+        out = []
+        tea_off = off_days.get(s["teacher"], set())
+        for di, dname in enumerate(days):
+            if dname in tea_off:
+                continue
+            for p in pidx:
+                if cfg["friday_no_p4"] and dname == "Friday" and p == 4:
+                    continue
+                out.append((di, p))
+        return out
 
     model = cp_model.CpModel()
-
-    # x[sid][d][start] = 1 if session sid starts on day d at slot `start`.
     x: dict[tuple[int, int, int], cp_model.IntVar] = {}
-    starts_for: dict[int, list[int]] = {}
-    for s in ds.sessions:
-        starts = _allowed_starts(ds.slots, s.length)
-        starts_for[s.sid] = starts
-        day_off = ds.teachers.get(s.teacher_code, {}).get("day_off")
-        for d, dname in enumerate(ds.days):
-            if dname == day_off:
-                continue  # hard: respect teacher day-off
-            for st in starts:
-                x[(s.sid, d, st)] = model.NewBoolVar(f"x_{s.sid}_{d}_{st}")
+    slots_for: dict[int, list[tuple[int, int]]] = {}
+    for s in sessions:
+        sl = valid_slots(s)
+        slots_for[s["sid"]] = sl
+        for (d, p) in sl:
+            x[(s["sid"], d, p)] = model.NewBoolVar(f"x_{s['sid']}_{d}_{p}")
 
-    # Each session is scheduled exactly once.
-    for s in ds.sessions:
-        model.AddExactlyOne(
-            x[(s.sid, d, st)]
-            for d in range(n_days)
-            for st in starts_for[s.sid]
-            if (s.sid, d, st) in x
-        )
+    # H1: each session placed exactly once.
+    for s in sessions:
+        vs = [x[(s["sid"], d, p)] for (d, p) in slots_for[s["sid"]]]
+        if not vs:
+            raise RuntimeError(
+                f"No valid slot for {s['code']} {s['cohort']} (teacher {s['teacher']} "
+                f"off-days leave no room). Adjust day-offs or periods.")
+        model.AddExactlyOne(vs)
 
-    # occupy(sid, d, ts): linear 0/1 expr — does session occupy time-slot ts on day d.
-    def occupy(s: Session, d: int, ts: int):
-        terms = []
-        for st in starts_for[s.sid]:
-            if st <= ts < st + s.length and (s.sid, d, st) in x:
-                terms.append(x[(s.sid, d, st)])
-        return sum(terms) if terms else 0
+    # Group sessions by teacher / cohort for clash + room constraints.
+    by_teacher: dict[str, list[dict]] = {}
+    by_cohort: dict[str, list[dict]] = {}
+    for s in sessions:
+        by_teacher.setdefault(s["teacher"], []).append(s)
+        by_cohort.setdefault(s["cohort"], []).append(s)
 
-    # Hard: no teacher / no section double-booking; cap rooms per slot.
-    by_teacher: dict[str, list[Session]] = {}
-    by_section: dict[str, list[Session]] = {}
-    for s in ds.sessions:
-        by_teacher.setdefault(s.teacher_code, []).append(s)
-        by_section.setdefault(s.section, []).append(s)
+    for di in range(len(days)):
+        for p in pidx:
+            # H2 teacher, H3 cohort: <= 1 per (day,period).
+            for group in by_teacher.values():
+                terms = [x[(s["sid"], di, p)] for s in group if (s["sid"], di, p) in x]
+                if len(terms) > 1:
+                    model.Add(sum(terms) <= 1)
+            for group in by_cohort.values():
+                terms = [x[(s["sid"], di, p)] for s in group if (s["sid"], di, p) in x]
+                if len(terms) > 1:
+                    model.Add(sum(terms) <= 1)
+            # H4/H5 room capacity: lab vs theory counts <= rooms available.
+            lab_terms = [x[(s["sid"], di, p)] for s in sessions
+                         if s["is_lab"] and (s["sid"], di, p) in x]
+            th_terms = [x[(s["sid"], di, p)] for s in sessions
+                        if not s["is_lab"] and (s["sid"], di, p) in x]
+            if lab_terms:
+                model.Add(sum(lab_terms) <= n_lab)
+            if th_terms:
+                model.Add(sum(th_terms) <= n_theory)
 
-    for d in range(n_days):
-        for ts in slot_idx:
-            for tcode, group in by_teacher.items():
-                model.Add(sum(occupy(s, d, ts) for s in group) <= 1)
-            for sec, group in by_section.items():
-                model.Add(sum(occupy(s, d, ts) for s in group) <= 1)
-            # Room capacity so the greedy Phase 2 always succeeds.
-            model.Add(sum(occupy(s, d, ts) for s in ds.sessions if not s.is_lab)
-                      <= len(ds.theory_rooms))
-            model.Add(sum(occupy(s, d, ts) for s in ds.sessions if s.is_lab)
-                      <= len(ds.lab_rooms))
-
-    # Soft: spread each section's daily load. Penalise slot-units beyond a target.
-    target_per_day = 4
     penalties = []
-    for sec, group in by_section.items():
-        for d in range(n_days):
-            load = sum(occupy(s, d, ts) for s in group for ts in slot_idx)
-            over = model.NewIntVar(0, n_slots, f"over_{sec}_{d}")
-            model.Add(over >= load - target_per_day)
-            penalties.append(over)
+
+    # S1: two sessions of one offering should be on different days.
+    by_offering: dict[tuple, list[dict]] = {}
+    for s in sessions:
+        by_offering.setdefault((s["cohort"], s["code"], s["teacher"]), []).append(s)
+    for key, pair in by_offering.items():
+        if len(pair) < 2:
+            continue
+        s1, s2 = pair[0], pair[1]
+        for di in range(len(days)):
+            y1 = [x[(s1["sid"], di, p)] for p in pidx if (s1["sid"], di, p) in x]
+            y2 = [x[(s2["sid"], di, p)] for p in pidx if (s2["sid"], di, p) in x]
+            if not y1 or not y2:
+                continue
+            same = model.NewBoolVar(f"same_{s1['sid']}_{s2['sid']}_{di}")
+            # same >= y1+y2-1  (both on this day -> same=1)
+            model.Add(sum(y1) + sum(y2) - 1 <= same)
+            penalties.append(w.get("different_days", 8) * same)
+
+    # S3: cohort compactness — minimise distinct class-days per cohort.
+    for cohort, group in by_cohort.items():
+        for di in range(len(days)):
+            used = model.NewBoolVar(f"used_{cohort}_{di}")
+            terms = [x[(s["sid"], di, p)] for s in group for p in pidx
+                     if (s["sid"], di, p) in x]
+            for t in terms:
+                model.Add(used >= t)
+            penalties.append(w.get("compactness", 3) * used)
+
+    # S7: avoid the last in-person period.
+    last_p = max(pidx)
+    for s in sessions:
+        for di in range(len(days)):
+            if (s["sid"], di, last_p) in x:
+                penalties.append(w.get("late_slot", 1) * x[(s["sid"], di, last_p)])
+
     model.Minimize(sum(penalties))
 
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = time_limit_s
-    solver.parameters.num_search_workers = 8
-
-    progress(0.55)
+    solver.parameters.num_search_workers = SOLVER_WORKERS
+    progress(0.5)
     t0 = time.time()
     status = solver.Solve(model)
     solve_ms = int((time.time() - t0) * 1000)
-    progress(0.8)
+    progress(0.82)
 
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        raise RuntimeError(f"No feasible timetable (solver status={solver.StatusName(status)}).")
+        raise RuntimeError(
+            f"No feasible timetable (status={solver.StatusName(status)}). "
+            "A teacher likely has more sessions than free (day,period) slots.")
 
-    # Read assignments back.
-    placed: list[dict] = []
-    for s in ds.sessions:
-        for d in range(n_days):
-            for st in starts_for[s.sid]:
-                if (s.sid, d, st) in x and solver.Value(x[(s.sid, d, st)]) == 1:
-                    placed.append({"session": s, "day": d, "start": st})
-    progress(0.85)
+    placed = []
+    for s in sessions:
+        for (d, p) in slots_for[s["sid"]]:
+            if solver.Value(x[(s["sid"], d, p)]) == 1:
+                placed.append({"s": s, "day": d, "period": p})
+                break
+    progress(0.88)
 
-    rows = _assign_rooms(ds, placed)
-    progress(0.97)
+    rows, service_rows = _assign_rooms(dataset, cfg, placed, days, pmeta)
+    progress(0.96)
 
     return {
         "rows": rows,
+        "service_rows": service_rows,
         "stats": {
             "status": solver.StatusName(status),
             "solve_ms": solve_ms,
             "meetings": len(rows),
-            "sections": sorted(by_section.keys()),
+            "service_meetings": len(service_rows),
+            "cohorts": len(dataset["cohorts"]),
             "teachers": len(by_teacher),
-            "spread_penalty": int(solver.ObjectiveValue()),
+            "objective": int(solver.ObjectiveValue()),
         },
-        "validation": _validate(ds, rows),
+        "validation": _validate(dataset, cfg, rows + service_rows, days),
     }
 
 
 # ─── Phase 2: greedy room assignment ──────────────────────────
 
-def _assign_rooms(ds: Dataset, placed: list[dict]) -> list[dict]:
-    slot_meta = {s["index"]: s for s in ds.slots}
-    # busy[(day, ts)] -> set of rooms already taken in that time-slot.
+def _assign_rooms(dataset, cfg, placed, days, pmeta):
     busy: dict[tuple[int, int], set[str]] = {}
+    lab_pool = cfg["lab_rooms"]
+    theory_pool = cfg["theory_rooms"]
+    names = cfg["names"]
 
-    def free_room(pool: list[str], day: int, occupied_ts: list[int]) -> str | None:
+    # Map batch -> a 1..8 semester for display (routines.semester). The
+    # newest (highest) batch is semester 1; each older batch is +1. This
+    # matches the app's existing convention (e.g. batch 62 -> semester 5).
+    numeric_batches = [int(p["s"]["batch"]) for p in placed
+                       if p["s"]["batch"].isdigit()]
+    max_batch = max(numeric_batches) if numeric_batches else 0
+
+    def semester_for(batch: str) -> int:
+        if not batch.isdigit() or max_batch == 0:
+            return 1
+        return min(8, max(1, max_batch - int(batch) + 1))
+
+    def pick(pool, d, p):
         for r in pool:
-            if all(r not in busy.get((day, ts), set()) for ts in occupied_ts):
+            if r not in busy.get((d, p), set()):
                 return r
         return None
 
-    # Labs first — scarcer rooms.
-    placed.sort(key=lambda p: (not p["session"].is_lab,))
+    placed.sort(key=lambda q: (not q["s"]["is_lab"],))  # labs first
 
-    rows: list[dict] = []
-    for i, p in enumerate(placed):
-        s: Session = p["session"]
-        day = p["day"]
-        st = p["start"]
-        occupied = list(range(st, st + s.length))
-        pool = ds.lab_rooms if s.is_lab else ds.theory_rooms
-        room = free_room(pool, day, occupied)
-        if room is None:  # should not happen — Phase 1 capped counts
-            room = "TBA"
-        for ts in occupied:
-            busy.setdefault((day, ts), set()).add(room)
-
-        teacher = ds.teachers.get(s.teacher_code, {})
-        rows.append({
-            "id": f"gen-{i}",  # synthetic; Postgres assigns the real id on insert
-            "day": ds.days[day],
-            "time_start": slot_meta[st]["start"],
-            "time_end": slot_meta[st + s.length - 1]["end"],
-            "subject": s.subject,
-            "subject_code": s.subject_code,
-            "teacher_name": teacher.get("name"),
-            "teacher_code": s.teacher_code,
+    rows, service_rows = [], []
+    for i, q in enumerate(placed):
+        s, d, p = q["s"], q["day"], q["period"]
+        pool = lab_pool if s["is_lab"] else theory_pool
+        room = pick(pool, d, p) or "TBA"
+        busy.setdefault((d, p), set()).add(room)
+        meta = pmeta[p]
+        row = {
+            "id": f"gen-{i}",
+            "day": days[d],
+            "period": p,
+            "time_start": meta["start"],
+            "time_end": meta["end"],
+            "subject": s["title"],
+            "subject_code": s["code"],
+            "teacher_name": names.get(s["teacher"]),
+            "teacher_code": s["teacher"],
             "room": room,
-            "batch": ds.batch,
-            "section": s.section,
-            "semester": ds.semester,
+            "batch": s["batch"],
+            "section": s["section"],
+            "semester": semester_for(s["batch"]),
             "is_active": True,
-        })
+            "is_service": s["is_service"],
+            "is_lab": s["is_lab"],
+        }
+        (service_rows if s["is_service"] else rows).append(row)
 
-    # Stable, human-friendly order for the preview / viewer.
-    day_order = {d: i for i, d in enumerate(ds.days)}
-    rows.sort(key=lambda r: (r["section"], day_order.get(r["day"], 99), r["time_start"]))
-    return rows
+    day_order = {d: i for i, d in enumerate(days)}
+    rows.sort(key=lambda r: (r["batch"], r["section"],
+                             day_order.get(r["day"], 99), r["period"]))
+    return rows, service_rows
 
 
-# ─── Self-check used by the demo to prove correctness ─────────
+# ─── Validation (§9) ──────────────────────────────────────────
 
-def _validate(ds: Dataset, rows: list[dict]) -> dict:
-    teacher_clashes = 0
-    section_clashes = 0
-    dayoff_violations = 0
-    seen_teacher: dict[tuple, int] = {}
-    seen_section: dict[tuple, int] = {}
+def _validate(dataset, cfg, all_rows, days):
+    seen_t, seen_c, seen_r = {}, {}, {}
+    dayoff = 0
+    fri_p4 = 0
+    lab_bad = 0
+    tba = 0
+    lab_set = set(cfg["lab_rooms"])
+    off_days = cfg["off_days"]
+    for r in all_rows:
+        kt = (r["teacher_code"], r["day"], r["period"])
+        kc = (r["batch"], r["section"], r["day"], r["period"])
+        kr = (r["room"], r["day"], r["period"])
+        seen_t[kt] = seen_t.get(kt, 0) + 1
+        seen_c[kc] = seen_c.get(kc, 0) + 1
+        if r["room"] != "TBA":
+            seen_r[kr] = seen_r.get(kr, 0) + 1
+        if r["day"] in off_days.get(r["teacher_code"], set()):
+            dayoff += 1
+        if cfg["friday_no_p4"] and r["day"] == "Friday" and r["period"] == 4:
+            fri_p4 += 1
+        # lab course must be in a lab room (use the row's own is_lab so the
+        # check can never disagree with how the session was scheduled)
+        if r["is_lab"] and r["room"] not in lab_set and r["room"] != "TBA":
+            lab_bad += 1
+        if r["room"] == "TBA":
+            tba += 1
 
-    for r in rows:
-        key_t = (r["teacher_code"], r["day"], r["time_start"])
-        key_s = (r["section"], r["day"], r["time_start"])
-        seen_teacher[key_t] = seen_teacher.get(key_t, 0) + 1
-        seen_section[key_s] = seen_section.get(key_s, 0) + 1
-        day_off = ds.teachers.get(r["teacher_code"], {}).get("day_off")
-        if day_off and r["day"] == day_off:
-            dayoff_violations += 1
+    tclash = sum(v - 1 for v in seen_t.values() if v > 1)
+    cclash = sum(v - 1 for v in seen_c.values() if v > 1)
+    rclash = sum(v - 1 for v in seen_r.values() if v > 1)
 
-    teacher_clashes = sum(v - 1 for v in seen_teacher.values() if v > 1)
-    section_clashes = sum(v - 1 for v in seen_section.values() if v > 1)
+    # placement count: each offering (cohort+code+teacher) -> exactly 2 cells.
+    # Teacher is part of the key because a cohort can take one course code
+    # from two different teachers (legitimately 4 cells for that code).
+    placed_per_off = {}
+    for r in all_rows:
+        k = (r["batch"], r["section"], r["subject_code"], r["teacher_code"])
+        placed_per_off[k] = placed_per_off.get(k, 0) + 1
+    bad_count = sum(1 for v in placed_per_off.values() if v != 2)
 
     return {
-        "teacher_clashes": teacher_clashes,
-        "section_clashes": section_clashes,
-        "dayoff_violations": dayoff_violations,
-        "ok": teacher_clashes == 0 and section_clashes == 0 and dayoff_violations == 0,
+        "teacher_clashes": tclash,
+        "cohort_clashes": cclash,
+        "room_clashes": rclash,
+        "dayoff_violations": dayoff,
+        "friday_p4_violations": fri_p4,
+        "lab_room_violations": lab_bad,
+        "unplaced_rooms": tba,
+        "offerings_not_twice": bad_count,
+        "ok": all(v == 0 for v in
+                  (tclash, cclash, rclash, dayoff, fri_p4, lab_bad, tba, bad_count)),
     }
 
 
-# ─── CLI: run the solver standalone and print a summary ───────
+# ─── CLI ──────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    ds = load_dataset()
-    result = solve(ds)
-    print(json.dumps({"stats": result["stats"], "validation": result["validation"]}, indent=2))
-    print(f"\nfirst 6 of {len(result['rows'])} rows:")
-    for r in result["rows"][:6]:
-        print(f"  {r['section']} {r['day']:9} {r['time_start']}-{r['time_end']} "
-              f"{r['subject_code']:9} {r['teacher_code']} {r['room']}")
+    import sys
+    import ingest
+
+    path = sys.argv[1] if len(sys.argv) > 1 else \
+        "routine generation files/Main_Distribution_Summer25.xlsx"
+    ds = ingest.ingest_path(path)
+    cfg = load_config()
+    res = solve(ds, cfg, time_limit_s=float(sys.argv[2]) if len(sys.argv) > 2 else 60.0)
+    print(json.dumps({"stats": res["stats"], "validation": res["validation"]}, indent=2))
+    print(f"\nfirst 8 of {len(res['rows'])} CSE rows:")
+    for r in res["rows"][:8]:
+        print(f"  {r['batch']}-{r['section']:4} {r['day']:9} P{r['period']} "
+              f"{r['time_start']}-{r['time_end']} {r['subject_code']:10} "
+              f"{r['teacher_code']:4} {r['room']}")

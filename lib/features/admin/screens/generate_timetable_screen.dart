@@ -1,22 +1,23 @@
 // ============================================================
 // FILE: lib/features/admin/screens/generate_timetable_screen.dart
 // PURPOSE: The advisor-required differentiator's front door.
-// Admin taps Generate → the FastAPI/OR-Tools engine solves a
-// conflict-free weekly routine → this screen shows the validation
-// summary, stats, and a per-section preview → Publish writes it to
-// `routines`, where the existing student/teacher viewers pick it up.
-// Owns its TimetableGenController lifecycle. No new widgets.
+// Admin picks the Main Distribution .xlsx → the FastAPI/OR-Tools engine
+// ingests it, solves a conflict-free routine, and renders a workbook →
+// this screen shows the ingest report, validation, stats and a grid
+// preview → Download saves the .xlsx, Publish writes it to `routines`
+// where the existing student/teacher viewers pick it up.
+// Owns its TimetableGenController lifecycle.
 // ============================================================
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:universe_v1/core/constants/app_enums.dart';
+import 'package:universe_v1/core/router/route_names.dart';
 import 'package:universe_v1/core/theme/app_colors.dart';
 import 'package:universe_v1/core/theme/app_spacing.dart';
 import 'package:universe_v1/core/theme/app_text_styles.dart';
 import 'package:universe_v1/features/admin/controllers/timetable_gen_controller.dart';
 import 'package:universe_v1/features/admin/services/timetable_engine_service.dart';
-import 'package:universe_v1/shared/widgets/class_card.dart';
 import 'package:universe_v1/shared/widgets/stat_card.dart';
 import 'package:universe_v1/shared/widgets/u_app_bar.dart';
 import 'package:universe_v1/shared/widgets/u_button.dart';
@@ -61,6 +62,8 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
             padding: AppSpacing.screenPadding,
             children: [
               _introCard(),
+              AppSpacing.mdGap,
+              _configRow(),
               AppSpacing.sectionGap,
               ..._phaseContent(),
             ],
@@ -82,11 +85,8 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
               color: AppColors.primarySoft,
               borderRadius: AppSpacing.radiusMd,
             ),
-            child: const Icon(
-              PhosphorIconsRegular.magicWand,
-              color: AppColors.primary,
-              size: AppSpacing.iconLg,
-            ),
+            child: const Icon(PhosphorIconsRegular.magicWand,
+                color: AppColors.primary, size: AppSpacing.iconLg),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -96,10 +96,9 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
                 Text('Automatic Timetable', style: AppTextStyles.h3),
                 AppSpacing.xsGap,
                 Text(
-                  'Builds a conflict-free weekly routine with Google '
-                  'OR-Tools (CP-SAT). No teacher or section is double-booked, '
-                  'day-offs are respected, and each section’s load is '
-                  'spread across the week.',
+                  'Upload the semester’s Course Distribution workbook. The '
+                  'engine builds a conflict-free routine — no teacher, section '
+                  'or room double-booking, day-offs and Friday rules honoured.',
                   style: AppTextStyles.bodySm,
                 ),
               ],
@@ -110,11 +109,42 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
     );
   }
 
+  // ─── Config shortcuts ─────────────────────────────────────
+  Widget _configRow() {
+    return Row(
+      children: [
+        _configBtn('Rooms', PhosphorIconsRegular.door, RouteNames.manageRooms),
+        AppSpacing.smHGap,
+        _configBtn('Faculty', PhosphorIconsRegular.usersThree,
+            RouteNames.manageFaculty),
+        AppSpacing.smHGap,
+        _configBtn('Settings', PhosphorIconsRegular.sliders,
+            RouteNames.timetableSettings),
+      ],
+    );
+  }
+
+  Widget _configBtn(String label, IconData icon, String route) {
+    return Expanded(
+      child: UCard(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+        onTap: () => context.push(route),
+        child: Column(
+          children: [
+            Icon(icon, color: AppColors.textSecondary, size: AppSpacing.iconMd),
+            AppSpacing.xsGap,
+            Text(label, style: AppTextStyles.caption),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ─── Phase router ─────────────────────────────────────────
   List<Widget> _phaseContent() {
     switch (_controller.phase) {
       case GenPhase.idle:
-        return [_generateButton('Generate Timetable')];
+        return [_filePicker(), AppSpacing.lgGap, _generateButton()];
       case GenPhase.generating:
       case GenPhase.polling:
         return [_progressCard()];
@@ -129,18 +159,55 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
                 'Something went wrong. Check that the engine is running.',
           ),
           AppSpacing.lgGap,
-          _generateButton('Try Again'),
+          _filePicker(),
+          AppSpacing.lgGap,
+          _generateButton(label: 'Try Again'),
         ];
       case GenPhase.done:
         return _doneContent(_controller.result!);
     }
   }
 
-  Widget _generateButton(String label) {
+  // ─── File picker ──────────────────────────────────────────
+  Widget _filePicker() {
+    final name = _controller.fileName;
+    return UCard(
+      onTap: _controller.pickFile,
+      child: Row(
+        children: [
+          Icon(
+            name == null
+                ? PhosphorIconsRegular.filePlus
+                : PhosphorIconsRegular.fileXls,
+            color: name == null ? AppColors.textMuted : AppColors.success,
+            size: AppSpacing.iconLg,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name ?? 'Choose distribution file',
+                    style: AppTextStyles.bodyMedium),
+                Text(
+                  name == null ? 'Main_Distribution_*.xlsx' : 'Tap to change',
+                  style: AppTextStyles.caption,
+                ),
+              ],
+            ),
+          ),
+          const Icon(PhosphorIconsRegular.folderOpen,
+              size: AppSpacing.iconMd, color: AppColors.textMuted),
+        ],
+      ),
+    );
+  }
+
+  Widget _generateButton({String label = 'Generate Timetable'}) {
     return UButton(
       label: label,
       icon: PhosphorIconsRegular.sparkle,
-      onPressed: _controller.generate,
+      onPressed: _controller.hasFile ? _controller.generate : null,
     );
   }
 
@@ -154,15 +221,13 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
           AppSpacing.mdGap,
           Text(
             _controller.phase == GenPhase.generating
-                ? 'Starting the engine…'
+                ? 'Uploading & starting the engine…'
                 : 'Solving with CP-SAT…',
             style: AppTextStyles.h4,
           ),
           AppSpacing.xsGap,
-          Text(
-            'This usually takes a few seconds.',
-            style: AppTextStyles.caption,
-          ),
+          Text('Large departments take 30–60 seconds.',
+              style: AppTextStyles.caption),
           AppSpacing.lgGap,
           ClipRRect(
             borderRadius: AppSpacing.radiusFull,
@@ -180,8 +245,11 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
 
   // ─── Done ─────────────────────────────────────────────────
   List<Widget> _doneContent(TimetableResult result) {
-    final ok = result.validation['ok'] == true;
+    final v = result.validation;
+    final ok = v['ok'] == true;
     final published = _controller.publishedCount != null;
+
+    int n(String k) => (v[k] as num?)?.toInt() ?? 0;
 
     return [
       _messageCard(
@@ -192,13 +260,35 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
         soft: ok ? AppColors.successSoft : AppColors.warningSoft,
         title: ok ? 'Conflict-free timetable' : 'Generated with warnings',
         body: ok
-            ? 'No teacher clashes · no section clashes · day-offs respected.'
-            : 'Teacher clashes: ${result.validation['teacher_clashes']} · '
-                'Section clashes: ${result.validation['section_clashes']} · '
-                'Day-off issues: ${result.validation['dayoff_violations']}',
+            ? 'No teacher, section or room clashes · day-offs & Friday rules respected.'
+            : 'Teacher: ${n('teacher_clashes')} · Section: ${n('cohort_clashes')} · '
+                'Room: ${n('room_clashes')} · Day-off: ${n('dayoff_violations')} · '
+                'Lab-room: ${n('lab_room_violations')}',
       ),
       AppSpacing.sectionGap,
       _statsGrid(result),
+      AppSpacing.sectionGap,
+      _reportCard(result),
+      AppSpacing.sectionGap,
+      UButton(
+        label: 'View Full Grid',
+        variant: UButtonVariant.secondary,
+        icon: PhosphorIconsRegular.gridFour,
+        onPressed: () =>
+            context.push(RouteNames.timetableGrid, extra: result.rows),
+      ),
+      AppSpacing.smGap,
+      if (_controller.downloadError != null) ...[
+        Text(_controller.downloadError!, style: AppTextStyles.bodyError),
+        AppSpacing.smGap,
+      ],
+      UButton(
+        label: 'Download Workbook (.xlsx)',
+        variant: UButtonVariant.secondary,
+        icon: PhosphorIconsRegular.downloadSimple,
+        isLoading: _controller.isDownloading,
+        onPressed: _controller.downloadAndOpen,
+      ),
       AppSpacing.sectionGap,
       if (published)
         _messageCard(
@@ -206,15 +296,12 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
           color: AppColors.success,
           soft: AppColors.successSoft,
           title: 'Published to the app',
-          body: '${_controller.publishedCount} classes are now live. '
-              'Students and teachers in this cohort can see the routine.',
+          body: '${_controller.publishedCount} classes are now live across all '
+              'cohorts. Students and teachers can see the routine.',
         )
       else ...[
         if (_controller.publishError != null) ...[
-          Text(
-            _controller.publishError!,
-            style: AppTextStyles.bodyError,
-          ),
+          Text(_controller.publishError!, style: AppTextStyles.bodyError),
           AppSpacing.smGap,
         ],
         UButton(
@@ -226,51 +313,45 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
       ],
       AppSpacing.smGap,
       UButton(
-        label: 'Generate Again',
+        label: 'Start Over',
         variant: UButtonVariant.secondary,
         icon: PhosphorIconsRegular.arrowClockwise,
         onPressed: _controller.reset,
       ),
-      AppSpacing.sectionGap,
-      Text('PREVIEW', style: AppTextStyles.labelCaps),
-      ..._buildPreview(result),
+      const SizedBox(height: AppSpacing.x4l),
     ];
   }
 
   Widget _statsGrid(TimetableResult result) {
     final s = result.stats;
-    final meetings = '${s['meetings'] ?? result.rows.length}';
-    final sections = '${(s['sections'] as List?)?.length ?? _sectionCount(result)}';
-    final teachers = '${s['teachers'] ?? '—'}';
-    final solveMs = s['solve_ms'] == null ? '—' : '${s['solve_ms']} ms';
-
+    String f(Object? v) => v == null ? '—' : '$v';
+    final solveMs = s['solve_ms'];
     final cards = <Widget>[
       StatCard(
-        number: meetings,
+        number: f(s['meetings']),
         label: 'Classes',
         icon: PhosphorIconsRegular.calendarBlank,
         color: AppColors.info,
       ),
       StatCard(
-        number: sections,
-        label: 'Sections',
+        number: f(s['cohorts']),
+        label: 'Cohorts',
         icon: PhosphorIconsRegular.usersThree,
         color: AppColors.roleStudent,
       ),
       StatCard(
-        number: teachers,
+        number: f(s['teachers']),
         label: 'Teachers',
         icon: PhosphorIconsRegular.chalkboardTeacher,
         color: AppColors.roleTeacher,
       ),
       StatCard(
-        number: solveMs,
+        number: solveMs == null ? '—' : '$solveMs ms',
         label: 'Solve time',
         icon: PhosphorIconsRegular.timer,
         color: AppColors.primary,
       ),
     ];
-
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -282,41 +363,51 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
     );
   }
 
-  int _sectionCount(TimetableResult result) =>
-      result.rows.map((r) => r.section).toSet().length;
+  // ─── Ingest report ────────────────────────────────────────
+  Widget _reportCard(TimetableResult result) {
+    final m = result.report.meta;
+    final excluded = result.report.excluded.length;
+    final warnings = result.report.warnings.length;
+    int n(String k) => (m[k] as num?)?.toInt() ?? 0;
 
-  // ─── Per-section, per-day preview (reuses ClassCard) ──────
-  List<Widget> _buildPreview(TimetableResult result) {
-    final widgets = <Widget>[];
-    String? curSection;
-    String? curDay;
+    return UCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('INGEST REPORT', style: AppTextStyles.labelCaps),
+          AppSpacing.smGap,
+          _reportRow(PhosphorIconsRegular.stack,
+              '${n('offerings')} offerings → ${n('sessions')} sessions'),
+          _reportRow(PhosphorIconsRegular.usersThree,
+              '${n('render_sessions')} CSE · ${n('service_sessions')} service (resource-only)'),
+          _reportRow(
+            excluded == 0
+                ? PhosphorIconsRegular.checkCircle
+                : PhosphorIconsRegular.minusCircle,
+            '$excluded excluded (project/thesis · no batch)',
+            color: AppColors.textSecondary,
+          ),
+          if (warnings > 0)
+            _reportRow(PhosphorIconsRegular.warning,
+                '$warnings data warning${warnings == 1 ? '' : 's'}',
+                color: AppColors.warning),
+        ],
+      ),
+    );
+  }
 
-    for (final r in result.rows) {
-      if (r.section != curSection) {
-        curSection = r.section;
-        curDay = null;
-        widgets.add(AppSpacing.lgGap);
-        widgets.add(Text(
-          'SECTION ${r.section} · Batch ${r.batch}',
-          style: AppTextStyles.labelCaps.copyWith(color: AppColors.primary),
-        ));
-      }
-      if (r.day != curDay) {
-        curDay = r.day;
-        widgets.add(AppSpacing.smGap);
-        widgets.add(Text(r.day, style: AppTextStyles.bodySmMedium));
-        widgets.add(AppSpacing.xsGap);
-      }
-      widgets.add(ClassCard(
-        subject: r.subject,
-        teacher: r.teacherDisplay,
-        room: r.room,
-        timeSlot: r.timeLabel,
-        status: ClassStatus.upcoming,
-      ));
-      widgets.add(AppSpacing.cardGap);
-    }
-    return widgets;
+  Widget _reportRow(IconData icon, String text, {Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Row(
+        children: [
+          Icon(icon, size: AppSpacing.iconSm,
+              color: color ?? AppColors.textMuted),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(child: Text(text, style: AppTextStyles.bodySm)),
+        ],
+      ),
+    );
   }
 
   // ─── Reusable message banner ──────────────────────────────
@@ -339,8 +430,7 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: AppTextStyles.h4.copyWith(color: color)),
+                Text(title, style: AppTextStyles.h4.copyWith(color: color)),
                 AppSpacing.xsGap,
                 Text(body, style: AppTextStyles.bodySm),
               ],
