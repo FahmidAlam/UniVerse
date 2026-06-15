@@ -39,6 +39,15 @@ class _CampusBroadcastScreenState extends State<CampusBroadcastScreen> {
   final _batchCtrl = TextEditingController();
   final _sectionCtrl = TextEditingController();
 
+  // Admin-only broadcast types. Class cancellation, room change and test
+  // reminder belong to teachers (raised from their own flows), so they're
+  // intentionally excluded here.
+  static const List<NotifType> _broadcastTypes = [
+    NotifType.university,
+    NotifType.assignment,
+    NotifType.exam,
+  ];
+
   // null == Everyone
   static const List<({String? role, String label})> _audiences = [
     (role: null, label: 'Everyone'),
@@ -235,7 +244,7 @@ class _CampusBroadcastScreenState extends State<CampusBroadcastScreen> {
       spacing: AppSpacing.sm,
       runSpacing: AppSpacing.sm,
       children: [
-        for (final t in NotifType.values)
+        for (final t in _broadcastTypes)
           UChip(
             label: t.label,
             isActive: _controller.type == t,

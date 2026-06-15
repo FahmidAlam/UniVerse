@@ -1,0 +1,81 @@
+{
+  "meta": {
+    "university": "Leading University, Sylhet",
+    "department": "CSE",
+    "batch": "63",
+    "semester": 5,
+    "note": "Demo dataset for the UniVerse timetable engine. Teachers/courses are coherent with supabase/seed/seed_routine.sql so generated output blends with the rest of the app. Generates a brand-new cohort (batch 63) so it never collides with the seeded batch 62."
+  },
+
+  "days": ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"],
+
+  "slots": [
+    { "index": 0, "start": "09:30", "end": "10:50", "block": "morning" },
+    { "index": 1, "start": "10:50", "end": "12:10", "block": "morning" },
+    { "index": 2, "start": "12:10", "end": "13:30", "block": "morning" },
+    { "index": 3, "start": "14:10", "end": "15:30", "block": "afternoon" },
+    { "index": 4, "start": "15:30", "end": "16:50", "block": "afternoon" }
+  ],
+
+  "rooms": {
+    "theory": ["301", "302", "303", "304", "305", "401", "402"],
+    "lab": ["ACL-1", "ACL-2", "NL", "GL"]
+  },
+
+  "teachers": [
+    { "code": "AMI", "name": "Dr. Aminul Islam", "day_off": null },
+    { "code": "MHK", "name": "Dr. Mahbubul Karim", "day_off": null },
+    { "code": "JIM", "name": "Jaminur Rahman", "day_off": "Sunday" },
+    { "code": "TSN", "name": "Tasnim Nahar", "day_off": null },
+    { "code": "SHK", "name": "Shahriar Kabir", "day_off": null },
+    { "code": "RFQ", "name": "Rafiqul Hasan", "day_off": null },
+    { "code": "RBK", "name": "Rabeya Khatun", "day_off": null },
+    { "code": "SLT", "name": "Saleha Tabassum", "day_off": "Monday" },
+    { "code": "EBH", "name": "Emran B. Hossain", "day_off": "Thursday" },
+    { "code": "NIR", "name": "Nurul Islam", "day_off": null },
+    { "code": "HSN", "name": "Hasan Mahmud", "day_off": "Wednesday" },
+    { "code": "ARN", "name": "Arif Newaz", "day_off": null },
+    { "code": "KMR", "name": "Kamrul Ahsan", "day_off": null },
+    { "code": "MUN", "name": "Munmun Das", "day_off": null },
+    { "code": "PRT", "name": "Prito Saha", "day_off": null },
+    { "code": "ROK", "name": "Rokeya Sultana", "day_off": null }
+  ],
+
+  "offerings": [
+    { "subject": "Operating Systems",              "subject_code": "CSE-3201", "teacher_code": "AMI", "section": "A", "type": "theory", "sessions": 2, "length": 1 },
+    { "subject": "Operating Systems Lab",          "subject_code": "CSE-3202", "teacher_code": "AMI", "section": "A", "type": "lab",    "sessions": 1, "length": 2 },
+    { "subject": "Database Management Systems",    "subject_code": "CSE-3203", "teacher_code": "JIM", "section": "A", "type": "theory", "sessions": 2, "length": 1 },
+    { "subject": "Database Management Systems Lab","subject_code": "CSE-3204", "teacher_code": "JIM", "section": "A", "type": "lab",    "sessions": 1, "length": 2 },
+    { "subject": "Computer Networks",              "subject_code": "CSE-3205", "teacher_code": "SHK", "section": "A", "type": "theory", "sessions": 2, "length": 1 },
+    { "subject": "Software Engineering",           "subject_code": "CSE-3207", "teacher_code": "RBK", "section": "A", "type": "theory", "sessions": 2, "length": 1 },
+    { "subject": "Microprocessors & Interfacing",  "subject_code": "CSE-3209", "teacher_code": "EBH", "section": "A", "type": "theory", "sessions": 2, "length": 1 },
+    { "subject": "Artificial Intelligence",        "subject_code": "CSE-3211", "teacher_code": "HSN", "section": "A", "type": "theory", "sessions": 2, "length": 1 },
+
+    { "subject": "Operating Systems",              "subject_code": "CSE-3201", "teacher_code": "MHK", "section": "B", "type": "theory", "sessions": 2, "length": 1 },
+    { "subject": "Operating Systems Lab",          "subject_code": "CSE-3202", "teacher_code": "MHK", "section": "B", "type": "lab",    "sessions": 1, "length": 2 },
+    { "subject": "Database Management Systems",    "subject_code": "CSE-3203", "teacher_code": "TSN", "section": "B", "type": "theory", "sessions": 2, "length": 1 },
+    { "subject": "Database Management Systems Lab","subject_code": "CSE-3204", "teacher_code": "TSN", "section": "B", "type": "lab",    "sessions": 1, "length": 2 },
+    { "subject": "Computer Networks",              "subject_code": "CSE-3205", "teacher_code": "RFQ", "section": "B", "type": "theory", "sessions": 2, "length": 1 },
+    { "subject": "Software Engineering",           "subject_code": "CSE-3207", "teacher_code": "SLT", "section": "B", "type": "theory", "sessions": 2, "length": 1 },
+    { "subject": "Microprocessors & Interfacing",  "subject_code": "CSE-3209", "teacher_code": "NIR", "section": "B", "type": "theory", "sessions": 2, "length": 1 },
+    { "subject": "Artificial Intelligence",        "subject_code": "CSE-3211", "teacher_code": "ARN", "section": "B", "type": "theory", "sessions": 2, "length": 1 },
+
+    { "subject": "Operating Systems",              "subject_code": "CSE-3201", "teacher_code": "AMI", "section": "C", "type": "theory", "sessions": 2, "length": 1 },
+    { "subject": "Operating Systems Lab",          "subject_code": "CSE-3202", "teacher_code": "AMI", "section": "C", "type": "lab",    "sessions": 1, "length": 2 },
+    { "subject": "Database Management Systems",    "subject_code": "CSE-3203", "teacher_code": "JIM", "section": "C", "type": "theory", "sessions": 2, "length": 1 },
+    { "subject": "Database Management Systems Lab","subject_code": "CSE-3204", "teacher_code": "JIM", "section": "C", "type": "lab",    "sessions": 1, "length": 2 },
+    { "subject": "Computer Networks",              "subject_code": "CSE-3205", "teacher_code": "SHK", "section": "C", "type": "theory", "sessions": 2, "length": 1 },
+    { "subject": "Software Engineering",           "subject_code": "CSE-3207", "teacher_code": "RBK", "section": "C", "type": "theory", "sessions": 2, "length": 1 },
+    { "subject": "Microprocessors & Interfacing",  "subject_code": "CSE-3209", "teacher_code": "EBH", "section": "C", "type": "theory", "sessions": 2, "length": 1 },
+    { "subject": "Artificial Intelligence",        "subject_code": "CSE-3211", "teacher_code": "HSN", "section": "C", "type": "theory", "sessions": 2, "length": 1 },
+
+    { "subject": "Operating Systems",              "subject_code": "CSE-3201", "teacher_code": "MHK", "section": "D", "type": "theory", "sessions": 2, "length": 1 },
+    { "subject": "Operating Systems Lab",          "subject_code": "CSE-3202", "teacher_code": "MHK", "section": "D", "type": "lab",    "sessions": 1, "length": 2 },
+    { "subject": "Database Management Systems",    "subject_code": "CSE-3203", "teacher_code": "TSN", "section": "D", "type": "theory", "sessions": 2, "length": 1 },
+    { "subject": "Database Management Systems Lab","subject_code": "CSE-3204", "teacher_code": "TSN", "section": "D", "type": "lab",    "sessions": 1, "length": 2 },
+    { "subject": "Computer Networks",              "subject_code": "CSE-3205", "teacher_code": "RFQ", "section": "D", "type": "theory", "sessions": 2, "length": 1 },
+    { "subject": "Software Engineering",           "subject_code": "CSE-3207", "teacher_code": "SLT", "section": "D", "type": "theory", "sessions": 2, "length": 1 },
+    { "subject": "Microprocessors & Interfacing",  "subject_code": "CSE-3209", "teacher_code": "NIR", "section": "D", "type": "theory", "sessions": 2, "length": 1 },
+    { "subject": "Artificial Intelligence",        "subject_code": "CSE-3211", "teacher_code": "ARN", "section": "D", "type": "theory", "sessions": 2, "length": 1 }
+  ]
+}

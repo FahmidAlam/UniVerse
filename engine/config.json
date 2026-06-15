@@ -1,0 +1,896 @@
+{
+  "days": [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday"
+  ],
+  "periods": [
+    {
+      "idx": 1,
+      "label": "08:50-10:05",
+      "start": "08:50",
+      "end": "10:05",
+      "col": "D"
+    },
+    {
+      "idx": 2,
+      "label": "10:05-11:20",
+      "start": "10:05",
+      "end": "11:20",
+      "col": "E"
+    },
+    {
+      "idx": 3,
+      "label": "11:20-12:35",
+      "start": "11:20",
+      "end": "12:35",
+      "col": "F"
+    },
+    {
+      "idx": 4,
+      "label": "13:10-14:25",
+      "start": "13:10",
+      "end": "14:25",
+      "col": "H"
+    },
+    {
+      "idx": 5,
+      "label": "14:25-15:40",
+      "start": "14:25",
+      "end": "15:40",
+      "col": "I"
+    },
+    {
+      "idx": 6,
+      "label": "15:40-16:55",
+      "start": "15:40",
+      "end": "16:55",
+      "col": "J"
+    },
+    {
+      "idx": 7,
+      "label": "19:00-20:20",
+      "start": "19:00",
+      "end": "20:20",
+      "col": "K"
+    }
+  ],
+  "friday_no_p4": true,
+  "rooms": [
+    {
+      "name": "ACL-1",
+      "building": null,
+      "is_lab": true,
+      "is_gallery": false
+    },
+    {
+      "name": "ACL-2",
+      "building": null,
+      "is_lab": true,
+      "is_gallery": false
+    },
+    {
+      "name": "ACL-3",
+      "building": null,
+      "is_lab": true,
+      "is_gallery": false
+    },
+    {
+      "name": "ACL-4",
+      "building": null,
+      "is_lab": true,
+      "is_gallery": false
+    },
+    {
+      "name": "ECL-1",
+      "building": null,
+      "is_lab": true,
+      "is_gallery": false
+    },
+    {
+      "name": "ECL-2",
+      "building": null,
+      "is_lab": true,
+      "is_gallery": false
+    },
+    {
+      "name": "G1",
+      "building": "Ragib Ali Building",
+      "is_lab": false,
+      "is_gallery": true
+    },
+    {
+      "name": "G2",
+      "building": "Ragib Ali Building",
+      "is_lab": false,
+      "is_gallery": true
+    },
+    {
+      "name": "G3",
+      "building": "Ragib Ali Building",
+      "is_lab": false,
+      "is_gallery": true
+    },
+    {
+      "name": "GL",
+      "building": "Rabeya Khatun Building",
+      "is_lab": true,
+      "is_gallery": false
+    },
+    {
+      "name": "NL",
+      "building": null,
+      "is_lab": true,
+      "is_gallery": false
+    },
+    {
+      "name": "RAB",
+      "building": "Ragib Ali Building",
+      "is_lab": false,
+      "is_gallery": false
+    },
+    {
+      "name": "RAB-108",
+      "building": "Ragib Ali Building",
+      "is_lab": false,
+      "is_gallery": false
+    },
+    {
+      "name": "RAB-109",
+      "building": "Ragib Ali Building",
+      "is_lab": false,
+      "is_gallery": false
+    },
+    {
+      "name": "RAB-111",
+      "building": "Ragib Ali Building",
+      "is_lab": false,
+      "is_gallery": false
+    },
+    {
+      "name": "RAB-112",
+      "building": "Ragib Ali Building",
+      "is_lab": false,
+      "is_gallery": false
+    },
+    {
+      "name": "RAB-202",
+      "building": "Ragib Ali Building",
+      "is_lab": false,
+      "is_gallery": false
+    },
+    {
+      "name": "RAB-206",
+      "building": "Ragib Ali Building",
+      "is_lab": false,
+      "is_gallery": false
+    },
+    {
+      "name": "RAB-302",
+      "building": "Ragib Ali Building",
+      "is_lab": false,
+      "is_gallery": false
+    },
+    {
+      "name": "RAB-304",
+      "building": "Ragib Ali Building",
+      "is_lab": false,
+      "is_gallery": false
+    },
+    {
+      "name": "RAB-306",
+      "building": "Ragib Ali Building",
+      "is_lab": false,
+      "is_gallery": false
+    },
+    {
+      "name": "RAB-309",
+      "building": "Ragib Ali Building",
+      "is_lab": false,
+      "is_gallery": false
+    },
+    {
+      "name": "RAB-401",
+      "building": "Ragib Ali Building",
+      "is_lab": false,
+      "is_gallery": false
+    },
+    {
+      "name": "RKB",
+      "building": "Rabeya Khatun Building",
+      "is_lab": false,
+      "is_gallery": false
+    },
+    {
+      "name": "RKB-103",
+      "building": "Rabeya Khatun Building",
+      "is_lab": false,
+      "is_gallery": false
+    },
+    {
+      "name": "RKB-104",
+      "building": "Rabeya Khatun Building",
+      "is_lab": false,
+      "is_gallery": false
+    },
+    {
+      "name": "RKB-106",
+      "building": "Rabeya Khatun Building",
+      "is_lab": false,
+      "is_gallery": false
+    },
+    {
+      "name": "RKB-304",
+      "building": "Rabeya Khatun Building",
+      "is_lab": false,
+      "is_gallery": false
+    },
+    {
+      "name": "RKB-401",
+      "building": "Rabeya Khatun Building",
+      "is_lab": false,
+      "is_gallery": false
+    },
+    {
+      "name": "RKB-402",
+      "building": "Rabeya Khatun Building",
+      "is_lab": false,
+      "is_gallery": false
+    },
+    {
+      "name": "RKB-403",
+      "building": "Rabeya Khatun Building",
+      "is_lab": false,
+      "is_gallery": false
+    },
+    {
+      "name": "RKB-406",
+      "building": "Rabeya Khatun Building",
+      "is_lab": false,
+      "is_gallery": false
+    }
+  ],
+  "lab_rooms": [
+    "ACL-1",
+    "ACL-2",
+    "ACL-3",
+    "ACL-4",
+    "ECL-1",
+    "ECL-2",
+    "GL",
+    "NL"
+  ],
+  "galleries": [
+    "G1",
+    "G2",
+    "G3"
+  ],
+  "teachers": {
+    "EBH": {
+      "full_name": "Md. Ebrahim Hossain",
+      "dept": "CSE",
+      "designation": "Assistant Professor",
+      "off_days": [
+        "Thursday",
+        "Friday"
+      ]
+    },
+    "STA": {
+      "full_name": "Syeda Tamanna Alam Monisha",
+      "dept": "CSE",
+      "designation": "Lecturer",
+      "off_days": [
+        "Friday",
+        "Saturday"
+      ]
+    },
+    "KJH": {
+      "full_name": "Kazi Md. Jahid Hasan",
+      "dept": "CSE",
+      "designation": "Assistant Professor & Head",
+      "off_days": [
+        "Friday",
+        "Saturday"
+      ]
+    },
+    "NSD": {
+      "full_name": "Nadia Sultana Daizy",
+      "dept": "English, LU",
+      "designation": "Lecturer",
+      "off_days": []
+    },
+    "HM": {
+      "full_name": "Humaira Mizan",
+      "dept": "English, LU",
+      "designation": "Lecturer",
+      "off_days": []
+    },
+    "PRP": {
+      "full_name": "Puroby Roy Puja",
+      "dept": "CSE, LU",
+      "designation": "Part Time Lecturer",
+      "off_days": [
+        "Sunday",
+        "Monday"
+      ]
+    },
+    "SH": {
+      "full_name": "Sanjida Haque",
+      "dept": "English, LU",
+      "designation": "Lecturer",
+      "off_days": []
+    },
+    "AAF": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": []
+    },
+    "AFR": {
+      "full_name": "Ashfakur Rahman",
+      "dept": "CSE, SEC",
+      "designation": "Adjunct Lecturer",
+      "off_days": [
+        "Sunday",
+        "Monday"
+      ]
+    },
+    "AMH": {
+      "full_name": "Md. Amranul Haque",
+      "dept": "MATH, SUST",
+      "designation": "Lecturer",
+      "off_days": [
+        "Thursday",
+        "Friday"
+      ]
+    },
+    "DBR": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": []
+    },
+    "SPJ": {
+      "full_name": "Soumik Paul Jisun",
+      "dept": "CSE, SUST",
+      "designation": "Adjunct Lecturer",
+      "off_days": [
+        "Tuesday",
+        "Wednesday"
+      ]
+    },
+    "MJR": {
+      "full_name": "Md. Jamaner Rahaman",
+      "dept": "CSE",
+      "designation": "Lecturer",
+      "off_days": [
+        "Thursday",
+        "Friday"
+      ]
+    },
+    "BA": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": []
+    },
+    "OKM": {
+      "full_name": "Omme Kulsum Mili",
+      "dept": "English, LU",
+      "designation": "Lecturer",
+      "off_days": []
+    },
+    "NNP": {
+      "full_name": "Nazmun Nahar Papri",
+      "dept": "CE, LU",
+      "designation": "Lecturer",
+      "off_days": []
+    },
+    "JIM": {
+      "full_name": "Md. Jehadul Islam Mony",
+      "dept": "CSE",
+      "designation": "Lecturer",
+      "off_days": [
+        "Sunday",
+        "Saturday"
+      ]
+    },
+    "MR": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": []
+    },
+    "JAC": {
+      "full_name": "Md. Jalal Uddin Chowdhury",
+      "dept": "CSE, LU",
+      "designation": "Lecturer",
+      "off_days": [
+        "Thursday",
+        "Friday"
+      ]
+    },
+    "MTC": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": []
+    },
+    "SAB": {
+      "full_name": "Sabia Akter Bhuiyan",
+      "dept": "CSE",
+      "designation": "Assistant Professor",
+      "off_days": [
+        "Friday",
+        "Saturday"
+      ]
+    },
+    "NT": {
+      "full_name": "Nishat Tasneem",
+      "dept": "PH",
+      "designation": "Adjunct Faculty",
+      "off_days": []
+    },
+    "DCP": {
+      "full_name": "Dipta Chandra Paul",
+      "dept": "CSE",
+      "designation": "Lecturer",
+      "off_days": [
+        "Sunday",
+        "Monday"
+      ]
+    },
+    "BKN": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": []
+    },
+    "MSI": {
+      "full_name": "Md. Shamimul Islam",
+      "dept": "BuA, LU",
+      "designation": "Assistant Professor",
+      "off_days": []
+    },
+    "ATT": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": []
+    },
+    "MFA": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": []
+    },
+    "KLK": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": []
+    },
+    "MMK": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": []
+    },
+    "NIR": {
+      "full_name": "Nahidul Islam Rupom",
+      "dept": "CSE",
+      "designation": "Lecturer",
+      "off_days": [
+        "Monday",
+        "Tuesday"
+      ]
+    },
+    "SAS": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": []
+    },
+    "STH": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": []
+    },
+    "MRT": {
+      "full_name": "Muntaha",
+      "dept": "PH",
+      "designation": null,
+      "off_days": []
+    },
+    "AFB": {
+      "full_name": "Afshana Begum",
+      "dept": "EEE, LU",
+      "designation": "Lecturer",
+      "off_days": []
+    },
+    "MMR": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": []
+    },
+    "SDR": {
+      "full_name": "S. M. Saydur Rahman",
+      "dept": "MATH, SUST",
+      "designation": "Adjunct Assistant Professor",
+      "off_days": []
+    },
+    "MTM": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": []
+    },
+    "MAAH": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": []
+    },
+    "MTU": {
+      "full_name": "Mohammed Taj Uddin",
+      "dept": "Statistics, SUST",
+      "designation": "Adjunct Professor",
+      "off_days": []
+    },
+    "PRB": {
+      "full_name": "Prithwiraj Bhattacharjee",
+      "dept": "CSE",
+      "designation": "Lecturer",
+      "off_days": [
+        "Sunday",
+        "Saturday"
+      ]
+    },
+    "MRI": {
+      "full_name": "Rafiqul Islam",
+      "dept": "EEE, LU",
+      "designation": "Assistant Professor",
+      "off_days": []
+    },
+    "SIC": {
+      "full_name": "Md. Sakib Ibtidha Chy.",
+      "dept": null,
+      "designation": "Part Time Lecturer",
+      "off_days": []
+    },
+    "NNN": {
+      "full_name": "Nowshin Noweer Nisa",
+      "dept": "BuA, LU",
+      "designation": "Part Time Lecturer",
+      "off_days": []
+    },
+    "SBT": {
+      "full_name": "Sudipta Banik Trisha",
+      "dept": "CSE, SEC",
+      "designation": "Adjunct Lecturer",
+      "off_days": [
+        "Friday",
+        "Saturday"
+      ]
+    },
+    "MSU": {
+      "full_name": "Md. Salauddin Ahmed",
+      "dept": "EEE, LU",
+      "designation": "Part Time Lecturer",
+      "off_days": []
+    },
+    "HMMR": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": []
+    },
+    "MRH": {
+      "full_name": "Md. Rashidul Hasan",
+      "dept": "PH, LU",
+      "designation": "Assistant Professor",
+      "off_days": []
+    },
+    "ASD": {
+      "full_name": "Aushtmi Deb",
+      "dept": "CSE, LU",
+      "designation": "Lecturer",
+      "off_days": [
+        "Thursday",
+        "Friday"
+      ]
+    },
+    "NJN": {
+      "full_name": "Nargish Jahan",
+      "dept": "CSE, LU",
+      "designation": "Part Time Lecturer",
+      "off_days": [
+        "Thursday",
+        "Friday"
+      ]
+    },
+    "RWA": {
+      "full_name": "Rezwana Afrin",
+      "dept": "CSE, LU",
+      "designation": "Lecturer",
+      "off_days": [
+        "Thursday",
+        "Friday"
+      ]
+    },
+    "MHH": {
+      "full_name": "Md. Mahdi Hossain Hira",
+      "dept": "CSE, LU",
+      "designation": "Adjunct Lecturer",
+      "off_days": [
+        "Sunday",
+        "Monday"
+      ]
+    },
+    "SAZ": {
+      "full_name": "Shahriar Arefin Zummon",
+      "dept": "CSE",
+      "designation": "Lecturer",
+      "off_days": [
+        "Thursday",
+        "Friday"
+      ]
+    },
+    "ABD": {
+      "full_name": "Md. Abid Ashraf",
+      "dept": "CSE, SEC",
+      "designation": "Adjunct Lecturer",
+      "off_days": [
+        "Thursday",
+        "Friday"
+      ]
+    },
+    "AMD": {
+      "full_name": "Ameya Debnath",
+      "dept": "CSE, SUST",
+      "designation": "Adjunct Lecturer",
+      "off_days": [
+        "Saturday"
+      ]
+    },
+    "NDK": {
+      "full_name": "Nilavro Das Kabya",
+      "dept": "CSE, NSU",
+      "designation": "Adjunct Lecturer",
+      "off_days": [
+        "Sunday",
+        "Saturday"
+      ]
+    },
+    "TNA": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": [
+        "Sunday",
+        "Monday"
+      ]
+    },
+    "SRR": {
+      "full_name": "Md Sadekur Rahman Rani",
+      "dept": "MATH, SUST",
+      "designation": "Lecturer",
+      "off_days": [
+        "Sunday",
+        "Monday"
+      ]
+    },
+    "NMC": {
+      "full_name": "Nuzhat Madeha Chowdhury",
+      "dept": "CSE",
+      "designation": "Adjunct Lecturer",
+      "off_days": []
+    },
+    "MSR": {
+      "full_name": "Mohammad Shoaib Rahman",
+      "dept": "CSE",
+      "designation": "Lecturer",
+      "off_days": [
+        "Friday",
+        "Saturday"
+      ]
+    },
+    "RHM": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": [
+        "Sunday",
+        "Saturday"
+      ]
+    },
+    "AFZ": {
+      "full_name": "Md. Arifuzzaman",
+      "dept": "CSE",
+      "designation": "Lecturer",
+      "off_days": [
+        "Friday",
+        "Saturday"
+      ]
+    },
+    "SKB": {
+      "full_name": "Shafkat Kibria",
+      "dept": "CSE",
+      "designation": "Assistant Professor",
+      "off_days": [
+        "Friday",
+        "Saturday"
+      ]
+    },
+    "ZMM": {
+      "full_name": "Zumana Islam Mou",
+      "dept": "CSE, LU",
+      "designation": "Lecturer",
+      "off_days": [
+        "Thursday",
+        "Friday"
+      ]
+    },
+    "SHA": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": [
+        "Friday",
+        "Saturday"
+      ]
+    },
+    "NAC": {
+      "full_name": "Naeem Ahsan Chowdhury",
+      "dept": "CSE, LU",
+      "designation": "Lecturer",
+      "off_days": [
+        "Thursday",
+        "Friday"
+      ]
+    },
+    "RA": {
+      "full_name": "Mr. Riju Ahmed",
+      "dept": "BuA, LU",
+      "designation": "Lecturer (MIS)",
+      "off_days": []
+    },
+    "SMD": {
+      "full_name": "Somapika Das",
+      "dept": "CSE, LU",
+      "designation": "Lecturer",
+      "off_days": [
+        "Thursday",
+        "Friday"
+      ]
+    },
+    "AIC": {
+      "full_name": "Mr. Ashraful Islam Chowdhury",
+      "dept": "BuA",
+      "designation": "Assistant Professor",
+      "off_days": []
+    },
+    "MKJ": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": [
+        "Friday",
+        "Saturday"
+      ]
+    },
+    "SIS": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": [
+        "Friday",
+        "Saturday"
+      ]
+    },
+    "MNI": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": []
+    },
+    "MSN": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": []
+    },
+    "MAO": {
+      "full_name": "Md. Ali Omar",
+      "dept": "English, LU",
+      "designation": "Lecturer",
+      "off_days": []
+    },
+    "ABM": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": []
+    },
+    "SRS": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": []
+    },
+    "ARP": {
+      "full_name": null,
+      "dept": null,
+      "designation": null,
+      "off_days": []
+    }
+  },
+  "settings": {
+    "semester_label": "Summer 2025",
+    "periods": [
+      {
+        "idx": 1,
+        "label": "08:50-10:05",
+        "start": "08:50",
+        "end": "10:05",
+        "col": "D"
+      },
+      {
+        "idx": 2,
+        "label": "10:05-11:20",
+        "start": "10:05",
+        "end": "11:20",
+        "col": "E"
+      },
+      {
+        "idx": 3,
+        "label": "11:20-12:35",
+        "start": "11:20",
+        "end": "12:35",
+        "col": "F"
+      },
+      {
+        "idx": 4,
+        "label": "13:10-14:25",
+        "start": "13:10",
+        "end": "14:25",
+        "col": "H"
+      },
+      {
+        "idx": 5,
+        "label": "14:25-15:40",
+        "start": "14:25",
+        "end": "15:40",
+        "col": "I"
+      },
+      {
+        "idx": 6,
+        "label": "15:40-16:55",
+        "start": "15:40",
+        "end": "16:55",
+        "col": "J"
+      },
+      {
+        "idx": 7,
+        "label": "19:00-20:20",
+        "start": "19:00",
+        "end": "20:20",
+        "col": "K"
+      }
+    ],
+    "friday_no_p4": true,
+    "service_scope": "resource_only",
+    "weights": {
+      "different_days": 8,
+      "compactness": 3,
+      "spread": 2,
+      "late_slot": 1
+    }
+  }
+}

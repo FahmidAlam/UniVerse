@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+
+# Raw institutional source workbooks — contain teacher PII (phone/email).
+# Keep these out of git; the engine only needs config.json + the stripped
+# template in templates/, both of which are committed.
+routine generation files/
+out_routine.xlsx
+dl_test.xlsx

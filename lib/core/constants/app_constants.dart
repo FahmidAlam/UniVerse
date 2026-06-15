@@ -3,24 +3,43 @@
 // PURPOSE: App-wide constants — Supabase config, semester list,
 // day names, slot times, and other shared fixed values.
 //
-// IMPORTANT: Replace the Supabase URL and anon key with your
-// actual project values from supabase.com → Project Settings
-// → API. NEVER commit real keys to public GitHub — use a
-// .env loader or --dart-define in production.
+// CONFIG VIA ENV: secrets/URLs come from --dart-define so real keys
+// don't have to live in source. Run with:
+//   flutter run --dart-define-from-file=dart_defines.json
+// Each value falls back to a working default when no define is passed,
+// so a plain `flutter run` still works for the team. Copy
+// dart_defines.example.json → dart_defines.json (gitignored) and fill
+// in real values; never commit the service-role key (it stays in the
+// invite-admin Edge Function, never in the app).
 // ============================================================
 
 abstract class AppConstants {
   // ─── Supabase ─────────────────────────────────────────────
-  static const String supabaseUrl    = 'https://yxqyrjyzxitrgkhgauli.supabase.co';
-  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4cXlyanl6eGl0cmdraGdhdWxpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NzM2OTYsImV4cCI6MjA5NTA0OTY5Nn0.smtNEPQrag9yETZXdA2UqqCmxu_fjmGG8K4Vbot2O-w';
+  static const String supabaseUrl = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'https://yxqyrjyzxitrgkhgauli.supabase.co',
+  );
+  static const String supabaseAnonKey = String.fromEnvironment(
+    'SUPABASE_ANON_KEY',
+    defaultValue:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4cXlyanl6eGl0cmdraGdhdWxpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NzM2OTYsImV4cCI6MjA5NTA0OTY5Nn0.smtNEPQrag9yETZXdA2UqqCmxu_fjmGG8K4Vbot2O-w',
+  );
 
   // ─── Gemini ───────────────────────────────────────────────
-  static const String geminiApiKey   = 'YOUR_GEMINI_API_KEY';
+  static const String geminiApiKey = String.fromEnvironment(
+    'GEMINI_API_KEY',
+    defaultValue: 'YOUR_GEMINI_API_KEY',
+  );
   static const String embeddingModel = 'text-embedding-004';
   static const String generationModel = 'gemini-2.0-flash';
 
-  // ─── Timetable Engine (FastAPI on Railway/Render) ─────────
-  static const String timetableBaseUrl = 'YOUR_FASTAPI_URL';
+  // ─── Timetable Engine (FastAPI + OR-Tools) ────────────────
+  // Default targets a locally-run engine from the Android emulator
+  // (10.0.2.2 = host loopback). Override for a deployed URL.
+  static const String timetableBaseUrl = String.fromEnvironment(
+    'TIMETABLE_BASE_URL',
+    defaultValue: 'http://10.0.2.2:8000',
+  );
 
   // ─── App Identity ─────────────────────────────────────────
   static const String appName     = 'UniVerse';
@@ -98,6 +117,10 @@ abstract class AppConstants {
   static const String tableDocuments        = 'documents';
   static const String tableGeneratedTimetable = 'generated_timetable';
   static const String tableDeviceTokens     = 'device_tokens';
+  static const String tableTimetableRooms    = 'timetable_rooms';
+  static const String tableTimetableFaculty  = 'timetable_faculty';
+  static const String tableTimetableSettings = 'timetable_settings';
+  static const String tableTimetableRuns     = 'timetable_runs';
 
   // ─── Storage Buckets ──────────────────────────────────────
   static const String bucketAvatars     = 'avatars';

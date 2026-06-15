@@ -44,9 +44,12 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Python (timetable engine)
+# Secrets / local config — real values live here, never commit.
+# Copy dart_defines.example.json → dart_defines.json and fill in.
+dart_defines.json
+
+# Timetable engine (Python) local environment
 .venv/
 __pycache__/
-
-# Local build-time secrets/config (share with teammates out-of-band)
-dart_defines.json
+engine/.venv/
+engine/__pycache__/

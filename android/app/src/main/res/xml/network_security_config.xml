@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Permits cleartext (HTTP) ONLY to the local timetable engine during
+     development. The Android emulator reaches the host machine at 10.0.2.2.
+     A deployed engine uses an HTTPS URL (via TIMETABLE_BASE_URL), so no
+     cleartext is permitted anywhere else. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>

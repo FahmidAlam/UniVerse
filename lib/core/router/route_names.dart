@@ -40,9 +40,16 @@ abstract class RouteNames {
   static const String manageClasses      = '/teacher/manage-classes';
 
   // Admin
-  static const String adminDashboard     = '/admin/dashboard';
-  static const String routineManagement  = '/admin/routine';
-  static const String campusBroadcast    = '/admin/broadcast';
-  static const String adminRegistration  = '/admin/registration';
-  static const String manageUsers        = '/admin/users';
+  static const String adminDashboard       = '/admin/dashboard';
+  static const String routineManagement    = '/admin/routine';
+  static const String generateTimetable    = '/admin/timetable/generate';
+  static const String campusBroadcast      = '/admin/broadcast';
+  static const String adminRegistration    = '/admin/registration';
+  static const String manageUsers          = '/admin/users';
+
+  // Admin · timetable config + viewer
+  static const String manageRooms          = '/admin/timetable/rooms';
+  static const String manageFaculty        = '/admin/timetable/faculty';
+  static const String timetableSettings    = '/admin/timetable/settings';
+  static const String timetableGrid        = '/admin/timetable/grid';
 }
