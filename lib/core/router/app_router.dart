@@ -204,10 +204,8 @@ class AppRouter {
             path: RouteNames.studentRoutine,
             builder: (c, s) => RoutineScreen(authController: authController),
           ),
-          GoRoute(
-            path: RouteNames.aiAssistant,
-            builder: (c, s) => const PlaceholderScreen(title: 'AI Assistant'),
-          ),
+          // AI Assistant route descoped for defense — future scope.
+          // RouteNames.aiAssistant + chat_bubble.dart are kept for restore.
           GoRoute(
             path: RouteNames.notifications,
             builder: (c, s) => NotificationsScreen(
