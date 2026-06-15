@@ -34,11 +34,12 @@ abstract class AppConstants {
   static const String generationModel = 'gemini-2.0-flash';
 
   // ─── Timetable Engine (FastAPI + OR-Tools) ────────────────
-  // Default targets a locally-run engine from the Android emulator
-  // (10.0.2.2 = host loopback). Override for a deployed URL.
+  // Defaults to the deployed engine on Render so a plain release APK
+  // works out of the box. For local engine dev, override with:
+  //   --dart-define=TIMETABLE_BASE_URL=http://10.0.2.2:8000   (emulator)
   static const String timetableBaseUrl = String.fromEnvironment(
     'TIMETABLE_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000',
+    defaultValue: 'https://universe-timetable-engine.onrender.com',
   );
 
   // ─── App Identity ─────────────────────────────────────────
