@@ -80,16 +80,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _comingSoon(String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$label — coming soon', style: AppTextStyles.bodySm),
-        backgroundColor: AppColors.bgElevated,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -172,7 +162,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       cards = [
         StatCard(number: p.batch ?? '—', label: 'Batch'),
         StatCard(number: p.section ?? '—', label: 'Section'),
-        StatCard(number: '${p.semester ?? '—'}', label: 'Semester'),
       ];
     } else {
       // Admin — no academic stats.
@@ -240,32 +229,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         AppSpacing.smGap,
         UCard(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-          child: Column(
-            children: [
-              SettingsTile(
-                title: 'Edit profile',
-                icon: PhosphorIconsRegular.userGear,
-                onTap: () => _comingSoon('Edit profile'),
-              ),
-              const Divider(
-                  color: AppColors.border,
-                  thickness: AppSpacing.borderThin,
-                  height: 0),
-              SettingsTile(
-                title: 'Notification settings',
-                icon: PhosphorIconsRegular.bell,
-                onTap: () => _comingSoon('Notification settings'),
-              ),
-              const Divider(
-                  color: AppColors.border,
-                  thickness: AppSpacing.borderThin,
-                  height: 0),
-              SettingsTile(
-                title: 'About ${AppConstants.appName}',
-                icon: PhosphorIconsRegular.info,
-                onTap: _showAbout,
-              ),
-            ],
+          child: SettingsTile(
+            title: 'About ${AppConstants.appName}',
+            icon: PhosphorIconsRegular.info,
+            onTap: _showAbout,
           ),
         ),
       ],

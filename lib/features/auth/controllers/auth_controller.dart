@@ -627,27 +627,25 @@ class AuthController extends ChangeNotifier {
     required String studentId,
     required String batch,
     required String section,
-    required int semester,
   }) {
     _pendingStudentData = {
       'name': name,
       'studentId': studentId,
       'batch': batch,
       'section': section,
-      'semester': semester,
     };
     _pendingFacultyData = null;
   }
 
   void storePendingFacultyData({
     required String name,
-    required String employeeId,
+    required String teacherCode,
     required String department,
     required String designation,
   }) {
     _pendingFacultyData = {
       'name': name,
-      'employeeId': employeeId,
+      'teacherCode': teacherCode,
       'department': department,
       'designation': designation,
     };
@@ -766,14 +764,13 @@ class AuthController extends ChangeNotifier {
         studentId: d['studentId'] as String,
         batch: d['batch'] as String,
         section: d['section'] as String,
-        semester: d['semester'] as int,
       );
     }
     if (_pendingFacultyData != null) {
       final d = _pendingFacultyData!;
       return completeFacultyRegistration(
         name: d['name'] as String,
-        employeeId: d['employeeId'] as String,
+        teacherCode: d['teacherCode'] as String,
         department: d['department'] as String,
         designation: d['designation'] as String,
       );
@@ -966,7 +963,6 @@ class AuthController extends ChangeNotifier {
     required String studentId,
     required String batch,
     required String section,
-    required int semester,
   }) async {
     _setLoading(true);
     _clearError();
@@ -976,7 +972,6 @@ class AuthController extends ChangeNotifier {
       studentId: studentId,
       batch: batch,
       section: section,
-      semester: semester,
     );
 
     _setLoading(false);
@@ -994,7 +989,7 @@ class AuthController extends ChangeNotifier {
 
   Future<bool> completeFacultyRegistration({
     required String name,
-    required String employeeId,
+    required String teacherCode,
     required String department,
     required String designation,
   }) async {
@@ -1003,7 +998,7 @@ class AuthController extends ChangeNotifier {
 
     final result = await _authService.completeFacultyRegistration(
       name: name,
-      employeeId: employeeId,
+      teacherCode: teacherCode,
       department: department,
       designation: designation,
     );

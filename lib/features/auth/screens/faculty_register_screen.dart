@@ -1,7 +1,10 @@
 // ============================================================
 // FILE: lib/features/auth/screens/faculty_register_screen.dart
 // PURPOSE: Form for new faculty members.
-// Fields: Full name, Employee ID, Department, Designation.
+// Fields: Full name, Teacher Code, Department, Designation.
+// The Teacher Code is the acronym used on the published routine
+// (routines.teacher_code) — it's what links a teacher to their
+// classes, so it must match the code shown on the timetable.
 // Same OAuth flow as student register.
 // ============================================================
 
@@ -27,7 +30,7 @@ class FacultyRegisterScreen extends StatefulWidget {
 class _FacultyRegisterScreenState extends State<FacultyRegisterScreen> {
   final _formKey  = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
-  final _idCtrl   = TextEditingController();
+  final _codeCtrl = TextEditingController();
   String? _selectedDepartment;
   String? _selectedDesignation;
 
@@ -46,7 +49,7 @@ class _FacultyRegisterScreenState extends State<FacultyRegisterScreen> {
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _idCtrl.dispose();
+    _codeCtrl.dispose();
     super.dispose();
   }
 
@@ -66,7 +69,7 @@ class _FacultyRegisterScreenState extends State<FacultyRegisterScreen> {
 
       final success = await widget.authController.completeFacultyRegistration(
         name: _nameCtrl.text.trim(),
-        employeeId: _idCtrl.text.trim(),
+        teacherCode: _codeCtrl.text.trim().toUpperCase(),
         department: _selectedDepartment!,
         designation: _selectedDesignation!,
       );
@@ -115,7 +118,7 @@ class _FacultyRegisterScreenState extends State<FacultyRegisterScreen> {
     }
     widget.authController.storePendingFacultyData(
       name: _nameCtrl.text.trim(),
-      employeeId: _idCtrl.text.trim(),
+      teacherCode: _codeCtrl.text.trim().toUpperCase(),
       department: _selectedDepartment!,
       designation: _selectedDesignation!,
     );
@@ -210,15 +213,21 @@ class _FacultyRegisterScreenState extends State<FacultyRegisterScreen> {
 
                     AppSpacing.lgGap,
 
-                    _buildLabel('Employee ID'),
+                    _buildLabel('Teacher Code'),
                     AppSpacing.smGap,
                     _buildField(
-                      controller: _idCtrl,
-                      hint: 'e.g. LU-CSE-001',
+                      controller: _codeCtrl,
+                      hint: 'e.g. JR — as shown on the routine',
                       icon: PhosphorIconsRegular.identificationBadge,
                       validator: (v) => v == null || v.trim().isEmpty
-                          ? 'Employee ID is required'
+                          ? 'Teacher code is required'
                           : null,
+                    ),
+                    AppSpacing.xsGap,
+                    Text(
+                      'Use the code that appears beside your name on the '
+                      'published routine — it links you to your classes.',
+                      style: AppTextStyles.caption,
                     ),
 
                     AppSpacing.lgGap,

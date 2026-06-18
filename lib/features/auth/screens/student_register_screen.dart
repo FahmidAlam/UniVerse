@@ -1,15 +1,16 @@
 // ============================================================
 // FILE: lib/features/auth/screens/student_register_screen.dart
 // PURPOSE: Form for new students.
-// Fields: Full name, Student ID, Batch, Section (two cols),
-// Semester (dropdown). Then "Register with Google" which
-// triggers OAuth + profile creation in one flow.
+// Fields: Full name, Student ID, Batch, Section (two cols).
+// Then "Register with Google" which triggers OAuth + profile
+// creation in one flow. Semester is intentionally NOT collected
+// — batch+section identify the cohort and all resources are open
+// to every student, so semester carried no meaning.
 // ============================================================
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:universe_v1/core/constants/app_constants.dart';
 import 'package:universe_v1/core/router/route_names.dart';
 import 'package:universe_v1/core/theme/app_colors.dart';
 import 'package:universe_v1/core/theme/app_spacing.dart';
@@ -31,7 +32,6 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
   final _idCtrl      = TextEditingController();
   final _batchCtrl   = TextEditingController();
   final _sectionCtrl = TextEditingController();
-  int? _selectedSemester;
 
   @override
   void initState() {
@@ -63,7 +63,7 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
 
     if (status == AuthStatus.registering) {
       // Validate form data is still present
-      if (_nameCtrl.text.trim().isEmpty || _selectedSemester == null) {
+      if (_nameCtrl.text.trim().isEmpty) {
         _showError('Please fill in all fields before registering.');
         return;
       }
@@ -73,7 +73,6 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
         studentId: _idCtrl.text.trim(),
         batch: _batchCtrl.text.trim(),
         section: _sectionCtrl.text.trim().toUpperCase(),
-        semester: _selectedSemester!,
       );
 
       if (!success && mounted) {
@@ -97,10 +96,6 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
   // _onAuthChange fires when OAuth session is ready.
   Future<void> _registerWithGoogle() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedSemester == null) {
-      _showError('Please select your semester.');
-      return;
-    }
     await widget.authController.signInWithGoogle();
   }
 
@@ -109,10 +104,6 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
   // Then navigates to email signup.
   void _registerWithEmail() {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedSemester == null) {
-      _showError('Please select your semester.');
-      return;
-    }
     // Store registration form data so it survives navigation
     // EmailSignupScreen will call completeStudentRegistration after
     // email is verified and session is active.
@@ -121,7 +112,6 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
       studentId: _idCtrl.text.trim(),
       batch: _batchCtrl.text.trim(),
       section: _sectionCtrl.text.trim().toUpperCase(),
-      semester: _selectedSemester!,
     );
     context.go(RouteNames.emailSignup);
   }
@@ -269,12 +259,6 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                       ],
                     ),
 
-                    AppSpacing.lgGap,
-
-                    _buildLabel('Semester'),
-                    AppSpacing.smGap,
-                    _buildSemesterDropdown(),
-
                     const SizedBox(height: AppSpacing.x3l),
 
                     // Register with Email
@@ -365,44 +349,6 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
             borderSide:
                 const BorderSide(color: AppColors.error, width: 1.5)),
       ),
-    );
-  }
-
-  Widget _buildSemesterDropdown() {
-    return DropdownButtonFormField<int>(
-      initialValue: _selectedSemester,
-      style: AppTextStyles.input,
-      dropdownColor: AppColors.bgElevated,
-      hint: Text('Select semester', style: AppTextStyles.placeholder),
-      decoration: InputDecoration(
-        prefixIcon: const Icon(PhosphorIconsRegular.bookOpen,
-            size: AppSpacing.iconMd),
-        filled: true,
-        fillColor: AppColors.bgElevated,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
-        ),
-        border: OutlineInputBorder(
-            borderRadius: AppSpacing.radiusMd,
-            borderSide: const BorderSide(color: AppColors.border)),
-        enabledBorder: OutlineInputBorder(
-            borderRadius: AppSpacing.radiusMd,
-            borderSide: const BorderSide(color: AppColors.border)),
-        focusedBorder: OutlineInputBorder(
-            borderRadius: AppSpacing.radiusMd,
-            borderSide:
-                const BorderSide(color: AppColors.primary, width: 1.5)),
-      ),
-      icon: const Icon(PhosphorIconsRegular.caretDown,
-          color: AppColors.textMuted, size: AppSpacing.iconMd),
-      items: AppConstants.semesters
-          .map((s) => DropdownMenuItem(
-                value: s,
-                child: Text('Semester $s'),
-              ))
-          .toList(),
-      onChanged: (v) => setState(() => _selectedSemester = v),
     );
   }
 }

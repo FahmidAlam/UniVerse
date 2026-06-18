@@ -56,13 +56,16 @@ abstract class AppConstants {
   // ─── Semesters ────────────────────────────────────────────
   static const List<int> semesters = [1, 2, 3, 4, 5, 6, 7, 8];
 
-  // ─── Days (Sun–Thu, university schedule) ──────────────────
+  // ─── Days (Sun–Sat) ───────────────────────────────────────
+  // Leading University runs classes across all 7 days (Friday has no
+  // period 4 — see timetable engine). Order matches engine config.json
+  // "days", so routine `day` text lines up with what the engine emits.
   static const List<String> weekDays = [
-    'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday',
+    'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
   ];
 
   static const List<String> weekDaysShort = [
-    'Sun', 'Mon', 'Tue', 'Wed', 'Thu',
+    'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat',
   ];
 
   // ─── Time Slots ───────────────────────────────────────────
@@ -113,10 +116,12 @@ abstract class AppConstants {
   static const String tableNotifications    = 'notifications';
   static const String tableNotificationReads = 'notification_reads';
   static const String tableResources        = 'resources';
+  // Reserved for future scope — tables exist (RLS-protected) but no
+  // feature is wired yet: assignments/submissions (assignment feature),
+  // documents (AI assistant).
   static const String tableAssignments      = 'assignments';
   static const String tableSubmissions      = 'submissions';
   static const String tableDocuments        = 'documents';
-  static const String tableGeneratedTimetable = 'generated_timetable';
   static const String tableDeviceTokens     = 'device_tokens';
   static const String tableTimetableRooms    = 'timetable_rooms';
   static const String tableTimetableFaculty  = 'timetable_faculty';
@@ -124,10 +129,11 @@ abstract class AppConstants {
   static const String tableTimetableRuns     = 'timetable_runs';
 
   // ─── Storage Buckets ──────────────────────────────────────
-  static const String bucketAvatars     = 'avatars';
   static const String bucketResources   = 'resources';
-  static const String bucketSubmissions = 'submissions';
   static const String bucketTimetables  = 'timetables';
+  // Reserved for future scope (buckets exist; no upload path wired yet).
+  static const String bucketAvatars     = 'avatars';
+  static const String bucketSubmissions = 'submissions';
 
   // ─── Push Notifications (FCM) ─────────────────────────────
   // Channel id MUST match AndroidManifest's default_notification_channel_id.

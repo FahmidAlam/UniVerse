@@ -285,7 +285,6 @@ class AuthService {
     required String studentId,
     required String batch,
     required String section,
-    required int semester,
   }) async {
     try {
       final user = currentUser;
@@ -299,7 +298,6 @@ class AuthService {
         'student_id': studentId,
         'batch': batch,
         'section': section,
-        'semester': semester,
         'avatar_url': user.userMetadata?['avatar_url'],
       });
 
@@ -323,7 +321,7 @@ class AuthService {
 
   Future<AuthResult> completeFacultyRegistration({
     required String name,
-    required String employeeId,
+    required String teacherCode,
     required String department,
     required String designation,
   }) async {
@@ -336,7 +334,7 @@ class AuthService {
         'email': user.email,
         'role': AppConstants.roleTeacher,
         'name': name,
-        'teacher_code': employeeId,
+        'teacher_code': teacherCode,
         'department': department,
         'designation': designation,
         'avatar_url': user.userMetadata?['avatar_url'],
