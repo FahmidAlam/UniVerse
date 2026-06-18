@@ -15,8 +15,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:universe_v1/core/constants/app_enums.dart';
 import 'package:universe_v1/features/admin/services/timetable_config_service.dart';
 import 'package:universe_v1/features/admin/services/timetable_engine_service.dart';
+import 'package:universe_v1/features/notifications/services/notification_service.dart';
 
 enum GenPhase { idle, generating, polling, done, error }
 
@@ -182,6 +184,19 @@ class TimetableGenController extends ChangeNotifier {
         rowCount: _publishedCount ?? res.rows.length,
         status: 'published',
       );
+
+      // Tell students + teachers the new routine is live (in-app + push).
+      // Best-effort: the routine is already published, so a notification
+      // failure must not surface as a publish error.
+      try {
+        await NotificationService().createBroadcast(
+          type: NotifType.university,
+          title: 'New class routine published',
+          body: '${_semesterLabel ?? 'The new'} class routine is now live. '
+              'Open your routine to see the updated schedule.',
+          // null target_role → everyone (students, teachers, admins).
+        );
+      } catch (_) {/* best-effort */}
     } catch (e) {
       _publishError = _clean(e);
     }

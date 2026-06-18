@@ -35,10 +35,12 @@ class RoutineController extends SafeChangeNotifier {
 
   bool get isTeacherView => _me?.isTeacher ?? false;
 
-  /// Today's short day name, or 'Sun' on the weekend (Fri/Sat).
+  /// Today's short day name. All 7 days are class days here.
   static String _todayShort() {
     // DateTime.weekday: Mon=1 … Sun=7
-    const map = {7: 'Sun', 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu'};
+    const map = {
+      7: 'Sun', 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat',
+    };
     return map[DateTime.now().weekday] ?? 'Sun';
   }
 

@@ -92,7 +92,9 @@ class NotificationService {
       'type': type.dbValue,
       'title': title,
       'body': body,
-      'sent_by': sentBy,
+      // RLS requires sent_by = auth.uid(); default to the caller's session
+      // so system events (resource upload, routine publish) can omit it.
+      'sent_by': sentBy ?? _supabase.auth.currentUser?.id,
       'target_role': targetRole,
       'target_batch': targetBatch,
       'target_section': targetSection,

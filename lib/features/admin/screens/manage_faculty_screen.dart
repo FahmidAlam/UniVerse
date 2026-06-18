@@ -7,6 +7,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:universe_v1/core/constants/app_constants.dart';
 import 'package:universe_v1/core/models/timetable_config_model.dart';
 import 'package:universe_v1/core/theme/app_colors.dart';
 import 'package:universe_v1/core/theme/app_spacing.dart';
@@ -19,14 +20,6 @@ import 'package:universe_v1/shared/widgets/u_chip.dart';
 import 'package:universe_v1/shared/widgets/u_empty_state.dart';
 import 'package:universe_v1/shared/widgets/u_loading.dart';
 import 'package:universe_v1/shared/widgets/u_text_field.dart';
-
-// Full 7-day week (the engine config spans Sun–Sat; off-days use these).
-const List<String> _kDays = [
-  'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
-];
-const List<String> _kDaysShort = [
-  'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat',
-];
 
 class ManageFacultyScreen extends StatefulWidget {
   const ManageFacultyScreen({super.key});
@@ -148,8 +141,8 @@ class _ManageFacultyScreenState extends State<ManageFacultyScreen> {
   }
 
   String _short(String day) {
-    final i = _kDays.indexOf(day);
-    return i == -1 ? day : _kDaysShort[i];
+    final i = AppConstants.weekDays.indexOf(day);
+    return i == -1 ? day : AppConstants.weekDaysShort[i];
   }
 
   Future<void> _openEditor(TimetableFaculty f) async {
@@ -195,7 +188,7 @@ class _FacultyEditorSheetState extends State<_FacultyEditorSheet> {
     final ok = await widget.controller.save(
       widget.faculty,
       fullName: _name.text.trim().isEmpty ? null : _name.text.trim(),
-      offDays: _kDays.where(_off.contains).toList(),
+      offDays: AppConstants.weekDays.where(_off.contains).toList(),
     );
     if (!mounted) return;
     if (ok) {
@@ -243,14 +236,14 @@ class _FacultyEditorSheetState extends State<_FacultyEditorSheet> {
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
               children: [
-                for (var i = 0; i < _kDays.length; i++)
+                for (var i = 0; i < AppConstants.weekDays.length; i++)
                   UChip(
-                    label: _kDaysShort[i],
-                    isActive: _off.contains(_kDays[i]),
+                    label: AppConstants.weekDaysShort[i],
+                    isActive: _off.contains(AppConstants.weekDays[i]),
                     onTap: () => setState(() {
-                      _off.contains(_kDays[i])
-                          ? _off.remove(_kDays[i])
-                          : _off.add(_kDays[i]);
+                      _off.contains(AppConstants.weekDays[i])
+                          ? _off.remove(AppConstants.weekDays[i])
+                          : _off.add(AppConstants.weekDays[i]);
                     }),
                   ),
               ],

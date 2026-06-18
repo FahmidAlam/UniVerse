@@ -109,6 +109,10 @@ class RoutineEntry {
   /// e.g. "9:30 AM – 10:50 AM"
   String get timeLabel => '${_to12h(timeStart)} – ${_to12h(timeEnd)}';
 
+  /// Just the start/end, e.g. "9:30 AM" — for compact dashboard stats.
+  String get startLabel => _to12h(timeStart);
+  String get endLabel => _to12h(timeEnd);
+
   String get teacherDisplay =>
       (teacherName != null && teacherName!.isNotEmpty)
           ? teacherName!

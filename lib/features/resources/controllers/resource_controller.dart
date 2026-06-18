@@ -1,8 +1,10 @@
 // ============================================================
 // FILE: lib/features/resources/controllers/resource_controller.dart
 // PURPOSE: State between ResourceService and the resources screen.
-// Loads the student's semester resources once, then filters by
-// category (All / PYQ / Notes / Slides / Assignments) client-side.
+// Loads ALL resources once and groups them into semester folders,
+// so anyone can browse any semester (not just their own). Inside an
+// open folder, filters by category (All / PYQ / Notes / Slides /
+// Assignments) client-side.
 // ============================================================
 
 import 'package:universe_v1/core/models/profile_model.dart';
@@ -23,14 +25,39 @@ class ResourceController extends SafeChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   String _activeCategory = allCategory;
+  int? _openSemester; // null = showing the semester folders
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   String get activeCategory => _activeCategory;
+  int? get openSemester => _openSemester;
 
+  /// The signed-in student's own semester (for the "Yours" folder badge).
+  int? get mySemester => _me?.semester;
+
+  /// Resource count in a given semester folder.
+  int countForSemester(int semester) =>
+      _items.where((r) => r.semester == semester).length;
+
+  /// Items inside the currently-open semester folder, category-filtered.
   List<Resource> get filtered {
-    if (_activeCategory == allCategory) return _items;
-    return _items.where((r) => r.category == _activeCategory).toList();
+    final s = _openSemester;
+    if (s == null) return const [];
+    final inSemester = _items.where((r) => r.semester == s);
+    if (_activeCategory == allCategory) return inSemester.toList();
+    return inSemester.where((r) => r.category == _activeCategory).toList();
+  }
+
+  void openFolder(int semester) {
+    _openSemester = semester;
+    _activeCategory = allCategory;
+    notifyListeners();
+  }
+
+  void closeFolder() {
+    if (_openSemester == null) return;
+    _openSemester = null;
+    notifyListeners();
   }
 
   Profile? get _me {
@@ -47,7 +74,7 @@ class ResourceController extends SafeChangeNotifier {
     notifyListeners();
 
     try {
-      _items = await _service.fetchForSemester(me.semester ?? 0);
+      _items = await _service.fetchAll();
     } catch (e) {
       _errorMessage = 'Could not load resources.';
     }

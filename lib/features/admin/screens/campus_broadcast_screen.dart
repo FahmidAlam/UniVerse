@@ -8,18 +8,18 @@
 // ============================================================
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:universe_v1/core/constants/app_enums.dart';
+import 'package:universe_v1/core/router/route_names.dart';
 import 'package:universe_v1/core/theme/app_colors.dart';
 import 'package:universe_v1/core/theme/app_spacing.dart';
 import 'package:universe_v1/core/theme/app_text_styles.dart';
 import 'package:universe_v1/features/admin/controllers/broadcast_controller.dart';
 import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
-import 'package:universe_v1/shared/widgets/notification_tile.dart';
 import 'package:universe_v1/shared/widgets/u_app_bar.dart';
 import 'package:universe_v1/shared/widgets/u_button.dart';
 import 'package:universe_v1/shared/widgets/u_chip.dart';
-import 'package:universe_v1/shared/widgets/u_loading.dart';
 import 'package:universe_v1/shared/widgets/u_text_field.dart';
 
 class CampusBroadcastScreen extends StatefulWidget {
@@ -60,7 +60,6 @@ class _CampusBroadcastScreenState extends State<CampusBroadcastScreen> {
   void initState() {
     super.initState();
     _controller = BroadcastController(authController: widget.authController);
-    _controller.loadRecent();
   }
 
   @override
@@ -97,36 +96,6 @@ class _CampusBroadcastScreenState extends State<CampusBroadcastScreen> {
     }
   }
 
-  Future<void> _confirmDelete(String id, String title) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgCard,
-        shape: RoundedRectangleBorder(borderRadius: AppSpacing.radiusLg),
-        title: Text('Delete broadcast?', style: AppTextStyles.h3),
-        content: Text(
-          '"$title" will be removed for everyone.',
-          style: AppTextStyles.bodySm,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel',
-                style: AppTextStyles.bodyMedium
-                    .copyWith(color: AppColors.textSecondary)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Delete', style: AppTextStyles.danger),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) {
-      await _controller.deleteBroadcast(id);
-    }
-  }
-
   void _snack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -141,7 +110,18 @@ class _CampusBroadcastScreenState extends State<CampusBroadcastScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
-      appBar: const UAppBar(title: 'Campus Broadcast', showBackButton: false),
+      appBar: UAppBar(
+        title: 'Campus Broadcast',
+        showBackButton: false,
+        actions: [
+          IconButton(
+            tooltip: 'Sent broadcasts',
+            icon: const Icon(PhosphorIconsRegular.clockCounterClockwise,
+                color: AppColors.textPrimary),
+            onPressed: () => context.push(RouteNames.broadcastHistory),
+          ),
+        ],
+      ),
       body: ListenableBuilder(
         listenable: _controller,
         builder: (context, _) {
@@ -208,10 +188,15 @@ class _CampusBroadcastScreenState extends State<CampusBroadcastScreen> {
                     isLoading: _controller.isSending,
                     onPressed: _send,
                   ),
-                  AppSpacing.xxlGap,
-                  _label('RECENT BROADCASTS'),
-                  AppSpacing.smGap,
-                  _recentList(),
+                  AppSpacing.lgGap,
+                  Center(
+                    child: Text(
+                      'Tap the history icon (top-right) to view & delete sent '
+                      'broadcasts.',
+                      style: AppTextStyles.caption,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -269,30 +254,4 @@ class _CampusBroadcastScreenState extends State<CampusBroadcastScreen> {
     );
   }
 
-  Widget _recentList() {
-    if (_controller.isLoadingRecent && _controller.recent.isEmpty) {
-      return const ULoading.skeleton(skeletonHeight: 72);
-    }
-    if (_controller.recent.isEmpty) {
-      return Text(
-        'No broadcasts yet.',
-        style: AppTextStyles.bodySm,
-      );
-    }
-    return ClipRRect(
-      borderRadius: AppSpacing.radiusLg,
-      child: Column(
-        children: [
-          for (final n in _controller.recent)
-            NotificationTile(
-              title: n.title,
-              body: n.body,
-              type: n.type,
-              time: n.time,
-              onTap: () => _confirmDelete(n.id, n.title),
-            ),
-        ],
-      ),
-    );
-  }
 }

@@ -50,6 +50,25 @@ class AppDateUtils {
     return weekdays[dt.weekday - 1];
   }
 
+  /// Time-of-day greeting for dashboards: "Good morning/afternoon/evening".
+  static String greeting([DateTime? at]) {
+    final h = (at ?? DateTime.now()).hour;
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  /// Short, human date for headers — e.g. "Sun, 16 Jun".
+  static String shortDate([DateTime? at]) {
+    final d = at ?? DateTime.now();
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${days[d.weekday - 1]}, ${d.day} ${months[d.month - 1]}';
+  }
+
   static bool isLive(DateTime start, DateTime end) {
     final now = DateTime.now();
     return now.isAfter(start) && now.isBefore(end);

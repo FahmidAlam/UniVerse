@@ -107,9 +107,13 @@ class AppBottomNav extends StatelessWidget {
               icon: PhosphorIconsRegular.calendarBlank,
               label: 'Routine',
               route: RouteNames.studentRoutine),
-          // AI Assistant tab descoped for defense — kept as future scope.
-          // To restore: re-add this destination + the /student/ai-assistant
-          // route in app_router.dart.
+          // Resources promoted to a tab (replaces the descoped AI Assistant
+          // slot). AI Assistant is kept as future scope — to restore it,
+          // re-add its destination + the /student/ai-assistant route.
+          AppNavDest(
+              icon: PhosphorIconsRegular.folder,
+              label: 'Resources',
+              route: RouteNames.resources),
           AppNavDest(
               icon: PhosphorIconsRegular.bell,
               label: 'Alerts',

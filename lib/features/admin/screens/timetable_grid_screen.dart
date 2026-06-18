@@ -8,6 +8,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:universe_v1/core/constants/app_constants.dart';
 import 'package:universe_v1/core/models/routine_model.dart';
 import 'package:universe_v1/core/theme/app_colors.dart';
 import 'package:universe_v1/core/theme/app_spacing.dart';
@@ -15,10 +16,6 @@ import 'package:universe_v1/core/theme/app_text_styles.dart';
 import 'package:universe_v1/shared/widgets/u_app_bar.dart';
 import 'package:universe_v1/shared/widgets/u_chip.dart';
 import 'package:universe_v1/shared/widgets/u_empty_state.dart';
-
-const List<String> _kWeek = [
-  'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
-];
 
 class TimetableGridScreen extends StatefulWidget {
   final List<RoutineEntry> rows;
@@ -34,7 +31,7 @@ class _TimetableGridScreenState extends State<TimetableGridScreen> {
 
   List<String> get _daysPresent {
     final present = widget.rows.map((r) => r.day).toSet();
-    return _kWeek.where(present.contains).toList();
+    return AppConstants.weekDays.where(present.contains).toList();
   }
 
   @override

@@ -42,10 +42,12 @@ abstract class RouteNames {
   // Admin
   static const String adminDashboard       = '/admin/dashboard';
   static const String routineManagement    = '/admin/routine';
-  static const String generateTimetable    = '/admin/timetable/generate';
   static const String campusBroadcast      = '/admin/broadcast';
   static const String adminRegistration    = '/admin/registration';
   static const String manageUsers          = '/admin/users';
+  static const String manageResources      = '/admin/resources';
+  static const String resourceLibrary      = '/admin/resources/library';
+  static const String broadcastHistory     = '/admin/broadcast/history';
 
   // Admin · timetable config + viewer
   static const String manageRooms          = '/admin/timetable/rooms';

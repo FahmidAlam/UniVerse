@@ -1,9 +1,13 @@
 # CLAUDE.md — UniVerse Project Context
 > Load this at the start of every session. Dense reference only — no fluff.
-> Last updated: June 2026 — **feature-complete, polish phase, ~2 days to defense.**
-> The app is BUILT and runs end-to-end (auth · routine · resources · notifications ·
-> profile · admin · push · **automatic timetable generator deployed live**).
+> Last updated: June 2026 — **feature-complete + polished; defense-ready.**
+> The app is BUILT and runs end-to-end (auth · routine · **student/teacher dashboards** ·
+> resources hub w/ **admin upload + semester folders** · notifications w/ **live push** ·
+> profile · admin · **teacher Manage Classes (cancel/notice)** · **automatic timetable
+> generator deployed live**).
 > AI assistant is **DESCOPED** (future scope — see that section).
+> ⚙️ All recent build-out lives on branch **`polish/defense-prep`** (NOT yet merged to
+> `main`; the agent never pushes — Fahmid merges + rebuilds the APK).
 
 ---
 
@@ -24,6 +28,17 @@ whole system or the defense build.
   Any SQL change needs the matching Dart service + an `app_constants` table constant.
 - **`TIMETABLE_BASE_URL` default** in `app_constants.dart` — the shipped APK depends on
   it pointing at the live engine. Don't change it without rebuilding the APK.
+- **Week days = Sun–Sat (7 days).** `AppConstants.weekDays`/`weekDaysShort` are the single
+  source of truth and MUST match the engine `config.json` "days" order. The university
+  teaches all 7 days (Friday has no period 4). Every controller maps `DateTime.weekday`→day
+  via these — never reintroduce a Sun–Thu (5-day) assumption.
+- **`cancellations` table (migration 007) is LIVE.** Teacher Manage Classes writes one
+  dated row (`routine_id`+`class_date`) per cancelled occurrence AND a `class_cancel`
+  notification. Insert shape ↔ `TeacherService.cancelClass`. (Legacy DBs had a
+  `cancel_date NOT NULL` column; 007 relaxes it.)
+- **Notifications ⇒ push (automatic).** Any INSERT into `notifications` fires the deployed
+  `send-push` Edge Function (DB webhook) → OS push to the audience. Creating a notification
+  row = in-app alert + push; don't add a second push path.
 
 **Never touch / never commit:**
 - Supabase URL + anon key live as defaults in `app_constants.dart` (anon key is safe to
@@ -65,12 +80,16 @@ manually. The engine is stateless (in-memory jobs) — no DB on the engine side.
 | Auth (Google OAuth + email/password, whitelist gate for admin) | ✅ complete |
 | Role-aware tab navigation (AppShell + bottom nav) | ✅ complete |
 | Student / Teacher routine views (from `routines`) | ✅ built |
-| Resources hub · Notifications (Realtime) · Profile | ✅ built |
-| Admin: dashboard, routine mgmt, broadcast, registration, manage users | ✅ built |
-| **Push notifications (Firebase FCM)** | ✅ built (`device_tokens`) |
+| **Student + Teacher dashboards** (greeting · live/next-class hero w/ countdown · stats · today's list) | ✅ built (`features/dashboard/`, `features/teacher/`) |
+| **Teacher Manage Classes** — cancel occurrence (+student alert/push) · post notice/room-change · undo | ✅ built (`cancellations` + migration 007) |
+| Resources hub — **semester folders** (all semesters), opens files; **admin upload** (any file / Drive link) | ✅ built |
+| Notifications (Realtime feed + **per-user local multi-select dismiss**) · Profile | ✅ built |
+| Admin: dashboard, **Routine hub (Manage + Generate)**, broadcast, registration, users, **Manage Resources** | ✅ built |
+| **Push notifications (FCM)** — `send-push` Edge Function **deployed & live** (DB webhook on `notifications` INSERT) | ✅ working (`device_tokens`) |
+| **Auto-notify**: resource upload → students · routine publish → everyone | ✅ built |
 | **Timetable engine (Excel→CP-SAT→workbook) + admin config + publish** | ✅ built, deployed, verified live |
+| App icon (orbit mark via `flutter_launcher_icons`) | ✅ wired |
 | AI assistant (RAG/Gemini) | ⛔ **descoped → future scope** |
-| Now | **Polish + defense prep** (do not add scope) |
 
 ---
 
@@ -106,6 +125,7 @@ firebase_core: ^4.10.0         firebase_messaging: ^16.3.0
 file_picker: ^8.1.2            flutter_pdfview: ^1.3.2
 cached_network_image: ^3.3.1   http: ^1.6.0
 shared_preferences: ^2.5.5     path_provider: ^2.1.4   open_filex: ^4.5.0
+url_launcher: ^6.3.2           flutter_launcher_icons: ^0.14.4 (dev)
 ```
 
 ### Backend / services
@@ -122,6 +142,9 @@ shared_preferences: ^2.5.5     path_provider: ^2.1.4   open_filex: ^4.5.0
   Kotlin **2.1.0**, `com.google.gms.google-services` **4.4.2**.
 - Release APK uses **debug signing** (sideloadable for the demo) — no keystore set up.
 - Build: `flutter build apk --release` → `build/app/outputs/flutter-apk/app-release.apk`.
+- **App icon:** `flutter_launcher_icons` (config block in `pubspec.yaml`). Source PNGs in
+  `assets/icon/` are generated from the splash orbit mark by `python tool/generate_app_icon.py`.
+  Regenerate the Android mipmaps: `dart run flutter_launcher_icons`.
 
 ### Auth deep links
 ```
@@ -178,6 +201,7 @@ lib/
   shared/widgets/                 u_* primitives + composite cards (all built)
   features/
     auth/  routine/  resources/  notifications/  profile/  admin/
+    dashboard/  (student Home)        teacher/  (teacher Home + Manage Classes)
 ```
 
 ### Layer rules (enforced)
@@ -193,8 +217,13 @@ lib/
 - **`AppBottomNav`** (`shared/widgets/app_bottom_nav.dart`) — single source of truth for
   each role's tabs (`destinationsFor(role)`). Notification badge wired to a shared
   `NotificationController`.
-- **Secondary screens** (Resources, Admin Registration, Generate Timetable, Manage
-  Rooms/Faculty, Timetable Settings, Timetable Grid) are **pushed** (back button), NOT tabs.
+- **Secondary screens** (Resources, Admin Registration, Manage Rooms/Faculty, Timetable
+  Settings, Timetable Grid, **Manage Resources**, **Resource Library**, **Broadcast
+  History**) are **pushed** (back button), NOT tabs.
+- **Admin "Routine" tab = `AdminRoutineScreen` hub** — a segmented control hosting
+  **Manage** (`RoutineManagementScreen`) + **Generate** (`GenerateTimetableScreen`), both
+  rendered with `embedded: true` (no inner app bar). `?tab=generate` opens it on the
+  generator. There is NO standalone `generateTimetable` route anymore.
 - All paths are `RouteNames.*` constants. Redirect logic lives only in `AppRouter.redirect()`.
 - Tab sets: **Student** Home·Routine·Alerts·Profile · **Teacher** Home·Routine·Classes·
   Alerts·Profile · **Admin** Dashboard·Broadcast·Routine·Users·Profile.
@@ -225,7 +254,15 @@ lib/
 - Tapping a push → opens the notifications feed.
 - Local-notification channel id `pushChannelId = 'universe_high_importance'` **must match**
   AndroidManifest's `default_notification_channel_id`.
-- Permissions in `AndroidManifest.xml`: `INTERNET`, `POST_NOTIFICATIONS`.
+- Permissions in `AndroidManifest.xml`: `INTERNET`, `POST_NOTIFICATIONS`. The `<queries>`
+  block also allows `https` VIEW intents (so `url_launcher` can open resource links).
+- **OS delivery = `supabase/functions/send-push` Edge Function — DEPLOYED & live.** A
+  Supabase **DB Webhook on `notifications` INSERT** invokes it → resolves the row's audience
+  (role/batch/section) → looks up `device_tokens` → sends via **FCM HTTP v1** (service-account
+  JWT minted in-function; secret `FCM_SERVICE_ACCOUNT`). The local `index.ts` is commented
+  out — it's only a copy of the deployed function.
+- **Net effect:** inserting a `notifications` row = in-app Realtime alert **+** OS push.
+  Used by admin broadcast, teacher cancel/notice, resource upload, and routine publish.
 
 ---
 
@@ -236,9 +273,9 @@ lib/
 | `whitelists` | admin gate; `role` ∈ student/teacher/admin |
 | `profiles` | extends `auth.users`; created on first login |
 | `routines` | weekly schedule; filtered by batch+section (student) or teacher_code (teacher). `teacher_name`/`teacher_code` are TEXT (migration 003); `teacher_id` nullable. **Engine publishes here.** |
-| `cancellations` | teacher cancellations → Realtime |
+| `cancellations` | **LIVE (migration 007)** — one dated row per cancelled occurrence: `routine_id, class_date, reason, batch, section, subject, day, time_start, cancelled_by` (+ unique `(routine_id, class_date)`). RLS: read-all; insert/delete by `cancelled_by = auth.uid()` & teacher/admin. Written by `TeacherService`; teacher view badges CANCELLED (student grid not yet wired — alert only). |
 | `notifications` | typed (CHECK constraint); `notification_reads` tracks per-user read state |
-| `resources` | PDFs + Drive links; filtered by semester + category |
+| `resources` | files (any type) in the `resources` bucket + Drive links. Admin uploads via Manage Resources; everyone browses by **semester folder** (all semesters) + category. `uploaded_by` set from session (RLS). |
 | `assignments` / `submissions` | `submissions.is_late` set by DB trigger — **never compute in Dart** |
 | `documents` | RAG vector store (`VECTOR(768)`) — **unused (AI descoped)** |
 | `generated_timetable` | legacy (pre-existing); not used by the current flow |
@@ -256,8 +293,12 @@ workbooks). All public for the MVP.
 
 **Seeds:** `supabase/seed/` — `seed_timetable_config.sql` (rooms/faculty/settings, generated
 from the real workbooks), plus demo accounts/routine/resources/notifications/whitelist.
-**Migrations:** `supabase/migrations/` (001 notification_reads, 002 drop profiles photo_url,
-003 routines teacher text).
+**Migrations:** `supabase/migrations/` — 001 notification_reads · 002 drop profiles photo_url ·
+003 routines teacher text · 004 device_tokens · 005 register_device_token · 006 enable RLS
+on all tables (+ `my_role()`/`is_admin()` helpers) · **007 cancellations schema** (canonical
+columns + RLS + Realtime + legacy `cancel_date` relax; idempotent).
+**Edge Functions:** `supabase/functions/` — `invite-admin` (service-role; admin provisioning)
+· `send-push` (FCM v1; triggered by the `notifications` INSERT webhook).
 
 ---
 
@@ -344,17 +385,57 @@ migration before the service is being written.
 
 Auth (12): splash, onboarding, login, email login/signup, verify email, forgot/reset
 password, role selection, student/faculty register, not-whitelisted. ·
-Student: dashboard, routine, ~~AI assistant (descoped)~~. · Shared: resources,
-notifications, profile. · Teacher: dashboard, routine, manage classes. · Admin:
-dashboard, routine management, campus broadcast, admin registration, manage users,
-**generate timetable, manage rooms, manage faculty, timetable settings, timetable grid**.
+Student (`features/dashboard/`): **dashboard (built)**, routine, resources (semester
+folders), ~~AI assistant (descoped)~~. · Shared: notifications (multi-select dismiss),
+profile. · Teacher (`features/teacher/`): **dashboard (built)**, routine, **Manage Classes
+(built — cancel/notice/undo)**. · Admin: dashboard, **Routine hub (Manage + Generate)**,
+campus broadcast (+ **Broadcast History**), admin registration, manage users, **Manage
+Resources (+ Resource Library)**, manage rooms, manage faculty, timetable settings,
+timetable grid.
+
+---
+
+## NEW FEATURE MAP (polish phase — built, on `polish/defense-prep`)
+
+- **Dashboards** — `features/dashboard/` (student) + `features/teacher/` (teacher). Each:
+  greeting app bar → hero (`LiveClassCard` if live, else `NextClassCard` countdown, else
+  `MessageHeroCard` "done") → stat strip → today's list → quick actions → recent-alerts
+  preview. Controllers aggregate `RoutineService.fetchFor{Student,Teacher}` + the shared
+  `NotificationController`. New widgets: `next_class_card`, `message_hero_card`,
+  `scrollable_empty`.
+- **Manage Classes** — `features/teacher/` (`manage_classes_screen/_controller`,
+  `teacher_service.dart`). Day selector → tap class → action sheet: **Cancel** (reason →
+  `cancellations` row + `class_cancel` alert), **Post update** (room_change/notice/
+  test_reminder via `createBroadcast`), **Undo** (delete row). A cancellation targets the
+  next occurrence date of that weekday; teacher card badges CANCELLED.
+- **Resources** — admin **Manage Resources** (`resource_admin_controller`) uploads via
+  `ResourceService.uploadFile`+`createResource` (+ student alert), with a separate
+  **Resource Library** page (semester folders + delete). Student `ResourceController` loads
+  ALL resources → `resources_screen` shows **semester folders** → category list → opens
+  links (`url_launcher`, clipboard fallback). RLS lets students read every semester.
+- **Auto-notify** — resource upload → students; `timetable_gen_controller.publish()` inserts
+  a "routine published" notification (everyone) after `publishToRoutines` (best-effort).
+  `NotificationService.createBroadcast` now defaults `sent_by` to the current user.
+- **Notifications dismiss** — `NotificationController` keeps a per-user dismissed-id set in
+  `SharedPreferences` (`dismissed_notifs_<uid>`), filtered out of feed/badge/previews;
+  multi-select UI (long-press / select icon → checkboxes → trash). **DB rows untouched.**
+- **Admin Routine hub** — `admin_routine_screen.dart`: segmented Manage/Generate (both
+  rendered `embedded`); the old standalone Generate route is gone.
+- **Split pages** — `broadcast_history_screen`, `resource_library_screen`, reached via an
+  app-bar icon from the compose/upload pages (keeps those pages clean forms).
+- **7-day week** — `AppConstants.weekDays` = Sun–Sat; all controller weekday maps updated;
+  `timetable_grid`/`manage_faculty` now use the constant (were duplicated 7-day lists).
 
 ---
 
 ## GITHUB / BUILD
 
 - `main` = integration + release branch (engine deploys from it). Feature branches merge
-  to `main`. Timetable + push-notifications already merged.
+  to `main`. Timetable + push-notifications already merged. **All polish work — dashboards,
+  Manage Classes, resources upload + semester folders, notifications dismiss, admin Routine
+  hub, split list pages, app icon, 7-day fix — lives on `polish/defense-prep`, NOT yet
+  merged.** The agent never pushes; Fahmid merges + rebuilds the APK. (Heads-up: this work
+  touched Robi's `dashboard/`, `teacher/`, `resources/` and Ratul's `notifications/`.)
 - Commit format: `feat|fix|chore|refactor(module): description`.
 - After a merge conflict, resolve by **keeping both features** (the conflicts so far were
   additive: push-notifications ↔ timetable).

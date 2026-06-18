@@ -25,7 +25,10 @@ import 'package:universe_v1/shared/widgets/u_card.dart';
 import 'package:universe_v1/shared/widgets/u_loading.dart';
 
 class GenerateTimetableScreen extends StatefulWidget {
-  const GenerateTimetableScreen({super.key});
+  /// When hosted inside the admin Routine hub, drop the Scaffold/app bar.
+  final bool embedded;
+
+  const GenerateTimetableScreen({super.key, this.embedded = false});
 
   @override
   State<GenerateTimetableScreen> createState() =>
@@ -49,27 +52,31 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final body = ListenableBuilder(
+      listenable: _controller,
+      builder: (context, _) {
+        return ListView(
+          padding: AppSpacing.screenPadding,
+          children: [
+            _introCard(),
+            AppSpacing.mdGap,
+            _configRow(),
+            AppSpacing.sectionGap,
+            ..._phaseContent(),
+          ],
+        );
+      },
+    );
+
+    if (widget.embedded) return body;
+
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
       appBar: const UAppBar(
         title: 'Generate Timetable',
         subtitle: 'OR-Tools CP-SAT engine',
       ),
-      body: ListenableBuilder(
-        listenable: _controller,
-        builder: (context, _) {
-          return ListView(
-            padding: AppSpacing.screenPadding,
-            children: [
-              _introCard(),
-              AppSpacing.mdGap,
-              _configRow(),
-              AppSpacing.sectionGap,
-              ..._phaseContent(),
-            ],
-          );
-        },
-      ),
+      body: body,
     );
   }
 
@@ -213,30 +220,55 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
 
   // ─── Solving ──────────────────────────────────────────────
   Widget _progressCard() {
-    final determinate = _controller.progress > 0 && _controller.progress < 1;
+    final isUploading = _controller.phase == GenPhase.generating;
     return UCard(
       child: Column(
         children: [
           const SizedBox(height: 36, child: ULoading.spinner()),
           AppSpacing.mdGap,
           Text(
-            _controller.phase == GenPhase.generating
-                ? 'Uploading & starting the engine…'
+            isUploading
+                ? 'Waking the engine & uploading…'
                 : 'Solving with CP-SAT…',
             style: AppTextStyles.h4,
+            textAlign: TextAlign.center,
           ),
           AppSpacing.xsGap,
-          Text('Large departments take 30–60 seconds.',
-              style: AppTextStyles.caption),
+          Text(
+            'This can take up to ~60 seconds — hang tight, it isn’t stuck.',
+            style: AppTextStyles.caption,
+            textAlign: TextAlign.center,
+          ),
           AppSpacing.lgGap,
-          ClipRRect(
+          // Indeterminate on purpose: the engine reports coarse progress, so
+          // an animating bar reads as "working" instead of parking mid-way.
+          const ClipRRect(
             borderRadius: AppSpacing.radiusFull,
             child: LinearProgressIndicator(
-              value: determinate ? _controller.progress : null,
               minHeight: 6,
               color: AppColors.primary,
               backgroundColor: AppColors.bgElevated,
             ),
+          ),
+          AppSpacing.mdGap,
+          // Cold-start hint — Render's free tier sleeps after ~15 min idle.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                PhosphorIconsRegular.moon,
+                size: AppSpacing.iconSm,
+                color: AppColors.textMuted,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  'First run after a while can take ~50s while the server wakes '
+                  'up. That’s normal — later runs are much faster.',
+                  style: AppTextStyles.caption,
+                ),
+              ),
+            ],
           ),
         ],
       ),

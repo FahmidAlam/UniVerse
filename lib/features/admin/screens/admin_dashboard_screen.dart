@@ -151,7 +151,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         label: 'Generate Timetable',
         icon: PhosphorIconsRegular.magicWand,
         color: AppColors.warning,
-        onTap: () => context.push(RouteNames.generateTimetable),
+        onTap: () =>
+            context.go('${RouteNames.routineManagement}?tab=generate'),
       ),
       QuickActionCard(
         label: 'Campus Broadcast',
@@ -176,6 +177,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         icon: PhosphorIconsRegular.users,
         color: AppColors.roleTeacher,
         onTap: () => context.go(RouteNames.manageUsers),
+      ),
+      QuickActionCard(
+        label: 'Manage Resources',
+        icon: PhosphorIconsRegular.folderOpen,
+        color: AppColors.info,
+        onTap: () => context.push(RouteNames.manageResources),
       ),
     ];
 

@@ -30,9 +30,13 @@ class StatCard extends StatelessWidget {
             Icon(icon, size: AppSpacing.iconMd, color: statColor),
             AppSpacing.smGap,
           ],
-          Text(
-            number,
-            style: AppTextStyles.statNumber.copyWith(color: statColor),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              number,
+              maxLines: 1,
+              style: AppTextStyles.statNumber.copyWith(color: statColor),
+            ),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(

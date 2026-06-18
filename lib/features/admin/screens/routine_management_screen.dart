@@ -24,7 +24,11 @@ import 'package:universe_v1/shared/widgets/u_loading.dart';
 import 'package:universe_v1/shared/widgets/u_text_field.dart';
 
 class RoutineManagementScreen extends StatefulWidget {
-  const RoutineManagementScreen({super.key});
+  /// When hosted inside the admin Routine hub, drop the Scaffold/app bar
+  /// and float the FAB within the tab content.
+  final bool embedded;
+
+  const RoutineManagementScreen({super.key, this.embedded = false});
 
   @override
   State<RoutineManagementScreen> createState() =>
@@ -103,26 +107,39 @@ class _RoutineManagementScreenState extends State<RoutineManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final fab = FloatingActionButton(
+      backgroundColor: AppColors.primary,
+      onPressed: () => _openForm(),
+      child:
+          const Icon(PhosphorIconsRegular.plus, color: AppColors.textPrimary),
+    );
+
+    final content = ListenableBuilder(
+      listenable: _controller,
+      builder: (context, _) {
+        return Column(
+          children: [
+            _buildDayFilter(),
+            Expanded(child: _buildBody()),
+          ],
+        );
+      },
+    );
+
+    if (widget.embedded) {
+      return Stack(
+        children: [
+          Positioned.fill(child: content),
+          Positioned(right: AppSpacing.lg, bottom: AppSpacing.lg, child: fab),
+        ],
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
       appBar: const UAppBar(title: 'Routine Management', showBackButton: false),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primary,
-        onPressed: () => _openForm(),
-        child: const Icon(PhosphorIconsRegular.plus,
-            color: AppColors.textPrimary),
-      ),
-      body: ListenableBuilder(
-        listenable: _controller,
-        builder: (context, _) {
-          return Column(
-            children: [
-              _buildDayFilter(),
-              Expanded(child: _buildBody()),
-            ],
-          );
-        },
-      ),
+      floatingActionButton: fab,
+      body: content,
     );
   }
 

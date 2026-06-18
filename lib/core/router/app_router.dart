@@ -32,17 +32,21 @@ import 'package:universe_v1/features/auth/screens/role_selection_screen.dart';
 import 'package:universe_v1/features/auth/screens/student_register_screen.dart';
 import 'package:universe_v1/features/auth/screens/faculty_register_screen.dart';
 import 'package:universe_v1/features/auth/screens/not_whitelisted_screen.dart';
-import 'package:universe_v1/features/auth/screens/placeholder_screen.dart';
+import 'package:universe_v1/features/dashboard/screens/student_dashboard_screen.dart';
+import 'package:universe_v1/features/teacher/screens/teacher_dashboard_screen.dart';
+import 'package:universe_v1/features/teacher/screens/manage_classes_screen.dart';
 import 'package:universe_v1/features/notifications/screens/notifications_screen.dart';
 import 'package:universe_v1/features/profile/screens/profile_screen.dart';
 import 'package:universe_v1/features/routine/screens/routine_screen.dart';
 import 'package:universe_v1/features/resources/screens/resources_screen.dart';
 import 'package:universe_v1/features/admin/screens/admin_dashboard_screen.dart';
 import 'package:universe_v1/features/admin/screens/campus_broadcast_screen.dart';
-import 'package:universe_v1/features/admin/screens/routine_management_screen.dart';
-import 'package:universe_v1/features/admin/screens/generate_timetable_screen.dart';
+import 'package:universe_v1/features/admin/screens/admin_routine_screen.dart';
 import 'package:universe_v1/features/admin/screens/admin_registration_screen.dart';
 import 'package:universe_v1/features/admin/screens/manage_users_screen.dart';
+import 'package:universe_v1/features/admin/screens/manage_resources_screen.dart';
+import 'package:universe_v1/features/admin/screens/resource_library_screen.dart';
+import 'package:universe_v1/features/admin/screens/broadcast_history_screen.dart';
 import 'package:universe_v1/features/admin/screens/manage_rooms_screen.dart';
 import 'package:universe_v1/features/admin/screens/manage_faculty_screen.dart';
 import 'package:universe_v1/features/admin/screens/timetable_settings_screen.dart';
@@ -62,7 +66,7 @@ class AppRouter {
   late final GoRouter router = GoRouter(
     initialLocation: RouteNames.splash,
     refreshListenable: authController,
-    debugLogDiagnostics: true,
+    debugLogDiagnostics: false,
 
     redirect: (BuildContext context, GoRouterState state) async {
       final status   = authController.status;
@@ -181,8 +185,8 @@ class AppRouter {
       // ── Tab shell ─────────────────────────────────────────
       // One Scaffold owns the bottom nav for every top-level tab;
       // screens inside render content only. Secondary screens
-      // (Resources, Admin Registration) stay outside — they are
-      // pushed and use a back button, per the nav convention.
+      // (Admin Registration, Manage Resources, etc.) stay outside —
+      // they are pushed and use a back button, per the nav convention.
       ShellRoute(
         builder: (c, s, child) => AppShell(
           authController: authController,
@@ -193,16 +197,18 @@ class AppRouter {
           // Student
           GoRoute(
             path: RouteNames.studentDashboard,
-            builder: (c, s) => PlaceholderScreen(
-              title: 'Student Dashboard',
-              quickLinks: const [
-                (label: 'Browse Resources', route: RouteNames.resources)
-              ],
+            builder: (c, s) => StudentDashboardScreen(
+              authController: authController,
+              notificationController: notificationController,
             ),
           ),
           GoRoute(
             path: RouteNames.studentRoutine,
             builder: (c, s) => RoutineScreen(authController: authController),
+          ),
+          GoRoute(
+            path: RouteNames.resources,
+            builder: (c, s) => ResourcesScreen(authController: authController),
           ),
           // AI Assistant route descoped for defense — future scope.
           // RouteNames.aiAssistant + chat_bubble.dart are kept for restore.
@@ -221,8 +227,10 @@ class AppRouter {
           // Teacher
           GoRoute(
             path: RouteNames.teacherDashboard,
-            builder: (c, s) =>
-                const PlaceholderScreen(title: 'Teacher Dashboard'),
+            builder: (c, s) => TeacherDashboardScreen(
+              authController: authController,
+              notificationController: notificationController,
+            ),
           ),
           GoRoute(
             path: RouteNames.teacherRoutine,
@@ -231,7 +239,7 @@ class AppRouter {
           GoRoute(
             path: RouteNames.manageClasses,
             builder: (c, s) =>
-                const PlaceholderScreen(title: 'Manage Classes'),
+                ManageClassesScreen(authController: authController),
           ),
 
           // Admin
@@ -242,7 +250,7 @@ class AppRouter {
           ),
           GoRoute(
             path: RouteNames.routineManagement,
-            builder: (c, s) => const RoutineManagementScreen(),
+            builder: (c, s) => const AdminRoutineScreen(),
           ),
           GoRoute(
             path: RouteNames.campusBroadcast,
@@ -258,16 +266,21 @@ class AppRouter {
 
       // Secondary screens (pushed, back button, no tab bar)
       GoRoute(
-        path: RouteNames.resources,
-        builder: (c, s) => ResourcesScreen(authController: authController),
-      ),
-      GoRoute(
         path: RouteNames.adminRegistration,
         builder: (c, s) => const AdminRegistrationScreen(),
       ),
       GoRoute(
-        path: RouteNames.generateTimetable,
-        builder: (c, s) => const GenerateTimetableScreen(),
+        path: RouteNames.manageResources,
+        builder: (c, s) => const ManageResourcesScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.resourceLibrary,
+        builder: (c, s) => const ResourceLibraryScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.broadcastHistory,
+        builder: (c, s) =>
+            BroadcastHistoryScreen(authController: authController),
       ),
       GoRoute(
         path: RouteNames.manageRooms,
