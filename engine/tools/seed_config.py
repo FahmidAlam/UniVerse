@@ -167,6 +167,13 @@ def mine_rooms() -> list[dict]:
     for name in sorted(found):
         is_lab = name in LAB_ROOMS
         is_gallery = name in GALLERIES
+        # Skip building-acronym legend tokens (e.g. "RAB", "RKB"): these are
+        # buildings, not rooms. A real theory room carries a number; labs and
+        # galleries are whitelisted above. Without this, the bare building
+        # token leaks into the theory pool and gets assigned as a roomless
+        # "RKB"/"RAB".
+        if not is_lab and not is_gallery and not any(c.isdigit() for c in name):
+            continue
         building = None
         if name.startswith("RAB") or name in GALLERIES:
             building = "Ragib Ali Building"

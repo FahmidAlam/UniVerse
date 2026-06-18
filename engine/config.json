@@ -128,12 +128,6 @@
       "is_gallery": false
     },
     {
-      "name": "RAB",
-      "building": "Ragib Ali Building",
-      "is_lab": false,
-      "is_gallery": false
-    },
-    {
       "name": "RAB-108",
       "building": "Ragib Ali Building",
       "is_lab": false,
@@ -196,12 +190,6 @@
     {
       "name": "RAB-401",
       "building": "Ragib Ali Building",
-      "is_lab": false,
-      "is_gallery": false
-    },
-    {
-      "name": "RKB",
-      "building": "Rabeya Khatun Building",
       "is_lab": false,
       "is_gallery": false
     },

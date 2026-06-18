@@ -61,7 +61,14 @@ def _normalize_config(cfg: dict) -> dict:
     rooms = cfg.get("rooms") or []
     lab_rooms, theory_rooms = [], []
     for r in rooms:
-        (lab_rooms if r.get("is_lab") else theory_rooms).append(r["name"])
+        name = r["name"]
+        if r.get("is_lab"):
+            lab_rooms.append(name)
+        # Skip building-only tokens (e.g. "RKB", "RAB") in the theory pool:
+        # a real theory room is a gallery or carries a room number. A bare
+        # building acronym would otherwise be assigned as a roomless "RKB".
+        elif r.get("is_gallery") or any(ch.isdigit() for ch in name):
+            theory_rooms.append(name)
     if not rooms:  # fall back to flat lists
         lab_rooms = cfg.get("lab_rooms", [])
         theory_rooms = cfg.get("theory_rooms", [])
