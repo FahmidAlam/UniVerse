@@ -8,17 +8,17 @@
 
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:universe_v1/core/models/timetable_config_model.dart';
-import 'package:universe_v1/core/theme/app_colors.dart';
-import 'package:universe_v1/core/theme/app_spacing.dart';
-import 'package:universe_v1/core/theme/app_text_styles.dart';
-import 'package:universe_v1/features/admin/controllers/timetable_settings_controller.dart';
-import 'package:universe_v1/shared/widgets/u_app_bar.dart';
-import 'package:universe_v1/shared/widgets/u_button.dart';
-import 'package:universe_v1/shared/widgets/u_card.dart';
-import 'package:universe_v1/shared/widgets/u_chip.dart';
-import 'package:universe_v1/shared/widgets/u_loading.dart';
-import 'package:universe_v1/shared/widgets/u_text_field.dart';
+import 'package:universe/core/models/timetable_config_model.dart';
+import 'package:universe/core/theme/app_colors.dart';
+import 'package:universe/core/theme/app_spacing.dart';
+import 'package:universe/core/theme/app_text_styles.dart';
+import 'package:universe/features/admin/controllers/timetable_settings_controller.dart';
+import 'package:universe/shared/widgets/u_app_bar.dart';
+import 'package:universe/shared/widgets/u_button.dart';
+import 'package:universe/shared/widgets/u_card.dart';
+import 'package:universe/shared/widgets/u_chip.dart';
+import 'package:universe/shared/widgets/u_loading.dart';
+import 'package:universe/shared/widgets/u_text_field.dart';
 
 // Weight keys -> human labels (must match what the engine reads).
 const Map<String, String> _kWeights = {

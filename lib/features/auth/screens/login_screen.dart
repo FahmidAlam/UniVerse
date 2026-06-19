@@ -9,13 +9,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:universe_v1/core/constants/app_constants.dart';
-import 'package:universe_v1/core/router/route_names.dart';
-import 'package:universe_v1/core/theme/app_colors.dart';
-import 'package:universe_v1/core/theme/app_spacing.dart';
-import 'package:universe_v1/core/theme/app_text_styles.dart';
-import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
-import 'package:universe_v1/features/auth/widgets/google_sign_in_button.dart';
+import 'package:universe/core/constants/app_constants.dart';
+import 'package:universe/core/router/route_names.dart';
+import 'package:universe/core/theme/app_colors.dart';
+import 'package:universe/core/theme/app_spacing.dart';
+import 'package:universe/core/theme/app_text_styles.dart';
+import 'package:universe/features/auth/controllers/auth_controller.dart';
+import 'package:universe/features/auth/widgets/google_sign_in_button.dart';
 
 class LoginScreen extends StatefulWidget {
   final AuthController authController;

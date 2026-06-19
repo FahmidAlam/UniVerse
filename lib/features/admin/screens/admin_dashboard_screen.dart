@@ -10,18 +10,18 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:universe_v1/core/constants/app_constants.dart';
-import 'package:universe_v1/core/models/profile_model.dart';
-import 'package:universe_v1/core/router/route_names.dart';
-import 'package:universe_v1/core/theme/app_colors.dart';
-import 'package:universe_v1/core/theme/app_spacing.dart';
-import 'package:universe_v1/core/theme/app_text_styles.dart';
-import 'package:universe_v1/features/admin/controllers/admin_dashboard_controller.dart';
-import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
-import 'package:universe_v1/shared/widgets/quick_action_card.dart';
-import 'package:universe_v1/shared/widgets/stat_card.dart';
-import 'package:universe_v1/shared/widgets/u_app_bar.dart';
-import 'package:universe_v1/shared/widgets/u_avatar.dart';
+import 'package:universe/core/constants/app_constants.dart';
+import 'package:universe/core/models/profile_model.dart';
+import 'package:universe/core/router/route_names.dart';
+import 'package:universe/core/theme/app_colors.dart';
+import 'package:universe/core/theme/app_spacing.dart';
+import 'package:universe/core/theme/app_text_styles.dart';
+import 'package:universe/features/admin/controllers/admin_dashboard_controller.dart';
+import 'package:universe/features/auth/controllers/auth_controller.dart';
+import 'package:universe/shared/widgets/quick_action_card.dart';
+import 'package:universe/shared/widgets/stat_card.dart';
+import 'package:universe/shared/widgets/u_app_bar.dart';
+import 'package:universe/shared/widgets/u_local_avatar.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   final AuthController authController;
@@ -66,7 +66,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.screenH),
             child: Center(
-              child: UAvatar(
+              child: ULocalAvatar(
+                userId: widget.authController.profile?['id'] as String?,
                 name: me?.displayName ?? 'Admin',
                 imageUrl: me?.avatarUrl,
                 size: AppSpacing.avatarSm,

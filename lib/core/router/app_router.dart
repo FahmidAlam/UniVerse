@@ -16,42 +16,44 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:universe_v1/core/router/app_shell.dart';
-import 'package:universe_v1/core/router/route_names.dart';
-import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
-import 'package:universe_v1/features/notifications/controllers/notification_controller.dart';
-import 'package:universe_v1/features/auth/screens/splash_screen.dart';
-import 'package:universe_v1/features/auth/screens/onboarding_screen.dart';
-import 'package:universe_v1/features/auth/screens/login_screen.dart';
-import 'package:universe_v1/features/auth/screens/email_login_screen.dart';
-import 'package:universe_v1/features/auth/screens/email_signup_screen.dart';
-import 'package:universe_v1/features/auth/screens/verify_email_screen.dart';
-import 'package:universe_v1/features/auth/screens/forgot_password_screen.dart';
-import 'package:universe_v1/features/auth/screens/reset_password_screen.dart';
-import 'package:universe_v1/features/auth/screens/role_selection_screen.dart';
-import 'package:universe_v1/features/auth/screens/student_register_screen.dart';
-import 'package:universe_v1/features/auth/screens/faculty_register_screen.dart';
-import 'package:universe_v1/features/auth/screens/not_whitelisted_screen.dart';
-import 'package:universe_v1/features/dashboard/screens/student_dashboard_screen.dart';
-import 'package:universe_v1/features/teacher/screens/teacher_dashboard_screen.dart';
-import 'package:universe_v1/features/teacher/screens/manage_classes_screen.dart';
-import 'package:universe_v1/features/notifications/screens/notifications_screen.dart';
-import 'package:universe_v1/features/profile/screens/profile_screen.dart';
-import 'package:universe_v1/features/routine/screens/routine_screen.dart';
-import 'package:universe_v1/features/resources/screens/resources_screen.dart';
-import 'package:universe_v1/features/admin/screens/admin_dashboard_screen.dart';
-import 'package:universe_v1/features/admin/screens/campus_broadcast_screen.dart';
-import 'package:universe_v1/features/admin/screens/admin_routine_screen.dart';
-import 'package:universe_v1/features/admin/screens/admin_registration_screen.dart';
-import 'package:universe_v1/features/admin/screens/manage_users_screen.dart';
-import 'package:universe_v1/features/admin/screens/manage_resources_screen.dart';
-import 'package:universe_v1/features/admin/screens/resource_library_screen.dart';
-import 'package:universe_v1/features/admin/screens/broadcast_history_screen.dart';
-import 'package:universe_v1/features/admin/screens/manage_rooms_screen.dart';
-import 'package:universe_v1/features/admin/screens/manage_faculty_screen.dart';
-import 'package:universe_v1/features/admin/screens/timetable_settings_screen.dart';
-import 'package:universe_v1/features/admin/screens/timetable_grid_screen.dart';
-import 'package:universe_v1/core/models/routine_model.dart';
+import 'package:universe/core/router/app_shell.dart';
+import 'package:universe/core/router/route_names.dart';
+import 'package:universe/features/auth/controllers/auth_controller.dart';
+import 'package:universe/features/notifications/controllers/notification_controller.dart';
+import 'package:universe/features/auth/screens/splash_screen.dart';
+import 'package:universe/features/auth/screens/onboarding_screen.dart';
+import 'package:universe/features/auth/screens/login_screen.dart';
+import 'package:universe/features/auth/screens/email_login_screen.dart';
+import 'package:universe/features/auth/screens/email_signup_screen.dart';
+import 'package:universe/features/auth/screens/verify_email_screen.dart';
+import 'package:universe/features/auth/screens/forgot_password_screen.dart';
+import 'package:universe/features/auth/screens/reset_password_screen.dart';
+import 'package:universe/features/auth/screens/role_selection_screen.dart';
+import 'package:universe/features/auth/screens/student_register_screen.dart';
+import 'package:universe/features/auth/screens/faculty_register_screen.dart';
+import 'package:universe/features/auth/screens/not_whitelisted_screen.dart';
+import 'package:universe/features/dashboard/screens/student_dashboard_screen.dart';
+import 'package:universe/features/teacher/screens/teacher_dashboard_screen.dart';
+import 'package:universe/features/teacher/screens/manage_classes_screen.dart';
+import 'package:universe/features/notifications/screens/notifications_screen.dart';
+import 'package:universe/features/profile/screens/profile_screen.dart';
+import 'package:universe/features/routine/screens/routine_screen.dart';
+import 'package:universe/features/resources/screens/resources_screen.dart';
+import 'package:universe/features/admin/screens/admin_dashboard_screen.dart';
+import 'package:universe/features/admin/screens/campus_broadcast_screen.dart';
+import 'package:universe/features/admin/screens/admin_routine_screen.dart';
+import 'package:universe/features/admin/screens/admin_registration_screen.dart';
+import 'package:universe/features/admin/screens/manage_users_screen.dart';
+import 'package:universe/features/admin/screens/manage_resources_screen.dart';
+import 'package:universe/features/admin/screens/resource_library_screen.dart';
+import 'package:universe/features/admin/screens/broadcast_history_screen.dart';
+import 'package:universe/features/admin/screens/manage_rooms_screen.dart';
+import 'package:universe/features/admin/screens/manage_faculty_screen.dart';
+import 'package:universe/features/admin/screens/timetable_settings_screen.dart';
+import 'package:universe/features/admin/screens/timetable_grid_screen.dart';
+import 'package:universe/features/rooms/screens/rooms_screen.dart';
+import 'package:universe/features/find_teacher/screens/find_teacher_screen.dart';
+import 'package:universe/core/models/routine_model.dart';
 
 class AppRouter {
   final AuthController authController;
@@ -69,7 +71,7 @@ class AppRouter {
     debugLogDiagnostics: false,
 
     redirect: (BuildContext context, GoRouterState state) async {
-      final status   = authController.status;
+      final status = authController.status;
       final location = state.matchedLocation;
 
       const authPages = [
@@ -110,8 +112,7 @@ class AppRouter {
         return authPages.contains(location) ? null : RouteNames.roleSelection;
       }
 
-      if (status == AuthStatus.unauthenticated ||
-          status == AuthStatus.error) {
+      if (status == AuthStatus.unauthenticated || status == AuthStatus.error) {
         return authPages.contains(location) ? null : RouteNames.login;
       }
 
@@ -154,13 +155,11 @@ class AppRouter {
       ),
       GoRoute(
         path: RouteNames.forgotPassword,
-        builder: (c, s) =>
-            ForgotPasswordScreen(authController: authController),
+        builder: (c, s) => ForgotPasswordScreen(authController: authController),
       ),
       GoRoute(
         path: RouteNames.resetPassword,
-        builder: (c, s) =>
-            ResetPasswordScreen(authController: authController),
+        builder: (c, s) => ResetPasswordScreen(authController: authController),
       ),
       GoRoute(
         path: RouteNames.roleSelection,
@@ -178,8 +177,7 @@ class AppRouter {
       ),
       GoRoute(
         path: RouteNames.notWhitelisted,
-        builder: (c, s) =>
-            NotWhitelistedScreen(authController: authController),
+        builder: (c, s) => NotWhitelistedScreen(authController: authController),
       ),
 
       // ── Tab shell ─────────────────────────────────────────
@@ -265,6 +263,11 @@ class AppRouter {
       ),
 
       // Secondary screens (pushed, back button, no tab bar)
+      GoRoute(path: RouteNames.rooms, builder: (c, s) => const RoomsScreen()),
+      GoRoute(
+        path: RouteNames.findTeacher,
+        builder: (c, s) => const FindTeacherScreen(),
+      ),
       GoRoute(
         path: RouteNames.adminRegistration,
         builder: (c, s) => const AdminRegistrationScreen(),
@@ -305,19 +308,22 @@ class AppRouter {
 
   String _dashboardForRole(String? role) {
     switch (role) {
-      case 'teacher': return RouteNames.teacherDashboard;
-      case 'admin':   return RouteNames.adminDashboard;
-      default:        return RouteNames.studentDashboard;
+      case 'teacher':
+        return RouteNames.teacherDashboard;
+      case 'admin':
+        return RouteNames.adminDashboard;
+      default:
+        return RouteNames.studentDashboard;
     }
   }
 
   bool _isWrongRolePage(String location, String? role) {
-    if (role == 'student' && location.startsWith('/admin'))   return true;
+    if (role == 'student' && location.startsWith('/admin')) return true;
     if (role == 'student' && location.startsWith('/teacher')) return true;
-    if (role == 'teacher' && location.startsWith('/admin'))   return true;
+    if (role == 'teacher' && location.startsWith('/admin')) return true;
     if (role == 'teacher' && location.startsWith('/student')) return true;
-    if (role == 'admin'   && location.startsWith('/student')) return true;
-    if (role == 'admin'   && location.startsWith('/teacher')) return true;
+    if (role == 'admin' && location.startsWith('/student')) return true;
+    if (role == 'admin' && location.startsWith('/teacher')) return true;
     return false;
   }
 }

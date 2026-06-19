@@ -7,8 +7,8 @@
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:universe_v1/core/constants/app_constants.dart';
-import 'package:universe_v1/core/services/push_service.dart';
+import 'package:universe/core/constants/app_constants.dart';
+import 'package:universe/core/services/push_service.dart';
 
 // ─── Data model returned after every auth operation ───────
 class AuthResult {
@@ -51,7 +51,7 @@ class AuthService {
   Future<void> signInWithGoogle() async {
     await _supabase.auth.signInWithOAuth(
       OAuthProvider.google,
-      redirectTo: 'com.example.universe_v1://login-callback/',
+      redirectTo: 'com.example.universe://login-callback/',
       authScreenLaunchMode: LaunchMode.externalApplication,
     );
   }
@@ -75,7 +75,7 @@ class AuthService {
       final response = await _supabase.auth.signUp(
         email: email.trim().toLowerCase(),
         password: password,
-        emailRedirectTo: 'com.example.universe_v1://login-callback/',
+        emailRedirectTo: 'com.example.universe://login-callback/',
       );
 
       if (response.user == null) {
@@ -134,7 +134,7 @@ class AuthService {
     try {
       await _supabase.auth.resetPasswordForEmail(
         email.trim().toLowerCase(),
-        redirectTo: 'com.example.universe_v1://reset-callback/',
+        redirectTo: 'com.example.universe://reset-callback/',
       );
       return const AuthResult(success: true);
     } on AuthException catch (e) {
@@ -150,7 +150,7 @@ class AuthService {
       await _supabase.auth.resend(
         type: OtpType.signup,
         email: email.trim().toLowerCase(),
-        emailRedirectTo: 'com.example.universe_v1://login-callback/',
+        emailRedirectTo: 'com.example.universe://login-callback/',
       );
       return const AuthResult(success: true);
     } on AuthException catch (e) {

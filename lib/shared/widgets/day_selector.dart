@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:universe_v1/core/constants/app_constants.dart';
-import 'package:universe_v1/core/theme/app_spacing.dart';
-import 'package:universe_v1/shared/widgets/u_chip.dart';
+import 'package:universe/core/constants/app_constants.dart';
+import 'package:universe/core/theme/app_spacing.dart';
+import 'package:universe/shared/widgets/u_chip.dart';
 
 class DaySelector extends StatefulWidget {
   final String selectedDay;

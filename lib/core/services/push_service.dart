@@ -26,7 +26,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:universe_v1/core/constants/app_constants.dart';
+import 'package:universe/core/constants/app_constants.dart';
 
 /// Top-level background handler — REQUIRED to be a free function with
 /// this annotation; it runs in its own isolate when a message arrives

@@ -12,17 +12,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:universe_v1/core/router/route_names.dart';
-import 'package:universe_v1/core/theme/app_colors.dart';
-import 'package:universe_v1/core/theme/app_spacing.dart';
-import 'package:universe_v1/core/theme/app_text_styles.dart';
-import 'package:universe_v1/features/admin/controllers/timetable_gen_controller.dart';
-import 'package:universe_v1/features/admin/services/timetable_engine_service.dart';
-import 'package:universe_v1/shared/widgets/stat_card.dart';
-import 'package:universe_v1/shared/widgets/u_app_bar.dart';
-import 'package:universe_v1/shared/widgets/u_button.dart';
-import 'package:universe_v1/shared/widgets/u_card.dart';
-import 'package:universe_v1/shared/widgets/u_loading.dart';
+import 'package:universe/core/router/route_names.dart';
+import 'package:universe/core/theme/app_colors.dart';
+import 'package:universe/core/theme/app_spacing.dart';
+import 'package:universe/core/theme/app_text_styles.dart';
+import 'package:universe/features/admin/controllers/timetable_gen_controller.dart';
+import 'package:universe/features/admin/services/timetable_engine_service.dart';
+import 'package:universe/shared/widgets/stat_card.dart';
+import 'package:universe/shared/widgets/u_app_bar.dart';
+import 'package:universe/shared/widgets/u_button.dart';
+import 'package:universe/shared/widgets/u_card.dart';
+import 'package:universe/shared/widgets/u_loading.dart';
 
 class GenerateTimetableScreen extends StatefulWidget {
   /// When hosted inside the admin Routine hub, drop the Scaffold/app bar.

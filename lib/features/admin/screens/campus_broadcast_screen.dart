@@ -10,17 +10,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:universe_v1/core/constants/app_enums.dart';
-import 'package:universe_v1/core/router/route_names.dart';
-import 'package:universe_v1/core/theme/app_colors.dart';
-import 'package:universe_v1/core/theme/app_spacing.dart';
-import 'package:universe_v1/core/theme/app_text_styles.dart';
-import 'package:universe_v1/features/admin/controllers/broadcast_controller.dart';
-import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
-import 'package:universe_v1/shared/widgets/u_app_bar.dart';
-import 'package:universe_v1/shared/widgets/u_button.dart';
-import 'package:universe_v1/shared/widgets/u_chip.dart';
-import 'package:universe_v1/shared/widgets/u_text_field.dart';
+import 'package:universe/core/constants/app_enums.dart';
+import 'package:universe/core/router/route_names.dart';
+import 'package:universe/core/theme/app_colors.dart';
+import 'package:universe/core/theme/app_spacing.dart';
+import 'package:universe/core/theme/app_text_styles.dart';
+import 'package:universe/features/admin/controllers/broadcast_controller.dart';
+import 'package:universe/features/auth/controllers/auth_controller.dart';
+import 'package:universe/shared/widgets/u_app_bar.dart';
+import 'package:universe/shared/widgets/u_button.dart';
+import 'package:universe/shared/widgets/u_chip.dart';
+import 'package:universe/shared/widgets/u_text_field.dart';
 
 class CampusBroadcastScreen extends StatefulWidget {
   final AuthController authController;

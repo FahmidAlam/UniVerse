@@ -8,14 +8,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:universe_v1/core/constants/app_constants.dart';
-import 'package:universe_v1/core/models/routine_model.dart';
-import 'package:universe_v1/core/theme/app_colors.dart';
-import 'package:universe_v1/core/theme/app_spacing.dart';
-import 'package:universe_v1/core/theme/app_text_styles.dart';
-import 'package:universe_v1/shared/widgets/u_app_bar.dart';
-import 'package:universe_v1/shared/widgets/u_chip.dart';
-import 'package:universe_v1/shared/widgets/u_empty_state.dart';
+import 'package:universe/core/constants/app_constants.dart';
+import 'package:universe/core/models/routine_model.dart';
+import 'package:universe/core/theme/app_colors.dart';
+import 'package:universe/core/theme/app_spacing.dart';
+import 'package:universe/core/theme/app_text_styles.dart';
+import 'package:universe/shared/widgets/u_app_bar.dart';
+import 'package:universe/shared/widgets/u_chip.dart';
+import 'package:universe/shared/widgets/u_empty_state.dart';
 
 class TimetableGridScreen extends StatefulWidget {
   final List<RoutineEntry> rows;

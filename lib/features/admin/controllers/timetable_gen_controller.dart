@@ -15,10 +15,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:universe_v1/core/constants/app_enums.dart';
-import 'package:universe_v1/features/admin/services/timetable_config_service.dart';
-import 'package:universe_v1/features/admin/services/timetable_engine_service.dart';
-import 'package:universe_v1/features/notifications/services/notification_service.dart';
+import 'package:universe/core/constants/app_enums.dart';
+import 'package:universe/features/admin/services/timetable_config_service.dart';
+import 'package:universe/features/admin/services/timetable_engine_service.dart';
+import 'package:universe/features/notifications/services/notification_service.dart';
 
 enum GenPhase { idle, generating, polling, done, error }
 

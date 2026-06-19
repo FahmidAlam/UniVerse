@@ -7,11 +7,11 @@
 // Assignments) client-side.
 // ============================================================
 
-import 'package:universe_v1/core/models/profile_model.dart';
-import 'package:universe_v1/core/models/resource_model.dart';
-import 'package:universe_v1/core/utils/safe_change_notifier.dart';
-import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
-import 'package:universe_v1/features/resources/services/resource_service.dart';
+import 'package:universe/core/models/profile_model.dart';
+import 'package:universe/core/models/resource_model.dart';
+import 'package:universe/core/utils/safe_change_notifier.dart';
+import 'package:universe/features/auth/controllers/auth_controller.dart';
+import 'package:universe/features/resources/services/resource_service.dart';
 
 class ResourceController extends SafeChangeNotifier {
   final ResourceService _service = ResourceService();

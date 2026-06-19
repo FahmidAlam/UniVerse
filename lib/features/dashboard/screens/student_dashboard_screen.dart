@@ -12,30 +12,30 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:universe_v1/core/models/profile_model.dart';
-import 'package:universe_v1/core/router/route_names.dart';
-import 'package:universe_v1/core/theme/app_colors.dart';
-import 'package:universe_v1/core/theme/app_spacing.dart';
-import 'package:universe_v1/core/theme/app_text_styles.dart';
-import 'package:universe_v1/core/utils/date_utils.dart';
-import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
-import 'package:universe_v1/features/dashboard/controllers/student_dashboard_controller.dart';
-import 'package:universe_v1/features/notifications/controllers/notification_controller.dart';
-import 'package:universe_v1/shared/widgets/class_card.dart';
-import 'package:universe_v1/shared/widgets/live_class_card.dart';
-import 'package:universe_v1/shared/widgets/message_hero_card.dart';
-import 'package:universe_v1/shared/widgets/next_class_card.dart';
-import 'package:universe_v1/shared/widgets/notification_tile.dart';
-import 'package:universe_v1/shared/widgets/quick_action_card.dart';
-import 'package:universe_v1/shared/widgets/scrollable_empty.dart';
-import 'package:universe_v1/shared/widgets/stat_card.dart';
-import 'package:universe_v1/shared/widgets/u_app_bar.dart';
-import 'package:universe_v1/shared/widgets/u_avatar.dart';
-import 'package:universe_v1/shared/widgets/u_button.dart';
-import 'package:universe_v1/shared/widgets/u_card.dart';
-import 'package:universe_v1/shared/widgets/u_empty_state.dart';
-import 'package:universe_v1/shared/widgets/u_loading.dart';
-import 'package:universe_v1/shared/widgets/u_section_header.dart';
+import 'package:universe/core/models/profile_model.dart';
+import 'package:universe/core/router/route_names.dart';
+import 'package:universe/core/theme/app_colors.dart';
+import 'package:universe/core/theme/app_spacing.dart';
+import 'package:universe/core/theme/app_text_styles.dart';
+import 'package:universe/core/utils/date_utils.dart';
+import 'package:universe/features/auth/controllers/auth_controller.dart';
+import 'package:universe/features/dashboard/controllers/student_dashboard_controller.dart';
+import 'package:universe/features/notifications/controllers/notification_controller.dart';
+import 'package:universe/shared/widgets/class_card.dart';
+import 'package:universe/shared/widgets/live_class_card.dart';
+import 'package:universe/shared/widgets/message_hero_card.dart';
+import 'package:universe/shared/widgets/next_class_card.dart';
+import 'package:universe/shared/widgets/notification_tile.dart';
+import 'package:universe/shared/widgets/quick_action_card.dart';
+import 'package:universe/shared/widgets/scrollable_empty.dart';
+import 'package:universe/shared/widgets/stat_card.dart';
+import 'package:universe/shared/widgets/u_app_bar.dart';
+import 'package:universe/shared/widgets/u_local_avatar.dart';
+import 'package:universe/shared/widgets/u_button.dart';
+import 'package:universe/shared/widgets/u_card.dart';
+import 'package:universe/shared/widgets/u_empty_state.dart';
+import 'package:universe/shared/widgets/u_loading.dart';
+import 'package:universe/shared/widgets/u_section_header.dart';
 
 class StudentDashboardScreen extends StatefulWidget {
   final AuthController authController;
@@ -95,7 +95,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.screenH),
             child: Center(
-              child: UAvatar(
+              child: ULocalAvatar(
+                userId: widget.authController.profile?['id'] as String?,
                 name: me?.displayName ?? 'Student',
                 imageUrl: me?.avatarUrl,
                 size: AppSpacing.avatarSm,
