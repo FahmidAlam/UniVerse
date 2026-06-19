@@ -6,7 +6,7 @@
 // over the raw maps auth currently passes around.
 // ============================================================
 
-import 'package:universe_v1/core/constants/app_constants.dart';
+import 'package:universe/core/constants/app_constants.dart';
 
 class Profile {
   final String id;

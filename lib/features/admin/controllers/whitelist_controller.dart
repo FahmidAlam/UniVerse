@@ -6,9 +6,9 @@
 // auth_service.handlePostLogin().
 // ============================================================
 
-import 'package:universe_v1/core/models/whitelist_model.dart';
-import 'package:universe_v1/core/utils/safe_change_notifier.dart';
-import 'package:universe_v1/features/admin/services/admin_service.dart';
+import 'package:universe/core/models/whitelist_model.dart';
+import 'package:universe/core/utils/safe_change_notifier.dart';
+import 'package:universe/features/admin/services/admin_service.dart';
 
 // SafeChangeNotifier: async invites/loads may outlive the screen.
 class WhitelistController extends SafeChangeNotifier {

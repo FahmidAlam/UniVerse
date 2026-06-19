@@ -8,12 +8,12 @@
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:universe_v1/core/constants/app_enums.dart';
-import 'package:universe_v1/core/models/notification_model.dart';
-import 'package:universe_v1/core/models/profile_model.dart';
-import 'package:universe_v1/core/utils/safe_change_notifier.dart';
-import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
-import 'package:universe_v1/features/notifications/services/notification_service.dart';
+import 'package:universe/core/constants/app_enums.dart';
+import 'package:universe/core/models/notification_model.dart';
+import 'package:universe/core/models/profile_model.dart';
+import 'package:universe/core/utils/safe_change_notifier.dart';
+import 'package:universe/features/auth/controllers/auth_controller.dart';
+import 'package:universe/features/notifications/services/notification_service.dart';
 
 class NotificationController extends SafeChangeNotifier {
   final NotificationService _service = NotificationService();

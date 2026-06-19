@@ -7,8 +7,8 @@
 // Pure Dart — no Supabase imports.
 // ============================================================
 
-import 'package:universe_v1/core/constants/app_enums.dart';
-import 'package:universe_v1/core/utils/date_utils.dart';
+import 'package:universe/core/constants/app_enums.dart';
+import 'package:universe/core/utils/date_utils.dart';
 
 class RoutineEntry {
   final String id;

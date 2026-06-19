@@ -12,10 +12,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:universe_v1/core/theme/app_colors.dart';
-import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
-import 'package:universe_v1/features/notifications/controllers/notification_controller.dart';
-import 'package:universe_v1/shared/widgets/app_bottom_nav.dart';
+import 'package:universe/core/theme/app_colors.dart';
+import 'package:universe/features/auth/controllers/auth_controller.dart';
+import 'package:universe/features/notifications/controllers/notification_controller.dart';
+import 'package:universe/shared/widgets/app_bottom_nav.dart';
+import 'package:universe/shared/widgets/explore_fab_menu.dart';
 
 class AppShell extends StatefulWidget {
   final AuthController authController;
@@ -75,6 +76,12 @@ class _AppShellState extends State<AppShell> {
         return Scaffold(
           backgroundColor: AppColors.bgPrimary,
           body: widget.child,
+          floatingActionButton: (location == '/student/dashboard' ||
+                  location == '/teacher/dashboard' ||
+                  location == '/admin/dashboard')
+              ? const ExploreFabMenu()
+              : null,
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           bottomNavigationBar: AppBottomNav(
             role: widget.authController.role,
             currentRoute: location,

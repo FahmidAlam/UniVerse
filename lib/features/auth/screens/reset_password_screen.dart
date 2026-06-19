@@ -6,23 +6,23 @@
 // and confirm it. Calls authController.updatePassword().
 //
 // DEEP LINK ENTRY:
-// com.example.universe_v1://reset-callback/
+// com.example.universe://reset-callback/
 // Supabase handles the token exchange automatically.
 // GoRouter must handle this route when the app is opened
 // via that scheme. Add to AndroidManifest.xml:
-//   <data android:scheme="com.example.universe_v1"
+//   <data android:scheme="com.example.universe"
 //         android:host="reset-callback" />
 // ============================================================
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:universe_v1/core/router/route_names.dart';
-import 'package:universe_v1/core/theme/app_colors.dart';
-import 'package:universe_v1/core/theme/app_spacing.dart';
-import 'package:universe_v1/core/theme/app_text_styles.dart';
-import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
-import 'package:universe_v1/features/auth/services/auth_service.dart';
+import 'package:universe/core/router/route_names.dart';
+import 'package:universe/core/theme/app_colors.dart';
+import 'package:universe/core/theme/app_spacing.dart';
+import 'package:universe/core/theme/app_text_styles.dart';
+import 'package:universe/features/auth/controllers/auth_controller.dart';
+import 'package:universe/features/auth/services/auth_service.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   final AuthController authController;

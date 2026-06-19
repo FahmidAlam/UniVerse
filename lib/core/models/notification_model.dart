@@ -8,7 +8,7 @@
 // Pure Dart — no Supabase imports. Reuses the NotifType enum.
 // ============================================================
 
-import 'package:universe_v1/core/constants/app_enums.dart';
+import 'package:universe/core/constants/app_enums.dart';
 
 class NotificationItem {
   final String id;

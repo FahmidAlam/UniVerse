@@ -12,8 +12,8 @@
 
 // import 'package:flutter/material.dart';
 // import 'package:shared_preferences/shared_preferences.dart';
-// import 'package:universe_v1/core/constants/app_constants.dart';
-// import 'package:universe_v1/features/auth/services/auth_service.dart';
+// import 'package:universe/core/constants/app_constants.dart';
+// import 'package:universe/features/auth/services/auth_service.dart';
 
 // enum AuthStatus {
 //   initial,       // App just launched
@@ -219,8 +219,8 @@
 
 // import 'package:flutter/material.dart';
 // import 'package:shared_preferences/shared_preferences.dart';
-// import 'package:universe_v1/core/constants/app_constants.dart';
-// import 'package:universe_v1/features/auth/services/auth_service.dart';
+// import 'package:universe/core/constants/app_constants.dart';
+// import 'package:universe/features/auth/services/auth_service.dart';
 
 // enum AuthStatus {
 //   initial,           // App just launched, checking session
@@ -578,8 +578,8 @@
 // }
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:universe_v1/core/constants/app_constants.dart';
-import 'package:universe_v1/features/auth/services/auth_service.dart';
+import 'package:universe/core/constants/app_constants.dart';
+import 'package:universe/features/auth/services/auth_service.dart';
 
 enum AuthStatus {
   initial, // App just launched, checking session

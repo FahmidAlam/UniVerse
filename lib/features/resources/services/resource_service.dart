@@ -9,8 +9,8 @@
 import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:universe_v1/core/constants/app_constants.dart';
-import 'package:universe_v1/core/models/resource_model.dart';
+import 'package:universe/core/constants/app_constants.dart';
+import 'package:universe/core/models/resource_model.dart';
 
 class ResourceService {
   final SupabaseClient _supabase = Supabase.instance.client;

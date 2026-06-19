@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:universe_v1/core/constants/app_enums.dart';
-import 'package:universe_v1/core/theme/app_colors.dart';
-import 'package:universe_v1/core/theme/app_spacing.dart';
-import 'package:universe_v1/core/theme/app_text_styles.dart';
+import 'package:universe/core/constants/app_enums.dart';
+import 'package:universe/core/theme/app_colors.dart';
+import 'package:universe/core/theme/app_spacing.dart';
+import 'package:universe/core/theme/app_text_styles.dart';
 
 class UBadge extends StatefulWidget {
   final ClassStatus status;

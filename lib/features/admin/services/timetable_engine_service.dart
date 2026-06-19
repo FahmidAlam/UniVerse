@@ -14,8 +14,8 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:universe_v1/core/constants/app_constants.dart';
-import 'package:universe_v1/core/models/routine_model.dart';
+import 'package:universe/core/constants/app_constants.dart';
+import 'package:universe/core/models/routine_model.dart';
 
 /// One poll of a generate job.
 class TimetableJobStatus {

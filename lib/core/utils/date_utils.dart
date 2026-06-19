@@ -1,5 +1,5 @@
-import 'package:universe_v1/core/constants/app_constants.dart';
-import 'package:universe_v1/core/constants/app_enums.dart';
+import 'package:universe/core/constants/app_constants.dart';
+import 'package:universe/core/constants/app_enums.dart';
 
 class AppDateUtils {
   static String formatTimeSlot(int slotIndex) {

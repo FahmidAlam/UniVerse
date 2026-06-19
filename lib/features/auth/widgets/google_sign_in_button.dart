@@ -7,9 +7,9 @@
 // ============================================================
 
 import 'package:flutter/material.dart';
-import 'package:universe_v1/core/theme/app_colors.dart';
-import 'package:universe_v1/core/theme/app_spacing.dart';
-import 'package:universe_v1/core/theme/app_text_styles.dart';
+import 'package:universe/core/theme/app_colors.dart';
+import 'package:universe/core/theme/app_spacing.dart';
+import 'package:universe/core/theme/app_text_styles.dart';
 
 class GoogleSignInButton extends StatelessWidget {
   final VoidCallback? onTap;

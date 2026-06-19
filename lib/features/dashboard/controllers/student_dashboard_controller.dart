@@ -6,12 +6,12 @@
 // the stat strip. Read-only — no new backend, no writes.
 // ============================================================
 
-import 'package:universe_v1/core/constants/app_enums.dart';
-import 'package:universe_v1/core/models/profile_model.dart';
-import 'package:universe_v1/core/models/routine_model.dart';
-import 'package:universe_v1/core/utils/safe_change_notifier.dart';
-import 'package:universe_v1/features/auth/controllers/auth_controller.dart';
-import 'package:universe_v1/features/routine/services/routine_service.dart';
+import 'package:universe/core/constants/app_enums.dart';
+import 'package:universe/core/models/profile_model.dart';
+import 'package:universe/core/models/routine_model.dart';
+import 'package:universe/core/utils/safe_change_notifier.dart';
+import 'package:universe/features/auth/controllers/auth_controller.dart';
+import 'package:universe/features/routine/services/routine_service.dart';
 
 class StudentDashboardController extends SafeChangeNotifier {
   final RoutineService _service = RoutineService();

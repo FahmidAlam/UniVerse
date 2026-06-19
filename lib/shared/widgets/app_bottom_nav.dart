@@ -15,9 +15,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:universe_v1/core/constants/app_constants.dart';
-import 'package:universe_v1/core/router/route_names.dart';
-import 'package:universe_v1/shared/widgets/u_bottom_nav.dart';
+import 'package:universe/core/constants/app_constants.dart';
+import 'package:universe/core/router/route_names.dart';
+import 'package:universe/shared/widgets/u_bottom_nav.dart';
 
 class AppNavDest {
   final IconData icon;
@@ -54,74 +54,89 @@ class AppBottomNav extends StatelessWidget {
       case AppConstants.roleAdmin:
         return const [
           AppNavDest(
-              icon: PhosphorIconsRegular.house,
-              label: 'Dashboard',
-              route: RouteNames.adminDashboard),
+            icon: PhosphorIconsRegular.house,
+            label: 'Dashboard',
+            route: RouteNames.adminDashboard,
+          ),
           AppNavDest(
-              icon: PhosphorIconsRegular.bellRinging,
-              label: 'Broadcast',
-              route: RouteNames.campusBroadcast),
+            icon: PhosphorIconsRegular.bellRinging,
+            label: 'Broadcast',
+            route: RouteNames.campusBroadcast,
+          ),
           AppNavDest(
-              icon: PhosphorIconsRegular.calendarCheck,
-              label: 'Routine',
-              route: RouteNames.routineManagement),
+            icon: PhosphorIconsRegular.calendarCheck,
+            label: 'Routine',
+            route: RouteNames.routineManagement,
+          ),
           AppNavDest(
-              icon: PhosphorIconsRegular.users,
-              label: 'Users',
-              route: RouteNames.manageUsers),
+            icon: PhosphorIconsRegular.users,
+            label: 'Users',
+            route: RouteNames.manageUsers,
+          ),
           AppNavDest(
-              icon: PhosphorIconsRegular.user,
-              label: 'Profile',
-              route: RouteNames.profile),
+            icon: PhosphorIconsRegular.user,
+            label: 'Profile',
+            route: RouteNames.profile,
+          ),
         ];
       case AppConstants.roleTeacher:
         return const [
           AppNavDest(
-              icon: PhosphorIconsRegular.house,
-              label: 'Home',
-              route: RouteNames.teacherDashboard),
+            icon: PhosphorIconsRegular.house,
+            label: 'Home',
+            route: RouteNames.teacherDashboard,
+          ),
           AppNavDest(
-              icon: PhosphorIconsRegular.calendarBlank,
-              label: 'Routine',
-              route: RouteNames.teacherRoutine),
+            icon: PhosphorIconsRegular.calendarBlank,
+            label: 'Routine',
+            route: RouteNames.teacherRoutine,
+          ),
           AppNavDest(
-              icon: PhosphorIconsRegular.chalkboardTeacher,
-              label: 'Classes',
-              route: RouteNames.manageClasses),
+            icon: PhosphorIconsRegular.chalkboardTeacher,
+            label: 'Manage',
+            route: RouteNames.manageClasses,
+          ),
           AppNavDest(
-              icon: PhosphorIconsRegular.bell,
-              label: 'Alerts',
-              route: RouteNames.notifications),
+            icon: PhosphorIconsRegular.bell,
+            label: 'Alerts',
+            route: RouteNames.notifications,
+          ),
           AppNavDest(
-              icon: PhosphorIconsRegular.user,
-              label: 'Profile',
-              route: RouteNames.profile),
+            icon: PhosphorIconsRegular.user,
+            label: 'Profile',
+            route: RouteNames.profile,
+          ),
         ];
       default: // student
         return const [
           AppNavDest(
-              icon: PhosphorIconsRegular.house,
-              label: 'Home',
-              route: RouteNames.studentDashboard),
+            icon: PhosphorIconsRegular.house,
+            label: 'Home',
+            route: RouteNames.studentDashboard,
+          ),
           AppNavDest(
-              icon: PhosphorIconsRegular.calendarBlank,
-              label: 'Routine',
-              route: RouteNames.studentRoutine),
+            icon: PhosphorIconsRegular.calendarBlank,
+            label: 'Routine',
+            route: RouteNames.studentRoutine,
+          ),
           // Resources promoted to a tab (replaces the descoped AI Assistant
           // slot). AI Assistant is kept as future scope — to restore it,
           // re-add its destination + the /student/ai-assistant route.
           AppNavDest(
-              icon: PhosphorIconsRegular.folder,
-              label: 'Resources',
-              route: RouteNames.resources),
+            icon: PhosphorIconsRegular.folder,
+            label: 'Resources',
+            route: RouteNames.resources,
+          ),
           AppNavDest(
-              icon: PhosphorIconsRegular.bell,
-              label: 'Alerts',
-              route: RouteNames.notifications),
+            icon: PhosphorIconsRegular.bell,
+            label: 'Alerts',
+            route: RouteNames.notifications,
+          ),
           AppNavDest(
-              icon: PhosphorIconsRegular.user,
-              label: 'Profile',
-              route: RouteNames.profile),
+            icon: PhosphorIconsRegular.user,
+            label: 'Profile',
+            route: RouteNames.profile,
+          ),
         ];
     }
   }
@@ -131,8 +146,9 @@ class AppBottomNav extends StatelessWidget {
     final dests = destinationsFor(role);
     var currentIndex = dests.indexWhere((d) => d.route == currentRoute);
     if (currentIndex < 0) currentIndex = 0;
-    final badgeIndex =
-        dests.indexWhere((d) => d.route == RouteNames.notifications);
+    final badgeIndex = dests.indexWhere(
+      (d) => d.route == RouteNames.notifications,
+    );
 
     return UBottomNav(
       items: [for (final d in dests) UNavItem(icon: d.icon, label: d.label)],

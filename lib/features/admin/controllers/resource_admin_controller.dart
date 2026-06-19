@@ -10,12 +10,12 @@
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:universe_v1/core/constants/app_constants.dart';
-import 'package:universe_v1/core/constants/app_enums.dart';
-import 'package:universe_v1/core/models/resource_model.dart';
-import 'package:universe_v1/core/utils/safe_change_notifier.dart';
-import 'package:universe_v1/features/notifications/services/notification_service.dart';
-import 'package:universe_v1/features/resources/services/resource_service.dart';
+import 'package:universe/core/constants/app_constants.dart';
+import 'package:universe/core/constants/app_enums.dart';
+import 'package:universe/core/models/resource_model.dart';
+import 'package:universe/core/utils/safe_change_notifier.dart';
+import 'package:universe/features/notifications/services/notification_service.dart';
+import 'package:universe/features/resources/services/resource_service.dart';
 
 class ResourceAdminController extends SafeChangeNotifier {
   final ResourceService _service = ResourceService();

@@ -6,7 +6,7 @@
 // designation / department column. Pure Dart — no Supabase imports.
 // ============================================================
 
-import 'package:universe_v1/core/constants/app_constants.dart';
+import 'package:universe/core/constants/app_constants.dart';
 
 class WhitelistEntry {
   final String email;

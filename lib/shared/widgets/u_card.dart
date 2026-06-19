@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:universe_v1/core/theme/app_colors.dart';
-import 'package:universe_v1/core/theme/app_spacing.dart';
+import 'package:universe/core/theme/app_colors.dart';
+import 'package:universe/core/theme/app_spacing.dart';
 
 class UCard extends StatelessWidget {
   final Widget child;
