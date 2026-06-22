@@ -4,10 +4,10 @@
 > The app is BUILT and runs end-to-end (auth · routine · **student/teacher dashboards** ·
 > resources hub w/ **admin upload + semester folders** · notifications w/ **live push** ·
 > profile · admin · **teacher Manage Classes (cancel/notice)** · **automatic timetable
-> generator deployed live**).
+> generator deployed live** · **Find Teacher + Room Availability — real-time campus explore**).
 > AI assistant is **DESCOPED** (future scope — see that section).
-> ⚙️ All recent build-out lives on branch **`polish/defense-prep`** (NOT yet merged to
-> `main`; the agent never pushes — Fahmid merges + rebuilds the APK).
+> ⚙️ `polish/defense-prep` branch merged to `main` (commit f886b2c). All features are on
+> `main`. The agent never pushes — Fahmid merges + rebuilds the APK.
 
 ---
 
@@ -35,10 +35,12 @@ whole system or the defense build.
 - **`cancellations` table (migration 007) is LIVE.** Teacher Manage Classes writes one
   dated row (`routine_id`+`class_date`) per cancelled occurrence AND a `class_cancel`
   notification. Insert shape ↔ `TeacherService.cancelClass`. (Legacy DBs had a
-  `cancel_date NOT NULL` column; 007 relaxes it.)
+  `cancel_date NOT NULL` column; 007 relaxes it; migration 009 drops the legacy column.)
 - **Notifications ⇒ push (automatic).** Any INSERT into `notifications` fires the deployed
   `send-push` Edge Function (DB webhook) → OS push to the audience. Creating a notification
   row = in-app alert + push; don't add a second push path.
+- **`FindTeacherService` + `RoomStatusService` read only `routines` + `cancellations`.**
+  They derive live/next state from the current time vs the weekly schedule. No extra tables.
 
 **Never touch / never commit:**
 - Supabase URL + anon key live as defaults in `app_constants.dart` (anon key is safe to
@@ -67,7 +69,7 @@ manually. The engine is stateless (in-memory jobs) — no DB on the engine side.
 | University | Leading University, Sylhet, Bangladesh |
 | Department | CSE · Course CSE-3240 (Project I) · Team **Sherlocked** |
 | Advisor | Jaminur Rahman |
-| Flutter package | `universe_v1` · applicationId `com.example.universe_v1` |
+| Flutter package | `universe` · applicationId `com.example.universe` |
 | Actors | Student · Teacher · Admin |
 | **Differentiator (advisor-required)** | **Automatic department timetable generator (OR-Tools CP-SAT) — DONE & deployed** |
 
@@ -88,6 +90,9 @@ manually. The engine is stateless (in-memory jobs) — no DB on the engine side.
 | **Push notifications (FCM)** — `send-push` Edge Function **deployed & live** (DB webhook on `notifications` INSERT) | ✅ working (`device_tokens`) |
 | **Auto-notify**: resource upload → students · routine publish → everyone | ✅ built |
 | **Timetable engine (Excel→CP-SAT→workbook) + admin config + publish** | ✅ built, deployed, verified live |
+| **Find Teacher** — real-time teacher locator (current room · remaining time · next class) | ✅ built (`features/find_teacher/`) |
+| **Room Availability** — real-time room occupancy (current class · next class · status) | ✅ built (`features/rooms/`) |
+| **Explore FAB** — floating "Explore Campus" button on all three dashboards | ✅ built (`shared/widgets/explore_fab_menu.dart`) |
 | App icon (orbit mark via `flutter_launcher_icons`) | ✅ wired |
 | AI assistant (RAG/Gemini) | ⛔ **descoped → future scope** |
 
@@ -103,7 +108,8 @@ manually. The engine is stateless (in-memory jobs) — no DB on the engine side.
   timetable engine** (`lib/features/admin/`, `engine/`), `lib/core/`,
   `lib/shared/widgets/`, build/deploy.
 - **Swadheen Islam Robi** (0182320012101278) — student/teacher features:
-  `lib/features/routine/`, `lib/features/resources/`, dashboards, teacher screens.
+  `lib/features/routine/`, `lib/features/resources/`, dashboards, teacher screens,
+  **`lib/features/find_teacher/`**, **`lib/features/rooms/`**.
 - **Shahriar Rashid Ratul** (0182320012101276) — `lib/features/notifications/`,
   `lib/features/profile/`, push, QA, seeding, README/screenshots.
 
@@ -148,8 +154,8 @@ url_launcher: ^6.3.2           flutter_launcher_icons: ^0.14.4 (dev)
 
 ### Auth deep links
 ```
-com.example.universe_v1://login-callback/   ← Google OAuth + email verify
-com.example.universe_v1://reset-callback/   ← password reset
+com.example.universe://login-callback/   ← Google OAuth + email verify
+com.example.universe://reset-callback/   ← password reset
 ```
 
 ---
@@ -198,10 +204,13 @@ lib/
   firebase_options.dart           generated (Android only)
   core/
     theme/  router/  constants/  models/  utils/  services/push_service.dart
-  shared/widgets/                 u_* primitives + composite cards (all built)
+  shared/widgets/                 u_* primitives + composite cards + explore_fab_menu.dart
   features/
     auth/  routine/  resources/  notifications/  profile/  admin/
-    dashboard/  (student Home)        teacher/  (teacher Home + Manage Classes)
+    dashboard/     (student Home)
+    teacher/       (teacher Home + Manage Classes)
+    find_teacher/  (real-time teacher locator — secondary screen)
+    rooms/         (real-time room availability — secondary screen)
 ```
 
 ### Layer rules (enforced)
@@ -219,7 +228,10 @@ lib/
   `NotificationController`.
 - **Secondary screens** (Resources, Admin Registration, Manage Rooms/Faculty, Timetable
   Settings, Timetable Grid, **Manage Resources**, **Resource Library**, **Broadcast
-  History**) are **pushed** (back button), NOT tabs.
+  History**, **Find Teacher**, **Room Availability**) are **pushed** (back button), NOT tabs.
+- **`ExploreFabMenu`** (`shared/widgets/explore_fab_menu.dart`) — FAB shown on all three
+  dashboards; opens a bottom sheet with two options: **Rooms** (`/rooms`) and
+  **Find Teacher** (`/find-teacher`).
 - **Admin "Routine" tab = `AdminRoutineScreen` hub** — a segmented control hosting
   **Manage** (`RoutineManagementScreen`) + **Generate** (`GenerateTimetableScreen`), both
   rendered with `embedded: true` (no inner app bar). `?tab=generate` opens it on the
@@ -227,6 +239,7 @@ lib/
 - All paths are `RouteNames.*` constants. Redirect logic lives only in `AppRouter.redirect()`.
 - Tab sets: **Student** Home·Routine·Alerts·Profile · **Teacher** Home·Routine·Classes·
   Alerts·Profile · **Admin** Dashboard·Broadcast·Routine·Users·Profile.
+- **Routes added (f886b2c):** `RouteNames.rooms = '/rooms'` · `RouteNames.findTeacher = '/find-teacher'` · `RouteNames.teacherDirectory = '/teacher-directory'` (defined, not yet wired to a screen).
 
 ---
 
@@ -272,18 +285,18 @@ lib/
 |---|---|
 | `whitelists` | admin gate; `role` ∈ student/teacher/admin |
 | `profiles` | extends `auth.users`; created on first login |
-| `routines` | weekly schedule; filtered by batch+section (student) or teacher_code (teacher). `teacher_name`/`teacher_code` are TEXT (migration 003); `teacher_id` nullable. **Engine publishes here.** |
-| `cancellations` | **LIVE (migration 007)** — one dated row per cancelled occurrence: `routine_id, class_date, reason, batch, section, subject, day, time_start, cancelled_by` (+ unique `(routine_id, class_date)`). RLS: read-all; insert/delete by `cancelled_by = auth.uid()` & teacher/admin. Written by `TeacherService`; teacher view badges CANCELLED (student grid not yet wired — alert only). |
+| `routines` | weekly schedule; filtered by batch+section (student) or teacher_code (teacher). `teacher_name`/`teacher_code` are TEXT (migration 003); `teacher_id` nullable. **Engine publishes here.** Also read by `FindTeacherService` and `RoomStatusService`. |
+| `cancellations` | **LIVE (migration 007)** — one dated row per cancelled occurrence: `routine_id, class_date, reason, batch, section, subject, day, time_start, cancelled_by` (+ unique `(routine_id, class_date)`). RLS: read-all; insert/delete by `cancelled_by = auth.uid()` & teacher/admin. Written by `TeacherService`; teacher view badges CANCELLED (student grid not yet wired — alert only). `cancel_date` legacy column dropped by migration 009. |
 | `notifications` | typed (CHECK constraint); `notification_reads` tracks per-user read state |
 | `resources` | files (any type) in the `resources` bucket + Drive links. Admin uploads via Manage Resources; everyone browses by **semester folder** (all semesters) + category. `uploaded_by` set from session (RLS). |
 | `assignments` / `submissions` | `submissions.is_late` set by DB trigger — **never compute in Dart** |
 | `documents` | RAG vector store (`VECTOR(768)`) — **unused (AI descoped)** |
-| `generated_timetable` | legacy (pre-existing); not used by the current flow |
+| `generated_timetable` | **dropped (migration 009)** — was legacy pre-existing; superseded by `routines` |
 | `device_tokens` | FCM tokens per device/user (push) |
-| **`timetable_rooms`** | engine room pool: `name, building, is_lab, is_gallery, is_active` |
-| **`timetable_faculty`** | teacher directory: `acronym, full_name, dept, designation, off_days text[], is_active` (off_days TRUE-semantics = unavailable) |
-| **`timetable_settings`** | single row (id=1): `semester_label, periods jsonb, friday_no_p4, service_scope, weights jsonb` |
-| **`timetable_runs`** | generation history: `semester_label, file_path, stats jsonb, validation jsonb, status, row_count, created_by` |
+| **`timetable_rooms`** | engine room pool: `name, building, is_lab, is_gallery, is_active`. RLS added migration 008. |
+| **`timetable_faculty`** | teacher directory: `acronym, full_name, dept, designation, off_days text[], is_active` (off_days TRUE-semantics = unavailable). RLS added migration 008. |
+| **`timetable_settings`** | single row (id=1): `semester_label, periods jsonb, friday_no_p4, service_scope, weights jsonb`. RLS added migration 008. |
+| **`timetable_runs`** | generation history: `semester_label, file_path, stats jsonb, validation jsonb, status, row_count, created_by`. RLS added migration 008. |
 
 **RLS pattern (all tables):** `read_all` (SELECT using true) + `admin_write` (INSERT/…
 with check: caller is admin in `profiles`).
@@ -296,7 +309,10 @@ from the real workbooks), plus demo accounts/routine/resources/notifications/whi
 **Migrations:** `supabase/migrations/` — 001 notification_reads · 002 drop profiles photo_url ·
 003 routines teacher text · 004 device_tokens · 005 register_device_token · 006 enable RLS
 on all tables (+ `my_role()`/`is_admin()` helpers) · **007 cancellations schema** (canonical
-columns + RLS + Realtime + legacy `cancel_date` relax; idempotent).
+columns + RLS + Realtime + legacy `cancel_date` relax; idempotent) · **008 RLS on
+timetable_* config tables** (timetable_rooms/faculty/settings/runs — authenticated read-all +
+admin write) · **009 drop unused objects** (drops legacy `cancellations.cancel_date` column
+and `generated_timetable` table).
 **Edge Functions:** `supabase/functions/` — `invite-admin` (service-role; admin provisioning)
 · `send-push` (FCM v1; triggered by the `notifications` INSERT webhook).
 
@@ -366,6 +382,36 @@ Admin edits **Manage Rooms / Manage Faculty / Timetable Settings** →
 
 ---
 
+## FIND TEACHER & ROOM AVAILABILITY (campus explore — built, on `main`)
+
+Both features are **real-time** (Supabase Realtime streaming) and are reached from the
+**`ExploreFabMenu`** FAB present on all three dashboards (student, teacher, admin).
+
+### Find Teacher (`lib/features/find_teacher/`)
+- **Service** (`find_teacher_service.dart`): streams `routines` + `cancellations` →
+  derives each teacher's current status from live time vs the weekly schedule.
+- **Controller** (`find_teacher_controller.dart`): search filter by name or teacher code;
+  exposes list of `TeacherStatus` objects (status: `inClass` / `free` / `noClassToday`).
+- **Screen** (`find_teacher_screen.dart`) + **Widget** (`teacher_status_card.dart`):
+  search bar → list of teacher cards showing current room + remaining time + next class.
+- **Route**: `RouteNames.findTeacher = '/find-teacher'` (secondary, pushed).
+
+### Room Availability (`lib/features/rooms/`)
+- **Service** (`room_status_service.dart`): streams `routines` → derives each room's
+  occupancy (OCCUPIED / AVAILABLE) from the timetable + cancellations.
+- **Controller** (`room_status_controller.dart`): sortable by room name; exposes list of
+  `RoomStatus` objects with current class info and next scheduled class.
+- **Screen** (`rooms_screen.dart`) + **Widget** (`room_status_card.dart`):
+  room list with occupancy chips, current teacher/subject/batch, countdown to free.
+- **Route**: `RouteNames.rooms = '/rooms'` (secondary, pushed).
+
+### Explore FAB (`lib/shared/widgets/explore_fab_menu.dart`)
+- `FloatingActionButton` wired into all three dashboard scaffolds.
+- Tapping opens a bottom sheet with two tiles: **Rooms** and **Find Teacher**.
+- No new tables — reads only existing `routines` and `cancellations`.
+
+---
+
 ## AI ASSISTANT — ⛔ DESCOPED (future scope)
 
 Not in the defense build. **Removed from UI:** the student "AI" bottom-nav tab and the
@@ -391,11 +437,12 @@ profile. · Teacher (`features/teacher/`): **dashboard (built)**, routine, **Man
 (built — cancel/notice/undo)**. · Admin: dashboard, **Routine hub (Manage + Generate)**,
 campus broadcast (+ **Broadcast History**), admin registration, manage users, **Manage
 Resources (+ Resource Library)**, manage rooms, manage faculty, timetable settings,
-timetable grid.
+timetable grid. · **Campus Explore (all roles via FAB):** **Find Teacher** (real-time
+teacher locator), **Room Availability** (real-time occupancy).
 
 ---
 
-## NEW FEATURE MAP (polish phase — built, on `polish/defense-prep`)
+## NEW FEATURE MAP (all merged to `main`)
 
 - **Dashboards** — `features/dashboard/` (student) + `features/teacher/` (teacher). Each:
   greeting app bar → hero (`LiveClassCard` if live, else `NextClassCard` countdown, else
@@ -425,17 +472,20 @@ timetable grid.
   app-bar icon from the compose/upload pages (keeps those pages clean forms).
 - **7-day week** — `AppConstants.weekDays` = Sun–Sat; all controller weekday maps updated;
   `timetable_grid`/`manage_faculty` now use the constant (were duplicated 7-day lists).
+- **Find Teacher + Room Availability** — `features/find_teacher/` + `features/rooms/`
+  (Robi, merged via PR #5 `room_teacher_find`). Real-time campus explore via FAB.
+- **Package rename** — Flutter package `universe_v1` → `universe`; applicationId
+  `com.example.universe_v1` → `com.example.universe`. All imports updated project-wide.
+  Auth deep link scheme updated accordingly.
+- **`ULocalAvatar` widget** — `shared/widgets/u_local_avatar.dart`; user profile avatars.
 
 ---
 
 ## GITHUB / BUILD
 
 - `main` = integration + release branch (engine deploys from it). Feature branches merge
-  to `main`. Timetable + push-notifications already merged. **All polish work — dashboards,
-  Manage Classes, resources upload + semester folders, notifications dismiss, admin Routine
-  hub, split list pages, app icon, 7-day fix — lives on `polish/defense-prep`, NOT yet
-  merged.** The agent never pushes; Fahmid merges + rebuilds the APK. (Heads-up: this work
-  touched Robi's `dashboard/`, `teacher/`, `resources/` and Ratul's `notifications/`.)
+  to `main`. **All features — polish work + find_teacher + rooms — are merged to `main`.**
+  The agent never pushes; Fahmid merges + rebuilds the APK.
 - Commit format: `feat|fix|chore|refactor(module): description`.
 - After a merge conflict, resolve by **keeping both features** (the conflicts so far were
   additive: push-notifications ↔ timetable).
@@ -464,13 +514,13 @@ timetable grid.
 ## IMPORT CONVENTION
 ```dart
 // Always package imports — never relative.
-import 'package:universe_v1/core/theme/app_colors.dart';
-import 'package:universe_v1/core/router/route_names.dart';
+import 'package:universe/core/theme/app_colors.dart';
+import 'package:universe/core/router/route_names.dart';
 ```
 
 ## QUICK REFERENCE
 - **Add screen:** file in `features/<f>/screens/` → `RouteNames` const → `GoRoute` in
-  `app_router` (tab → inside `ShellRoute`; secondary → top-level). 
+  `app_router` (tab → inside `ShellRoute`; secondary → top-level).
 - **Add table:** SQL + RLS (read_all + admin_write) → `app_constants` table const → service method.
 - **Add widget:** `shared/widgets/`, import only theme tokens, config via constructor.
 - **Change engine behavior:** edit `engine/*.py`, test locally
