@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from pathlib import Path
 
@@ -100,6 +101,8 @@ def _normalize_config(cfg: dict) -> dict:
         "off_days": off_days,
         "names": names,
         "semester_label": settings.get("semester_label"),
+        "lab_adjacency": cfg.get("lab_adjacency",
+                                 settings.get("lab_adjacency", "hard")),
     }
 
 
@@ -112,6 +115,56 @@ class _Progress:
     def __call__(self, value: float):
         if self.cb:
             self.cb(value)
+
+
+# ─── Theory ↔ lab pairing ─────────────────────────────────────
+
+def _last_digit_pos(code: str):
+    """(int last digit, match) of the trailing number, or (None, None)."""
+    m = re.search(r"(\d)\s*$", code)
+    return (int(m.group(1)), m) if m else (None, None)
+
+
+def _build_pairs(by_offering: dict) -> list[tuple[dict, dict]]:
+    """Match each lab offering to its sibling theory offering and return the
+    per-occurrence (theory_session, lab_session) pairs to keep adjacent.
+
+    Pairing key = the department's even-digit rule: a lab `code` ending in an
+    even digit `d` pairs with the theory whose code is identical except the
+    last digit is `d-1` (e.g. CSE-1102 ↔ CSE-1101), in the same cohort. When a
+    cohort splits a subject across teachers, match on equal teacher first, then
+    fall back to any remaining theory offering. Standalone labs (no sibling
+    theory) yield no pair and stay unconstrained.
+    """
+    # (cohort, code) -> list of (teacher, [sessions sorted by occurrence])
+    by_cc: dict[tuple, list] = {}
+    for (cohort, code, teacher), sess in by_offering.items():
+        by_cc.setdefault((cohort, code), []).append(
+            (teacher, sorted(sess, key=lambda s: s["occurrence"])))
+
+    pairs: list[tuple[dict, dict]] = []
+    for (cohort, code), labs in by_cc.items():
+        d, m = _last_digit_pos(code)
+        if d is None or d % 2 != 0:
+            continue  # only iterate lab codes (even last digit)
+        theory_code = code[:m.start(1)] + str(d - 1) + code[m.end(1):]
+        theories = by_cc.get((cohort, theory_code))
+        if not theories:
+            continue  # standalone lab — no sibling theory
+        used: set[int] = set()
+        for lteacher, lsess in labs:
+            choice = next((i for i, (tt, _) in enumerate(theories)
+                           if i not in used and tt == lteacher), None)
+            if choice is None:
+                choice = next((i for i in range(len(theories))
+                               if i not in used), None)
+            if choice is None:
+                break  # no theory offering left to pair with
+            used.add(choice)
+            _, tsess = theories[choice]
+            for occ in range(min(len(tsess), len(lsess))):
+                pairs.append((tsess[occ], lsess[occ]))
+    return pairs
 
 
 # ─── Solve ────────────────────────────────────────────────────
@@ -129,6 +182,17 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
     n_lab = len(cfg["lab_rooms"])
     n_theory = len(cfg["theory_rooms"])
     w = cfg["weights"]
+
+    # Theory↔lab adjacency mode: "hard" (faculty requirement — guarantee the
+    # lab sits immediately before/after its theory), "soft", or "off".
+    adj_mode = cfg.get("lab_adjacency", "hard")
+    # Time-contiguous period neighbours (one period's end == the next's start).
+    # Derived from the grid, so the lunch gap (P3 ends 12:35, P4 starts 13:10)
+    # is naturally NOT counted as adjacent.
+    neighbors = {p: [q for q in pidx if q != p and
+                     (pmeta[p]["end"] == pmeta[q]["start"] or
+                      pmeta[q]["end"] == pmeta[p]["start"])]
+                 for p in pidx}
 
     sessions = dataset["sessions"]
 
@@ -210,6 +274,47 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
             model.Add(sum(y1) + sum(y2) - 1 <= same)
             penalties.append(w.get("different_days", 8) * same)
 
+    # H6 (faculty requirement): a lab course and its sibling theory course
+    # must be adjacent — same day, contiguous periods, order free. Encoded
+    # per matched (theory a, lab b) occurrence with two linear families:
+    #   same-day : for each day, Σ a-slots == Σ b-slots;
+    #   adjacency: wherever a sits, b must sit in a contiguous neighbour.
+    # With exactly-once already enforced, these guarantee back-to-back.
+    lt_pairs = _build_pairs(by_offering)
+    if adj_mode == "hard":
+        for a, b in lt_pairs:
+            asid, bsid = a["sid"], b["sid"]
+            for di in range(len(days)):
+                at = [x[(asid, di, p)] for p in pidx if (asid, di, p) in x]
+                bt = [x[(bsid, di, p)] for p in pidx if (bsid, di, p) in x]
+                if at or bt:
+                    model.Add(sum(at) == sum(bt))            # same day
+                for p in pidx:
+                    if (asid, di, p) not in x:
+                        continue
+                    nb = [x[(bsid, di, q)] for q in neighbors[p]
+                          if (bsid, di, q) in x]
+                    model.Add(sum(nb) >= x[(asid, di, p)])   # b adjacent to a
+    elif adj_mode == "soft":
+        for a, b in lt_pairs:
+            asid, bsid = a["sid"], b["sid"]
+            adj = model.NewBoolVar(f"adj_{asid}_{bsid}")
+            zs = []
+            for di in range(len(days)):
+                for p in pidx:
+                    if (asid, di, p) not in x:
+                        continue
+                    for q in neighbors[p]:
+                        if (bsid, di, q) not in x:
+                            continue
+                        z = model.NewBoolVar(f"z_{asid}_{bsid}_{di}_{p}_{q}")
+                        model.Add(z <= x[(asid, di, p)])
+                        model.Add(z <= x[(bsid, di, q)])
+                        zs.append(z)
+            if zs:
+                model.Add(adj <= sum(zs))
+                penalties.append(w.get("lab_adjacency", 10) * (1 - adj))
+
     # S3: cohort compactness — minimise distinct class-days per cohort.
     for cohort, group in by_cohort.items():
         for di in range(len(days)):
@@ -254,6 +359,19 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
     rows, service_rows = _assign_rooms(dataset, cfg, placed, days, pmeta)
     progress(0.96)
 
+    # Theory↔lab adjacency outcome (for the report; "hard" => violations 0).
+    place_of = {q["s"]["sid"]: (q["day"], q["period"]) for q in placed}
+    adj_ok = 0
+    for a, b in lt_pairs:
+        pa, pb = place_of.get(a["sid"]), place_of.get(b["sid"])
+        if pa and pb and pa[0] == pb[0] and pb[1] in neighbors.get(pa[1], []):
+            adj_ok += 1
+
+    validation = _validate(dataset, cfg, rows + service_rows, days)
+    validation["lab_theory_pairs"] = len(lt_pairs)
+    validation["lab_theory_adjacent"] = adj_ok
+    validation["lab_theory_violations"] = len(lt_pairs) - adj_ok
+
     return {
         "rows": rows,
         "service_rows": service_rows,
@@ -265,8 +383,10 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
             "cohorts": len(dataset["cohorts"]),
             "teachers": len(by_teacher),
             "objective": int(solver.ObjectiveValue()),
+            "lab_theory_pairs": len(lt_pairs),
+            "lab_theory_adjacent": adj_ok,
         },
-        "validation": _validate(dataset, cfg, rows + service_rows, days),
+        "validation": validation,
     }
 
 

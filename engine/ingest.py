@@ -30,9 +30,12 @@ SHEET = "Course Distribution"
 HEADER_ROW = 5
 DATA_START = 6
 
-# CSE numeric batches that become rendered grid cohorts.
-CSE_BATCHES = {str(b) for b in range(55, 70)}
-# Section strings that mark a non-CSE / service cohort even on a numeric batch.
+# A CSE student cohort is identified by a NUMERIC batch (e.g. "66", "70").
+# Non-numeric batches (clubs/ACM, special groups) are resource-only, as are
+# the GED/WD/WE service sections even on a numeric batch. Using "is numeric"
+# instead of a fixed range future-proofs new intakes (batch 70+) with no code
+# change; on the real Summer-2025 file it reproduces the legacy range(55,70)
+# classification exactly (every numeric batch there is a CSE cohort).
 SERVICE_SECTION = re.compile(r"^(GED|WD|WE)", re.IGNORECASE)
 
 
@@ -164,7 +167,7 @@ def ingest_workbook(wb) -> dict:
 
         ld = _last_digit(code)
         is_lab = ld is not None and ld % 2 == 0
-        is_service = (batch not in CSE_BATCHES) or bool(SERVICE_SECTION.match(section))
+        is_service = (not batch.isdigit()) or bool(SERVICE_SECTION.match(section))
         cohort = f"{batch}-{section}" if section else f"{batch}"
 
         teachers_used.add(teacher)
