@@ -1,11 +1,3 @@
-// ============================================================
-// FILE: lib/features/admin/controllers/timetable_rooms_controller.dart
-// PURPOSE: State for the Manage Rooms screen. Loads the room
-// inventory and creates/updates/deletes rooms via
-// TimetableConfigService. These rooms are the pools the engine
-// assigns from on generate.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:universe/core/models/timetable_config_model.dart';
 import 'package:universe/features/admin/services/timetable_config_service.dart';

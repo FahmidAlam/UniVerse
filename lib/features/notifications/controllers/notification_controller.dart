@@ -1,11 +1,3 @@
-// ============================================================
-// FILE: lib/features/notifications/controllers/notification_controller.dart
-// PURPOSE: State between NotificationService and the screen.
-// Holds the audience-filtered list, the active type filter,
-// loading/error state, and the unread count for the nav badge.
-// Plain ChangeNotifier — no Riverpod/Bloc/Provider.
-// ============================================================
-
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universe/core/constants/app_enums.dart';
@@ -21,32 +13,24 @@ class NotificationController extends SafeChangeNotifier {
 
   NotificationController({required this.authController});
 
-  // ─── State ────────────────────────────────────────────────
   List<NotificationItem> _items = [];
   bool _isLoading = false;
   String? _errorMessage;
 
-  /// null == "All"
   NotifType? _activeFilter;
 
   RealtimeChannel? _channel;
 
-  // Per-user, locally-dismissed notification ids. These hide items from
-  // THIS user's feed only — the broadcast rows in the DB are never touched
-  // (they're shared across everyone). Persisted via SharedPreferences.
   Set<String> _dismissedIds = <String>{};
   String? _dismissedUserId;
 
-  // Multi-select state for the dismiss UI.
   bool _selectionMode = false;
   final Set<String> _selectedIds = <String>{};
 
-  // ─── Getters ──────────────────────────────────────────────
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   NotifType? get activeFilter => _activeFilter;
 
-  /// Items the user hasn't locally dismissed.
   List<NotificationItem> get _visible =>
       _items.where((n) => !_dismissedIds.contains(n.id)).toList();
 
@@ -58,22 +42,18 @@ class NotificationController extends SafeChangeNotifier {
 
   int get unreadCount => _visible.where((n) => !n.isRead).length;
 
-  /// Latest items regardless of the active filter — for dashboard previews.
   List<NotificationItem> get items => List.unmodifiable(_visible);
 
-  // ─── Selection (multi-select dismiss) ─────────────────────
   bool get selectionMode => _selectionMode;
   int get selectedCount => _selectedIds.length;
   bool isSelected(String id) => _selectedIds.contains(id);
 
-  /// Enter selection mode with nothing selected (app-bar entry point).
   void enterSelection() {
     _selectionMode = true;
     _selectedIds.clear();
     notifyListeners();
   }
 
-  /// Enter selection mode and select [id] (long-press entry point).
   void selectFromLongPress(String id) {
     _selectionMode = true;
     _selectedIds.add(id);
@@ -96,8 +76,6 @@ class NotificationController extends SafeChangeNotifier {
     notifyListeners();
   }
 
-  /// Hide the selected notifications for THIS user only — the DB rows are
-  /// kept (they're shared broadcasts). Persisted so they stay hidden.
   Future<void> dismissSelected() async {
     if (_selectedIds.isEmpty) return;
     _dismissedIds.addAll(_selectedIds);
@@ -112,12 +90,10 @@ class NotificationController extends SafeChangeNotifier {
     return map == null ? null : Profile.fromMap(map);
   }
 
-  // ─── Load ─────────────────────────────────────────────────
   Future<void> load() async {
     final me = _me;
     if (me == null) return;
 
-    // Load this user's locally-dismissed ids once (or when the user swaps).
     if (_dismissedUserId != me.id) {
       _dismissedUserId = me.id;
       await _loadDismissed(me.id);
@@ -150,18 +126,15 @@ class NotificationController extends SafeChangeNotifier {
     await prefs.setStringList('dismissed_notifs_$uid', _dismissedIds.toList());
   }
 
-  // ─── Realtime ─────────────────────────────────────────────
   void startRealtime() {
     _channel ??= _service.subscribeToInserts(load);
   }
 
-  // ─── Filter ───────────────────────────────────────────────
   void setFilter(NotifType? type) {
     _activeFilter = type;
     notifyListeners();
   }
 
-  // ─── Mark read (optimistic) ───────────────────────────────
   Future<void> markRead(String id) async {
     final me = _me;
     if (me == null) return;
@@ -175,7 +148,7 @@ class NotificationController extends SafeChangeNotifier {
     try {
       await _service.markAsRead(userId: me.id, notificationId: id);
     } catch (_) {
-      _items[i] = _items[i].copyWith(isRead: false); // rollback
+      _items[i] = _items[i].copyWith(isRead: false);
       notifyListeners();
     }
   }
@@ -195,7 +168,7 @@ class NotificationController extends SafeChangeNotifier {
     try {
       await _service.markAllAsRead(userId: me.id, notificationIds: unreadIds);
     } catch (_) {
-      _items = previous; // rollback
+      _items = previous;
       notifyListeners();
     }
   }

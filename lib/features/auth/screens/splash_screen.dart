@@ -1,11 +1,3 @@
-// ============================================================
-// FILE: lib/features/auth/screens/splash_screen.dart
-// PURPOSE: The very first screen the user sees.
-// - Shows the UniVerse logo and loading dots
-// - Calls authController.initialize() to check session
-// - GoRouter redirect logic then sends user to the right place
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/core/constants/app_constants.dart';
@@ -87,18 +79,14 @@ class _SplashScreenState extends State<SplashScreen>
     if (status == AuthStatus.authenticated ||
         status == AuthStatus.awaitingVerification ||
         status == AuthStatus.notWhitelisted) {
-      // GoRouter redirect handles these (dashboard / verify / blocked)
       return;
     }
 
     if (status == AuthStatus.registering) {
-      // Session exists but registration unfinished — resume it. Splash
-      // is an allowed auth page, so the router won't move us on its own.
       context.go(RouteNames.roleSelection);
       return;
     }
 
-    // Check if onboarding has been seen
     final seenOnboarding = await widget.authController.hasSeenOnboarding();
     if (!mounted) return;
 
@@ -125,7 +113,6 @@ class _SplashScreenState extends State<SplashScreen>
           children: [
             const Spacer(flex: 2),
 
-            // ── Logo ──────────────────────────────────────────
             AnimatedBuilder(
               animation: _logoController,
               builder: (context, child) {
@@ -139,7 +126,6 @@ class _SplashScreenState extends State<SplashScreen>
               },
               child: Column(
                 children: [
-                  // App icon
                   Container(
                     width: 88,
                     height: 88,
@@ -158,7 +144,6 @@ class _SplashScreenState extends State<SplashScreen>
 
                   AppSpacing.lgGap,
 
-                  // App name
                   Text(
                     AppConstants.appName,
                     style: AppTextStyles.h1.copyWith(
@@ -170,7 +155,6 @@ class _SplashScreenState extends State<SplashScreen>
 
                   AppSpacing.smGap,
 
-                  // Subtitle
                   AnimatedBuilder(
                     animation: _logoController,
                     builder: (context, child) => FadeTransition(
@@ -190,7 +174,6 @@ class _SplashScreenState extends State<SplashScreen>
 
             const Spacer(flex: 2),
 
-            // ── Loading dots ──────────────────────────────────
             AnimatedBuilder(
               animation: _dotsController,
               builder: (context, _) {
@@ -228,7 +211,6 @@ class _SplashScreenState extends State<SplashScreen>
   }
 }
 
-// Simple orbit / planet icon drawn with Canvas
 class _OrbitIcon extends StatelessWidget {
   const _OrbitIcon();
 
@@ -247,11 +229,9 @@ class _OrbitPainter extends CustomPainter {
     final cx = size.width / 2;
     final cy = size.height / 2;
 
-    // Center planet
     final planetPaint = Paint()..color = AppColors.primary;
     canvas.drawCircle(Offset(cx, cy), 8, planetPaint);
 
-    // Orbit ring
     final orbitPaint = Paint()
       ..color = AppColors.primary.withValues(alpha: 0.5)
       ..style = PaintingStyle.stroke
@@ -265,7 +245,6 @@ class _OrbitPainter extends CustomPainter {
       orbitPaint,
     );
 
-    // Small orbiting dot
     final dotPaint = Paint()..color = AppColors.primary;
     canvas.drawCircle(Offset(cx + size.width * 0.42, cy), 3.5, dotPaint);
   }

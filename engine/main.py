@@ -1,21 +1,3 @@
-# ============================================================
-# FILE: engine/main.py
-# PURPOSE: FastAPI wrapper around the timetable pipeline
-#   (ingest .xlsx -> CP-SAT solve -> render .xlsx). Async job model so
-#   the Flutter client can show a live progress bar while CP-SAT runs:
-#     POST /api/timetable/generate          (multipart: file + config)
-#                                           -> { job_id }
-#     GET  /api/timetable/status/{job_id}   -> { state, progress, ... }
-#     GET  /api/timetable/result/{job_id}   -> { rows, stats, validation, report }
-#     GET  /api/timetable/download/{job_id} -> the rendered .xlsx
-#   Job state is in-memory (a dict) — fine for the demo; no DB.
-#
-# RUN (from the engine/ directory):
-#   pip install -r requirements.txt
-#   uvicorn main:app --reload --port 8000
-#
-# Android emulator reaches this host at http://10.0.2.2:8000
-# ============================================================
 
 from __future__ import annotations
 
@@ -33,7 +15,6 @@ import solver
 
 app = FastAPI(title="UniVerse Timetable Engine", version="2.0.0")
 
-# Permissive CORS — the Flutter app calls this directly during the demo.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -41,7 +22,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# job_id -> { state, progress, rows, stats, validation, report, file, error }
 JOBS: dict[str, dict] = {}
 
 
@@ -58,7 +38,6 @@ def _run_job(job_id: str, file_bytes: bytes, config_override: dict | None,
         job["progress"] = 0.2
 
         def on_progress(value: float) -> None:
-            # solver reports 0.5..0.96; map it into the 0.2..0.95 band.
             job["progress"] = round(0.2 + (float(value) * 0.75), 2)
 
         result = solver.solve(dataset, cfg, time_limit_s=time_limit_s,

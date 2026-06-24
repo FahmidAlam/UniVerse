@@ -1,10 +1,3 @@
-// ============================================================
-// FILE: lib/features/admin/screens/broadcast_history_screen.dart
-// PURPOSE: The "Sent Broadcasts" list, split out of the Campus
-// Broadcast composer so that page stays a clean compose form.
-// Pushed (back button). Tap a broadcast to delete it (for everyone).
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:universe/core/theme/app_colors.dart';

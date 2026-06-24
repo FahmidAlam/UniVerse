@@ -1,12 +1,3 @@
-// ============================================================
-// FILE: lib/features/admin/controllers/resource_admin_controller.dart
-// PURPOSE: State for the admin Manage Resources screen. Picks a
-// file (any type) OR takes a Drive link, uploads to the public
-// `resources` bucket, inserts the row, and (optionally) posts a
-// notification so students are alerted (in-app + push). Also lists
-// and deletes existing resources. Screen → controller → services.
-// ============================================================
-
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -21,7 +12,6 @@ class ResourceAdminController extends SafeChangeNotifier {
   final ResourceService _service = ResourceService();
   final NotificationService _notifications = NotificationService();
 
-  // Upload categories (the 'All' filter chip is excluded).
   static const List<String> categories = ['PYQ', 'Notes', 'Slides', 'Assignments'];
 
   List<Resource> _all = [];
@@ -29,7 +19,6 @@ class ResourceAdminController extends SafeChangeNotifier {
   bool _isUploading = false;
   String? _errorMessage;
 
-  // Form selections
   String _category = 'Notes';
   int _semester = 1;
   Uint8List? _fileBytes;
@@ -87,8 +76,6 @@ class ResourceAdminController extends SafeChangeNotifier {
     notifyListeners();
   }
 
-  /// Upload (or attach a link) + insert + optionally notify students.
-  /// Returns true on success.
   Future<bool> submit({
     required String title,
     String? subjectCode,
@@ -137,7 +124,6 @@ class ResourceAdminController extends SafeChangeNotifier {
       });
 
       if (notifyStudents) {
-        // In-app + push (the deployed webhook fans this out to FCM).
         await _notifications.createBroadcast(
           type: _category == 'Assignments'
               ? NotifType.assignment

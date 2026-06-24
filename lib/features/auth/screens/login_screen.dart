@@ -1,12 +1,3 @@
-// ============================================================
-// FILE: lib/features/auth/screens/login_screen.dart
-// PURPOSE: The main login screen.
-// - "Continue with Google" for existing users
-// - "Create an account" → RoleSelectionScreen for new users
-// - Error snackbar on failure
-// - Listens to authController for loading state
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/core/constants/app_constants.dart';
@@ -61,7 +52,6 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     }
 
-    // Authenticated → GoRouter redirect handles navigation
   }
 
   Future<void> _handleGoogleSignIn() async {
@@ -85,7 +75,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   const Spacer(flex: 2),
 
-                  // ── Brand mark ──────────────────────────────
                   Center(
                     child: Column(
                       children: [
@@ -119,7 +108,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const Spacer(),
 
-                  // ── Headline ────────────────────────────────
                   Text(
                     'Welcome back',
                     style: AppTextStyles.h1,
@@ -136,7 +124,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: AppSpacing.x3l),
 
-                  // ── Google sign-in ───────────────────────────
                   GoogleSignInButton(
                     onTap: isLoading ? null : _handleGoogleSignIn,
                     isLoading: isLoading,
@@ -144,7 +131,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: AppSpacing.md),
 
-                  // ── Email sign-in ────────────────────────────
                   SizedBox(
                     width: double.infinity,
                     height: AppSpacing.buttonHeight,
@@ -167,7 +153,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: AppSpacing.xl),
 
-                  // ── Divider ─────────────────────────────────
                   Row(
                     children: [
                       const Expanded(
@@ -190,7 +175,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: AppSpacing.xl),
 
-                  // ── Create account ───────────────────────────
                   SizedBox(
                     width: double.infinity,
                     height: AppSpacing.buttonHeight,
@@ -213,7 +197,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const Spacer(),
 
-                  // ── Admin note ──────────────────────────────
                   Center(
                     child: Text(
                       'Admin access is granted by your department head.',
@@ -235,7 +218,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// Small version of the orbit icon for the login screen header
 class _MiniOrbit extends StatelessWidget {
   const _MiniOrbit();
 

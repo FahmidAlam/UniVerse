@@ -1,12 +1,3 @@
-// ============================================================
-// FILE: lib/features/routine/screens/routine_screen.dart
-// PURPOSE: Weekly routine view, shared by students and teachers.
-// Reads the role from AuthController: students see their section's
-// schedule, teachers see the classes they teach. Day pills switch
-// the day; class cards show live/next/done status for today.
-// Wired to both /student/routine and /teacher/routine.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:universe/core/theme/app_colors.dart';

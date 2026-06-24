@@ -1,12 +1,3 @@
-// ============================================================
-// FILE: lib/features/admin/services/timetable_config_service.dart
-// PURPOSE: The ONLY Supabase layer for the timetable engine config
-// tables — `timetable_rooms`, `timetable_faculty`, `timetable_settings`.
-// Also assembles the JSON config payload the OR-Tools engine consumes
-// on generate (buildEngineConfig). Admin controllers call this; screens
-// never touch Supabase.
-// ============================================================
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/timetable_config_model.dart';
@@ -14,7 +5,6 @@ import 'package:universe/core/models/timetable_config_model.dart';
 class TimetableConfigService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  // ─── Rooms ────────────────────────────────────────────────
   Future<List<TimetableRoom>> fetchRooms() async {
     final rows = await _supabase
         .from(AppConstants.tableTimetableRooms)
@@ -44,7 +34,6 @@ class TimetableConfigService {
         .eq('id', id);
   }
 
-  // ─── Faculty ──────────────────────────────────────────────
   Future<List<TimetableFaculty>> fetchFaculty() async {
     final rows = await _supabase
         .from(AppConstants.tableTimetableFaculty)
@@ -62,7 +51,6 @@ class TimetableConfigService {
         .eq('id', id);
   }
 
-  // ─── Settings (single row, id = 1) ────────────────────────
   Future<TimetableSettings> fetchSettings() async {
     final row = await _supabase
         .from(AppConstants.tableTimetableSettings)
@@ -80,10 +68,6 @@ class TimetableConfigService {
         .upsert(s.toMap());
   }
 
-  // ─── Engine config payload ────────────────────────────────
-  /// Assembles the JSON config the engine's `_normalize_config` accepts:
-  /// active rooms (pools), all faculty (off-days), and settings
-  /// (periods / friday rule / service scope / weights / semester label).
   Future<Map<String, dynamic>> buildEngineConfig() async {
     final results = await Future.wait([
       fetchRooms(),

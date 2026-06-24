@@ -1,11 +1,3 @@
-// ============================================================
-// FILE: lib/features/auth/widgets/google_sign_in_button.dart
-// PURPOSE: The "Continue with Google" button.
-// White background, Google logo, dark text — matches
-// Google's brand guidelines for OAuth buttons.
-// Used in LoginScreen and register screens.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
@@ -51,7 +43,6 @@ class GoogleSignInButton extends StatelessWidget {
                     ),
                   )
                 else ...[
-                  // Google "G" logo using colored squares
                   _GoogleLogo(),
                   const SizedBox(width: AppSpacing.md),
                 ],
@@ -90,43 +81,36 @@ class _GoogleLogoPainter extends CustomPainter {
     final cy = size.height / 2;
     final r  = size.width / 2;
 
-    // Draw the Google G shape using arcs and fills
-    // Simplified but recognizable Google color palette
 
     final bluePaint   = Paint()..color = const Color(0xFF4285F4);
     final redPaint    = Paint()..color = const Color(0xFFEA4335);
     final yellowPaint = Paint()..color = const Color(0xFFFBBC05);
     final greenPaint  = Paint()..color = const Color(0xFF34A853);
 
-    // Blue arc (right side)
     canvas.drawArc(
       Rect.fromCircle(center: Offset(cx, cy), radius: r),
       -0.52, 1.05, false,
       bluePaint..style = PaintingStyle.stroke..strokeWidth = size.width * 0.28,
     );
 
-    // Red arc (top-left)
     canvas.drawArc(
       Rect.fromCircle(center: Offset(cx, cy), radius: r),
       -2.62, 1.05, false,
       redPaint..style = PaintingStyle.stroke..strokeWidth = size.width * 0.28,
     );
 
-    // Yellow arc (bottom-left)
     canvas.drawArc(
       Rect.fromCircle(center: Offset(cx, cy), radius: r),
       2.09, 0.57, false,
       yellowPaint..style = PaintingStyle.stroke..strokeWidth = size.width * 0.28,
     );
 
-    // Green arc (bottom)
     canvas.drawArc(
       Rect.fromCircle(center: Offset(cx, cy), radius: r),
       1.57, 0.57, false,
       greenPaint..style = PaintingStyle.stroke..strokeWidth = size.width * 0.28,
     );
 
-    // White center cutout for the horizontal bar of G
     final whitePaint = Paint()..color = Colors.white;
     canvas.drawRect(
       Rect.fromLTWH(cx - 0.5, cy - size.height * 0.14,

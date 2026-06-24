@@ -1,12 +1,3 @@
-// ============================================================
-// FILE: lib/features/admin/screens/admin_routine_screen.dart
-// PURPOSE: The admin "Routine" tab — one home for both routine
-// workflows. A segmented control switches between Manage (CRUD on
-// the routines table) and Generate (the OR-Tools engine). Reads
-// ?tab=generate so the dashboard shortcut can open the generator
-// directly. Both sub-screens render embedded (no inner app bar).
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/core/theme/app_colors.dart';
@@ -30,7 +21,6 @@ class _AdminRoutineScreenState extends State<AdminRoutineScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Honour ?tab=generate once, when the hub is first opened.
     if (!_readInitialTab) {
       _readInitialTab = true;
       final tab = GoRouterState.of(context).uri.queryParameters['tab'];

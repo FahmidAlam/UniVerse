@@ -1,9 +1,3 @@
-// ============================================================
-// FILE: lib/features/find_teacher/screens/find_teacher_screen.dart
-// PURPOSE: Displays searchable list of teachers with real-time location.
-// Shows current room or next class time for each teacher.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:universe/core/theme/app_colors.dart';
@@ -31,13 +25,11 @@ class _FindTeacherScreenState extends State<FindTeacherScreen> {
     _searchController = TextEditingController();
     _controller = FindTeacherController(service: TeacherLocationService());
     _controller.initialize();
-    // Subscribe to real-time updates
     _controller.subscribeToRealTimeUpdates();
     _controller.addListener(_onControllerChange);
   }
 
   void _onControllerChange() {
-    // Trigger rebuild on controller changes
     setState(() {});
   }
 
@@ -126,7 +118,6 @@ class _FindTeacherScreenState extends State<FindTeacherScreen> {
       backgroundColor: AppColors.bgCard,
       child: Column(
         children: [
-          // Search bar
           Padding(
             padding: EdgeInsets.all(AppSpacing.lg),
             child: UTextField(
@@ -140,7 +131,6 @@ class _FindTeacherScreenState extends State<FindTeacherScreen> {
             ),
           ),
 
-          // Teacher list
           if (_controller.filteredTeachers.isEmpty)
             Expanded(
               child: Center(

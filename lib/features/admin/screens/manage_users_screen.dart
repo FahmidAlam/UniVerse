@@ -1,11 +1,3 @@
-// ============================================================
-// FILE: lib/features/admin/screens/manage_users_screen.dart
-// PURPOSE: Admin view of all user profiles. Search + role filter,
-// and tap a user to change their role. No hard delete (removing an
-// auth user needs a service-role Edge Function — out of scope).
-// Owns its ManageUsersController lifecycle.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:universe/core/constants/app_constants.dart';

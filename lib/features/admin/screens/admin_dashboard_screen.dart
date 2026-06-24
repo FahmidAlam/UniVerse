@@ -1,12 +1,3 @@
-// ============================================================
-// FILE: lib/features/admin/screens/admin_dashboard_screen.dart
-// PURPOSE: Admin hub. Identity header (avatar → profile), an
-// overview stat strip, and a 2x2 grid of management actions that
-// push to the four admin sub-screens. No bottom nav — admins use
-// this dashboard-hub pattern, with each sub-screen's back button
-// returning here. Owns its AdminDashboardController lifecycle.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -102,7 +93,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  // ─── Overview stat strip ──────────────────────────────────
   Widget _buildStats() {
     final c = _controller.counts;
     String n(int v) => _controller.isLoading ? '—' : '$v';
@@ -145,7 +135,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  // ─── Management actions ───────────────────────────────────
   Widget _buildActions() {
     final actions = <Widget>[
       QuickActionCard(

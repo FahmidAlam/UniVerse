@@ -1,11 +1,3 @@
-// ============================================================
-// FILE: lib/features/notifications/services/notification_service.dart
-// PURPOSE: The ONLY layer that touches Supabase for notifications.
-// Resolves per-user read-state against notification_reads and
-// exposes a Realtime subscription for new broadcasts.
-// NotificationController calls this; screens never touch it.
-// ============================================================
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/constants/app_enums.dart';
@@ -15,9 +7,6 @@ import 'package:universe/core/models/profile_model.dart';
 class NotificationService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  // ─── Fetch notifications for a given user ──────────────────
-  // Pulls all broadcasts + this user's read-marks, merges them,
-  // then filters down to the audience this user belongs to.
   Future<List<NotificationItem>> fetchNotifications(Profile me) async {
     final rows = await _supabase
         .from(AppConstants.tableNotifications)
@@ -49,7 +38,6 @@ class NotificationService {
         .toList();
   }
 
-  // ─── Mark a single notification read for this user ─────────
   Future<void> markAsRead({
     required String userId,
     required String notificationId,
@@ -60,7 +48,6 @@ class NotificationService {
     );
   }
 
-  // ─── Mark many notifications read in one round-trip ────────
   Future<void> markAllAsRead({
     required String userId,
     required List<String> notificationIds,
@@ -75,10 +62,6 @@ class NotificationService {
         );
   }
 
-  // ─── Admin: create a broadcast ─────────────────────────────
-  // Inserting a row is what the student devices pick up live via the
-  // Realtime subscription below. `sentBy` records the admin (audit;
-  // column is nullable). Null target fields = broadcast to everyone.
   Future<void> createBroadcast({
     required NotifType type,
     required String title,
@@ -92,8 +75,6 @@ class NotificationService {
       'type': type.dbValue,
       'title': title,
       'body': body,
-      // RLS requires sent_by = auth.uid(); default to the caller's session
-      // so system events (resource upload, routine publish) can omit it.
       'sent_by': sentBy ?? _supabase.auth.currentUser?.id,
       'target_role': targetRole,
       'target_batch': targetBatch,
@@ -101,7 +82,6 @@ class NotificationService {
     });
   }
 
-  // ─── Admin: every broadcast, unfiltered by audience ────────
   Future<List<NotificationItem>> fetchAllForAdmin() async {
     final rows = await _supabase
         .from(AppConstants.tableNotifications)
@@ -119,7 +99,6 @@ class NotificationService {
         .eq('id', id);
   }
 
-  // ─── Realtime: fire `onInsert` when a new broadcast lands ──
   RealtimeChannel subscribeToInserts(void Function() onInsert) {
     return _supabase
         .channel('public:notifications')

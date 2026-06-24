@@ -50,7 +50,6 @@ class AppDateUtils {
     return weekdays[dt.weekday - 1];
   }
 
-  /// Time-of-day greeting for dashboards: "Good morning/afternoon/evening".
   static String greeting([DateTime? at]) {
     final h = (at ?? DateTime.now()).hour;
     if (h < 12) return 'Good morning';
@@ -58,7 +57,6 @@ class AppDateUtils {
     return 'Good evening';
   }
 
-  /// Short, human date for headers — e.g. "Sun, 16 Jun".
   static String shortDate([DateTime? at]) {
     final d = at ?? DateTime.now();
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];

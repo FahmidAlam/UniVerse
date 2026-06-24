@@ -1,10 +1,3 @@
-// ============================================================
-// FILE: lib/features/admin/screens/resource_library_screen.dart
-// PURPOSE: The "Uploaded Resources" list, split out of the Manage
-// Resources upload form so that page stays a clean upload form.
-// Pushed (back button). Lists every resource with delete.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:universe/core/constants/app_constants.dart';
@@ -28,7 +21,7 @@ class ResourceLibraryScreen extends StatefulWidget {
 
 class _ResourceLibraryScreenState extends State<ResourceLibraryScreen> {
   late final ResourceAdminController _controller;
-  int? _openSemester; // null = showing the semester folders
+  int? _openSemester;
 
   @override
   void initState() {

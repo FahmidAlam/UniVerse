@@ -1,14 +1,3 @@
-// ============================================================
-// FILE: lib/features/admin/services/timetable_engine_service.dart
-// PURPOSE: The ONLY layer that talks to the FastAPI/OR-Tools timetable
-// engine (HTTP) and to Supabase for publishing/recording its output.
-// Flutter uploads the Main Distribution .xlsx + DB-sourced config, polls
-// the job, fetches rows + report, downloads the rendered workbook (and
-// stores it in the `timetables` bucket), publishes rows to `routines`,
-// and records the run in `timetable_runs`.
-// Admin controller calls this; the screen never touches HTTP/Supabase.
-// ============================================================
-
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -17,10 +6,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/routine_model.dart';
 
-/// One poll of a generate job.
 class TimetableJobStatus {
-  final String state; // queued | ingesting | solving | rendering | done | failed
-  final double progress; // 0.0 → 1.0
+  final String state;
+  final double progress;
   final String? error;
   final Map<String, dynamic>? stats;
   final Map<String, dynamic>? validation;
@@ -45,7 +33,6 @@ class TimetableJobStatus {
       );
 }
 
-/// Ingest report shown before/with the solved result.
 class TimetableReport {
   final List<String> cohorts;
   final Map<String, dynamic> meta;
@@ -73,7 +60,6 @@ class TimetableReport {
       );
 }
 
-/// The finished timetable plus solver metadata and ingest report.
 class TimetableResult {
   final List<RoutineEntry> rows;
   final Map<String, dynamic> stats;
@@ -93,8 +79,6 @@ class TimetableEngineService {
 
   String get _base => AppConstants.timetableBaseUrl;
 
-  // ─── Engine HTTP API ──────────────────────────────────────
-  /// Uploads the distribution workbook + config; returns the job id.
   Future<String> generate({
     required Uint8List fileBytes,
     required String filename,
@@ -147,7 +131,6 @@ class TimetableEngineService {
     );
   }
 
-  /// Downloads the rendered .xlsx bytes for a finished job.
   Future<Uint8List> downloadWorkbook(String jobId) async {
     final res = await http.get(Uri.parse('$_base/api/timetable/download/$jobId'));
     if (res.statusCode != 200) {
@@ -156,8 +139,6 @@ class TimetableEngineService {
     return res.bodyBytes;
   }
 
-  // ─── Supabase: storage + publish + run record ─────────────
-  /// Stores the workbook in the `timetables` bucket; returns its path.
   Future<String> uploadWorkbook(Uint8List bytes, String? semesterLabel) async {
     final safe = (semesterLabel ?? 'timetable').replaceAll(RegExp(r'\s+'), '_');
     final path = 'CSE_Routine_${safe}_${DateTime.now().millisecondsSinceEpoch}.xlsx';
@@ -173,9 +154,6 @@ class TimetableEngineService {
     return path;
   }
 
-  /// Writes generated rows into `routines` so the existing viewers show
-  /// them. Idempotent per cohort: clears prior rows for each generated
-  /// batch first. Returns the row count.
   Future<int> publishToRoutines(List<RoutineEntry> rows) async {
     if (rows.isEmpty) return 0;
     final batches = rows.map((r) => r.batch).toSet();
@@ -190,14 +168,13 @@ class TimetableEngineService {
     return rows.length;
   }
 
-  /// Records a generation/publish in `timetable_runs` for history.
   Future<void> recordRun({
     String? semesterLabel,
     String? filePath,
     required Map<String, dynamic> stats,
     required Map<String, dynamic> validation,
     required int rowCount,
-    required String status, // 'generated' | 'published'
+    required String status,
   }) async {
     await _supabase.from(AppConstants.tableTimetableRuns).insert({
       'semester_label': semesterLabel,

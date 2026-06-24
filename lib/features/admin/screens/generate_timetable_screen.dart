@@ -1,14 +1,3 @@
-// ============================================================
-// FILE: lib/features/admin/screens/generate_timetable_screen.dart
-// PURPOSE: The advisor-required differentiator's front door.
-// Admin picks the Main Distribution .xlsx → the FastAPI/OR-Tools engine
-// ingests it, solves a conflict-free routine, and renders a workbook →
-// this screen shows the ingest report, validation, stats and a grid
-// preview → Download saves the .xlsx, Publish writes it to `routines`
-// where the existing student/teacher viewers pick it up.
-// Owns its TimetableGenController lifecycle.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -25,7 +14,6 @@ import 'package:universe/shared/widgets/u_card.dart';
 import 'package:universe/shared/widgets/u_loading.dart';
 
 class GenerateTimetableScreen extends StatefulWidget {
-  /// When hosted inside the admin Routine hub, drop the Scaffold/app bar.
   final bool embedded;
 
   const GenerateTimetableScreen({super.key, this.embedded = false});
@@ -80,7 +68,6 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
     );
   }
 
-  // ─── Intro ────────────────────────────────────────────────
   Widget _introCard() {
     return UCard(
       child: Row(
@@ -116,7 +103,6 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
     );
   }
 
-  // ─── Config shortcuts ─────────────────────────────────────
   Widget _configRow() {
     return Row(
       children: [
@@ -147,7 +133,6 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
     );
   }
 
-  // ─── Phase router ─────────────────────────────────────────
   List<Widget> _phaseContent() {
     switch (_controller.phase) {
       case GenPhase.idle:
@@ -175,7 +160,6 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
     }
   }
 
-  // ─── File picker ──────────────────────────────────────────
   Widget _filePicker() {
     final name = _controller.fileName;
     return UCard(
@@ -218,7 +202,6 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
     );
   }
 
-  // ─── Solving ──────────────────────────────────────────────
   Widget _progressCard() {
     final isUploading = _controller.phase == GenPhase.generating;
     return UCard(
@@ -240,8 +223,6 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
             textAlign: TextAlign.center,
           ),
           AppSpacing.lgGap,
-          // Indeterminate on purpose: the engine reports coarse progress, so
-          // an animating bar reads as "working" instead of parking mid-way.
           const ClipRRect(
             borderRadius: AppSpacing.radiusFull,
             child: LinearProgressIndicator(
@@ -251,7 +232,6 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
             ),
           ),
           AppSpacing.mdGap,
-          // Cold-start hint — Render's free tier sleeps after ~15 min idle.
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -275,7 +255,6 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
     );
   }
 
-  // ─── Done ─────────────────────────────────────────────────
   List<Widget> _doneContent(TimetableResult result) {
     final v = result.validation;
     final ok = v['ok'] == true;
@@ -395,7 +374,6 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
     );
   }
 
-  // ─── Ingest report ────────────────────────────────────────
   Widget _reportCard(TimetableResult result) {
     final m = result.report.meta;
     final excluded = result.report.excluded.length;
@@ -442,7 +420,6 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
     );
   }
 
-  // ─── Reusable message banner ──────────────────────────────
   Widget _messageCard({
     required IconData icon,
     required Color color,

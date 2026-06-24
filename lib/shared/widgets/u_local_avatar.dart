@@ -1,7 +1,3 @@
-// Wrapper around UAvatar that automatically shows the locally-stored
-// avatar preset (chosen in ProfileScreen) when one is set for this user.
-// Reads from SharedPreferences using the same key the profile screen writes.
-
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,7 +5,6 @@ import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/shared/widgets/u_avatar.dart';
 
-// Must stay in sync with _presets in profile_screen.dart (same index = same icon).
 const _presets = [
   _P(color: AppColors.primary,  icon: PhosphorIconsRegular.graduationCap),
   _P(color: AppColors.info,     icon: PhosphorIconsRegular.books),

@@ -1,23 +1,14 @@
-// ============================================================
-// FILE: lib/features/admin/controllers/manage_users_controller.dart
-// PURPOSE: State for the Manage Users screen. Loads all profiles,
-// filters by role + search query, and changes a user's role via
-// AdminService. (Hard-deleting auth users needs a service-role
-// Edge Function and is out of scope.)
-// ============================================================
-
 import 'package:universe/core/models/profile_model.dart';
 import 'package:universe/core/utils/safe_change_notifier.dart';
 import 'package:universe/features/admin/services/admin_service.dart';
 
-// SafeChangeNotifier: async loads may outlive the screen.
 class ManageUsersController extends SafeChangeNotifier {
   final AdminService _service = AdminService();
 
   List<Profile> _all = [];
   bool _isLoading = false;
   String? _errorMessage;
-  String? _roleFilter; // null = all roles
+  String? _roleFilter;
   String _query = '';
 
   bool get isLoading => _isLoading;
@@ -67,7 +58,7 @@ class ManageUsersController extends SafeChangeNotifier {
     if (p.role == role) return true;
     try {
       await _service.updateUserRole(userId: p.id, role: role);
-      await load(); // refresh with the persisted role
+      await load();
       return true;
     } catch (_) {
       _errorMessage = 'Could not change the role.';

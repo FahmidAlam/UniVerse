@@ -1,19 +1,3 @@
-# ============================================================
-# FILE: engine/render.py
-# PURPOSE: Render solved sessions into a workbook identical in format
-#   to CSE_Routine_Summer_25_Version_2_0.xlsx. Clones the real workbook
-#   as a styled template (preserving the banner, headers, the vertical
-#   BREAK column, bus rows and all formatting), then:
-#     - writes ONE canonical 55-row cohort map identically to every
-#       day-sheet (structurally fixes the §6.1 "66-H row shift" bug),
-#     - clears any legacy session/cohort cells,
-#     - writes each session as "<CODE> <TEACHER> <ROOM>" in the right
-#       (cohort-row, period-column) cell,
-#     - leaves Friday's Period-4 column (H) empty.
-#
-# Returns the rendered workbook as bytes (for HTTP download / upload to
-# Supabase Storage).
-# ============================================================
 
 from __future__ import annotations
 
@@ -26,20 +10,14 @@ from openpyxl.styles import Border, Side
 TEMPLATE = Path(__file__).parent / "templates" / "CSE_Routine_TEMPLATE.xlsx"
 
 DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-HEADER_ROW = 2              # period time labels live here
+HEADER_ROW = 2
 DATA_FIRST_ROW = 3
-DATA_LAST_ROW = 82          # 80 cohort rows (3..82); footer (BUS TIME / STUDENT
-                            # NO.) starts at 83. Unused rows are hidden at render
-                            # time, so the sheet looks tight at any cohort count.
-BREAK_COL = 7               # column G — never written
-# Period columns that may hold a session (D,E,F,H,I,J,K = 4,5,6,8,9,10,11).
+DATA_LAST_ROW = 82
+BREAK_COL = 7
 SESSION_COLS = [4, 5, 6, 8, 9, 10, 11]
-# Table columns that carry the horizontal grid: B,C (batch/section) + the
-# period columns. The break column G is vertically merged (holds "BREAK"),
-# so it never takes a per-row border — matching the source workbook.
 GRID_COLS = [2, 3] + SESSION_COLS
 _THIN = Side(style="thin", color="FF000000")
-_THICK = Side(style="thick", color="FF000000")   # bold batch separator
+_THICK = Side(style="thick", color="FF000000")
 
 
 def _batch_cell(batch: str):
@@ -58,14 +36,11 @@ def render_bytes(rows: list[dict], cohorts: list[str], config: dict,
             f"Template not found at {tpl}. Run tools/make_template.py once.")
     wb = openpyxl.load_workbook(tpl)
 
-    # period idx -> column letter, from config
     pcol = {int(p["idx"]): openpyxl.utils.column_index_from_string(p["col"])
             for p in config["periods"]}
 
-    # canonical cohort -> row (rows 3..3+len-1)
     row_of = {c: DATA_FIRST_ROW + i for i, c in enumerate(cohorts)}
 
-    # rows grouped by cohort
     by_cohort: dict[str, list[dict]] = {}
     for r in rows:
         key = f"{r['batch']}-{r['section']}" if r["section"] else str(r["batch"])
@@ -76,25 +51,12 @@ def render_bytes(rows: list[dict], cohorts: list[str], config: dict,
             continue
         ws = wb[day]
 
-        # 0) refresh the period-time header (row 2) from config so a semester
-        #    with different class times prints correct headers (the schedule
-        #    data already uses config times; this keeps the workbook in sync).
-        #    Period columns get their time label, the BREAK column gets the
-        #    lunch gap; Friday (no P4) widens the break across G+H. The online
-        #    column (K) keeps its template text. Cell styles are preserved.
         _write_period_headers(ws, day, config)
 
-        # 1) clear legacy session cells + stray cohort labels
         for rr in range(DATA_FIRST_ROW, DATA_LAST_ROW + 1):
             for cc in SESSION_COLS:
                 _safe_clear(ws, rr, cc)
 
-        # 2) write canonical cohort labels (B=batch, C=section) and redraw the
-        #    horizontal grid dynamically: a THICK rule under the last section of
-        #    each batch, THIN between sections of the same batch. This decouples
-        #    the batch separators from the template's hard-coded row positions,
-        #    so any section count groups correctly. Rows beyond the cohort list
-        #    are blanked (label + borders) to drop stray template lines.
         for rr in range(DATA_FIRST_ROW, DATA_LAST_ROW + 1):
             idx = rr - DATA_FIRST_ROW
             if idx < len(cohorts):
@@ -105,15 +67,14 @@ def render_bytes(rows: list[dict], cohorts: list[str], config: dict,
                 nxt = cohorts[idx + 1] if idx + 1 < len(cohorts) else None
                 last_of_batch = nxt is None or nxt.partition("-")[0] != batch
                 _set_row_bottom(ws, rr, _THICK if last_of_batch else _THIN)
-                ws.row_dimensions[rr].hidden = False   # used rows must be visible
+                ws.row_dimensions[rr].hidden = False
             else:
                 _drop_data_row_merges(ws, rr)
                 _safe_clear(ws, rr, 2)
                 _safe_clear(ws, rr, 3)
                 _set_row_bottom(ws, rr, None)
-                ws.row_dimensions[rr].hidden = True   # collapse the unused tail
+                ws.row_dimensions[rr].hidden = True
 
-        # 3) write this day's sessions
         for cohort, sess in by_cohort.items():
             rr = row_of.get(cohort)
             if rr is None:
@@ -127,8 +88,6 @@ def render_bytes(rows: list[dict], cohorts: list[str], config: dict,
                 text = f"{s['subject_code']} {s['teacher_code']} {s['room']}"
                 ws.cell(row=rr, column=col, value=text)
 
-        # 4) fit the BREAK column to the live cohort count (unused rows were
-        #    hidden in step 2), keeping the footer tight under the table.
         last_data = min(DATA_FIRST_ROW + len(cohorts) - 1, DATA_LAST_ROW)
         if last_data >= DATA_FIRST_ROW:
             _rebuild_break_column(ws, day, last_data)
@@ -184,7 +143,6 @@ def _write_period_headers(ws, day: str, config: dict) -> None:
     for p in day_periods:
         col = openpyxl.utils.column_index_from_string(p["col"])
         _set_header_value(ws, HEADER_ROW, col, _period_label(p["start"], p["end"]))
-    # The break is the single non-contiguous gap between consecutive periods.
     for a, b in zip(day_periods, day_periods[1:]):
         if a["end"] != b["start"]:
             _set_header_value(ws, HEADER_ROW, BREAK_COL,
@@ -216,7 +174,7 @@ def _rebuild_break_column(ws, day: str, last_data: int) -> None:
         cell.fill, cell.border = copy(fill), copy(border)
         cell.value = text
 
-    if day == "Friday":                       # no P4 -> break spans G+H
+    if day == "Friday":
         ws.merge_cells(start_row=DATA_FIRST_ROW, start_column=BREAK_COL,
                        end_row=last_data, end_column=BREAK_COL + 1)
         _style(ws.cell(DATA_FIRST_ROW, BREAK_COL), "BREAK")

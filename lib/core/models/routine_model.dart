@@ -1,19 +1,10 @@
-// ============================================================
-// FILE: lib/core/models/routine_model.dart
-// PURPOSE: Typed view of a row in the `routines` table.
-// Carries the teacher as text (teacher_name/teacher_code), matching
-// generated_timetable, so the same row serves the student view
-// (filtered by batch+section) and the teacher view (by teacher_code).
-// Pure Dart — no Supabase imports.
-// ============================================================
-
 import 'package:universe/core/constants/app_enums.dart';
 import 'package:universe/core/utils/date_utils.dart';
 
 class RoutineEntry {
   final String id;
-  final String day; // full name, e.g. "Sunday"
-  final String timeStart; // "HH:MM" / "HH:MM:SS"
+  final String day;
+  final String timeStart;
   final String timeEnd;
   final String subject;
   final String subjectCode;
@@ -41,8 +32,6 @@ class RoutineEntry {
     this.isActive = true,
   });
 
-  /// Column map for INSERT/UPDATE from the admin Routine Manager.
-  /// Excludes `id` (Postgres generates it) and `created_at`.
   Map<String, dynamic> toMap() {
     return {
       'day': day,
@@ -78,7 +67,6 @@ class RoutineEntry {
     );
   }
 
-  // ─── Time helpers ─────────────────────────────────────────
   static (int, int) _hm(String t) {
     final parts = t.split(':');
     final h = int.tryParse(parts[0]) ?? 0;
@@ -86,7 +74,6 @@ class RoutineEntry {
     return (h, m);
   }
 
-  /// Builds a DateTime for this slot on a given calendar date.
   DateTime startOn(DateTime date) {
     final (h, m) = _hm(timeStart);
     return DateTime(date.year, date.month, date.day, h, m);
@@ -106,10 +93,8 @@ class RoutineEntry {
     return '$hour:$mm $period';
   }
 
-  /// e.g. "9:30 AM – 10:50 AM"
   String get timeLabel => '${_to12h(timeStart)} – ${_to12h(timeEnd)}';
 
-  /// Just the start/end, e.g. "9:30 AM" — for compact dashboard stats.
   String get startLabel => _to12h(timeStart);
   String get endLabel => _to12h(timeEnd);
 
@@ -118,8 +103,6 @@ class RoutineEntry {
           ? teacherName!
           : (teacherCode ?? 'TBA');
 
-  /// Live/next/done only make sense for the current day; otherwise
-  /// the class is just an upcoming entry in the weekly grid.
   ClassStatus statusOn(DateTime date, {required bool isToday}) {
     if (!isToday) return ClassStatus.upcoming;
     return AppDateUtils.getClassStatus(startOn(date), endOn(date));

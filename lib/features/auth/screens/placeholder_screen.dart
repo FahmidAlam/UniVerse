@@ -1,12 +1,3 @@
-// ============================================================
-// FILE: lib/features/auth/screens/placeholder_screen.dart
-// PURPOSE: Temporary screen for routes not yet built.
-// Shows the screen name so navigation can be tested
-// end-to-end before each feature screen is implemented.
-// The bottom nav comes from AppShell — nothing to declare here.
-// DELETE this file (and its wiring) once all screens are built.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -18,9 +9,6 @@ import 'package:universe/shared/widgets/u_button.dart';
 class PlaceholderScreen extends StatelessWidget {
   final String title;
 
-  /// Temporary links to built screens that don't yet have a permanent
-  /// entry point (e.g. Resources hangs off the not-yet-built dashboard).
-  /// Rendered as secondary buttons. Remove when the real screen lands.
   final List<({String label, String route})> quickLinks;
 
   const PlaceholderScreen({

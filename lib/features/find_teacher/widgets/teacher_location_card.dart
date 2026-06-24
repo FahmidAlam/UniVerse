@@ -1,9 +1,3 @@
-// ============================================================
-// FILE: lib/features/find_teacher/widgets/teacher_location_card.dart
-// PURPOSE: Displays a single teacher's current location.
-// Shows current room or next class time.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:universe/core/theme/app_colors.dart';
@@ -57,7 +51,6 @@ class TeacherLocationCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Teacher name + status header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -128,7 +121,6 @@ class TeacherLocationCard extends StatelessWidget {
           ),
           SizedBox(height: AppSpacing.md),
 
-          // Current location or next class
           if (teacherInfo.status == 'In Class') ...[
             _InfoRow(
               label: 'Current Room',
