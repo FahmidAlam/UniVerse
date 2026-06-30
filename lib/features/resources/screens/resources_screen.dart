@@ -1,13 +1,3 @@
-// ============================================================
-// FILE: lib/features/resources/screens/resources_screen.dart
-// PURPOSE: Resource Hub. A top-level student tab (rendered inside
-// AppShell, so the bottom nav shows). The folder grid is the tab
-// root (no back button); opening a semester swaps to an in-screen
-// back arrow that closes the folder. Category filter chips +
-// resource cards. Tapping a card opens its link (PDF / Drive) in
-// the device's default app; if that fails, the link is copied.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -63,13 +53,10 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
       _snack('This resource has an invalid link.');
       return;
     }
-    // Open in the device's browser / Drive / PDF viewer. If nothing can
-    // handle it, fall back to copying the link so it's never a dead tap.
     try {
       final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (opened) return;
     } catch (_) {
-      // fall through to the copy fallback
     }
     await Clipboard.setData(ClipboardData(text: link));
     _snack('Couldn\'t open it — link copied instead.');
@@ -123,7 +110,6 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     );
   }
 
-  // ─── Semester folders ─────────────────────────────────────
   Widget _buildFolderGrid() {
     if (_controller.isLoading) {
       return const Center(child: ULoading.spinner());

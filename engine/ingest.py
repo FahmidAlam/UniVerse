@@ -1,22 +1,3 @@
-# ============================================================
-# FILE: engine/ingest.py
-# PURPOSE: Parse the "Course Distribution" sheet of a Main_Distribution
-#   workbook into the normalized inputs the CP-SAT solver consumes.
-#
-#   Reads ONLY the "Course Distribution" sheet (all other sheets are
-#   legacy macro scaffolding — ignored). Binds columns by matching the
-#   header text in row 5, never by fixed letter, because the real files
-#   drift a column. Applies every data-quality rule reverse-engineered
-#   from the real Summer-2025 files:
-#     - batch stored as float ("66.0") -> "66"
-#     - lab iff last digit of the course number is even (authoritative)
-#     - blank-teacher rows = project/thesis -> excluded from placement
-#     - non-CSE/service rows -> kept as resource-only (consume teacher +
-#       room time) but not rendered as CSE cohort rows
-#     - Class/Week may be int 2 or float 2.0; Class Duration == 1.5
-#
-# Output (dict): cohorts, sessions, excluded, warnings, meta.
-# ============================================================
 
 from __future__ import annotations
 
@@ -30,27 +11,21 @@ SHEET = "Course Distribution"
 HEADER_ROW = 5
 DATA_START = 6
 
-# A CSE student cohort is identified by a NUMERIC batch (e.g. "66", "70").
-# Non-numeric batches (clubs/ACM, special groups) are resource-only, as are
-# the GED/WD/WE service sections even on a numeric batch. Using "is numeric"
-# instead of a fixed range future-proofs new intakes (batch 70+) with no code
-# change; on the real Summer-2025 file it reproduces the legacy range(55,70)
-# classification exactly (every numeric batch there is a CSE cohort).
 SERVICE_SECTION = re.compile(r"^(GED|WD|WE)", re.IGNORECASE)
 
 
 @dataclass
 class Session:
     sid: int
-    code: str          # "CSE-1101"
+    code: str
     title: str
-    teacher: str       # acronym, e.g. "EBH"
-    batch: str         # "66"
-    section: str       # "A", "B+C", "GED A", "WD"
-    cohort: str        # "66-A"
+    teacher: str
+    batch: str
+    section: str
+    cohort: str
     is_lab: bool
-    is_service: bool   # resource-only (not rendered)
-    occurrence: int    # 1 or 2 (Class/Week == 2)
+    is_service: bool
+    occurrence: int
 
 
 def _norm_batch(v) -> str | None:
@@ -124,12 +99,10 @@ def ingest_workbook(wb) -> dict:
         code = ws.cell(row=r, column=cCode).value
         batch = _norm_batch(ws.cell(row=r, column=cB).value)
         if not code and not batch:
-            continue  # blank padding row
+            continue
         code = str(code).strip() if code else None
         if not code:
             continue
-        # Blank batch = extracurricular (e.g. ACM club rows) -> can't be
-        # scheduled into a cohort. Record and skip (spec §3.4).
         if not batch:
             excluded.append({"row": r, "code": code, "batch": None,
                              "section": None, "reason": "no_batch"})
@@ -143,7 +116,6 @@ def ingest_workbook(wb) -> dict:
         teacher = ws.cell(row=r, column=cTea).value
         teacher = str(teacher).strip() if teacher is not None else ""
 
-        # Invariant checks -> warnings (never silently mis-schedule).
         if cWk:
             wk = ws.cell(row=r, column=cWk).value
             try:
@@ -159,7 +131,6 @@ def ingest_workbook(wb) -> dict:
             except (TypeError, ValueError):
                 pass
 
-        # Project / thesis: no teacher -> cannot place. Record and skip.
         if teacher == "":
             excluded.append({"row": r, "code": code, "batch": batch,
                              "section": section, "reason": "no_teacher"})
@@ -174,7 +145,7 @@ def ingest_workbook(wb) -> dict:
         if not is_service:
             cohorts.add(cohort)
 
-        for occ in (1, 2):  # Class/Week == 2
+        for occ in (1, 2):
             sessions.append(Session(
                 sid=sid, code=code, title=title, teacher=teacher,
                 batch=batch or "", section=section, cohort=cohort,

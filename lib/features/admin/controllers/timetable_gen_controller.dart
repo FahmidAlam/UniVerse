@@ -1,13 +1,3 @@
-// ============================================================
-// FILE: lib/features/admin/controllers/timetable_gen_controller.dart
-// PURPOSE: State for the Generate Timetable screen. Picks the Main
-// Distribution .xlsx, loads engine config from the DB, kicks off a
-// solve job, polls it, holds the result + ingest report for preview,
-// downloads/opens the rendered workbook, and publishes the result to
-// `routines` (recording the run). ChangeNotifier — the screen rebuilds
-// via ListenableBuilder.
-// ============================================================
-
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -27,15 +17,13 @@ class TimetableGenController extends ChangeNotifier {
   final TimetableConfigService _configService = TimetableConfigService();
 
   static const Duration _pollInterval = Duration(seconds: 2);
-  static const int _maxPolls = 120; // ~4 min ceiling
+  static const int _maxPolls = 120;
 
-  // Picked file
   Uint8List? _fileBytes;
   String? _fileName;
   String? get fileName => _fileName;
   bool get hasFile => _fileBytes != null;
 
-  // Job
   GenPhase _phase = GenPhase.idle;
   double _progress = 0;
   String? _errorMessage;
@@ -43,9 +31,8 @@ class TimetableGenController extends ChangeNotifier {
   String? _jobId;
   String? _semesterLabel;
 
-  // Download / publish
   Uint8List? _workbookBytes;
-  String? _workbookPath; // path in the timetables bucket
+  String? _workbookPath;
   bool _isDownloading = false;
   String? _downloadError;
   bool _isPublishing = false;
@@ -63,7 +50,6 @@ class TimetableGenController extends ChangeNotifier {
   String? get publishError => _publishError;
   bool get isBusy => _phase == GenPhase.generating || _phase == GenPhase.polling;
 
-  // ─── Pick distribution file ───────────────────────────────
   Future<void> pickFile() async {
     final res = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -77,7 +63,6 @@ class TimetableGenController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ─── Generate + poll ──────────────────────────────────────
   Future<void> generate() async {
     if (_fileBytes == null) return;
     _phase = GenPhase.generating;
@@ -131,7 +116,6 @@ class TimetableGenController extends ChangeNotifier {
     }
   }
 
-  // ─── Download + open the workbook ─────────────────────────
   Future<String?> downloadAndOpen() async {
     final jobId = _jobId;
     if (jobId == null) return null;
@@ -140,12 +124,10 @@ class TimetableGenController extends ChangeNotifier {
     notifyListeners();
     try {
       _workbookBytes ??= await _service.downloadWorkbook(jobId);
-      // Save to a temp file and open with the device's spreadsheet app.
       final dir = await getTemporaryDirectory();
       final safe = (_semesterLabel ?? 'timetable').replaceAll(RegExp(r'\s+'), '_');
       final path = '${dir.path}/CSE_Routine_$safe.xlsx';
       await File(path).writeAsBytes(_workbookBytes!, flush: true);
-      // Best-effort: also archive it to the timetables bucket.
       _workbookPath ??=
           await _service.uploadWorkbook(_workbookBytes!, _semesterLabel);
       await OpenFilex.open(path);
@@ -160,7 +142,6 @@ class TimetableGenController extends ChangeNotifier {
     }
   }
 
-  // ─── Publish to routines + record the run ─────────────────
   Future<void> publish() async {
     final res = _result;
     if (res == null || res.rows.isEmpty) return;
@@ -169,7 +150,6 @@ class TimetableGenController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Make sure the workbook is archived so the run has a file path.
       if (_workbookPath == null && _jobId != null) {
         _workbookBytes ??= await _service.downloadWorkbook(_jobId!);
         _workbookPath =
@@ -185,18 +165,14 @@ class TimetableGenController extends ChangeNotifier {
         status: 'published',
       );
 
-      // Tell students + teachers the new routine is live (in-app + push).
-      // Best-effort: the routine is already published, so a notification
-      // failure must not surface as a publish error.
       try {
         await NotificationService().createBroadcast(
           type: NotifType.university,
           title: 'New class routine published',
           body: '${_semesterLabel ?? 'The new'} class routine is now live. '
               'Open your routine to see the updated schedule.',
-          // null target_role → everyone (students, teachers, admins).
         );
-      } catch (_) {/* best-effort */}
+      } catch (_) {}
     } catch (e) {
       _publishError = _clean(e);
     }

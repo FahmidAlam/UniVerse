@@ -1,9 +1,3 @@
-// ============================================================
-// FILE: lib/features/rooms/widgets/room_status_card.dart
-// PURPOSE: Displays a single room's occupancy status.
-// Shows current class (if running) or next class.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:universe/core/theme/app_colors.dart';
@@ -37,7 +31,6 @@ class RoomStatusCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Room name + status header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -81,7 +74,6 @@ class RoomStatusCard extends StatelessWidget {
           ),
           SizedBox(height: AppSpacing.md),
 
-          // Current class (if occupied)
           if (roomStatus.isOccupied) ...[
             _InfoRow(
               label: 'Teacher',
@@ -107,7 +99,6 @@ class RoomStatusCard extends StatelessWidget {
               valueColor: AppColors.primary,
             ),
           ] else ...[
-            // Next class (if available)
             if (roomStatus.nextTeacher != null) ...[
               _InfoRow(
                 label: 'Next Teacher',

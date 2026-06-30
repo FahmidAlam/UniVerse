@@ -1,11 +1,3 @@
-// ============================================================
-// FILE: lib/core/models/profile_model.dart
-// PURPOSE: Typed view of a row in the `profiles` table.
-// Pure Dart — no Supabase imports. Parses the exact Map shape
-// that auth_service.dart already produces, so it is a drop-in
-// over the raw maps auth currently passes around.
-// ============================================================
-
 import 'package:universe/core/constants/app_constants.dart';
 
 class Profile {
@@ -15,13 +7,11 @@ class Profile {
   final String? name;
   final String? avatarUrl;
 
-  // Student fields
   final String? batch;
   final String? section;
   final int? semester;
   final String? studentId;
 
-  // Teacher fields
   final String? teacherCode;
   final String? designation;
   final String? department;
@@ -68,7 +58,6 @@ class Profile {
     );
   }
 
-  // ─── UI helpers ───────────────────────────────────────────
   bool get isStudent => role == AppConstants.roleStudent;
   bool get isTeacher => role == AppConstants.roleTeacher;
   bool get isAdmin => role == AppConstants.roleAdmin;
@@ -89,7 +78,6 @@ class Profile {
     }
   }
 
-  /// The role-appropriate ID shown on the profile screen.
   String? get identifier => isTeacher ? teacherCode : studentId;
 
   String get identifierLabel => isTeacher ? 'Teacher Code' : 'Student ID';

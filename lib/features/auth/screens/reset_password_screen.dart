@@ -1,19 +1,3 @@
-// ============================================================
-// FILE: lib/features/auth/screens/reset_password_screen.dart
-// PURPOSE: Shown when the user taps the password reset link
-// in their email. The deep link brings them here with
-// an active Supabase session. They enter a new password
-// and confirm it. Calls authController.updatePassword().
-//
-// DEEP LINK ENTRY:
-// com.example.universe://reset-callback/
-// Supabase handles the token exchange automatically.
-// GoRouter must handle this route when the app is opened
-// via that scheme. Add to AndroidManifest.xml:
-//   <data android:scheme="com.example.universe"
-//         android:host="reset-callback" />
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -109,7 +93,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.bgPrimary,
         elevation: 0,
-        automaticallyImplyLeading: false, // no back — came from email link
+        automaticallyImplyLeading: false,
         title: Text('New password', style: AppTextStyles.h2),
       ),
       body: SafeArea(
@@ -123,7 +107,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     );
   }
 
-  // ── Password form ──────────────────────────────────────────
   Widget _buildFormState(int passwordStrength) {
     return Form(
       key: _formKey,
@@ -132,7 +115,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         children: [
           const Spacer(flex: 2),
 
-          // Icon
           Container(
             width: 72,
             height: 72,
@@ -163,7 +145,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
           const SizedBox(height: AppSpacing.x3l),
 
-          // New password
           Text('New password', style: AppTextStyles.label),
           AppSpacing.smGap,
           TextFormField(
@@ -194,7 +175,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             },
           ),
 
-          // Strength bar
           if (_passwordCtrl.text.isNotEmpty) ...[
             AppSpacing.smGap,
             _PasswordStrengthBar(strength: passwordStrength),
@@ -202,7 +182,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
           AppSpacing.lgGap,
 
-          // Confirm password
           Text('Confirm password', style: AppTextStyles.label),
           AppSpacing.smGap,
           TextFormField(
@@ -235,7 +214,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
           const Spacer(flex: 3),
 
-          // Update button
           SizedBox(
             width: double.infinity,
             height: AppSpacing.buttonHeight,
@@ -269,7 +247,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     );
   }
 
-  // ── Success state ──────────────────────────────────────────
   Widget _buildSuccessState() {
     return Column(
       children: [
@@ -372,7 +349,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   }
 }
 
-// ── Password strength bar (same as signup screen) ──────────
 class _PasswordStrengthBar extends StatelessWidget {
   final int strength;
   const _PasswordStrengthBar({required this.strength});

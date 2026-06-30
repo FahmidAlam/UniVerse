@@ -1,24 +1,3 @@
-// ============================================================
-// FILE: lib/core/services/push_service.dart
-// PURPOSE: Firebase Cloud Messaging (FCM) integration — the ONLY
-// layer that talks to firebase_messaging + flutter_local_notifications
-// and persists the device's FCM token to Supabase `device_tokens`.
-//
-// WHAT IT ADDS over the existing Supabase Realtime feed:
-//   • OS-level push pop-ups that arrive even when the app is
-//     backgrounded or killed (Realtime can't wake a closed app).
-//   • A heads-up banner in the foreground (FCM does NOT auto-display
-//     notifications while the app is open on Android — we draw it).
-//
-// LIFECYCLE:
-//   main() → PushService.instance.init()        (once, before runApp)
-//   on sign-in  → registerToken(userId)         (save token to Supabase)
-//   on sign-out → unregisterToken()             (delete token)
-//
-// The send-push Edge Function reads `device_tokens` and delivers the
-// actual push when an admin inserts a broadcast.
-// ============================================================
-
 import 'dart:async';
 import 'dart:convert';
 
@@ -28,15 +7,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universe/core/constants/app_constants.dart';
 
-/// Top-level background handler — REQUIRED to be a free function with
-/// this annotation; it runs in its own isolate when a message arrives
-/// while the app is backgrounded/terminated. For "notification" messages
-/// Android renders the tray entry itself, so there's nothing to do here;
-/// this exists so data-only messages don't get dropped.
 @pragma('vm:entry-point')
 Future<void> firebaseBackgroundHandler(RemoteMessage message) async {
-  // Intentionally minimal. The OS shows notification-type messages using
-  // the default channel declared in AndroidManifest.
   debugPrint('[push] background message: ${message.messageId}');
 }
 
@@ -53,18 +25,12 @@ class PushService {
   String? _lastToken;
   StreamSubscription<String>? _refreshSub;
 
-  /// Called by main.dart when a notification is tapped, so the app can
-  /// route to the notifications screen. Set from main() where the router
-  /// is in scope. Receives the message `data` map.
   void Function(Map<String, dynamic> data)? onNotificationTap;
 
-  // ─── One-time setup ───────────────────────────────────────
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
 
-    // 1) Local notifications: init + Android high-importance channel so
-    //    foreground pop-ups (and background tray entries) are heads-up.
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const initSettings = InitializationSettings(android: androidInit);
     await _local.initialize(
@@ -88,29 +54,22 @@ class PushService {
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
 
-    // 2) Ask for notification permission (Android 13+ / iOS).
     await _fcm.requestPermission(alert: true, badge: true, sound: true);
 
-    // 3) Register the background isolate handler.
     FirebaseMessaging.onBackgroundMessage(firebaseBackgroundHandler);
 
-    // 4) Foreground messages → draw a local heads-up banner ourselves.
     FirebaseMessaging.onMessage.listen(_showForeground);
 
-    // 5) App opened by tapping a notification (from background).
     FirebaseMessaging.onMessageOpenedApp.listen((m) {
       onNotificationTap?.call(m.data);
     });
 
-    // 6) App launched cold by tapping a notification (from terminated).
     final initial = await _fcm.getInitialMessage();
     if (initial != null) {
       onNotificationTap?.call(initial.data);
     }
   }
 
-  // ─── Token persistence ────────────────────────────────────
-  /// Save this device's FCM token for [userId] and keep it fresh.
   Future<void> registerToken(String userId) async {
     try {
       final token = await _fcm.getToken();
@@ -118,17 +77,12 @@ class PushService {
         _lastToken = token;
         await _upsertToken(userId, token);
       }
-      // Tokens rotate; persist refreshes for the same user. Replace any
-      // listener left by a previous sign-in — stacked listeners would
-      // keep writing the OLD user's id, which RLS rejects (42501).
       await _refreshSub?.cancel();
       _refreshSub = _fcm.onTokenRefresh.listen((t) async {
         _lastToken = t;
         try {
           await _upsertToken(userId, t);
         } catch (e) {
-          // Must not escape the stream — an uncaught async error here
-          // halts the debugger / crashes release builds.
           debugPrint('[push] refresh upsert failed: $e');
         }
       });
@@ -139,17 +93,11 @@ class PushService {
 
   Future<void> _upsertToken(String userId, String token) async {
     try {
-      // SECURITY DEFINER RPC (migration 005): clears a stale row left by
-      // another user for the same token, then upserts as auth.uid().
-      // A plain upsert can't do that — RLS forbids updating a row that
-      // still belongs to the previous user.
       await _supabase.rpc('register_device_token', params: {
         'p_token': token,
         'p_platform': 'android',
       });
     } on PostgrestException catch (e) {
-      // PGRST202 = function not deployed yet — fall back to direct upsert
-      // so push registration keeps working until migration 005 is run.
       if (e.code != 'PGRST202') rethrow;
       await _supabase.from(AppConstants.tableDeviceTokens).upsert(
         {
@@ -163,8 +111,6 @@ class PushService {
     }
   }
 
-  /// Remove this device's token on sign-out so a signed-out phone
-  /// stops receiving pushes for the previous user.
   Future<void> unregisterToken() async {
     try {
       await _refreshSub?.cancel();
@@ -183,10 +129,9 @@ class PushService {
     }
   }
 
-  // ─── Foreground rendering ─────────────────────────────────
   Future<void> _showForeground(RemoteMessage message) async {
     final n = message.notification;
-    if (n == null) return; // data-only: nothing to display
+    if (n == null) return;
 
     await _local.show(
       n.hashCode,
@@ -211,7 +156,6 @@ class PushService {
       final data = (jsonDecode(payload) as Map).cast<String, dynamic>();
       onNotificationTap?.call(data);
     } catch (_) {
-      /* ignore malformed payload */
     }
   }
 }

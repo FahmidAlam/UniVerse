@@ -1,11 +1,3 @@
-// ============================================================
-// FILE: lib/features/routine/controllers/routine_controller.dart
-// PURPOSE: State between RoutineService and the routine screens.
-// Role-aware: loads the student's section routine or the teacher's
-// own classes from the same controller. Tracks the selected day
-// and exposes the entries for that day.
-// ============================================================
-
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/profile_model.dart';
 import 'package:universe/core/models/routine_model.dart';
@@ -35,9 +27,7 @@ class RoutineController extends SafeChangeNotifier {
 
   bool get isTeacherView => _me?.isTeacher ?? false;
 
-  /// Today's short day name. All 7 days are class days here.
   static String _todayShort() {
-    // DateTime.weekday: Mon=1 … Sun=7
     const map = {
       7: 'Sun', 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat',
     };

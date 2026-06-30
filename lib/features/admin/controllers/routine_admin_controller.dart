@@ -1,24 +1,15 @@
-// ============================================================
-// FILE: lib/features/admin/controllers/routine_admin_controller.dart
-// PURPOSE: State for the admin Routine Management screen. Loads every
-// routine row (sorted into week order + time), filters by day, and
-// creates/updates/deletes entries via RoutineService. These rows feed
-// the already-built student/teacher routine views.
-// ============================================================
-
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/routine_model.dart';
 import 'package:universe/core/utils/safe_change_notifier.dart';
 import 'package:universe/features/routine/services/routine_service.dart';
 
-// SafeChangeNotifier: async loads/saves may outlive the screen.
 class RoutineAdminController extends SafeChangeNotifier {
   final RoutineService _service = RoutineService();
 
   List<RoutineEntry> _all = [];
   bool _isLoading = false;
   String? _errorMessage;
-  String? _dayFilter; // null = all days, else full day name
+  String? _dayFilter;
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -59,7 +50,6 @@ class RoutineAdminController extends SafeChangeNotifier {
     notifyListeners();
   }
 
-  /// Create (when [existing] is null) or update an entry, then reload.
   Future<bool> save({
     RoutineEntry? existing,
     required Map<String, dynamic> data,

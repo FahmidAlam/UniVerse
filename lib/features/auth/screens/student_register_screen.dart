@@ -1,13 +1,3 @@
-// ============================================================
-// FILE: lib/features/auth/screens/student_register_screen.dart
-// PURPOSE: Form for new students.
-// Fields: Full name, Student ID, Batch, Section (two cols).
-// Then "Register with Google" which triggers OAuth + profile
-// creation in one flow. Semester is intentionally NOT collected
-// — batch+section identify the cohort and all resources are open
-// to every student, so semester carried no meaning.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -54,15 +44,11 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
     super.dispose();
   }
 
-  // Called when Google OAuth completes and status → registering.
-  // At this point we have a session but no profile yet —
-  // completeStudentRegistration() creates it with role='student'.
   void _onAuthChange() async {
     if (!mounted) return;
     final status = widget.authController.status;
 
     if (status == AuthStatus.registering) {
-      // Validate form data is still present
       if (_nameCtrl.text.trim().isEmpty) {
         _showError('Please fill in all fields before registering.');
         return;
@@ -80,7 +66,6 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
           widget.authController.errorMessage ?? 'Registration failed.',
         );
       }
-      // GoRouter redirect handles navigation to student dashboard
     } else if (status == AuthStatus.notWhitelisted) {
       if (mounted) context.go(RouteNames.notWhitelisted);
     } else if (status == AuthStatus.error) {
@@ -92,21 +77,13 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
     }
   }
 
-  // Google OAuth path — validates form first, then triggers OAuth.
-  // _onAuthChange fires when OAuth session is ready.
   Future<void> _registerWithGoogle() async {
     if (!_formKey.currentState!.validate()) return;
     await widget.authController.signInWithGoogle();
   }
 
-  // Email path — validates form, stores data in SharedPrefs so
-  // EmailSignupScreen can retrieve it after verification completes.
-  // Then navigates to email signup.
   void _registerWithEmail() {
     if (!_formKey.currentState!.validate()) return;
-    // Store registration form data so it survives navigation
-    // EmailSignupScreen will call completeStudentRegistration after
-    // email is verified and session is active.
     widget.authController.storePendingStudentData(
       name: _nameCtrl.text.trim(),
       studentId: _idCtrl.text.trim(),
@@ -157,7 +134,6 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Student role badge
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.md,
@@ -261,7 +237,6 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
 
                     const SizedBox(height: AppSpacing.x3l),
 
-                    // Register with Email
                     SizedBox(
                       width: double.infinity,
                       height: AppSpacing.buttonHeight,
@@ -281,7 +256,6 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
 
                     const SizedBox(height: AppSpacing.sm),
 
-                    // Register with Google
                     GoogleSignInButton(
                       onTap: isLoading ? null : _registerWithGoogle,
                       isLoading: isLoading,

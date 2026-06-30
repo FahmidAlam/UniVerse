@@ -1,9 +1,3 @@
-// ============================================================
-// FILE: lib/shared/widgets/explore_fab_menu.dart
-// PURPOSE: Floating action button with menu for Rooms and Find Teacher.
-// Shows a magnifying glass icon and opens a bottom sheet with options.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -39,7 +33,6 @@ class ExploreFabMenu extends StatelessWidget {
                 style: AppTextStyles.h3.copyWith(color: AppColors.textPrimary),
               ),
               SizedBox(height: AppSpacing.lg),
-              // Rooms option
               _MenuOption(
                 icon: PhosphorIconsRegular.door,
                 title: 'Rooms',
@@ -50,7 +43,6 @@ class ExploreFabMenu extends StatelessWidget {
                 },
               ),
               SizedBox(height: AppSpacing.md),
-              // Find Teacher option
               _MenuOption(
                 icon: PhosphorIconsRegular.person,
                 title: 'Find Teacher',

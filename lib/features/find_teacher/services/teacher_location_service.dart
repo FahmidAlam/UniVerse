@@ -1,10 +1,3 @@
-// ============================================================
-// FILE: lib/features/find_teacher/services/teacher_location_service.dart
-// PURPOSE: The ONLY layer that touches Supabase to find teacher location.
-// Fetches all active routines to determine where a teacher currently is
-// (in which room, or free if not in a class).
-// ============================================================
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/routine_model.dart';
@@ -12,8 +5,6 @@ import 'package:universe/core/models/routine_model.dart';
 class TeacherLocationService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  /// Fetch ALL active routines to cross-reference teachers.
-  /// Used to find a teacher's current location and schedule.
   Future<List<RoutineEntry>> fetchAllRoutines() async {
     final rows = await _supabase
         .from(AppConstants.tableRoutines)
@@ -23,7 +14,6 @@ class TeacherLocationService {
     return _map(rows);
   }
 
-  /// Get all unique teacher codes (for the find/search list).
   Future<List<String>> fetchUniqueTeachers() async {
     final rows = await _supabase
         .from(AppConstants.tableRoutines)
@@ -31,7 +21,6 @@ class TeacherLocationService {
         .eq('is_active', true)
         .neq('teacher_code', '');
 
-    // Extract unique teachers by code
     final teacherMap = <String, String>{};
     for (final row in rows) {
       final code = row['teacher_code'] as String?;
@@ -44,8 +33,6 @@ class TeacherLocationService {
     return teacherMap.keys.toList()..sort();
   }
 
-  /// Get a real-time subscription to all active routines.
-  /// Useful for live teacher location updates.
   Stream<List<RoutineEntry>> streamAllRoutines() {
     return _supabase
         .from(AppConstants.tableRoutines)

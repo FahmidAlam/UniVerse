@@ -1,15 +1,3 @@
-// ============================================================
-// FILE: lib/core/router/app_shell.dart
-// PURPOSE: Single Scaffold around all top-level tab screens.
-// The bottom nav lives HERE — wrapped routes render only their
-// content. Active tab is derived from the router location, so
-// screens no longer declare (or duplicate) nav placement.
-//
-// Also hosts the app-scoped NotificationController: one Realtime
-// subscription for the whole session, and the unread badge is
-// visible on every tab instead of only the Alerts screen.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/core/theme/app_colors.dart';
@@ -52,9 +40,6 @@ class _AppShellState extends State<AppShell> {
     super.dispose();
   }
 
-  // Different user signed in (sign-out → sign-in remounts the shell,
-  // but profile swaps without remount are possible too) — refetch so
-  // the previous user's items/badge never leak across accounts.
   void _onAuthChanged() {
     final id = widget.authController.profile?['id'] as String?;
     if (id != _userId) {

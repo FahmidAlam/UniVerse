@@ -1,13 +1,3 @@
-// ============================================================
-// FILE: lib/features/auth/screens/faculty_register_screen.dart
-// PURPOSE: Form for new faculty members.
-// Fields: Full name, Teacher Code, Department, Designation.
-// The Teacher Code is the acronym used on the published routine
-// (routines.teacher_code) — it's what links a teacher to their
-// classes, so it must match the code shown on the timetable.
-// Same OAuth flow as student register.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -53,8 +43,6 @@ class _FacultyRegisterScreenState extends State<FacultyRegisterScreen> {
     super.dispose();
   }
 
-  // Called when Google OAuth completes and status → registering.
-  // completeFacultyRegistration() upserts profile with role='teacher'.
   void _onAuthChange() async {
     if (!mounted) return;
     final status = widget.authController.status;
@@ -79,7 +67,6 @@ class _FacultyRegisterScreenState extends State<FacultyRegisterScreen> {
           widget.authController.errorMessage ?? 'Registration failed.',
         );
       }
-      // GoRouter redirect handles navigation to teacher dashboard
     } else if (status == AuthStatus.notWhitelisted) {
       if (mounted) context.go(RouteNames.notWhitelisted);
     } else if (status == AuthStatus.error) {
@@ -91,7 +78,6 @@ class _FacultyRegisterScreenState extends State<FacultyRegisterScreen> {
     }
   }
 
-  // Google OAuth path
   Future<void> _registerWithGoogle() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedDepartment == null) {
@@ -105,7 +91,6 @@ class _FacultyRegisterScreenState extends State<FacultyRegisterScreen> {
     await widget.authController.signInWithGoogle();
   }
 
-  // Email path — store form data then navigate to email signup
   void _registerWithEmail() {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedDepartment == null) {
@@ -166,7 +151,6 @@ class _FacultyRegisterScreenState extends State<FacultyRegisterScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Teacher role badge
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.md,
@@ -258,7 +242,6 @@ class _FacultyRegisterScreenState extends State<FacultyRegisterScreen> {
 
                     const SizedBox(height: AppSpacing.x3l),
 
-                    // Register with Email
                     SizedBox(
                       width: double.infinity,
                       height: AppSpacing.buttonHeight,
@@ -278,7 +261,6 @@ class _FacultyRegisterScreenState extends State<FacultyRegisterScreen> {
 
                     const SizedBox(height: AppSpacing.sm),
 
-                    // Register with Google
                     GoogleSignInButton(
                       onTap: isLoading ? null : _registerWithGoogle,
                       isLoading: isLoading,

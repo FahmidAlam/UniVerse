@@ -1,11 +1,3 @@
-// ============================================================
-// FILE: lib/features/teacher/controllers/manage_classes_controller.dart
-// PURPOSE: State for the teacher Manage Classes screen. Loads the
-// teacher's weekly classes + their upcoming cancellations, tracks
-// the selected day, and drives the cancel / undo / post-notice
-// actions through TeacherService.
-// ============================================================
-
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/constants/app_enums.dart';
 import 'package:universe/core/models/profile_model.dart';
@@ -41,7 +33,6 @@ class ManageClassesController extends SafeChangeNotifier {
     return map == null ? null : Profile.fromMap(map);
   }
 
-  // ─── Day helpers ──────────────────────────────────────────
   static String _todayShort() {
     const map = {
       7: 'Sun', 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat',
@@ -79,8 +70,6 @@ class ManageClassesController extends SafeChangeNotifier {
     return _all.where((e) => e.day == full).length;
   }
 
-  /// The next calendar date (>= today) whose weekday matches [fullDay].
-  /// A cancellation targets this concrete occurrence.
   DateTime occurrenceDate(String fullDay) {
     final tw = _fullDayToWeekday[fullDay];
     final base = DateTime.now();
@@ -93,7 +82,6 @@ class ManageClassesController extends SafeChangeNotifier {
     return today;
   }
 
-  /// The occurrence date for the day currently selected in the UI.
   DateTime get selectedOccurrenceDate => occurrenceDate(_selectedFullDay);
 
   bool isCancelled(RoutineEntry e) {
@@ -101,7 +89,6 @@ class ManageClassesController extends SafeChangeNotifier {
     return _cancelledKeys.contains(key);
   }
 
-  // ─── Load ─────────────────────────────────────────────────
   Future<void> load() async {
     final me = _me;
     if (me == null) return;
@@ -131,7 +118,6 @@ class ManageClassesController extends SafeChangeNotifier {
     notifyListeners();
   }
 
-  // ─── Actions ──────────────────────────────────────────────
   Future<bool> cancelClass(RoutineEntry e, String reason) async {
     final me = _me;
     if (me == null) return false;

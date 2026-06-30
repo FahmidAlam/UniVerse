@@ -1,18 +1,9 @@
-// ============================================================
-// FILE: lib/features/admin/controllers/broadcast_controller.dart
-// PURPOSE: State for the admin Campus Broadcast composer. Holds the
-// chosen type + audience, sends via NotificationService (which the
-// student Alerts feed picks up live over Realtime), and keeps a
-// recent-broadcasts list for review/delete.
-// ============================================================
-
 import 'package:universe/core/constants/app_enums.dart';
 import 'package:universe/core/models/notification_model.dart';
 import 'package:universe/core/utils/safe_change_notifier.dart';
 import 'package:universe/features/auth/controllers/auth_controller.dart';
 import 'package:universe/features/notifications/services/notification_service.dart';
 
-// SafeChangeNotifier: async sends/loads may outlive the screen.
 class BroadcastController extends SafeChangeNotifier {
   final NotificationService _service = NotificationService();
   final AuthController authController;
@@ -20,7 +11,7 @@ class BroadcastController extends SafeChangeNotifier {
   BroadcastController({required this.authController});
 
   NotifType _type = NotifType.university;
-  String? _targetRole; // null = everyone
+  String? _targetRole;
   bool _isSending = false;
   bool _isLoadingRecent = false;
   String? _errorMessage;
@@ -81,7 +72,7 @@ class BroadcastController extends SafeChangeNotifier {
         targetBatch: clean(targetBatch),
         targetSection: clean(targetSection),
       );
-      await loadRecent(); // pull the new row into the list
+      await loadRecent();
       ok = true;
     } catch (_) {
       _errorMessage = 'Failed to send broadcast. Please try again.';

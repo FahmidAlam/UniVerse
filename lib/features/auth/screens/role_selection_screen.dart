@@ -1,10 +1,3 @@
-// ============================================================
-// FILE: lib/features/auth/screens/role_selection_screen.dart
-// PURPOSE: "I am a" screen with 3 role cards.
-// Student (green), Teacher (blue), Admin (orange).
-// Selecting a card navigates to the matching register screen.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -55,7 +48,6 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
     } else if (_selectedRole == 'teacher') {
       context.go(RouteNames.facultyRegister);
     } else {
-      // Admin registration is handled by existing admin — show info
       _showAdminInfo();
     }
   }
@@ -152,7 +144,6 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
 
               const SizedBox(height: AppSpacing.x3l),
 
-              // ── Role cards ──────────────────────────────
               ...List.generate(_roles.length, (i) {
                 final role = _roles[i];
                 final isSelected = _selectedRole == role.id;
@@ -174,7 +165,6 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
 
               const Spacer(),
 
-              // ── Continue button ──────────────────────────
               SizedBox(
                 width: double.infinity,
                 height: AppSpacing.buttonHeight,
@@ -243,7 +233,6 @@ class _RoleCard extends StatelessWidget {
             padding: AppSpacing.cardPadding,
             child: Row(
               children: [
-                // Icon container
                 Container(
                   width: 48,
                   height: 48,
@@ -256,7 +245,6 @@ class _RoleCard extends StatelessWidget {
 
                 const SizedBox(width: AppSpacing.md),
 
-                // Text
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -273,7 +261,6 @@ class _RoleCard extends StatelessWidget {
                   ),
                 ),
 
-                // Check indicator
                 AnimatedOpacity(
                   opacity: isSelected ? 1.0 : 0.0,
                   duration: const Duration(milliseconds: 200),

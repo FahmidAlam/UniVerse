@@ -1,13 +1,3 @@
-// ============================================================
-// FILE: lib/features/teacher/services/teacher_service.dart
-// PURPOSE: The ONLY Supabase layer for teacher class actions.
-// Cancels a specific class occurrence (writes a `cancellations`
-// row — see migration 007) AND fans the alert out to the cohort
-// via NotificationService. Also posts room-change / notice /
-// test-reminder broadcasts. Controllers call this; screens never
-// touch Supabase.
-// ============================================================
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/constants/app_enums.dart';
@@ -18,14 +8,11 @@ class TeacherService {
   final SupabaseClient _supabase = Supabase.instance.client;
   final NotificationService _notifications = NotificationService();
 
-  /// ISO date (yyyy-mm-dd) — the `class_date` column's format.
   static String dateKey(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-'
       '${d.month.toString().padLeft(2, '0')}-'
       '${d.day.toString().padLeft(2, '0')}';
 
-  /// Keys ("routineId|yyyy-mm-dd") for upcoming cancellations among the
-  /// given routine rows, so the screen can badge cancelled occurrences.
   Future<Set<String>> fetchUpcomingCancellationKeys(
     List<String> routineIds,
   ) async {
@@ -40,8 +27,6 @@ class TeacherService {
         .toSet();
   }
 
-  /// Cancel one occurrence: persist the cancellation row AND broadcast a
-  /// class_cancel alert to the cohort (students get it live via Realtime).
   Future<void> cancelClass({
     required RoutineEntry entry,
     required DateTime date,
@@ -73,13 +58,10 @@ class TeacherService {
         targetSection: entry.section,
       );
     } on PostgrestException catch (e) {
-      // Surface the real DB / RLS reason instead of a generic failure.
       throw Exception(e.message);
     }
   }
 
-  /// Remove a cancellation (teacher's own occurrence). The broadcast
-  /// already sent cannot be recalled — the student feed keeps history.
   Future<void> undoCancel({
     required String routineId,
     required DateTime date,
@@ -93,7 +75,6 @@ class TeacherService {
         .eq('cancelled_by', userId);
   }
 
-  /// Post a room-change / notice / test-reminder to the class's cohort.
   Future<void> postNotice({
     required NotifType type,
     required String title,

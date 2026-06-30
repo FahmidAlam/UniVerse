@@ -1,25 +1,3 @@
-# ============================================================
-# FILE: engine/solver.py
-# PURPOSE: Department timetable generator (CP-SAT + greedy rooms),
-#   driven by ingest.py output and a config dict (rooms / faculty
-#   off-days / period grid / weights). Replaces the demo solver.
-#
-#   Phase 1 (CP-SAT): assign each session a (day, period).
-#     HARD: exactly-once; no teacher / cohort double-book; per-slot
-#           room-count <= rooms available (so Phase 2 always succeeds);
-#           teacher day-offs; Friday has no Period 4; online column off.
-#     SOFT (weighted, minimized):
-#           S1 the two sessions of one offering on DIFFERENT days;
-#           S3 cohort compactness (fewer distinct class-days);
-#           S7 avoid the last in-person period.
-#   Phase 2 (greedy): labs -> lab rooms, theory -> theory rooms/galleries.
-#
-#   Service / non-CSE sessions are solved as resource-only: they hold
-#   teacher + room time (so a CSE class never clashes with a teacher's
-#   service class) but are NOT emitted as published/rendered rows.
-#
-# Output rows match the Supabase `routines` columns.
-# ============================================================
 
 from __future__ import annotations
 
@@ -33,13 +11,9 @@ from ortools.sat.python import cp_model
 
 CONFIG_PATH = Path(__file__).parent / "config.json"
 
-# CP-SAT worker threads. More workers = faster but more memory. Free
-# hosting tiers (e.g. Render 512 MB) can OOM with 8 — override with the
-# SOLVER_WORKERS env var (2 is a safe default for constrained instances).
 SOLVER_WORKERS = int(os.environ.get("SOLVER_WORKERS", "8"))
 
 
-# ─── Config ───────────────────────────────────────────────────
 
 def load_config(override: dict | None = None) -> dict:
     if override:
@@ -58,23 +32,18 @@ def _normalize_config(cfg: dict) -> dict:
     weights = settings.get("weights", {"different_days": 8, "compactness": 3,
                                        "spread": 2, "late_slot": 1})
 
-    # Rooms: list of {name,is_lab,is_gallery}
     rooms = cfg.get("rooms") or []
     lab_rooms, theory_rooms = [], []
     for r in rooms:
         name = r["name"]
         if r.get("is_lab"):
             lab_rooms.append(name)
-        # Skip building-only tokens (e.g. "RKB", "RAB") in the theory pool:
-        # a real theory room is a gallery or carries a room number. A bare
-        # building acronym would otherwise be assigned as a roomless "RKB".
         elif r.get("is_gallery") or any(ch.isdigit() for ch in name):
             theory_rooms.append(name)
-    if not rooms:  # fall back to flat lists
+    if not rooms:
         lab_rooms = cfg.get("lab_rooms", [])
         theory_rooms = cfg.get("theory_rooms", [])
 
-    # Teachers -> off-days map. Accept dict{acronym:{off_days}} or list[].
     teachers = cfg.get("teachers", {})
     off_days: dict[str, set[str]] = {}
     names: dict[str, str] = {}
@@ -83,7 +52,7 @@ def _normalize_config(cfg: dict) -> dict:
             off_days[ac] = set(t.get("off_days") or [])
             if t.get("full_name"):
                 names[ac] = t["full_name"]
-    else:  # list of faculty rows
+    else:
         for t in teachers:
             ac = t.get("acronym")
             if ac:
@@ -106,7 +75,6 @@ def _normalize_config(cfg: dict) -> dict:
     }
 
 
-# ─── Progress hook ────────────────────────────────────────────
 
 class _Progress:
     def __init__(self, cb=None):
@@ -117,7 +85,6 @@ class _Progress:
             self.cb(value)
 
 
-# ─── Theory ↔ lab pairing ─────────────────────────────────────
 
 def _last_digit_pos(code: str):
     """(int last digit, match) of the trailing number, or (None, None)."""
@@ -136,7 +103,6 @@ def _build_pairs(by_offering: dict) -> list[tuple[dict, dict]]:
     fall back to any remaining theory offering. Standalone labs (no sibling
     theory) yield no pair and stay unconstrained.
     """
-    # (cohort, code) -> list of (teacher, [sessions sorted by occurrence])
     by_cc: dict[tuple, list] = {}
     for (cohort, code, teacher), sess in by_offering.items():
         by_cc.setdefault((cohort, code), []).append(
@@ -146,11 +112,11 @@ def _build_pairs(by_offering: dict) -> list[tuple[dict, dict]]:
     for (cohort, code), labs in by_cc.items():
         d, m = _last_digit_pos(code)
         if d is None or d % 2 != 0:
-            continue  # only iterate lab codes (even last digit)
+            continue
         theory_code = code[:m.start(1)] + str(d - 1) + code[m.end(1):]
         theories = by_cc.get((cohort, theory_code))
         if not theories:
-            continue  # standalone lab — no sibling theory
+            continue
         used: set[int] = set()
         for lteacher, lsess in labs:
             choice = next((i for i, (tt, _) in enumerate(theories)
@@ -159,7 +125,7 @@ def _build_pairs(by_offering: dict) -> list[tuple[dict, dict]]:
                 choice = next((i for i in range(len(theories))
                                if i not in used), None)
             if choice is None:
-                break  # no theory offering left to pair with
+                break
             used.add(choice)
             _, tsess = theories[choice]
             for occ in range(min(len(tsess), len(lsess))):
@@ -167,14 +133,12 @@ def _build_pairs(by_offering: dict) -> list[tuple[dict, dict]]:
     return pairs
 
 
-# ─── Solve ────────────────────────────────────────────────────
 
 def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
           progress: _Progress | None = None) -> dict:
     progress = progress or _Progress()
     cfg = config
     days = cfg["days"]
-    # In-person periods only: idx 1..6 (drop online P7). Map idx -> meta.
     periods = [p for p in cfg["periods"] if int(p["idx"]) <= 6]
     pidx = [int(p["idx"]) for p in periods]
     pmeta = {int(p["idx"]): p for p in periods}
@@ -183,12 +147,7 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
     n_theory = len(cfg["theory_rooms"])
     w = cfg["weights"]
 
-    # Theory↔lab adjacency mode: "hard" (faculty requirement — guarantee the
-    # lab sits immediately before/after its theory), "soft", or "off".
     adj_mode = cfg.get("lab_adjacency", "hard")
-    # Time-contiguous period neighbours (one period's end == the next's start).
-    # Derived from the grid, so the lunch gap (P3 ends 12:35, P4 starts 13:10)
-    # is naturally NOT counted as adjacent.
     neighbors = {p: [q for q in pidx if q != p and
                      (pmeta[p]["end"] == pmeta[q]["start"] or
                       pmeta[q]["end"] == pmeta[p]["start"])]
@@ -217,7 +176,6 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
         for (d, p) in sl:
             x[(s["sid"], d, p)] = model.NewBoolVar(f"x_{s['sid']}_{d}_{p}")
 
-    # H1: each session placed exactly once.
     for s in sessions:
         vs = [x[(s["sid"], d, p)] for (d, p) in slots_for[s["sid"]]]
         if not vs:
@@ -226,7 +184,6 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
                 f"off-days leave no room). Adjust day-offs or periods.")
         model.AddExactlyOne(vs)
 
-    # Group sessions by teacher / cohort for clash + room constraints.
     by_teacher: dict[str, list[dict]] = {}
     by_cohort: dict[str, list[dict]] = {}
     for s in sessions:
@@ -235,7 +192,6 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
 
     for di in range(len(days)):
         for p in pidx:
-            # H2 teacher, H3 cohort: <= 1 per (day,period).
             for group in by_teacher.values():
                 terms = [x[(s["sid"], di, p)] for s in group if (s["sid"], di, p) in x]
                 if len(terms) > 1:
@@ -244,7 +200,6 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
                 terms = [x[(s["sid"], di, p)] for s in group if (s["sid"], di, p) in x]
                 if len(terms) > 1:
                     model.Add(sum(terms) <= 1)
-            # H4/H5 room capacity: lab vs theory counts <= rooms available.
             lab_terms = [x[(s["sid"], di, p)] for s in sessions
                          if s["is_lab"] and (s["sid"], di, p) in x]
             th_terms = [x[(s["sid"], di, p)] for s in sessions
@@ -256,7 +211,6 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
 
     penalties = []
 
-    # S1: two sessions of one offering should be on different days.
     by_offering: dict[tuple, list[dict]] = {}
     for s in sessions:
         by_offering.setdefault((s["cohort"], s["code"], s["teacher"]), []).append(s)
@@ -270,16 +224,9 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
             if not y1 or not y2:
                 continue
             same = model.NewBoolVar(f"same_{s1['sid']}_{s2['sid']}_{di}")
-            # same >= y1+y2-1  (both on this day -> same=1)
             model.Add(sum(y1) + sum(y2) - 1 <= same)
             penalties.append(w.get("different_days", 8) * same)
 
-    # H6 (faculty requirement): a lab course and its sibling theory course
-    # must be adjacent — same day, contiguous periods, order free. Encoded
-    # per matched (theory a, lab b) occurrence with two linear families:
-    #   same-day : for each day, Σ a-slots == Σ b-slots;
-    #   adjacency: wherever a sits, b must sit in a contiguous neighbour.
-    # With exactly-once already enforced, these guarantee back-to-back.
     lt_pairs = _build_pairs(by_offering)
     if adj_mode == "hard":
         for a, b in lt_pairs:
@@ -288,13 +235,13 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
                 at = [x[(asid, di, p)] for p in pidx if (asid, di, p) in x]
                 bt = [x[(bsid, di, p)] for p in pidx if (bsid, di, p) in x]
                 if at or bt:
-                    model.Add(sum(at) == sum(bt))            # same day
+                    model.Add(sum(at) == sum(bt))
                 for p in pidx:
                     if (asid, di, p) not in x:
                         continue
                     nb = [x[(bsid, di, q)] for q in neighbors[p]
                           if (bsid, di, q) in x]
-                    model.Add(sum(nb) >= x[(asid, di, p)])   # b adjacent to a
+                    model.Add(sum(nb) >= x[(asid, di, p)])
     elif adj_mode == "soft":
         for a, b in lt_pairs:
             asid, bsid = a["sid"], b["sid"]
@@ -315,7 +262,6 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
                 model.Add(adj <= sum(zs))
                 penalties.append(w.get("lab_adjacency", 10) * (1 - adj))
 
-    # S3: cohort compactness — minimise distinct class-days per cohort.
     for cohort, group in by_cohort.items():
         for di in range(len(days)):
             used = model.NewBoolVar(f"used_{cohort}_{di}")
@@ -325,7 +271,6 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
                 model.Add(used >= t)
             penalties.append(w.get("compactness", 3) * used)
 
-    # S7: avoid the last in-person period.
     last_p = max(pidx)
     for s in sessions:
         for di in range(len(days)):
@@ -359,7 +304,6 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
     rows, service_rows = _assign_rooms(dataset, cfg, placed, days, pmeta)
     progress(0.96)
 
-    # Theory↔lab adjacency outcome (for the report; "hard" => violations 0).
     place_of = {q["s"]["sid"]: (q["day"], q["period"]) for q in placed}
     adj_ok = 0
     for a, b in lt_pairs:
@@ -390,7 +334,6 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
     }
 
 
-# ─── Phase 2: greedy room assignment ──────────────────────────
 
 def _assign_rooms(dataset, cfg, placed, days, pmeta):
     busy: dict[tuple[int, int], set[str]] = {}
@@ -398,9 +341,6 @@ def _assign_rooms(dataset, cfg, placed, days, pmeta):
     theory_pool = cfg["theory_rooms"]
     names = cfg["names"]
 
-    # Map batch -> a 1..8 semester for display (routines.semester). The
-    # newest (highest) batch is semester 1; each older batch is +1. This
-    # matches the app's existing convention (e.g. batch 62 -> semester 5).
     numeric_batches = [int(p["s"]["batch"]) for p in placed
                        if p["s"]["batch"].isdigit()]
     max_batch = max(numeric_batches) if numeric_batches else 0
@@ -416,7 +356,7 @@ def _assign_rooms(dataset, cfg, placed, days, pmeta):
                 return r
         return None
 
-    placed.sort(key=lambda q: (not q["s"]["is_lab"],))  # labs first
+    placed.sort(key=lambda q: (not q["s"]["is_lab"],))
 
     rows, service_rows = [], []
     for i, q in enumerate(placed):
@@ -451,7 +391,6 @@ def _assign_rooms(dataset, cfg, placed, days, pmeta):
     return rows, service_rows
 
 
-# ─── Validation (§9) ──────────────────────────────────────────
 
 def _validate(dataset, cfg, all_rows, days):
     seen_t, seen_c, seen_r = {}, {}, {}
@@ -473,8 +412,6 @@ def _validate(dataset, cfg, all_rows, days):
             dayoff += 1
         if cfg["friday_no_p4"] and r["day"] == "Friday" and r["period"] == 4:
             fri_p4 += 1
-        # lab course must be in a lab room (use the row's own is_lab so the
-        # check can never disagree with how the session was scheduled)
         if r["is_lab"] and r["room"] not in lab_set and r["room"] != "TBA":
             lab_bad += 1
         if r["room"] == "TBA":
@@ -484,9 +421,6 @@ def _validate(dataset, cfg, all_rows, days):
     cclash = sum(v - 1 for v in seen_c.values() if v > 1)
     rclash = sum(v - 1 for v in seen_r.values() if v > 1)
 
-    # placement count: each offering (cohort+code+teacher) -> exactly 2 cells.
-    # Teacher is part of the key because a cohort can take one course code
-    # from two different teachers (legitimately 4 cells for that code).
     placed_per_off = {}
     for r in all_rows:
         k = (r["batch"], r["section"], r["subject_code"], r["teacher_code"])
@@ -507,7 +441,6 @@ def _validate(dataset, cfg, all_rows, days):
     }
 
 
-# ─── CLI ──────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     import sys

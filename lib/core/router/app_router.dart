@@ -1,19 +1,3 @@
-// ============================================================
-// FILE: lib/core/router/app_router.dart
-// PURPOSE: Single GoRouter instance that controls ALL navigation.
-// Auth redirect logic lives here — screens never push
-// directly to a protected route.
-//
-// REDIRECT LOGIC:
-// 1. If status is initial/loading → stay on splash
-// 2. If unauthenticated → force to login (unless on auth pages)
-// 3. If notWhitelisted → force to not-whitelisted page
-// 4. If authenticated → redirect based on role:
-//    student → /student/dashboard
-//    teacher → /teacher/dashboard
-//    admin   → /admin/dashboard
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/core/router/app_shell.dart';
@@ -60,8 +44,6 @@ class AppRouter {
 
   AppRouter({required this.authController});
 
-  // App-scoped: one Realtime subscription + one unread count shared by
-  // the shell's nav badge and the notifications screen.
   late final NotificationController notificationController =
       NotificationController(authController: authController);
 
@@ -105,9 +87,6 @@ class AppRouter {
             : RouteNames.verifyEmail;
       }
 
-      // registering = session exists but no profile yet (Google OAuth first-time
-      // sign-in, or email OTP verified before pending data was consumed).
-      // Allow auth pages so the register screens are reachable.
       if (status == AuthStatus.registering) {
         return authPages.contains(location) ? null : RouteNames.roleSelection;
       }
@@ -180,11 +159,6 @@ class AppRouter {
         builder: (c, s) => NotWhitelistedScreen(authController: authController),
       ),
 
-      // ── Tab shell ─────────────────────────────────────────
-      // One Scaffold owns the bottom nav for every top-level tab;
-      // screens inside render content only. Secondary screens
-      // (Admin Registration, Manage Resources, etc.) stay outside —
-      // they are pushed and use a back button, per the nav convention.
       ShellRoute(
         builder: (c, s, child) => AppShell(
           authController: authController,
@@ -192,7 +166,6 @@ class AppRouter {
           child: child,
         ),
         routes: [
-          // Student
           GoRoute(
             path: RouteNames.studentDashboard,
             builder: (c, s) => StudentDashboardScreen(
@@ -208,8 +181,6 @@ class AppRouter {
             path: RouteNames.resources,
             builder: (c, s) => ResourcesScreen(authController: authController),
           ),
-          // AI Assistant route descoped for defense — future scope.
-          // RouteNames.aiAssistant + chat_bubble.dart are kept for restore.
           GoRoute(
             path: RouteNames.notifications,
             builder: (c, s) => NotificationsScreen(
@@ -222,7 +193,6 @@ class AppRouter {
             builder: (c, s) => ProfileScreen(authController: authController),
           ),
 
-          // Teacher
           GoRoute(
             path: RouteNames.teacherDashboard,
             builder: (c, s) => TeacherDashboardScreen(
@@ -240,7 +210,6 @@ class AppRouter {
                 ManageClassesScreen(authController: authController),
           ),
 
-          // Admin
           GoRoute(
             path: RouteNames.adminDashboard,
             builder: (c, s) =>
@@ -262,7 +231,6 @@ class AppRouter {
         ],
       ),
 
-      // Secondary screens (pushed, back button, no tab bar)
       GoRoute(path: RouteNames.rooms, builder: (c, s) => const RoomsScreen()),
       GoRoute(
         path: RouteNames.findTeacher,

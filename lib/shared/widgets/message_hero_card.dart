@@ -1,12 +1,3 @@
-// ============================================================
-// FILE: lib/shared/widgets/message_hero_card.dart
-// PURPOSE: A hero-sized, friendly message card used on the
-// dashboards when there's no live/next class to show (e.g.
-// "You're done for today"). Keeps the hero slot filled with a
-// warm state instead of an empty void. Role-agnostic — callers
-// pass the icon, title, message, and an optional accent color.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';

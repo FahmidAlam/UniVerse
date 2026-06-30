@@ -1,11 +1,3 @@
-// ============================================================
-// FILE: lib/features/routine/services/routine_service.dart
-// PURPOSE: The ONLY layer that touches Supabase for routines.
-// Two read paths over the same table: students filter by
-// batch + section, teachers filter by their teacher_code.
-// Shared by the student and teacher routine screens.
-// ============================================================
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/routine_model.dart';
@@ -13,10 +5,6 @@ import 'package:universe/core/models/routine_model.dart';
 class RoutineService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  // A batch+section cohort is only ever in one semester at a time, so
-  // batch+section uniquely identifies their routine. We deliberately do
-  // NOT filter by semester here — that would only create mismatches when
-  // a profile's semester drifts out of sync with the seeded data.
   Future<List<RoutineEntry>> fetchForStudent({
     required String batch,
     required String section,
@@ -41,10 +29,6 @@ class RoutineService {
     return _map(rows);
   }
 
-  // ─── Admin: full table + CRUD ─────────────────────────────
-  // Day is text ("Sunday".."Thursday"), so we order by time here and
-  // let the controller sort into week order. Returns every row,
-  // including inactive ones, so the admin can see/restore them.
   Future<List<RoutineEntry>> fetchAll() async {
     final rows = await _supabase
         .from(AppConstants.tableRoutines)

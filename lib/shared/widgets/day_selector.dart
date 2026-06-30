@@ -39,7 +39,6 @@ class _DaySelectorState extends State<DaySelector> {
   void _scrollToSelected() {
     final index = widget.days.indexOf(widget.selectedDay);
     if (index < 0 || !_scrollController.hasClients) return;
-    // Each chip is approximately chipHeight wide + smHGap separator
     const itemWidth = AppSpacing.chipHeight + AppSpacing.sm + AppSpacing.chipPaddingH * 2;
     final offset = index * itemWidth;
     _scrollController.animateTo(

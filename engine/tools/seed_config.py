@@ -1,20 +1,3 @@
-# ============================================================
-# FILE: engine/tools/seed_config.py
-# PURPOSE: One-off generator. Mines the two real workbooks for the
-#   timetable engine's configuration and emits:
-#     1) engine/config.json                    — engine-side fallback config
-#     2) supabase/seed/seed_timetable_config.sql — DB seed for the
-#        timetable_rooms / timetable_faculty / timetable_settings tables
-#
-#   Source of truth per element:
-#     - teacher acronyms  -> Main_Distribution "Course Distribution" col Teacher
-#     - teacher off-days  -> CSE_Routine "Teacher Day Off"  (TRUE = OFF)
-#     - teacher names     -> CSE_Routine "Teacher Information" + "GED Teacher Info"
-#     - rooms             -> CSE_Routine "Room Acronym" + mined from day-sheet cells
-#     - periods / grid    -> CSE_Routine day-sheet headers (08:50 grid, Fri no P4)
-#
-# RUN (from engine/):  .venv/Scripts/python.exe tools/seed_config.py
-# ============================================================
 
 from __future__ import annotations
 
@@ -32,14 +15,11 @@ DISTRIBUTION = REF_DIR / "Main_Distribution_Summer25.xlsx"
 ROUTINE = REF_DIR / "CSE Routine Summer'25 Version 2.0.xlsx"
 
 DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-PERIOD_COLS = [4, 5, 6, 8, 9, 10, 11]  # D,E,F,H,I,J,K (G=break)
+PERIOD_COLS = [4, 5, 6, 8, 9, 10, 11]
 
-# Authoritative room classification (spec §3.3, validated against mined cells).
 LAB_ROOMS = {"ACL-1", "ACL-2", "ACL-3", "ACL-4", "NL", "GL", "ECL-1", "ECL-2"}
 GALLERIES = {"G1", "G2", "G3"}
 
-# Period grid read from the day-sheet headers (08:50 start). idx is 1-based
-# period number; col is the Excel column letter in the output workbook.
 PERIODS = [
     {"idx": 1, "label": "08:50-10:05", "start": "08:50", "end": "10:05", "col": "D"},
     {"idx": 2, "label": "10:05-11:20", "start": "10:05", "end": "11:20", "col": "E"},
@@ -69,7 +49,7 @@ def _clean_room(name: str) -> str | None:
     s = str(name).strip()
     if not s or s == "***":
         return None
-    s = s.replace("ACl", "ACL")  # lowercase-L typo
+    s = s.replace("ACl", "ACL")
     return s
 
 
@@ -80,7 +60,7 @@ def mine_teachers() -> dict[str, dict]:
     ws = wb["Course Distribution"]
     teachers: dict[str, dict] = {}
     for r in range(6, ws.max_row + 1):
-        t = ws.cell(row=r, column=9).value  # col I = Teacher
+        t = ws.cell(row=r, column=9).value
         if t is None or str(t).strip() == "":
             continue
         code = str(t).strip()
@@ -89,8 +69,6 @@ def mine_teachers() -> dict[str, dict]:
 
     wb2 = openpyxl.load_workbook(ROUTINE, data_only=True)
 
-    # Names from Teacher Information (header row 3: C=Acronym, D=Full name,
-    # E=Dept, F=Designation).
     ws = wb2["Teacher Information"]
     for r in range(4, ws.max_row + 1):
         ac = ws.cell(row=r, column=3).value
@@ -102,8 +80,6 @@ def mine_teachers() -> dict[str, dict]:
             teachers[ac]["dept"] = (ws.cell(row=r, column=5).value or None)
             teachers[ac]["designation"] = (ws.cell(row=r, column=6).value or None)
 
-    # GED / service names (header row 7: D=Acronym, E=Name, C=Department,
-    # F=Designation).
     ws = wb2["GED Teacher Info"]
     for r in range(8, ws.max_row + 1):
         ac = ws.cell(row=r, column=4).value
@@ -115,8 +91,6 @@ def mine_teachers() -> dict[str, dict]:
             teachers[ac]["dept"] = (ws.cell(row=r, column=3).value or None)
             teachers[ac]["designation"] = (ws.cell(row=r, column=6).value or None)
 
-    # Off-days from Teacher Day Off (header row 4: B=Teacher, C..I=Sun..Sat,
-    # TRUE = OFF).
     ws = wb2["Teacher Day Off"]
     for r in range(5, ws.max_row + 1):
         ac = ws.cell(row=r, column=2).value
@@ -167,11 +141,6 @@ def mine_rooms() -> list[dict]:
     for name in sorted(found):
         is_lab = name in LAB_ROOMS
         is_gallery = name in GALLERIES
-        # Skip building-acronym legend tokens (e.g. "RAB", "RKB"): these are
-        # buildings, not rooms. A real theory room carries a number; labs and
-        # galleries are whitelisted above. Without this, the bare building
-        # token leaks into the theory pool and gets assigned as a roomless
-        # "RKB"/"RAB".
         if not is_lab and not is_gallery and not any(c.isdigit() for c in name):
             continue
         building = None
@@ -197,7 +166,6 @@ def main() -> None:
                     "spread": 2, "late_slot": 1},
     }
 
-    # ── engine/config.json (engine fallback) ──
     config = {
         "days": DAYS,
         "periods": PERIODS,
@@ -211,7 +179,6 @@ def main() -> None:
     (ENGINE_DIR / "config.json").write_text(
         json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    # ── supabase/seed/seed_timetable_config.sql ──
     lines: list[str] = []
     lines.append("-- ============================================================")
     lines.append("-- SEED — timetable engine config (rooms, faculty, settings)")
@@ -250,7 +217,6 @@ def main() -> None:
     out = REPO_DIR / "supabase" / "seed" / "seed_timetable_config.sql"
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
-    # ── summary ──
     print(f"teachers: {len(teachers)}  (with off-days: "
           f"{sum(1 for t in teachers.values() if t['off_days'])})")
     print(f"rooms: {len(rooms)}  (lab: {sum(1 for r in rooms if r['is_lab'])}, "

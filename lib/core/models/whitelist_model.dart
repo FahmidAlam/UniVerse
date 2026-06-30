@@ -1,11 +1,3 @@
-// ============================================================
-// FILE: lib/core/models/whitelist_model.dart
-// PURPOSE: Typed view of a row in the `whitelists` table (the admin
-// gate). Mirrors the LIVE columns only: email, role, name,
-// teacher_code, batch, section, semester. The table has no id /
-// designation / department column. Pure Dart — no Supabase imports.
-// ============================================================
-
 import 'package:universe/core/constants/app_constants.dart';
 
 class WhitelistEntry {

@@ -1,19 +1,8 @@
-// ============================================================
-// FILE: lib/features/admin/services/admin_service.dart
-// PURPOSE: The ONLY Supabase layer for admin-owned tables that
-// have no feature service of their own — the `whitelists` table
-// and admin-wide `profiles` operations. Routine CRUD lives on
-// RoutineService and broadcast-create on NotificationService;
-// this service covers what those don't.
-// Admin controllers call this; screens never touch Supabase.
-// ============================================================
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/profile_model.dart';
 import 'package:universe/core/models/whitelist_model.dart';
 
-/// Aggregate row counts shown on the admin dashboard.
 class AdminCounts {
   final int students;
   final int teachers;
@@ -35,10 +24,6 @@ class AdminCounts {
 class AdminService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  // ─── Dashboard counts ─────────────────────────────────────
-  // Counts are derived from light `select('id')` reads. The demo
-  // dataset is small (tens–low hundreds of rows), so this is cheap
-  // and avoids depending on a specific postgrest count() signature.
   Future<AdminCounts> counts() async {
     final results = await Future.wait([
       _count(AppConstants.tableProfiles, roleEq: AppConstants.roleStudent),
@@ -62,7 +47,6 @@ class AdminService {
     return (rows as List).length;
   }
 
-  // ─── Manage Users: read + role change ─────────────────────
   Future<List<Profile>> fetchAllProfiles({String? roleFilter}) async {
     final base = _supabase.from(AppConstants.tableProfiles).select();
     final rows = roleFilter == null
@@ -73,8 +57,6 @@ class AdminService {
         .toList();
   }
 
-  /// Updates a user's role. Hard-deleting the auth user requires the
-  /// service-role key (Edge Function) and is intentionally out of scope.
   Future<void> updateUserRole({
     required String userId,
     required String role,
@@ -84,7 +66,6 @@ class AdminService {
         .update({'role': role}).eq('id', userId);
   }
 
-  // ─── Admin Registration: whitelist gate ───────────────────
   Future<List<WhitelistEntry>> fetchWhitelist() async {
     final rows = await _supabase
         .from(AppConstants.tableWhitelists)
@@ -95,10 +76,6 @@ class AdminService {
         .toList();
   }
 
-  /// Provisions a new admin via the `invite-admin` Edge Function (which
-  /// holds the service-role key — account creation can't be done from the
-  /// client). The function whitelists the email and emails an invite link
-  /// that lands on the set-password screen. Throws a friendly message.
   Future<void> inviteAdmin({required String email, String? name}) async {
     try {
       await _supabase.functions.invoke('invite-admin', body: {

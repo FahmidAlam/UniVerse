@@ -1,11 +1,3 @@
-// ============================================================
-// FILE: lib/features/resources/services/resource_service.dart
-// PURPOSE: The ONLY layer that touches Supabase for resources.
-// Resources ARE per-semester, so we filter by semester here
-// (unlike routines, which key on batch+section). Category is
-// filtered client-side in the controller for instant chips.
-// ============================================================
-
 import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -24,8 +16,6 @@ class ResourceService {
     return _map(rows);
   }
 
-  // ─── Admin: full list + upload + delete ───────────────────
-  /// Every resource across all semesters (newest first).
   Future<List<Resource>> fetchAll() async {
     final rows = await _supabase
         .from(AppConstants.tableResources)
@@ -34,7 +24,6 @@ class ResourceService {
     return _map(rows);
   }
 
-  /// Uploads a file to the public `resources` bucket and returns its URL.
   Future<String> uploadFile(
     Uint8List bytes,
     String filename,
@@ -52,8 +41,6 @@ class ResourceService {
         .getPublicUrl(path);
   }
 
-  /// Inserts a resource row. `uploaded_by` is filled from the session so
-  /// it satisfies the resources_insert_staff RLS policy.
   Future<void> createResource(Map<String, dynamic> data) async {
     await _supabase.from(AppConstants.tableResources).insert({
       ...data,

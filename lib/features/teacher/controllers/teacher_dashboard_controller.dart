@@ -1,11 +1,3 @@
-// ============================================================
-// FILE: lib/features/teacher/controllers/teacher_dashboard_controller.dart
-// PURPOSE: Aggregates the teacher Home screen from the routine
-// table (via RoutineService.fetchForTeacher). Derives today's
-// teaching, the live/next class, and the stat-strip counts.
-// Read-only — no new backend, no writes.
-// ============================================================
-
 import 'package:universe/core/constants/app_enums.dart';
 import 'package:universe/core/models/profile_model.dart';
 import 'package:universe/core/models/routine_model.dart';
@@ -33,7 +25,6 @@ class TeacherDashboardController extends SafeChangeNotifier {
     return map == null ? null : Profile.fromMap(map);
   }
 
-  // Leading University runs all 7 days (DateTime.weekday: Mon=1 … Sun=7).
   static const Map<int, String> _weekdayFull = {
     7: 'Sunday',
     1: 'Monday',
@@ -48,7 +39,6 @@ class TeacherDashboardController extends SafeChangeNotifier {
 
   bool get isClassDayToday => _todayFull != null;
 
-  /// Today's classes I teach, sorted by start time.
   List<RoutineEntry> get todaysClasses {
     final day = _todayFull;
     if (day == null) return const [];
@@ -60,7 +50,6 @@ class TeacherDashboardController extends SafeChangeNotifier {
   int get weeklyCount => _all.length;
   int get todayCount => todaysClasses.length;
 
-  /// Distinct batch+section cohorts this teacher serves.
   int get sectionsTaught =>
       _all.map((e) => '${e.batch}|${e.section}').toSet().length;
 

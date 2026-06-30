@@ -1,11 +1,3 @@
-// ============================================================
-// FILE: lib/features/profile/controllers/profile_controller.dart
-// PURPOSE: State between ProfileService and the profile screen.
-// Reads the in-memory profile from AuthController for an instant
-// first paint, then refreshes from the DB. Sign-out delegates to
-// AuthController so the GoRouter redirect fires correctly.
-// ============================================================
-
 import 'package:universe/core/models/profile_model.dart';
 import 'package:universe/core/utils/safe_change_notifier.dart';
 import 'package:universe/features/auth/controllers/auth_controller.dart';
@@ -26,7 +18,6 @@ class ProfileController extends SafeChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   Future<void> load() async {
-    // Instant first paint from the profile auth already holds.
     final map = authController.profile;
     if (map != null) {
       _profile = Profile.fromMap(map);
