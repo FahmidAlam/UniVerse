@@ -5,6 +5,7 @@ import io
 from pathlib import Path
 
 import openpyxl
+from openpyxl.formatting.formatting import ConditionalFormattingList
 from openpyxl.styles import Border, Side
 
 TEMPLATE = Path(__file__).parent / "templates" / "CSE_Routine_TEMPLATE.xlsx"
@@ -92,6 +93,8 @@ def render_bytes(rows: list[dict], cohorts: list[str], config: dict,
         if last_data >= DATA_FIRST_ROW:
             _rebuild_break_column(ws, day, last_data)
 
+    _strip_legacy_scaffolding(wb)
+
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
@@ -105,6 +108,33 @@ def _safe_clear(ws, row: int, col: int) -> None:
     if isinstance(cell, MergedCell):
         return
     cell.value = None
+
+
+def _strip_legacy_scaffolding(wb) -> None:
+    """Strip every macro-era interactive artifact the source workbook carried
+    over, so the generated routine is a plain, static spreadsheet (the new
+    system no longer uses any of this scaffolding):
+
+      - AutoFilters + their auto-generated `_FilterDatabase` defined names,
+      - conditional-formatting rules,
+      - structured Tables (e.g. 'Teacher Day Off'),
+      - broken `#REF!` defined names (dead dynamic ranges the old dropdowns fed
+        from).
+
+    None of these affect the routine's visible content, styling, or layout.
+    They also make lightweight/mobile xlsx viewers blank the whole sheet, which
+    is why the day-sheets came up empty on a phone while the artifact-free
+    sheets rendered fine. (The template has no VBA — it is a plain .xlsx, not a
+    macro-enabled .xlsm — so there is no executable code to remove.)"""
+    for ws in wb.worksheets:
+        ws.auto_filter.ref = None
+        ws.conditional_formatting = ConditionalFormattingList()
+        for table_name in list(ws.tables.keys()):
+            del ws.tables[table_name]
+
+    for name in [n for n, dn in wb.defined_names.items()
+                 if dn.value and "#REF!" in dn.value]:
+        del wb.defined_names[name]
 
 
 def _fmt_clock(hhmm: str) -> tuple[str, str]:
