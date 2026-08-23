@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/resource_model.dart';

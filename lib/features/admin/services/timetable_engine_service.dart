@@ -7,8 +7,14 @@ import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/routine_model.dart';
 
 class TimetableJobStatus {
+<<<<<<< HEAD
+  final String
+  state; // queued | ingesting | solving | rendering | done | failed
+  final double progress; // 0.0 → 1.0
+=======
   final String state;
   final double progress;
+>>>>>>> origin/main
   final String? error;
   final Map<String, dynamic>? stats;
   final Map<String, dynamic>? validation;
@@ -24,7 +30,8 @@ class TimetableJobStatus {
   bool get isDone => state == 'done';
   bool get isFailed => state == 'failed';
 
-  factory TimetableJobStatus.fromMap(Map<String, dynamic> m) => TimetableJobStatus(
+  factory TimetableJobStatus.fromMap(Map<String, dynamic> m) =>
+      TimetableJobStatus(
         state: (m['state'] as String?) ?? 'queued',
         progress: ((m['progress'] as num?) ?? 0).toDouble(),
         error: m['error'] as String?,
@@ -47,17 +54,17 @@ class TimetableReport {
   });
 
   factory TimetableReport.fromMap(Map<String, dynamic> m) => TimetableReport(
-        cohorts: ((m['cohorts'] as List?) ?? const [])
-            .map((e) => e.toString())
-            .toList(),
-        meta: (m['meta'] as Map?)?.cast<String, dynamic>() ?? const {},
-        excluded: ((m['excluded'] as List?) ?? const [])
-            .map((e) => (e as Map).cast<String, dynamic>())
-            .toList(),
-        warnings: ((m['warnings'] as List?) ?? const [])
-            .map((e) => e.toString())
-            .toList(),
-      );
+    cohorts: ((m['cohorts'] as List?) ?? const [])
+        .map((e) => e.toString())
+        .toList(),
+    meta: (m['meta'] as Map?)?.cast<String, dynamic>() ?? const {},
+    excluded: ((m['excluded'] as List?) ?? const [])
+        .map((e) => (e as Map).cast<String, dynamic>())
+        .toList(),
+    warnings: ((m['warnings'] as List?) ?? const [])
+        .map((e) => e.toString())
+        .toList(),
+  );
 }
 
 class TimetableResult {
@@ -89,15 +96,17 @@ class TimetableEngineService {
       'POST',
       Uri.parse('$_base/api/timetable/generate'),
     );
-    req.files.add(http.MultipartFile.fromBytes('file', fileBytes,
-        filename: filename));
+    req.files.add(
+      http.MultipartFile.fromBytes('file', fileBytes, filename: filename),
+    );
     if (config != null) req.fields['config'] = jsonEncode(config);
     req.fields['time_limit_s'] = timeLimitS.toString();
 
     final res = await http.Response.fromStream(await req.send());
     if (res.statusCode != 200) {
       throw Exception(
-          'Engine returned ${res.statusCode}. Is the server reachable?');
+        'Engine returned ${res.statusCode}. Is the server reachable?',
+      );
     }
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     final jobId = body['job_id'] as String?;
@@ -110,13 +119,17 @@ class TimetableEngineService {
     if (res.statusCode != 200) {
       throw Exception('Could not read job status (${res.statusCode}).');
     }
-    return TimetableJobStatus.fromMap(jsonDecode(res.body) as Map<String, dynamic>);
+    return TimetableJobStatus.fromMap(
+      jsonDecode(res.body) as Map<String, dynamic>,
+    );
   }
 
   Future<TimetableResult> fetchResult(String jobId) async {
     final res = await http.get(Uri.parse('$_base/api/timetable/result/$jobId'));
     if (res.statusCode != 200) {
-      throw Exception('Could not fetch the generated timetable (${res.statusCode}).');
+      throw Exception(
+        'Could not fetch the generated timetable (${res.statusCode}).',
+      );
     }
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     final rows = (body['rows'] as List)
@@ -125,14 +138,18 @@ class TimetableEngineService {
     return TimetableResult(
       rows: rows,
       stats: (body['stats'] as Map?)?.cast<String, dynamic>() ?? const {},
-      validation: (body['validation'] as Map?)?.cast<String, dynamic>() ?? const {},
+      validation:
+          (body['validation'] as Map?)?.cast<String, dynamic>() ?? const {},
       report: TimetableReport.fromMap(
-          (body['report'] as Map?)?.cast<String, dynamic>() ?? const {}),
+        (body['report'] as Map?)?.cast<String, dynamic>() ?? const {},
+      ),
     );
   }
 
   Future<Uint8List> downloadWorkbook(String jobId) async {
-    final res = await http.get(Uri.parse('$_base/api/timetable/download/$jobId'));
+    final res = await http.get(
+      Uri.parse('$_base/api/timetable/download/$jobId'),
+    );
     if (res.statusCode != 200) {
       throw Exception('Could not download the workbook (${res.statusCode}).');
     }
@@ -141,8 +158,11 @@ class TimetableEngineService {
 
   Future<String> uploadWorkbook(Uint8List bytes, String? semesterLabel) async {
     final safe = (semesterLabel ?? 'timetable').replaceAll(RegExp(r'\s+'), '_');
-    final path = 'CSE_Routine_${safe}_${DateTime.now().millisecondsSinceEpoch}.xlsx';
-    await _supabase.storage.from(AppConstants.bucketTimetables).uploadBinary(
+    final path =
+        'CSE_Routine_${safe}_${DateTime.now().millisecondsSinceEpoch}.xlsx';
+    await _supabase.storage
+        .from(AppConstants.bucketTimetables)
+        .uploadBinary(
           path,
           bytes,
           fileOptions: const FileOptions(
@@ -168,6 +188,32 @@ class TimetableEngineService {
     return rows.length;
   }
 
+<<<<<<< HEAD
+  /// Existing course names are the best source when importing a rendered
+  /// workbook, because the workbook cells only store code/teacher/room.
+  Future<Map<String, String>> fetchSubjectTitleMap() async {
+    final rows = await _supabase
+        .from(AppConstants.tableRoutines)
+        .select('subject_code, subject')
+        .not('subject_code', 'is', null);
+    final out = <String, String>{};
+    for (final row in rows as List) {
+      final map = row as Map<String, dynamic>;
+      final code = (map['subject_code'] as String?)?.trim();
+      final subject = (map['subject'] as String?)?.trim();
+      if (code != null &&
+          code.isNotEmpty &&
+          subject != null &&
+          subject.isNotEmpty) {
+        out.putIfAbsent(code.toUpperCase(), () => subject);
+      }
+    }
+    return out;
+  }
+
+  /// Records a generation/publish in `timetable_runs` for history.
+=======
+>>>>>>> origin/main
   Future<void> recordRun({
     String? semesterLabel,
     String? filePath,

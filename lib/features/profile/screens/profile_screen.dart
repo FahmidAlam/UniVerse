@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/profile_model.dart';
@@ -417,10 +417,76 @@ class _ProfileScreenState extends State<ProfileScreen> {
       applicationVersion: AppConstants.appSubtitle,
       children: [
         Text(
-          '${AppConstants.appName} — ${AppConstants.university}.',
+          '${AppConstants.university} · ${AppConstants.department}\n'
+          '${AppConstants.course}',
           style: AppTextStyles.bodySm,
         ),
+        AppSpacing.lgGap,
+        _creditsGroup(AppConstants.supervisorTitle.toUpperCase(), [
+          _creditRow(
+            AppConstants.supervisorName,
+            null,
+            subtitle: AppConstants.supervisorRole,
+          ),
+        ]),
+        AppSpacing.cardGap,
+        _creditsGroup('DEVELOPMENT TEAM · ${AppConstants.teamName}', [
+          for (final dev in AppConstants.developers)
+            _creditRow(dev.name, dev.id),
+        ]),
       ],
+    );
+  }
+
+  // ─── About: credit blocks ─────────────────────────────────
+  Widget _creditsGroup(String label, List<Widget> rows) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppTextStyles.labelCaps),
+        AppSpacing.smGap,
+        ...rows,
+      ],
+    );
+  }
+
+  Widget _creditRow(String name, String? id, {String? subtitle}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: AppTextStyles.bodySmMedium.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                if (subtitle != null)
+                  Text(
+                    subtitle,
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (id != null) ...[
+            const SizedBox(width: AppSpacing.md),
+            Text(
+              id,
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textMuted,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

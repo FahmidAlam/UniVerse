@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/profile_model.dart';
 import 'package:universe/core/router/route_names.dart';
@@ -141,8 +141,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         label: 'Generate Timetable',
         icon: PhosphorIconsRegular.magicWand,
         color: AppColors.warning,
-        onTap: () =>
-            context.go('${RouteNames.routineManagement}?tab=generate'),
+        onTap: () => context.go('${RouteNames.routineManagement}?tab=generate'),
+      ),
+      QuickActionCard(
+        label: 'Upload Routine',
+        icon: PhosphorIconsRegular.uploadSimple,
+        color: AppColors.info,
+        onTap: () => context.go('${RouteNames.routineManagement}?tab=upload'),
       ),
       QuickActionCard(
         label: 'Campus Broadcast',
