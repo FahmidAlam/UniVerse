@@ -141,7 +141,11 @@ def _fmt_clock(hhmm: str) -> tuple[str, str]:
     """'13:10' -> ('1:10', 'PM'). Hours <= 12 keep two digits (08:50, 12:35);
     afternoon hours convert to 12-hour without a leading zero (13->1), matching
     the source workbook's hand-typed header style."""
-    h, m = map(int, hhmm.split(":"))
+    # Tolerate "HH:MM" and "HH:MM:SS" alike — config periods reach us from a
+    # hand-edited DB table, and a stray seconds field used to abort the job
+    # with "too many values to unpack (expected 2)".
+    parts = hhmm.split(":")
+    h, m = int(parts[0]), int(parts[1])
     ampm = "AM" if h < 12 else "PM"
     hh = f"{h:02d}" if h <= 12 else f"{h - 12}"
     return f"{hh}:{m:02d}", ampm

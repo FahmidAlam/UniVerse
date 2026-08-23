@@ -76,6 +76,17 @@ abstract class ClockTime {
   /// value we cannot read is passed along rather than silently dropped.
   static String normalizeOr(String value) => normalize(value) ?? value.trim();
 
+  /// Drops the seconds field: `"13:50:00"` -> `"13:50"`.
+  ///
+  /// The timetable engine's `render.py` unpacks period boundaries with
+  /// `h, m = hhmm.split(":")`, so it accepts `HH:MM` and *only* `HH:MM` —
+  /// handing it a third field raises "too many values to unpack". Postgres
+  /// wants the full literal, so the two consumers get different shapes.
+  static String toHm(String value) {
+    final parts = value.split(':');
+    return parts.length < 2 ? value : '${parts[0]}:${parts[1]}';
+  }
+
   /// Minutes since midnight for an `HH:MM[:SS]` literal, or `null`.
   static int? toMinutes(String value) {
     final parts = value.split(':');

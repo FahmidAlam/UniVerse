@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 // // ============================================================
 // // FILE: lib/features/auth/controllers/auth_controller.dart
 // // PURPOSE: Sits between AuthService and the UI screens.
@@ -580,8 +579,6 @@
 import 'dart:async' show unawaited;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
-=======
->>>>>>> origin/main
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:universe/core/constants/app_constants.dart';
@@ -687,7 +684,6 @@ class AuthController extends ChangeNotifier {
     _setLoading(false);
   }
 
-<<<<<<< HEAD
   void _registerPushToken(String userId) {
     if (kIsWeb) return;
     unawaited(PushService.instance.registerToken(userId));
@@ -696,8 +692,6 @@ class AuthController extends ChangeNotifier {
   // ===========================================================
   // GOOGLE OAUTH
   // ===========================================================
-=======
->>>>>>> origin/main
 
   Future<void> signInWithGoogle() async {
     _setLoading(true);
