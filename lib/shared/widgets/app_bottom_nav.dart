@@ -14,7 +14,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/router/route_names.dart';
 import 'package:universe/shared/widgets/u_bottom_nav.dart';

@@ -14,6 +14,7 @@ import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
 import 'package:universe/features/admin/screens/generate_timetable_screen.dart';
 import 'package:universe/features/admin/screens/routine_management_screen.dart';
+import 'package:universe/features/admin/screens/upload_routine_screen.dart';
 import 'package:universe/shared/widgets/u_app_bar.dart';
 
 class AdminRoutineScreen extends StatefulWidget {
@@ -35,6 +36,7 @@ class _AdminRoutineScreenState extends State<AdminRoutineScreen> {
       _readInitialTab = true;
       final tab = GoRouterState.of(context).uri.queryParameters['tab'];
       if (tab == 'generate') _index = 1;
+      if (tab == 'upload') _index = 2;
     }
   }
 
@@ -61,6 +63,7 @@ class _AdminRoutineScreenState extends State<AdminRoutineScreen> {
               children: const [
                 RoutineManagementScreen(embedded: true),
                 GenerateTimetableScreen(embedded: true),
+                UploadRoutineScreen(embedded: true),
               ],
             ),
           ),
@@ -78,10 +81,7 @@ class _AdminRoutineScreenState extends State<AdminRoutineScreen> {
         border: Border.all(color: AppColors.border),
       ),
       child: Row(
-        children: [
-          _seg('Manage', 0),
-          _seg('Generate', 1),
-        ],
+        children: [_seg('Manage', 0), _seg('Generate', 1), _seg('Upload', 2)],
       ),
     );
   }

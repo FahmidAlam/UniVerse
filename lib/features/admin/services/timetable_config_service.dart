@@ -10,6 +10,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/timetable_config_model.dart';
+import 'package:universe/core/utils/clock_time.dart';
 
 class TimetableConfigService {
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -109,11 +110,40 @@ class TimetableConfigService {
       ],
       'settings': {
         'semester_label': settings.semesterLabel,
-        'periods': settings.periods,
+        'periods': _normalizePeriods(settings.periods),
         'friday_no_p4': settings.fridayNoP4,
         'service_scope': settings.serviceScope,
         'weights': settings.weights,
       },
     };
+  }
+
+  /// Rewrites every period boundary to a canonical 24-hour clock before the
+  /// engine sees it. `timetable_settings.periods` is typed in by hand from the
+  /// department's workbook, so an afternoon slot often arrives as a bare
+  /// "1:50" — which the engine would emit, and Postgres would store, as 01:50
+  /// (1:50 AM). Both producers of `routines` rows normalize the same way; see
+  /// `ClockTime`. Entries are repaired in teaching order, so a slot that ends
+  /// up earlier than the one before it is pushed into the afternoon too.
+  List<dynamic> _normalizePeriods(List<dynamic> periods) {
+    final maps = periods.whereType<Map>().toList();
+    if (maps.isEmpty) return periods;
+
+    final repaired = ClockTime.repairSequence([
+      for (final p in maps)
+        (
+          start: ClockTime.normalizeOr(p['start']?.toString() ?? ''),
+          end: ClockTime.normalizeOr(p['end']?.toString() ?? ''),
+        ),
+    ]);
+
+    return [
+      for (var i = 0; i < maps.length; i++)
+        {
+          ...maps[i].cast<String, dynamic>(),
+          'start': repaired[i].start,
+          'end': repaired[i].end,
+        },
+    ];
   }
 }

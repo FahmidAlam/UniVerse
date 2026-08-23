@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter config *)",
+      "Bash(flutter doctor *)",
+      "Bash(flutter build *)",
+      "Bash(python -c \"import json;d=json.load\\(open\\('engine/config.json'\\)\\);print\\(json.dumps\\(d.get\\('settings',d\\).get\\('periods',d.get\\('periods'\\)\\),indent=1\\)\\)\")"
+    ]
+  }
+}

@@ -7,7 +7,7 @@
 // ============================================================
 
 import 'package:flutter/material.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/routine_model.dart';
 import 'package:universe/core/theme/app_colors.dart';
@@ -45,7 +45,8 @@ class _TimetableGridScreenState extends State<TimetableGridScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
-      appBar: const UAppBar(title: 'Timetable Grid', subtitle: 'Generated preview'),
+      appBar:
+          const UAppBar(title: 'Timetable Grid', subtitle: 'Generated preview'),
       body: widget.rows.isEmpty
           ? const UEmptyState(
               icon: PhosphorIconsRegular.gridFour,
@@ -90,7 +91,10 @@ class _TimetableGridScreenState extends State<TimetableGridScreen> {
     // Distinct time slots (columns), sorted by start.
     final slots = dayRows.map((r) => r.timeStart).toSet().toList()..sort();
     // Distinct cohorts (rows), canonical order.
-    final cohorts = dayRows.map((r) => '${r.batch}|${r.section}').toSet().toList()
+    final cohorts = dayRows
+        .map((r) => '${r.batch}|${r.section}')
+        .toSet()
+        .toList()
       ..sort(_cohortCompare);
 
     // (cohort,slot) -> entry
@@ -117,8 +121,7 @@ class _TimetableGridScreenState extends State<TimetableGridScreen> {
             for (final c in cohorts)
               Row(children: [
                 _cohortCell(c, cohortW),
-                for (final s in slots)
-                  _bodyCell(cell['$c@$s'], slotW),
+                for (final s in slots) _bodyCell(cell['$c@$s'], slotW),
               ]),
           ],
         ),
@@ -136,10 +139,12 @@ class _TimetableGridScreenState extends State<TimetableGridScreen> {
         padding: const EdgeInsets.all(AppSpacing.sm),
         decoration: BoxDecoration(
           color: AppColors.bgElevated,
-          border: Border.all(color: AppColors.border, width: AppSpacing.borderThin),
+          border:
+              Border.all(color: AppColors.border, width: AppSpacing.borderThin),
         ),
         child: Text(text,
-            style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+            style:
+                AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
             textAlign: TextAlign.center),
       );
 
@@ -152,7 +157,8 @@ class _TimetableGridScreenState extends State<TimetableGridScreen> {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: AppColors.bgCard,
-        border: Border.all(color: AppColors.border, width: AppSpacing.borderThin),
+        border:
+            Border.all(color: AppColors.border, width: AppSpacing.borderThin),
       ),
       child: Text('${parts[0]}-${parts[1]}',
           style: AppTextStyles.chip.copyWith(color: AppColors.primary)),
@@ -166,7 +172,8 @@ class _TimetableGridScreenState extends State<TimetableGridScreen> {
       padding: const EdgeInsets.all(AppSpacing.xs),
       decoration: BoxDecoration(
         color: e == null ? AppColors.bgPrimary : AppColors.bgCard,
-        border: Border.all(color: AppColors.border, width: AppSpacing.borderThin),
+        border:
+            Border.all(color: AppColors.border, width: AppSpacing.borderThin),
       ),
       child: e == null
           ? const SizedBox.shrink()

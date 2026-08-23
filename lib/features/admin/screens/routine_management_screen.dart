@@ -8,7 +8,7 @@
 // ============================================================
 
 import 'package:flutter/material.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/routine_model.dart';
 import 'package:universe/core/theme/app_colors.dart';

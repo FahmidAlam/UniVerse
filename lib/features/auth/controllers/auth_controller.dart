@@ -576,9 +576,13 @@
 //     _errorMessage = null;
 //   }
 // }
+import 'dart:async' show unawaited;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:universe/core/constants/app_constants.dart';
+import 'package:universe/core/services/push_service.dart';
 import 'package:universe/features/auth/services/auth_service.dart';
 
 enum AuthStatus {
@@ -678,6 +682,7 @@ class AuthController extends ChangeNotifier {
       if (profile != null) {
         _profile = profile;
         _status = AuthStatus.authenticated;
+        _registerPushToken(user.id);
       } else {
         // Verified session but registration never finished (e.g. app
         // closed on the register screen). Resume it instead of dumping
@@ -689,6 +694,11 @@ class AuthController extends ChangeNotifier {
     }
 
     _setLoading(false);
+  }
+
+  void _registerPushToken(String userId) {
+    if (kIsWeb) return;
+    unawaited(PushService.instance.registerToken(userId));
   }
 
   // ===========================================================

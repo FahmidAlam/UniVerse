@@ -47,6 +47,21 @@ abstract class AppConstants {
   static const String appSubtitle = 'A Campus Companion';
   static const String university  = 'Leading University, Sylhet';
   static const String department  = 'Computer Science and Engineering';
+  static const String course      = 'CSE-3240 · Project I';
+  static const String teamName    = 'Team Sherlocked';
+
+  // ─── Credits (About dialog) ───────────────────────────────
+  // Supervisor + the development team, shown in Profile → About.
+  static const String supervisorName  = 'Md. Jamaner Rahaman';
+  static const String supervisorRole  = 'Assistant Professor, Leading University';
+  static const String supervisorTitle = 'Supervisor';
+
+  /// Development team, in student-ID order. `(name, id)` pairs.
+  static const List<({String name, String id})> developers = [
+    (name: 'Fahmid Alam',          id: '0182320012101309'),
+    (name: 'Swadheen Islam Robi',  id: '0182320012101278'),
+    (name: 'Shahriar Rashid Ratul', id: '0182320012101276'),
+  ];
 
   // ─── User Roles ───────────────────────────────────────────
   static const String roleStudent = 'student';

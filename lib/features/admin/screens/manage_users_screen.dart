@@ -7,7 +7,7 @@
 // ============================================================
 
 import 'package:flutter/material.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/profile_model.dart';
 import 'package:universe/core/theme/app_colors.dart';
@@ -144,8 +144,8 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
           return Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
-                    AppSpacing.sm, AppSpacing.screenH, 0),
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, 0),
                 child: UTextField(
                   controller: _searchCtrl,
                   label: '',

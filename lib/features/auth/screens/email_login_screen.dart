@@ -9,7 +9,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/router/route_names.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
@@ -25,8 +25,8 @@ class EmailLoginScreen extends StatefulWidget {
 }
 
 class _EmailLoginScreenState extends State<EmailLoginScreen> {
-  final _formKey      = GlobalKey<FormState>();
-  final _emailCtrl    = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _obscurePassword = true;
 
@@ -169,7 +169,9 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                         ),
                       ),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Password is required';
+                        if (v == null || v.isEmpty) {
+                          return 'Password is required';
+                        }
                         return null;
                       },
                     ),
@@ -180,14 +182,15 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: () => context.push(RouteNames.forgotPassword),
+                        onPressed: () =>
+                            context.push(RouteNames.forgotPassword),
                         style: TextButton.styleFrom(
                           padding: EdgeInsets.zero,
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        child: Text('Forgot password?',
-                            style: AppTextStyles.link),
+                        child:
+                            Text('Forgot password?', style: AppTextStyles.link),
                       ),
                     ),
 
@@ -229,8 +232,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                         Text("Don't have an account? ",
                             style: AppTextStyles.bodySm),
                         TextButton(
-                          onPressed: () =>
-                              context.push(RouteNames.emailSignup),
+                          onPressed: () => context.push(RouteNames.emailSignup),
                           style: TextButton.styleFrom(
                             padding: EdgeInsets.zero,
                             minimumSize: Size.zero,
@@ -274,15 +276,13 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
           borderSide: const BorderSide(color: AppColors.border)),
       focusedBorder: OutlineInputBorder(
           borderRadius: AppSpacing.radiusMd,
-          borderSide:
-              const BorderSide(color: AppColors.primary, width: 1.5)),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
       errorBorder: OutlineInputBorder(
           borderRadius: AppSpacing.radiusMd,
           borderSide: const BorderSide(color: AppColors.error)),
       focusedErrorBorder: OutlineInputBorder(
           borderRadius: AppSpacing.radiusMd,
-          borderSide:
-              const BorderSide(color: AppColors.error, width: 1.5)),
+          borderSide: const BorderSide(color: AppColors.error, width: 1.5)),
     );
   }
 }
