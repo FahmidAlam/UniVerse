@@ -1,14 +1,3 @@
-// ============================================================
-// FILE: lib/features/teacher/screens/teacher_dashboard_screen.dart
-// PURPOSE: Teacher Home tab. Mirrors the student dashboard,
-// teacher-framed: greeting → next-class-I-teach hero → stat
-// strip → today's teaching → quick actions → recent alerts.
-// Tab screen: owns its Scaffold + UAppBar(showBackButton:false);
-// AppShell supplies the bottom nav. Read-only — aggregates the
-// routine via TeacherDashboardController and reads unread alerts
-// from the app-scoped NotificationController.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
@@ -205,7 +194,6 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     );
   }
 
-  // ─── Hero: live → next → rest ─────────────────────────────
   Widget _buildHero() {
     final live = _controller.liveClass;
     if (live != null) {
@@ -253,7 +241,6 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     );
   }
 
-  // ─── Stat strip ───────────────────────────────────────────
   Widget _buildStats() {
     final cards = <Widget>[
       StatCard(
@@ -293,7 +280,6 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     );
   }
 
-  // ─── Quick actions ────────────────────────────────────────
   Widget _buildQuickActions() {
     final actions = <Widget>[
       QuickActionCard(
@@ -335,7 +321,6 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     );
   }
 
-  // ─── Recent alerts preview ────────────────────────────────
   Widget _buildRecentAlerts() {
     final items = widget.notificationController.items.take(3).toList();
 
@@ -386,7 +371,6 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     );
   }
 
-  // ─── Skeleton ─────────────────────────────────────────────
   Widget _buildSkeleton() {
     return ListView(
       padding: AppSpacing.screenPaddingScrollable,

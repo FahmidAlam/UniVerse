@@ -1,12 +1,3 @@
-// ============================================================
-// FILE: lib/features/resources/controllers/resource_controller.dart
-// PURPOSE: State between ResourceService and the resources screen.
-// Loads ALL resources once and groups them into semester folders,
-// so anyone can browse any semester (not just their own). Inside an
-// open folder, filters by category (All / PYQ / Notes / Slides /
-// Assignments) client-side.
-// ============================================================
-
 import 'package:universe/core/models/profile_model.dart';
 import 'package:universe/core/models/resource_model.dart';
 import 'package:universe/core/utils/safe_change_notifier.dart';
@@ -25,21 +16,18 @@ class ResourceController extends SafeChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   String _activeCategory = allCategory;
-  int? _openSemester; // null = showing the semester folders
+  int? _openSemester;
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   String get activeCategory => _activeCategory;
   int? get openSemester => _openSemester;
 
-  /// The signed-in student's own semester (for the "Yours" folder badge).
   int? get mySemester => _me?.semester;
 
-  /// Resource count in a given semester folder.
   int countForSemester(int semester) =>
       _items.where((r) => r.semester == semester).length;
 
-  /// Items inside the currently-open semester folder, category-filtered.
   List<Resource> get filtered {
     final s = _openSemester;
     if (s == null) return const [];

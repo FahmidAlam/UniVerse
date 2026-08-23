@@ -1,11 +1,3 @@
-// ============================================================
-// FILE: lib/core/models/resource_model.dart
-// PURPOSE: Typed view of a row in the `resources` table.
-// A resource is either a PDF (file_url) or a Drive link
-// (drive_link); `isPdf`/`url` resolve which. Pure Dart — the
-// screen maps isPdf -> the ResourceCard's ResourceType.
-// ============================================================
-
 class Resource {
   final String id;
   final String title;
@@ -44,7 +36,6 @@ class Resource {
 
   bool get isPdf => (fileUrl?.isNotEmpty ?? false);
 
-  /// The link to open — prefers the stored PDF, falls back to Drive.
   String? get url => isPdf ? fileUrl : driveLink;
 
   String get subjectLabel =>

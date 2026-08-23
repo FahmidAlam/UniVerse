@@ -1,12 +1,3 @@
-// ============================================================
-// FILE: lib/features/auth/screens/email_login_screen.dart
-// PURPOSE: Email + password sign-in form.
-// - Validates fields before calling controller
-// - Shows inline field errors
-// - "Forgot password?" link → ForgotPasswordScreen
-// - "Don't have an account?" → EmailSignupScreen
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
@@ -55,7 +46,6 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
     } else if (status == AuthStatus.error) {
       _showError(widget.authController.errorMessage ?? 'Sign-in failed.');
     }
-    // authenticated → GoRouter redirect handles dashboard navigation
   }
 
   Future<void> _signIn() async {
@@ -118,7 +108,6 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
 
                     const SizedBox(height: AppSpacing.x3l),
 
-                    // ── Email field ──────────────────────────
                     _buildLabel('Email address'),
                     AppSpacing.smGap,
                     TextFormField(
@@ -144,7 +133,6 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
 
                     AppSpacing.lgGap,
 
-                    // ── Password field ───────────────────────
                     _buildLabel('Password'),
                     AppSpacing.smGap,
                     TextFormField(
@@ -178,7 +166,6 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
 
                     AppSpacing.smGap,
 
-                    // ── Forgot password link ──────────────────
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
@@ -196,7 +183,6 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
 
                     const SizedBox(height: AppSpacing.x3l),
 
-                    // ── Sign in button ────────────────────────
                     SizedBox(
                       width: double.infinity,
                       height: AppSpacing.buttonHeight,
@@ -225,7 +211,6 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
 
                     const SizedBox(height: AppSpacing.x3l),
 
-                    // ── Sign up link ──────────────────────────
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [

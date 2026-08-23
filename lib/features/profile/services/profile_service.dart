@@ -1,10 +1,3 @@
-// ============================================================
-// FILE: lib/features/profile/services/profile_service.dart
-// PURPOSE: The ONLY layer that touches Supabase for profile reads
-// and updates. Returns the typed Profile model.
-// ProfileController calls this; screens never touch it.
-// ============================================================
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/profile_model.dart';

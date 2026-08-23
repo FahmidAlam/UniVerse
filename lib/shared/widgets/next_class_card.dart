@@ -1,12 +1,3 @@
-// ============================================================
-// FILE: lib/shared/widgets/next_class_card.dart
-// PURPOSE: Hero card for the NEXT upcoming class (no live class
-// running). Mirrors LiveClassCard's shape but uses the card
-// surface + a blue "UP NEXT" accent, and counts DOWN to the
-// class start (not the end). Role-agnostic: the subtitle is the
-// teacher name (student view) or the cohort (teacher view).
-// ============================================================
-
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';

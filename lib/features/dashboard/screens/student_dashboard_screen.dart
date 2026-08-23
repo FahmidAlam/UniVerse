@@ -1,14 +1,3 @@
-// ============================================================
-// FILE: lib/features/dashboard/screens/student_dashboard_screen.dart
-// PURPOSE: Student Home tab. A polished, at-a-glance hub:
-//   greeting header → live/next-class hero → stat strip →
-//   today's classes → quick actions → recent alerts.
-// Tab screen: owns its Scaffold + UAppBar(showBackButton:false);
-// AppShell supplies the bottom nav. Read-only — aggregates the
-// routine via StudentDashboardController and reads unread alerts
-// from the app-scoped NotificationController.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
@@ -200,7 +189,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
   }
 
-  // ─── Hero: live → next → rest ─────────────────────────────
   Widget _buildHero() {
     final live = _controller.liveClass;
     if (live != null) {
@@ -248,7 +236,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
   }
 
-  // ─── Stat strip ───────────────────────────────────────────
   Widget _buildStats() {
     final next = _controller.nextClass;
     final nextLabel = next != null
@@ -293,7 +280,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
   }
 
-  // ─── Quick actions ────────────────────────────────────────
   Widget _buildQuickActions() {
     final actions = <Widget>[
       QuickActionCard(
@@ -335,7 +321,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
   }
 
-  // ─── Recent alerts preview ────────────────────────────────
   Widget _buildRecentAlerts() {
     final items = widget.notificationController.items.take(3).toList();
 
@@ -386,7 +371,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
   }
 
-  // ─── Skeleton ─────────────────────────────────────────────
   Widget _buildSkeleton() {
     return ListView(
       padding: AppSpacing.screenPaddingScrollable,
@@ -419,7 +403,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
   }
 
-  // Inserts cardGap between a run of widgets.
   List<Widget> _withGaps(Iterable<Widget> widgets) {
     final list = widgets.toList();
     final out = <Widget>[];

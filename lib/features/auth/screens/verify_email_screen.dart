@@ -1,19 +1,3 @@
-// ============================================================
-// FILE: lib/features/auth/screens/verify_email_screen.dart
-// PURPOSE: Shown after email sign-up while waiting for the
-// user to verify their address. Primary path: type the
-// code from the email ({{ .Token }} in the "Confirm signup"
-// template — immune to email-client link prefetch). The old
-// link flow + polling still work as a fallback.
-//
-// WHAT IT DOES:
-// - Shows the pending email address
-// - Code entry field + "Verify" button → verifyEmailCode()
-// - "Resend email" button with 60-second cooldown
-// - Auto-polls every 5 seconds (Supabase session refresh)
-// - Navigates to dashboard automatically on verification
-// ============================================================
-
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -34,18 +18,14 @@ class VerifyEmailScreen extends StatefulWidget {
 }
 
 class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
-  // ── Resend cooldown ───────────────────────────────────────
   int _resendCooldown = 0;
   Timer? _cooldownTimer;
 
-  // ── Auto-poll timer ───────────────────────────────────────
   Timer? _pollTimer;
 
-  // ── Local state ───────────────────────────────────────────
   bool _checkingVerification = false;
   bool _resentSuccessfully = false;
 
-  // ── Verification code entry ────────────────────────────────────
   final TextEditingController _codeController = TextEditingController();
 
   @override
@@ -64,7 +44,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     super.dispose();
   }
 
-  // Listen to auth state — when verified, GoRouter redirects
   void _onAuthChange() {
     if (!mounted) return;
     if (widget.authController.status == AuthStatus.authenticated) {
@@ -72,11 +51,9 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     }
   }
 
-  // Poll every 5 seconds by calling refreshSession via Supabase
   void _startPolling() {
     _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
       if (!mounted) return;
-      // Refresh the session silently — Supabase updates emailConfirmedAt
       try {
         await Supabase.instance.client.auth.refreshSession();
         final user = Supabase.instance.client.auth.currentUser;
@@ -85,7 +62,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
           if (mounted) await _handleVerified();
         }
       } catch (_) {
-        // Ignore errors during background polling
       }
     });
   }
@@ -94,7 +70,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     setState(() => _checkingVerification = true);
     await widget.authController.handleOAuthCallback();
     if (mounted) setState(() => _checkingVerification = false);
-    // GoRouter redirect takes over once status → authenticated
   }
 
   Future<void> _checkManually() async {
@@ -119,9 +94,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     }
   }
 
-  // Verify the code typed by the user (Supabase OTP length is
-  // configurable — currently 8 digits — so accept 6-8). On success
-  // the controller runs the post-login path and GoRouter redirects.
   Future<void> _verifyCode() async {
     final code = _codeController.text.trim();
     if (code.length < 6) {
@@ -139,7 +111,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
     if (success) {
       _pollTimer?.cancel();
-      // GoRouter redirect takes over once status → authenticated
     } else {
       _showSnackbar(
         widget.authController.errorMessage ?? 'Invalid or expired code.',
@@ -221,8 +192,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
             ),
           ),
           body: SafeArea(
-            // Scrollable so the code field stays reachable when the
-            // keyboard opens; IntrinsicHeight keeps the Spacers working.
             child: LayoutBuilder(
               builder: (context, constraints) => SingleChildScrollView(
                 child: ConstrainedBox(
@@ -234,7 +203,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                         children: [
                           const Spacer(flex: 2),
 
-                          // ── Icon ──────────────────────────────────
                           Container(
                             width: 96,
                             height: 96,
@@ -253,7 +221,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                                   color: AppColors.info,
                                   size: 44,
                                 ),
-                                // Animated pulsing dot
                                 Positioned(
                                   top: 18,
                                   right: 18,
@@ -265,7 +232,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
                           const SizedBox(height: AppSpacing.x3l),
 
-                          // ── Headline ──────────────────────────────
                           Text(
                             'Check your inbox',
                             style: AppTextStyles.h1,
@@ -282,7 +248,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
                           AppSpacing.smGap,
 
-                          // Email chip
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: AppSpacing.md,
@@ -323,7 +288,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
                           AppSpacing.lgGap,
 
-                          // ── Verification code field ────────────────────
                           TextField(
                             controller: _codeController,
                             enabled: !isLoading,
@@ -400,7 +364,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
                           const Spacer(flex: 2),
 
-                          // ── Verify code button ────────────────────
                           SizedBox(
                             width: double.infinity,
                             height: AppSpacing.buttonHeight,
@@ -445,7 +408,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
                           AppSpacing.lgGap,
 
-                          // ── Resend button ─────────────────────────
                           SizedBox(
                             width: double.infinity,
                             height: AppSpacing.buttonHeight,
@@ -475,7 +437,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
                           AppSpacing.lgGap,
 
-                          // ── Verified via a link instead? ──────────
                           Center(
                             child: TextButton(
                               onPressed: isLoading ? null : _checkManually,
@@ -497,7 +458,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
                           AppSpacing.lgGap,
 
-                          // ── Wrong email note ──────────────────────
                           Center(
                             child: TextButton(
                               onPressed: () async {
@@ -538,7 +498,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
   }
 }
 
-// ── Animated pulsing green dot ─────────────────────────────
 class _PulsingDot extends StatefulWidget {
   @override
   State<_PulsingDot> createState() => _PulsingDotState();

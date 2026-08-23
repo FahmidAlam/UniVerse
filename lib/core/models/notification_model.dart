@@ -1,13 +1,3 @@
-// ============================================================
-// FILE: lib/core/models/notification_model.dart
-// PURPOSE: Typed view of a row in the `notifications` table.
-// notifications are BROADCAST (targeted by role/batch/section),
-// so `isRead` is NOT a column — it is resolved per-user by the
-// service against the `notification_reads` join table and set
-// when constructing the item.
-// Pure Dart — no Supabase imports. Reuses the NotifType enum.
-// ============================================================
-
 import 'package:universe/core/constants/app_enums.dart';
 
 class NotificationItem {
@@ -17,12 +7,10 @@ class NotificationItem {
   final NotifType type;
   final DateTime time;
 
-  // Targeting (any may be null = "everyone")
   final String? targetRole;
   final String? targetBatch;
   final String? targetSection;
 
-  /// Resolved per-user against notification_reads (not a DB column).
   final bool isRead;
 
   const NotificationItem({
@@ -71,7 +59,6 @@ class NotificationItem {
     );
   }
 
-  /// Does this broadcast apply to the given user?
   bool matchesAudience({
     required String role,
     String? batch,

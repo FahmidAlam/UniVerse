@@ -1,17 +1,4 @@
-// ============================================================
-// FILE: lib/core/router/route_names.dart
-// PURPOSE: Every route path string lives here as a constant.
-// GoRouter uses these strings to navigate. No screen
-// ever hardcodes a path like '/dashboard' directly.
-//
-// HOW TO USE:
-// context.go(RouteNames.splash)
-// context.go(RouteNames.studentDashboard)
-// context.pushNamed(RouteNames.login)
-// ============================================================
-
 abstract class RouteNames {
-  // Auth flow
   static const String splash = '/';
   static const String onboarding = '/onboarding';
   static const String login = '/login';
@@ -25,7 +12,6 @@ abstract class RouteNames {
   static const String facultyRegister = '/register/faculty';
   static const String notWhitelisted = '/not-whitelisted';
 
-  // Student
   static const String studentDashboard = '/student/dashboard';
   static const String studentRoutine = '/student/routine';
   static const String aiAssistant = '/student/ai-assistant';
@@ -34,16 +20,13 @@ abstract class RouteNames {
   static const String profile = '/profile';
   static const String teacherDirectory = '/teacher-directory';
 
-  // Shared (all roles)
   static const String rooms = '/rooms';
   static const String findTeacher = '/find-teacher';
 
-  // Teacher
   static const String teacherDashboard = '/teacher/dashboard';
   static const String teacherRoutine = '/teacher/routine';
   static const String manageClasses = '/teacher/manage-classes';
 
-  // Admin
   static const String adminDashboard = '/admin/dashboard';
   static const String routineManagement = '/admin/routine';
   static const String campusBroadcast = '/admin/broadcast';
@@ -53,7 +36,6 @@ abstract class RouteNames {
   static const String resourceLibrary = '/admin/resources/library';
   static const String broadcastHistory = '/admin/broadcast/history';
 
-  // Admin · timetable config + viewer
   static const String manageRooms = '/admin/timetable/rooms';
   static const String manageFaculty = '/admin/timetable/faculty';
   static const String timetableSettings = '/admin/timetable/settings';

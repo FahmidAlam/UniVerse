@@ -1,16 +1,6 @@
-// ============================================================
-// FILE: lib/features/admin/controllers/admin_dashboard_controller.dart
-// PURPOSE: State between AdminService and the admin dashboard.
-// Loads aggregate counts for the stat strip. ChangeNotifier —
-// the screen rebuilds via ListenableBuilder.
-// ============================================================
-
 import 'package:universe/core/utils/safe_change_notifier.dart';
 import 'package:universe/features/admin/services/admin_service.dart';
 
-// SafeChangeNotifier: load() can still be awaiting when navigation
-// disposes the screen (e.g. session expiry redirecting
-// /admin/dashboard → /login) — the late notifyListeners() must no-op.
 class AdminDashboardController extends SafeChangeNotifier {
   final AdminService _service = AdminService();
 

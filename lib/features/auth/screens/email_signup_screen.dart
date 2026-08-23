@@ -1,11 +1,3 @@
-// ============================================================
-// FILE: lib/features/auth/screens/email_signup_screen.dart
-// PURPOSE: Email + password sign-up form.
-// - Validates email against whitelist (in controller)
-// - Password strength check + confirm password field
-// - On success → VerifyEmailScreen
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
@@ -55,7 +47,6 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
     } else if (status == AuthStatus.notWhitelisted) {
       context.go(RouteNames.notWhitelisted);
     } else if (status == AuthStatus.authenticated) {
-      // email confirmation disabled — went straight to dashboard
     } else if (status == AuthStatus.error) {
       _showError(widget.authController.errorMessage ?? 'Sign-up failed.');
     }
@@ -84,7 +75,6 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
     ));
   }
 
-  // Simple password strength indicator
   int _passwordStrength(String password) {
     if (password.isEmpty) return 0;
     int score = 0;
@@ -92,7 +82,7 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
     if (password.contains(RegExp(r'[A-Z]'))) score++;
     if (password.contains(RegExp(r'[0-9]'))) score++;
     if (password.contains(RegExp(r'[!@#\$%^&*]'))) score++;
-    return score; // 0-4
+    return score;
   }
 
   @override
@@ -134,7 +124,6 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
 
                     const SizedBox(height: AppSpacing.x3l),
 
-                    // ── Email ────────────────────────────────
                     _buildLabel('Email address'),
                     AppSpacing.smGap,
                     TextFormField(
@@ -160,7 +149,6 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
 
                     AppSpacing.lgGap,
 
-                    // ── Password ─────────────────────────────
                     _buildLabel('Password'),
                     AppSpacing.smGap,
                     TextFormField(
@@ -191,7 +179,6 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
                       },
                     ),
 
-                    // ── Strength indicator ────────────────────
                     if (_passwordCtrl.text.isNotEmpty) ...[
                       AppSpacing.smGap,
                       _PasswordStrengthBar(strength: passwordStrength),
@@ -199,7 +186,6 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
 
                     AppSpacing.lgGap,
 
-                    // ── Confirm password ──────────────────────
                     _buildLabel('Confirm password'),
                     AppSpacing.smGap,
                     TextFormField(
@@ -236,7 +222,6 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
 
                     const SizedBox(height: AppSpacing.x3l),
 
-                    // ── Sign up button ────────────────────────
                     SizedBox(
                       width: double.infinity,
                       height: AppSpacing.buttonHeight,
@@ -266,7 +251,6 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
 
                     const SizedBox(height: AppSpacing.x3l),
 
-                    // ── Already have account ──────────────────
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -331,7 +315,7 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
 }
 
 class _PasswordStrengthBar extends StatelessWidget {
-  final int strength; // 0-4
+  final int strength;
   const _PasswordStrengthBar({required this.strength});
 
   @override

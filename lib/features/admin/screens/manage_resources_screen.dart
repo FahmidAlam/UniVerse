@@ -1,12 +1,3 @@
-// ============================================================
-// FILE: lib/features/admin/screens/manage_resources_screen.dart
-// PURPOSE: Admin uploads study resources (any file type) or a
-// Drive link → the public `resources` bucket + a row → students
-// see it in the Resource Hub and (optionally) get alerted via the
-// notifications pipeline (in-app + push). Lists existing resources
-// with delete. Secondary screen (pushed, back button).
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';

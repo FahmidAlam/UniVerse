@@ -1,11 +1,3 @@
-// ============================================================
-// FILE: lib/features/admin/screens/timetable_settings_screen.dart
-// PURPOSE: Admin config — solver/render settings passed to the engine:
-// semester label, Friday no-Period-4 rule, how service (non-CSE)
-// classes are handled, and the soft-constraint weights that shape the
-// generated timetable. Owns its controller.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/models/timetable_config_model.dart';
@@ -20,7 +12,6 @@ import 'package:universe/shared/widgets/u_chip.dart';
 import 'package:universe/shared/widgets/u_loading.dart';
 import 'package:universe/shared/widgets/u_text_field.dart';
 
-// Weight keys -> human labels (must match what the engine reads).
 const Map<String, String> _kWeights = {
   'different_days': 'Spread a course across days',
   'compactness': 'Fewer class-days per section',
@@ -85,7 +76,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
     final updated = TimetableSettings(
       semesterLabel:
           _semester.text.trim().isEmpty ? null : _semester.text.trim(),
-      periods: _controller.settings.periods, // unchanged (advanced)
+      periods: _controller.settings.periods,
       fridayNoP4: _fridayNoP4,
       serviceScope: _serviceScope,
       weights: weights,

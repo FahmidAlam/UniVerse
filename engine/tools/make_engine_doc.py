@@ -8,7 +8,6 @@ from fpdf import FPDF
 
 OUT = Path(__file__).resolve().parent.parent / "UniVerse_Timetable_Engine_Explained.pdf"
 
-# ── palette (matches the app's dark/orange identity, used as accents) ──
 ORANGE = (255, 122, 0)
 DARK = (26, 26, 28)
 GREY = (110, 114, 120)
@@ -60,7 +59,6 @@ pdf.set_margins(18, 16, 18)
 EPW = pdf.w - pdf.l_margin - pdf.r_margin
 
 
-# ── helpers ──────────────────────────────────────────────────────────
 def h1(txt):
     pdf.ln(2)
     pdf.set_font("Helvetica", "B", 16)
@@ -143,7 +141,6 @@ def kv_table(rows, c0=52):
     for i, (k, v) in enumerate(rows):
         fill = (250, 250, 251) if i % 2 == 0 else (255, 255, 255)
         y0 = pdf.get_y()
-        # measure height
         pdf.set_font("Helvetica", "", 9.5)
         nlines = max(
             len(pdf.multi_cell(c1 - 4, 4.6, clean(v), split_only=True)),
@@ -197,9 +194,6 @@ def callout(title, txt):
     pdf.ln(3)
 
 
-# ════════════════════════════════════════════════════════════════════
-# COVER
-# ════════════════════════════════════════════════════════════════════
 pdf.add_page()
 pdf.set_fill_color(*DARK)
 pdf.rect(0, 0, pdf.w, pdf.h, style="F")
@@ -251,9 +245,6 @@ pdf.set_text_color(120, 122, 126)
 pdf.cell(0, 6, clean("Generated from the live source: engine/ + lib/features/admin/"), align="C")
 
 
-# ════════════════════════════════════════════════════════════════════
-# 1. THE PROBLEM & THE BIG PICTURE
-# ════════════════════════════════════════════════════════════════════
 pdf.add_page()
 h1("1. What Problem Does It Solve?")
 body("A university department schedules hundreds of class sessions every semester. Each must "
@@ -313,9 +304,6 @@ kv_table([
 ])
 
 
-# ════════════════════════════════════════════════════════════════════
-# 2. INGEST
-# ════════════════════════════════════════════════════════════════════
 pdf.add_page()
 h1("2. ingest.py - Turning a Spreadsheet into Clean Data")
 body("Real spreadsheets are messy: columns drift, batches are stored as floats, project rows have "
@@ -383,9 +371,6 @@ body("ingest_workbook() returns a dict: cohorts (canonical render order, batch d
      "76 teachers.")
 
 
-# ════════════════════════════════════════════════════════════════════
-# 3. SOLVER - PHASE 1 (CP-SAT)
-# ════════════════════════════════════════════════════════════════════
 pdf.add_page()
 h1("3. solver.py Phase 1 - The CP-SAT Constraint Model")
 h2("What is CP-SAT and why use it?")
@@ -455,9 +440,6 @@ code(
     "Clash + capacity constraints, built slot by slot.")
 
 
-# ════════════════════════════════════════════════════════════════════
-# 3b. SOFT CONSTRAINTS / OBJECTIVE
-# ════════════════════════════════════════════════════════════════════
 pdf.add_page()
 h2("Soft constraints (preferences - minimized, not forced)")
 body("Hard constraints decide if a timetable is legal. Soft constraints decide if it is GOOD. "
@@ -514,9 +496,6 @@ code(
             break""", "Extract chosen placements from the solved model.")
 
 
-# ════════════════════════════════════════════════════════════════════
-# 4. SOLVER - PHASE 2 (ROOMS) + VALIDATION
-# ════════════════════════════════════════════════════════════════════
 pdf.add_page()
 h1("4. solver.py Phase 2 - Greedy Room Assignment")
 body("Phase 1 decided WHEN each session runs but not WHERE. Because H4/H5 already guaranteed no "
@@ -568,9 +547,6 @@ kv_table([
 ])
 
 
-# ════════════════════════════════════════════════════════════════════
-# 5. RENDER
-# ════════════════════════════════════════════════════════════════════
 pdf.add_page()
 h1("5. render.py - Reproducing the Department's Excel Routine")
 body("The department already publishes routines in a specific styled Excel format (banner, "
@@ -602,9 +578,6 @@ callout("openpyxl - the Excel library",
         "template, edit cells while keeping styles, and save back to a bytes buffer.")
 
 
-# ════════════════════════════════════════════════════════════════════
-# 6. MAIN / FASTAPI
-# ════════════════════════════════════════════════════════════════════
 pdf.add_page()
 h1("6. main.py - The FastAPI Service & Async Job Model")
 body("A CP-SAT solve takes 30-120 seconds - too long for a single blocking HTTP request "
@@ -654,9 +627,6 @@ body("solver.load_config() accepts EITHER the engine's own config.json shape OR 
      "the app (database config) with no code changes.")
 
 
-# ════════════════════════════════════════════════════════════════════
-# 7. CONFIG
-# ════════════════════════════════════════════════════════════════════
 pdf.add_page()
 h1("7. config.json - The Knobs")
 body("Everything institution-specific lives in config, not code - so the engine generalizes to any "
@@ -674,9 +644,6 @@ kv_table([
 ])
 
 
-# ════════════════════════════════════════════════════════════════════
-# 8. FLUTTER BINDING
-# ════════════════════════════════════════════════════════════════════
 pdf.add_page()
 h1("8. How It Binds to the Flutter App")
 body("The engine is a separate Python service; the app talks to it over HTTP and follows the "
@@ -724,9 +691,6 @@ body("Once published, the rows live in the same `routines` table the student and
      "production the engine is deployed on Railway/Render (Procfile: uvicorn main:app).")
 
 
-# ════════════════════════════════════════════════════════════════════
-# 9. PACKAGES + DEFENSE Q&A
-# ════════════════════════════════════════════════════════════════════
 pdf.add_page()
 h1("9. Packages, Algorithms & Defense Cheat-Sheet")
 h2("Python packages")

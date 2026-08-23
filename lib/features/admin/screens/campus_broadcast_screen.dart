@@ -1,12 +1,3 @@
-// ============================================================
-// FILE: lib/features/admin/screens/campus_broadcast_screen.dart
-// PURPOSE: Admin Campus Broadcast composer. Pick a type + audience,
-// write a title/body, and send — inserting a notifications row that
-// the student Alerts feed receives live via Realtime. Below the
-// form, recent broadcasts can be reviewed and deleted (tap to delete).
-// Owns its BroadcastController lifecycle.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
@@ -39,16 +30,12 @@ class _CampusBroadcastScreenState extends State<CampusBroadcastScreen> {
   final _batchCtrl = TextEditingController();
   final _sectionCtrl = TextEditingController();
 
-  // Admin-only broadcast types. Class cancellation, room change and test
-  // reminder belong to teachers (raised from their own flows), so they're
-  // intentionally excluded here.
   static const List<NotifType> _broadcastTypes = [
     NotifType.university,
     NotifType.assignment,
     NotifType.exam,
   ];
 
-  // null == Everyone
   static const List<({String? role, String label})> _audiences = [
     (role: null, label: 'Everyone'),
     (role: 'student', label: 'Students'),

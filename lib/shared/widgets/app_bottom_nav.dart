@@ -1,17 +1,3 @@
-// ============================================================
-// FILE: lib/shared/widgets/app_bottom_nav.dart
-// PURPOSE: Role-aware bottom navigation. ONE place defines the tab set
-// for each role. Rendered ONLY by AppShell (core/router/app_shell.dart),
-// which passes the current router location — individual screens never
-// place this widget. Active tab is computed from the route; taps go
-// via context.go, so shared screens (Profile/Notifications) always
-// show the correct tabs for whoever is logged in.
-//
-// Convention: top-level destinations live here. Secondary screens
-// (e.g. Resources, Admin Registration) are pushed and use a back
-// button instead of a tab — they are intentionally not in this list.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
@@ -32,11 +18,8 @@ class AppNavDest {
 }
 
 class AppBottomNav extends StatelessWidget {
-  /// The current user's role (AuthController.role). Drives the tab set.
   final String? role;
 
-  /// The route of the screen rendering this nav — used to highlight
-  /// the active tab.
   final String currentRoute;
 
   final int unreadNotifCount;
@@ -48,7 +31,6 @@ class AppBottomNav extends StatelessWidget {
     this.unreadNotifCount = 0,
   });
 
-  /// The single source of truth for each role's tabs.
   static List<AppNavDest> destinationsFor(String? role) {
     switch (role) {
       case AppConstants.roleAdmin:
@@ -107,7 +89,7 @@ class AppBottomNav extends StatelessWidget {
             route: RouteNames.profile,
           ),
         ];
-      default: // student
+      default:
         return const [
           AppNavDest(
             icon: PhosphorIconsRegular.house,
@@ -119,9 +101,6 @@ class AppBottomNav extends StatelessWidget {
             label: 'Routine',
             route: RouteNames.studentRoutine,
           ),
-          // Resources promoted to a tab (replaces the descoped AI Assistant
-          // slot). AI Assistant is kept as future scope — to restore it,
-          // re-add its destination + the /student/ai-assistant route.
           AppNavDest(
             icon: PhosphorIconsRegular.folder,
             label: 'Resources',

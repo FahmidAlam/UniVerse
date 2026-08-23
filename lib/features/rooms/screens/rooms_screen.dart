@@ -1,9 +1,3 @@
-// ============================================================
-// FILE: lib/features/rooms/screens/rooms_screen.dart
-// PURPOSE: Displays real-time room occupancy status.
-// Shows all rooms in a scrollable list with current/next class info.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/theme/app_colors.dart';
@@ -28,13 +22,11 @@ class _RoomsScreenState extends State<RoomsScreen> {
     super.initState();
     _controller = RoomsController(service: RoomStatusService());
     _controller.fetchRoomStatuses();
-    // Subscribe to real-time updates
     _controller.subscribeToRealTimeUpdates();
     _controller.addListener(_onControllerChange);
   }
 
   void _onControllerChange() {
-    // Trigger rebuild on controller changes
     setState(() {});
   }
 

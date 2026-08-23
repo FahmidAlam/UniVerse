@@ -1,16 +1,7 @@
-// ============================================================
-// FILE: lib/features/admin/controllers/whitelist_controller.dart
-// PURPOSE: State for the admin registration screen. Lists whitelist
-// entries and adds/removes them via AdminService. Pre-registering an
-// admin email here is what lets that account pass the admin gate in
-// auth_service.handlePostLogin().
-// ============================================================
-
 import 'package:universe/core/models/whitelist_model.dart';
 import 'package:universe/core/utils/safe_change_notifier.dart';
 import 'package:universe/features/admin/services/admin_service.dart';
 
-// SafeChangeNotifier: async invites/loads may outlive the screen.
 class WhitelistController extends SafeChangeNotifier {
   final AdminService _service = AdminService();
 
@@ -37,7 +28,6 @@ class WhitelistController extends SafeChangeNotifier {
     notifyListeners();
   }
 
-  /// Invite a new admin (email + optional name) via the Edge Function.
   Future<bool> invite({required String email, String? name}) async {
     _isSaving = true;
     _errorMessage = null;

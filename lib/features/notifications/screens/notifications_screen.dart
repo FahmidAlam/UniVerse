@@ -1,13 +1,3 @@
-// ============================================================
-// FILE: lib/features/notifications/screens/notifications_screen.dart
-// PURPOSE: Alerts tab. Audience-filtered broadcast feed with
-// type filter chips, unread badge, tap-to-read, mark-all-read,
-// and live updates via Supabase Realtime.
-// Uses the app-scoped NotificationController owned by AppRouter —
-// the same instance drives the shell's nav badge, so marking
-// items read here updates the badge everywhere instantly.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/constants/app_enums.dart';
@@ -26,8 +16,6 @@ import 'package:universe/shared/widgets/u_loading.dart';
 class NotificationsScreen extends StatefulWidget {
   final AuthController authController;
 
-  /// App-scoped controller shared with the shell's nav badge.
-  /// Owned by AppRouter — never disposed here.
   final NotificationController controller;
 
   const NotificationsScreen({
@@ -43,7 +31,6 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   NotificationController get _controller => widget.controller;
 
-  // Filter chips: null == All, then one per NotifType.
   static const List<NotifType?> _filters = [
     null,
     NotifType.university,

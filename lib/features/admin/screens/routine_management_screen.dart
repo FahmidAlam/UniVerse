@@ -1,12 +1,3 @@
-// ============================================================
-// FILE: lib/features/admin/screens/routine_management_screen.dart
-// PURPOSE: Admin CRUD over the `routines` table. A day filter + a
-// list of entries (tap to edit, trash to delete) and a FAB that
-// opens the add/edit form sheet. These rows feed the already-built
-// student (batch+section) and teacher (teacher_code) routine views.
-// Owns its RoutineAdminController lifecycle.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/constants/app_constants.dart';
@@ -24,8 +15,6 @@ import 'package:universe/shared/widgets/u_loading.dart';
 import 'package:universe/shared/widgets/u_text_field.dart';
 
 class RoutineManagementScreen extends StatefulWidget {
-  /// When hosted inside the admin Routine hub, drop the Scaffold/app bar
-  /// and float the FAB within the tab content.
   final bool embedded;
 
   const RoutineManagementScreen({super.key, this.embedded = false});
@@ -144,7 +133,6 @@ class _RoutineManagementScreenState extends State<RoutineManagementScreen> {
   }
 
   Widget _buildDayFilter() {
-    // null filter = "All", then one chip per week day.
     final chips = <({String? day, String label})>[
       (day: null, label: 'All'),
       for (var i = 0; i < AppConstants.weekDays.length; i++)
@@ -208,7 +196,6 @@ class _RoutineManagementScreenState extends State<RoutineManagementScreen> {
   }
 }
 
-// ─── List tile ──────────────────────────────────────────────
 class _RoutineTile extends StatelessWidget {
   final RoutineEntry entry;
   final VoidCallback onEdit;
@@ -262,8 +249,6 @@ class _RoutineTile extends StatelessWidget {
   }
 }
 
-// ─── Add / edit form sheet ──────────────────────────────────
-// Returns the routine column map via Navigator.pop, or null on cancel.
 class _RoutineFormSheet extends StatefulWidget {
   final RoutineEntry? initial;
 

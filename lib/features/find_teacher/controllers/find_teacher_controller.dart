@@ -1,9 +1,3 @@
-// ============================================================
-// FILE: lib/features/find_teacher/controllers/find_teacher_controller.dart
-// PURPOSE: State & logic for finding teacher location.
-// Manages teacher list, search, and current/next location.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:universe/core/models/routine_model.dart';
 import 'package:universe/features/find_teacher/services/teacher_location_service.dart';
@@ -13,9 +7,9 @@ class TeacherInfo {
   final String name;
   final String? currentRoom;
   final String? currentSubject;
-  final String? currentClass; // batch+section
+  final String? currentClass;
   final String? remainingTime;
-  final String? status; // "In Class", "Free", "No Class Today"
+  final String? status;
   final String? nextRoom;
   final String? nextSubject;
   final String? nextTime;
@@ -52,17 +46,14 @@ class FindTeacherController extends ChangeNotifier {
   String? get error => _error;
   String get searchQuery => _searchQuery;
 
-  /// Initialize: fetch teacher list and routines.
   Future<void> initialize() async {
     try {
       _isLoading = true;
       _error = null;
       notifyListeners();
 
-      // Fetch all routines
       _allRoutines = await _service.fetchAllRoutines();
 
-      // Build unique teacher list
       final teacherMap = <String, String>{};
       for (final entry in _allRoutines!) {
         final code = entry.teacherCode;
@@ -72,7 +63,6 @@ class FindTeacherController extends ChangeNotifier {
         }
       }
 
-      // Create TeacherInfo objects with location data
       _allTeachers = teacherMap.entries
           .map((e) => _buildTeacherInfo(e.key, e.value, _allRoutines!))
           .toList();
@@ -89,7 +79,6 @@ class FindTeacherController extends ChangeNotifier {
     }
   }
 
-  /// Build TeacherInfo with current location based on time.
   TeacherInfo _buildTeacherInfo(
     String code,
     String name,
@@ -97,7 +86,6 @@ class FindTeacherController extends ChangeNotifier {
   ) {
     final now = DateTime.now();
 
-    // Filter routines for this teacher
     final teacherRoutines = allRoutines
         .where((e) => e.teacherCode == code && _isDayToday(e.day))
         .toList();
@@ -108,7 +96,6 @@ class FindTeacherController extends ChangeNotifier {
     RoutineEntry? nextEntry;
     String status = 'No Class Today';
 
-    // Check if teacher is currently in a class
     for (final entry in teacherRoutines) {
       final start = entry.startOn(now);
       final end = entry.endOn(now);
@@ -120,7 +107,6 @@ class FindTeacherController extends ChangeNotifier {
       }
     }
 
-    // If not in class, find next class
     if (currentEntry == null && teacherRoutines.isNotEmpty) {
       for (final entry in teacherRoutines) {
         final start = entry.startOn(now);
@@ -131,7 +117,6 @@ class FindTeacherController extends ChangeNotifier {
         }
       }
 
-      // If no future class, mark as free (last class ended)
       if (nextEntry == null && teacherRoutines.isNotEmpty) {
         status = 'Free';
       }
@@ -155,7 +140,6 @@ class FindTeacherController extends ChangeNotifier {
     );
   }
 
-  /// Search teachers by name or code.
   void search(String query) {
     _searchQuery = query.toLowerCase();
     if (_searchQuery.isEmpty) {
@@ -172,7 +156,6 @@ class FindTeacherController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Subscribe to real-time updates.
   void subscribeToRealTimeUpdates() {
     _service.streamAllRoutines().listen((routines) {
       _allRoutines = routines;
@@ -180,12 +163,10 @@ class FindTeacherController extends ChangeNotifier {
     });
   }
 
-  /// Refresh teacher data.
   Future<void> refresh() async {
     await initialize();
   }
 
-  /// Determine if a routine day string matches today.
   bool _isDayToday(String dayName) {
     final now = DateTime.now();
     const dayNames = [

@@ -1,19 +1,3 @@
-# ============================================================
-# FILE: engine/render.py
-# PURPOSE: Render solved sessions into a workbook identical in format
-#   to CSE_Routine_Summer_25_Version_2_0.xlsx. Clones the real workbook
-#   as a styled template (preserving the banner, headers, the vertical
-#   BREAK column, bus rows and all formatting), then:
-#     - writes ONE canonical 55-row cohort map identically to every
-#       day-sheet (structurally fixes the §6.1 "66-H row shift" bug),
-#     - clears any legacy session/cohort cells,
-#     - writes each session as "<CODE> <TEACHER> <ROOM>" in the right
-#       (cohort-row, period-column) cell,
-#     - leaves Friday's Period-4 column (H) empty.
-#
-# Returns the rendered workbook as bytes (for HTTP download / upload to
-# Supabase Storage).
-# ============================================================
 
 from __future__ import annotations
 
@@ -21,15 +5,20 @@ import io
 from pathlib import Path
 
 import openpyxl
+from openpyxl.formatting.formatting import ConditionalFormattingList
+from openpyxl.styles import Border, Side
 
 TEMPLATE = Path(__file__).parent / "templates" / "CSE_Routine_TEMPLATE.xlsx"
 
 DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+HEADER_ROW = 2
 DATA_FIRST_ROW = 3
-DATA_LAST_ROW = 59          # rows 60/61 are BUS TIME / STUDENT NO.
-BREAK_COL = 7               # column G — never written
-# Period columns that may hold a session (D,E,F,H,I,J,K = 4,5,6,8,9,10,11).
+DATA_LAST_ROW = 82
+BREAK_COL = 7
 SESSION_COLS = [4, 5, 6, 8, 9, 10, 11]
+GRID_COLS = [2, 3] + SESSION_COLS
+_THIN = Side(style="thin", color="FF000000")
+_THICK = Side(style="thick", color="FF000000")
 
 
 def _batch_cell(batch: str):
@@ -48,14 +37,11 @@ def render_bytes(rows: list[dict], cohorts: list[str], config: dict,
             f"Template not found at {tpl}. Run tools/make_template.py once.")
     wb = openpyxl.load_workbook(tpl)
 
-    # period idx -> column letter, from config
     pcol = {int(p["idx"]): openpyxl.utils.column_index_from_string(p["col"])
             for p in config["periods"]}
 
-    # canonical cohort -> row (rows 3..3+len-1)
     row_of = {c: DATA_FIRST_ROW + i for i, c in enumerate(cohorts)}
 
-    # rows grouped by cohort
     by_cohort: dict[str, list[dict]] = {}
     for r in rows:
         key = f"{r['batch']}-{r['section']}" if r["section"] else str(r["batch"])
@@ -66,13 +52,12 @@ def render_bytes(rows: list[dict], cohorts: list[str], config: dict,
             continue
         ws = wb[day]
 
-        # 1) clear legacy session cells + stray cohort labels
+        _write_period_headers(ws, day, config)
+
         for rr in range(DATA_FIRST_ROW, DATA_LAST_ROW + 1):
             for cc in SESSION_COLS:
                 _safe_clear(ws, rr, cc)
 
-        # 2) write canonical cohort labels (B=batch, C=section), clearing
-        #    any rows beyond the canonical set.
         for rr in range(DATA_FIRST_ROW, DATA_LAST_ROW + 1):
             idx = rr - DATA_FIRST_ROW
             if idx < len(cohorts):
@@ -80,11 +65,17 @@ def render_bytes(rows: list[dict], cohorts: list[str], config: dict,
                 batch, _, section = c.partition("-")
                 ws.cell(row=rr, column=2, value=_batch_cell(batch))
                 ws.cell(row=rr, column=3, value=section or None)
+                nxt = cohorts[idx + 1] if idx + 1 < len(cohorts) else None
+                last_of_batch = nxt is None or nxt.partition("-")[0] != batch
+                _set_row_bottom(ws, rr, _THICK if last_of_batch else _THIN)
+                ws.row_dimensions[rr].hidden = False
             else:
+                _drop_data_row_merges(ws, rr)
                 _safe_clear(ws, rr, 2)
                 _safe_clear(ws, rr, 3)
+                _set_row_bottom(ws, rr, None)
+                ws.row_dimensions[rr].hidden = True
 
-        # 3) write this day's sessions
         for cohort, sess in by_cohort.items():
             rr = row_of.get(cohort)
             if rr is None:
@@ -97,6 +88,12 @@ def render_bytes(rows: list[dict], cohorts: list[str], config: dict,
                     continue
                 text = f"{s['subject_code']} {s['teacher_code']} {s['room']}"
                 ws.cell(row=rr, column=col, value=text)
+
+        last_data = min(DATA_FIRST_ROW + len(cohorts) - 1, DATA_LAST_ROW)
+        if last_data >= DATA_FIRST_ROW:
+            _rebuild_break_column(ws, day, last_data)
+
+    _strip_legacy_scaffolding(wb)
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -111,6 +108,142 @@ def _safe_clear(ws, row: int, col: int) -> None:
     if isinstance(cell, MergedCell):
         return
     cell.value = None
+
+
+def _strip_legacy_scaffolding(wb) -> None:
+    """Strip every macro-era interactive artifact the source workbook carried
+    over, so the generated routine is a plain, static spreadsheet (the new
+    system no longer uses any of this scaffolding):
+
+      - AutoFilters + their auto-generated `_FilterDatabase` defined names,
+      - conditional-formatting rules,
+      - structured Tables (e.g. 'Teacher Day Off'),
+      - broken `#REF!` defined names (dead dynamic ranges the old dropdowns fed
+        from).
+
+    None of these affect the routine's visible content, styling, or layout.
+    They also make lightweight/mobile xlsx viewers blank the whole sheet, which
+    is why the day-sheets came up empty on a phone while the artifact-free
+    sheets rendered fine. (The template has no VBA — it is a plain .xlsx, not a
+    macro-enabled .xlsm — so there is no executable code to remove.)"""
+    for ws in wb.worksheets:
+        ws.auto_filter.ref = None
+        ws.conditional_formatting = ConditionalFormattingList()
+        for table_name in list(ws.tables.keys()):
+            del ws.tables[table_name]
+
+    for name in [n for n, dn in wb.defined_names.items()
+                 if dn.value and "#REF!" in dn.value]:
+        del wb.defined_names[name]
+
+
+def _fmt_clock(hhmm: str) -> tuple[str, str]:
+    """'13:10' -> ('1:10', 'PM'). Hours <= 12 keep two digits (08:50, 12:35);
+    afternoon hours convert to 12-hour without a leading zero (13->1), matching
+    the source workbook's hand-typed header style."""
+    h, m = map(int, hhmm.split(":"))
+    ampm = "AM" if h < 12 else "PM"
+    hh = f"{h:02d}" if h <= 12 else f"{h - 12}"
+    return f"{hh}:{m:02d}", ampm
+
+
+def _period_label(start: str, end: str) -> str:
+    """Header label 'start-endAM/PM' (AM/PM taken from the end time)."""
+    s, _ = _fmt_clock(start)
+    e, ap = _fmt_clock(end)
+    return f"{s}-{e}{ap}"
+
+
+def _set_header_value(ws, row: int, col: int, text: str) -> None:
+    """Set a header cell's text, preserving its style; skip merged interiors."""
+    from openpyxl.cell.cell import MergedCell
+    cell = ws.cell(row=row, column=col)
+    if isinstance(cell, MergedCell):
+        return
+    cell.value = text
+
+
+def _write_period_headers(ws, day: str, config: dict) -> None:
+    """Rewrite row 2's period-time labels from config (in-person periods +
+    computed break). Online column and Batch/Section headers are left as-is."""
+    in_person = sorted((p for p in config["periods"] if int(p["idx"]) <= 6),
+                       key=lambda p: int(p["idx"]))
+    drop_p4 = day == "Friday" and config.get("friday_no_p4", True)
+    day_periods = [p for p in in_person if not (drop_p4 and int(p["idx"]) == 4)]
+    for p in day_periods:
+        col = openpyxl.utils.column_index_from_string(p["col"])
+        _set_header_value(ws, HEADER_ROW, col, _period_label(p["start"], p["end"]))
+    for a, b in zip(day_periods, day_periods[1:]):
+        if a["end"] != b["start"]:
+            _set_header_value(ws, HEADER_ROW, BREAK_COL,
+                              _period_label(a["end"], b["start"]))
+            break
+
+
+def _rebuild_break_column(ws, day: str, last_data: int) -> None:
+    """Re-merge the vertical BREAK column to span only the used data rows
+    (3..last_data), so its 'BREAK' letters always fit the visible table no
+    matter the cohort count. The template ships with the column pre-merged for
+    the full capacity; this shrinks it to the live size. Style is copied from
+    the template's existing break cell."""
+    from copy import copy
+    from openpyxl.cell.cell import MergedCell
+    src = ws.cell(DATA_FIRST_ROW, BREAK_COL)
+    font, align, fill, border = (copy(src.font), copy(src.alignment),
+                                 copy(src.fill), copy(src.border))
+    for m in list(ws.merged_cells.ranges):
+        if m.min_col == BREAK_COL and DATA_FIRST_ROW <= m.min_row <= DATA_LAST_ROW:
+            ws.unmerge_cells(str(m))
+    for r in range(DATA_FIRST_ROW, DATA_LAST_ROW + 1):
+        cell = ws.cell(r, BREAK_COL)
+        if not isinstance(cell, MergedCell):
+            cell.value = None
+
+    def _style(cell, text):
+        cell.font, cell.alignment = copy(font), copy(align)
+        cell.fill, cell.border = copy(fill), copy(border)
+        cell.value = text
+
+    if day == "Friday":
+        ws.merge_cells(start_row=DATA_FIRST_ROW, start_column=BREAK_COL,
+                       end_row=last_data, end_column=BREAK_COL + 1)
+        _style(ws.cell(DATA_FIRST_ROW, BREAK_COL), "BREAK")
+        return
+    letters = "BREAK"
+    size = max(1, (last_data - DATA_FIRST_ROW + 1) // len(letters))
+    start = DATA_FIRST_ROW
+    for i, ch in enumerate(letters):
+        end = last_data if i == len(letters) - 1 else min(last_data, start + size - 1)
+        ws.merge_cells(start_row=start, start_column=BREAK_COL,
+                       end_row=end, end_column=BREAK_COL)
+        _style(ws.cell(start, BREAK_COL), ch)
+        start = end + 1
+        if start > last_data:
+            break
+
+
+def _drop_data_row_merges(ws, row: int) -> None:
+    """Unmerge any leftover single-row merge inside the data columns of an
+    empty trailing row (e.g. a stale 'A+B' B:C merge), so it can be fully
+    blanked. Multi-row merges (the vertical BREAK block) are left intact."""
+    for mr in list(ws.merged_cells.ranges):
+        if (mr.min_row == row == mr.max_row
+                and mr.min_col >= 2 and mr.max_col <= max(GRID_COLS)):
+            ws.unmerge_cells(str(mr))
+
+
+def _set_row_bottom(ws, row: int, side: Side | None) -> None:
+    """Set the bottom border across the table's grid columns for one row,
+    preserving each cell's existing left/right/top sides. `side=None` clears
+    the bottom (used to wipe stray separators on empty trailing rows). Skips
+    merged-range interior cells, which can't take an individual border."""
+    from openpyxl.cell.cell import MergedCell
+    for col in GRID_COLS:
+        cell = ws.cell(row=row, column=col)
+        if isinstance(cell, MergedCell):
+            continue
+        b = cell.border
+        cell.border = Border(left=b.left, right=b.right, top=b.top, bottom=side)
 
 
 if __name__ == "__main__":

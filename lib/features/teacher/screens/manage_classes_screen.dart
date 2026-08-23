@@ -1,14 +1,3 @@
-// ============================================================
-// FILE: lib/features/teacher/screens/manage_classes_screen.dart
-// PURPOSE: Teacher "Classes" tab. The teacher's weekly schedule
-// with a day selector; tapping a class opens an action sheet to
-// cancel it (alerts the cohort + records a cancellation), undo a
-// cancellation, or post a room-change / notice / test-reminder.
-// Tab screen: owns its Scaffold + UAppBar(showBackButton:false);
-// AppShell supplies the bottom nav. Screen → controller →
-// TeacherService — no Supabase here.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/constants/app_constants.dart';
@@ -187,7 +176,6 @@ class _ManageClassesScreenState extends State<ManageClassesScreen> {
     );
   }
 
-  // ─── Action sheet ─────────────────────────────────────────
   void _openActions(RoutineEntry e) {
     final cancelled = _controller.isCancelled(e);
 
@@ -267,7 +255,6 @@ class _ManageClassesScreenState extends State<ManageClassesScreen> {
         : (_controller.errorMessage ?? 'Could not undo.'));
   }
 
-  // ─── Cancel sheet (with reason) ───────────────────────────
   void _confirmCancel(RoutineEntry e) {
     final reasonCtrl = TextEditingController();
 
@@ -341,7 +328,6 @@ class _ManageClassesScreenState extends State<ManageClassesScreen> {
     ).whenComplete(reasonCtrl.dispose);
   }
 
-  // ─── Compose update sheet (room change / notice / test) ───
   void _composeNotice(RoutineEntry e) {
     final titleCtrl = TextEditingController();
     final bodyCtrl = TextEditingController();
@@ -457,7 +443,6 @@ class _ManageClassesScreenState extends State<ManageClassesScreen> {
   }
 }
 
-// ─── A tappable action row inside the bottom sheet ──────────
 class _ActionRow extends StatelessWidget {
   final IconData icon;
   final Color color;
@@ -519,7 +504,6 @@ class _ActionRow extends StatelessWidget {
   }
 }
 
-// ─── Bottom-sheet grabber handle ────────────────────────────
 class _Grabber extends StatelessWidget {
   const _Grabber();
 

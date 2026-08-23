@@ -1,16 +1,3 @@
-// ============================================================
-// FILE: lib/features/admin/screens/admin_registration_screen.dart
-// PURPOSE: Provision new ADMINS by email invite. Account creation needs
-// the service-role key, so this calls the `invite-admin` Edge Function
-// (via WhitelistController.invite): it whitelists the email as admin and
-// emails an invite link that lands on the set-password screen. The new
-// admin then signs in with the password they set. Lists existing
-// whitelist entries with remove. Owns its WhitelistController lifecycle.
-//
-// NOTE: this is a top-level "secondary" screen (back button, no bottom
-// nav) reached from the Admin Dashboard card — same pattern as Resources.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/models/whitelist_model.dart';

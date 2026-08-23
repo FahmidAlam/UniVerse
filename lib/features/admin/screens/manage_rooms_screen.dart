@@ -1,10 +1,3 @@
-// ============================================================
-// FILE: lib/features/admin/screens/manage_rooms_screen.dart
-// PURPOSE: Admin config — the room inventory the timetable engine
-// assigns from. Lists rooms grouped into Lab vs Theory/Gallery,
-// with add/edit/delete via a bottom sheet. Owns its controller.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/models/timetable_config_model.dart';
@@ -160,7 +153,7 @@ class _RoomEditorSheet extends StatefulWidget {
 class _RoomEditorSheetState extends State<_RoomEditorSheet> {
   late final TextEditingController _name;
   late final TextEditingController _building;
-  String _kind = 'Theory'; // Theory | Lab | Gallery
+  String _kind = 'Theory';
   bool _active = true;
   bool _saving = false;
 

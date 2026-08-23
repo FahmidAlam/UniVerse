@@ -1,10 +1,3 @@
-// ============================================================
-// FILE: lib/features/auth/widgets/onboard_slide.dart
-// PURPOSE: A single slide in the onboarding PageView.
-// Receives icon, title, and description — renders them
-// centered with the UniVerse design system.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
@@ -31,7 +24,6 @@ class OnboardSlide extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Icon container
           Container(
             width: 100,
             height: 100,
@@ -52,7 +44,6 @@ class OnboardSlide extends StatelessWidget {
 
           const SizedBox(height: AppSpacing.x3l),
 
-          // Title
           Text(
             title,
             style: AppTextStyles.onboardTitle,
@@ -61,7 +52,6 @@ class OnboardSlide extends StatelessWidget {
 
           const SizedBox(height: AppSpacing.md),
 
-          // Description
           Text(
             description,
             style: AppTextStyles.onboardBody,

@@ -1,10 +1,3 @@
-// ============================================================
-// FILE: lib/features/admin/screens/manage_faculty_screen.dart
-// PURPOSE: Admin config — the teacher directory the engine uses for
-// names + hard day-off constraints. Searchable list; tap a teacher to
-// edit their display name and weekly day-offs. Owns its controller.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/constants/app_constants.dart';

@@ -1,11 +1,3 @@
-// ============================================================
-// FILE: lib/features/dashboard/controllers/student_dashboard_controller.dart
-// PURPOSE: Aggregates the student Home screen from the routine
-// table (via RoutineService). Derives today's classes, the live
-// class, the next upcoming class, and the simple counts shown in
-// the stat strip. Read-only — no new backend, no writes.
-// ============================================================
-
 import 'package:universe/core/constants/app_enums.dart';
 import 'package:universe/core/models/profile_model.dart';
 import 'package:universe/core/models/routine_model.dart';
@@ -33,7 +25,6 @@ class StudentDashboardController extends SafeChangeNotifier {
     return map == null ? null : Profile.fromMap(map);
   }
 
-  // Leading University runs all 7 days (DateTime.weekday: Mon=1 … Sun=7).
   static const Map<int, String> _weekdayFull = {
     7: 'Sunday',
     1: 'Monday',
@@ -46,11 +37,8 @@ class StudentDashboardController extends SafeChangeNotifier {
 
   String? get _todayFull => _weekdayFull[DateTime.now().weekday];
 
-  /// Every weekday is a class day here, so this is always true. Kept so
-  /// the dashboard hero can still distinguish "no class today" gracefully.
   bool get isClassDayToday => _todayFull != null;
 
-  /// Today's classes, sorted by start time.
   List<RoutineEntry> get todaysClasses {
     final day = _todayFull;
     if (day == null) return const [];
@@ -62,7 +50,6 @@ class StudentDashboardController extends SafeChangeNotifier {
   int get weeklyCount => _all.length;
   int get todayCount => todaysClasses.length;
 
-  /// The class running right now, if any.
   RoutineEntry? get liveClass {
     final now = DateTime.now();
     for (final e in todaysClasses) {
@@ -71,7 +58,6 @@ class StudentDashboardController extends SafeChangeNotifier {
     return null;
   }
 
-  /// The first class today that hasn't started yet.
   RoutineEntry? get nextClass {
     final now = DateTime.now();
     for (final e in todaysClasses) {
@@ -80,7 +66,6 @@ class StudentDashboardController extends SafeChangeNotifier {
     return null;
   }
 
-  /// Classes today that haven't finished yet (live + upcoming).
   int get remainingToday {
     final now = DateTime.now();
     return todaysClasses.where((e) => e.endOn(now).isAfter(now)).length;

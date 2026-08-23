@@ -1,11 +1,3 @@
-// ============================================================
-// FILE: lib/features/auth/screens/not_whitelisted_screen.dart
-// PURPOSE: Shown ONLY when someone tries to sign in as admin
-// but their email is not in the whitelists table.
-// Students and teachers are never sent here — they
-// can sign up and log in freely without whitelisting.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
@@ -35,7 +27,6 @@ class NotWhitelistedScreen extends StatelessWidget {
             children: [
               const Spacer(),
 
-              // Icon
               Container(
                 width: 88,
                 height: 88,
@@ -99,7 +90,6 @@ class NotWhitelistedScreen extends StatelessWidget {
 
               const Spacer(),
 
-              // Sign out with different account
               SizedBox(
                 width: double.infinity,
                 height: AppSpacing.buttonHeight,

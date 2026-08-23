@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // // ============================================================
 // // FILE: lib/features/auth/controllers/auth_controller.dart
 // // PURPOSE: Sits between AuthService and the UI screens.
@@ -579,6 +580,8 @@
 import 'dart:async' show unawaited;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
+=======
+>>>>>>> origin/main
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:universe/core/constants/app_constants.dart';
@@ -586,14 +589,14 @@ import 'package:universe/core/services/push_service.dart';
 import 'package:universe/features/auth/services/auth_service.dart';
 
 enum AuthStatus {
-  initial, // App just launched, checking session
-  loading, // Async operation in progress
-  authenticated, // Logged in with a loaded profile
-  unauthenticated, // Not logged in
-  registering, // OAuth done, no profile yet — register screens complete it
-  notWhitelisted, // Admin account not in whitelist
-  awaitingVerification, // Signed up, email not yet confirmed
-  error, // Something went wrong
+  initial,
+  loading,
+  authenticated,
+  unauthenticated,
+  registering,
+  notWhitelisted,
+  awaitingVerification,
+  error,
 }
 
 class AuthController extends ChangeNotifier {
@@ -604,15 +607,11 @@ class AuthController extends ChangeNotifier {
   String? _errorMessage;
   bool _isLoading = false;
 
-  // Stored temporarily so VerifyEmailScreen can resend
   String? _pendingEmail;
 
-  // Stored so EmailSignupScreen can complete registration after
-  // email is verified. Set by student/faculty register screens.
   Map<String, dynamic>? _pendingStudentData;
   Map<String, dynamic>? _pendingFacultyData;
 
-  // ─── Getters ──────────────────────────────────────────────
   AuthStatus get status => _status;
   Map<String, dynamic>? get profile => _profile;
   String? get errorMessage => _errorMessage;
@@ -623,9 +622,6 @@ class AuthController extends ChangeNotifier {
   Map<String, dynamic>? get pendingStudentData => _pendingStudentData;
   Map<String, dynamic>? get pendingFacultyData => _pendingFacultyData;
 
-  // ─── Store pending registration data ──────────────────────
-  // Called by register screens BEFORE navigating to email signup.
-  // EmailSignupScreen reads these after verification completes.
   void storePendingStudentData({
     required String name,
     required String studentId,
@@ -661,7 +657,6 @@ class AuthController extends ChangeNotifier {
     _pendingFacultyData = null;
   }
 
-  // ─── Initialize ───────────────────────────────────────────
   Future<void> initialize() async {
     _setLoading(true);
     await Future.delayed(const Duration(milliseconds: 1800));
@@ -669,7 +664,6 @@ class AuthController extends ChangeNotifier {
     if (_authService.isLoggedIn) {
       final user = _authService.currentUser!;
 
-      // Email user who hasn't verified yet
       if (user.emailConfirmedAt == null &&
           user.appMetadata['provider'] == 'email') {
         _pendingEmail = user.email;
@@ -684,9 +678,6 @@ class AuthController extends ChangeNotifier {
         _status = AuthStatus.authenticated;
         _registerPushToken(user.id);
       } else {
-        // Verified session but registration never finished (e.g. app
-        // closed on the register screen). Resume it instead of dumping
-        // the user on login with a live session.
         _status = AuthStatus.registering;
       }
     } else {
@@ -696,6 +687,7 @@ class AuthController extends ChangeNotifier {
     _setLoading(false);
   }
 
+<<<<<<< HEAD
   void _registerPushToken(String userId) {
     if (kIsWeb) return;
     unawaited(PushService.instance.registerToken(userId));
@@ -704,6 +696,8 @@ class AuthController extends ChangeNotifier {
   // ===========================================================
   // GOOGLE OAUTH
   // ===========================================================
+=======
+>>>>>>> origin/main
 
   Future<void> signInWithGoogle() async {
     _setLoading(true);
@@ -716,11 +710,6 @@ class AuthController extends ChangeNotifier {
     _setLoading(false);
   }
 
-  // Called after any event that establishes a session: the OAuth deep
-  // link (main.dart stream), email OTP verification, the verify-email
-  // poll timer, or the manual "check status" button. These can fire
-  // concurrently — the in-flight future is shared so handlePostLogin
-  // runs exactly once and every caller awaits the same resolution.
   Future<void>? _postLoginInFlight;
 
   Future<void> handleOAuthCallback() {
@@ -733,17 +722,12 @@ class AuthController extends ChangeNotifier {
     _setLoading(true);
     _clearError();
 
-    // Email registration path: the register screen stored the user's
-    // details before sign-up. Build the real profile from them instead
-    // of letting handlePostLogin leave us in `registering`.
     if (_pendingStudentData != null || _pendingFacultyData != null) {
       final ok = await _completeFromPendingData();
       if (ok) {
         _setLoading(false);
         return;
       }
-      // Completion failed — fall through so at least the session state
-      // resolves (user lands on register screens via `registering`).
     }
 
     final result = await _authService.handlePostLogin();
@@ -753,7 +737,6 @@ class AuthController extends ChangeNotifier {
         _profile = result.profile;
         _status = AuthStatus.authenticated;
       } else {
-        // Session active but no profile yet — register screen completes it
         _status = AuthStatus.registering;
       }
     } else if (result.errorMessage == 'not_whitelisted') {
@@ -788,9 +771,6 @@ class AuthController extends ChangeNotifier {
     return false;
   }
 
-  // ===========================================================
-  // EMAIL / PASSWORD
-  // ===========================================================
 
   Future<bool> signUpWithEmail({
     required String email,
@@ -815,9 +795,6 @@ class AuthController extends ChangeNotifier {
 
     if (result.success) {
       if (result.profile == null) {
-        // Email confirmation disabled in Supabase — session is live but
-        // no profile yet. Resolve via the shared path so pending
-        // registration data is consumed.
         await handleOAuthCallback();
         return _status == AuthStatus.authenticated ||
             _status == AuthStatus.registering;
@@ -861,8 +838,6 @@ class AuthController extends ChangeNotifier {
 
     if (result.success) {
       if (result.profile == null) {
-        // Verified session but registration was never finished —
-        // router sends them to role selection to complete it.
         _status = AuthStatus.registering;
         notifyListeners();
         return true;
@@ -883,7 +858,6 @@ class AuthController extends ChangeNotifier {
     return false;
   }
 
-  // ─── Forgot password ──────────────────────────────────────
   Future<bool> sendPasswordReset(String email) async {
     _setLoading(true);
     _clearError();
@@ -897,7 +871,6 @@ class AuthController extends ChangeNotifier {
     return false;
   }
 
-  // ─── Resend verification email ────────────────────────────
   Future<bool> resendVerificationEmail() async {
     if (_pendingEmail == null) return false;
     _setLoading(true);
@@ -911,13 +884,6 @@ class AuthController extends ChangeNotifier {
     return false;
   }
 
-  // ─── Verify email with OTP code ──────────────────────────
-  // Called by VerifyEmailScreen when the user types the code from
-  // the confirmation email. After verifying, auto-completes profile
-  // creation using pending registration data (stored by the register
-  // screens before email sign-up). Google OAuth users have no pending
-  // data — they land on registering status and the router sends them
-  // to role selection.
   Future<bool> verifyEmailCode(String code) async {
     if (_pendingEmail == null) return false;
     _setLoading(true);
@@ -934,18 +900,12 @@ class AuthController extends ChangeNotifier {
       return false;
     }
 
-    // Session established — resolve profile / whitelist / registration
-    // state. Pending registration data (stored by the register screens)
-    // is consumed inside, so email registrants land authenticated with
-    // a complete profile. No pending data + registering = OAuth user;
-    // the router sends them to role selection.
     await handleOAuthCallback();
 
     return _status == AuthStatus.authenticated ||
         _status == AuthStatus.registering;
   }
 
-  // ─── Check email verified (manual check button) ───────────
   Future<bool> checkEmailVerified() async {
     _setLoading(true);
 
@@ -953,8 +913,6 @@ class AuthController extends ChangeNotifier {
     final user = _authService.currentUser;
 
     if (user?.emailConfirmedAt != null) {
-      // Shared resolution path — consumes pending registration data
-      // and dedupes against the poll timer / auth stream listener.
       await handleOAuthCallback();
       return _status == AuthStatus.authenticated ||
           _status == AuthStatus.registering;
@@ -964,9 +922,6 @@ class AuthController extends ChangeNotifier {
     return false;
   }
 
-  // ===========================================================
-  // PROFILE COMPLETION (after Google OAuth or email verification)
-  // ===========================================================
 
   Future<bool> completeStudentRegistration({
     required String name,
@@ -1026,9 +981,6 @@ class AuthController extends ChangeNotifier {
     return false;
   }
 
-  // ===========================================================
-  // SIGN OUT & ONBOARDING
-  // ===========================================================
 
   Future<void> signOut() async {
     _setLoading(true);
@@ -1054,7 +1006,6 @@ class AuthController extends ChangeNotifier {
     await prefs.setBool(AppConstants.prefOnboardingDone, true);
   }
 
-  // ─── Private helpers ──────────────────────────────────────
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();

@@ -1,10 +1,3 @@
-// ============================================================
-// FILE: lib/features/profile/screens/profile_screen.dart
-// PURPOSE: Profile tab. Avatar + identity header, role-aware
-// stat cards, academic/contact info rows, settings tiles, and
-// a confirmed sign-out. Owns its ProfileController lifecycle.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -134,7 +127,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (confirmed == true) {
       await _controller.signOut();
-      // GoRouter redirect handles navigation back to login.
     }
   }
 
@@ -176,7 +168,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ─── Header ───────────────────────────────────────────────
   Widget _buildHeader(Profile p) {
     return Column(
       children: [
@@ -290,7 +281,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 spacing: AppSpacing.md,
                 runSpacing: AppSpacing.md,
                 children: [
-                  // Default (initials) tile
                   _AvatarPickerTile(
                     isSelected: _localAvatarIndex == null,
                     label: 'Default',
@@ -310,7 +300,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   ),
-                  // Preset tiles
                   for (var i = 0; i < _presets.length; i++)
                     _AvatarPickerTile(
                       isSelected: _localAvatarIndex == i,
@@ -336,7 +325,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ─── Stats (role-aware) ───────────────────────────────────
   Widget _buildStats(Profile p) {
     final List<Widget> cards;
     if (p.isTeacher) {
@@ -350,7 +338,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         StatCard(number: p.section ?? '—', label: 'Section'),
       ];
     } else {
-      // Admin — no academic stats.
       return const SizedBox.shrink();
     }
 
@@ -364,7 +351,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ─── Info rows ────────────────────────────────────────────
   Widget _buildInfo(Profile p) {
     final rows = <Widget>[
       InfoRow(
@@ -406,7 +392,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ─── Settings ─────────────────────────────────────────────
   Widget _buildSettings() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -506,7 +491,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-// ─── Avatar preset data ───────────────────────────────────
 
 class _AvatarPreset {
   final Color color;
@@ -516,7 +500,6 @@ class _AvatarPreset {
       {required this.color, required this.icon, required this.label});
 }
 
-// ─── Picker tile ─────────────────────────────────────────
 
 class _AvatarPickerTile extends StatelessWidget {
   final bool isSelected;

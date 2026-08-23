@@ -1,11 +1,3 @@
-// ============================================================
-// FILE: lib/features/admin/screens/timetable_grid_screen.dart
-// PURPOSE: Admin grid viewer for a generated timetable — a day-sheet
-// style grid (cohorts × time slots) mirroring the output workbook, so
-// the admin can scan the whole department schedule before publishing.
-// Stateless over the rows handed in via GoRouter `extra`.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/constants/app_constants.dart';
@@ -88,16 +80,18 @@ class _TimetableGridScreenState extends State<TimetableGridScreen> {
       );
     }
 
-    // Distinct time slots (columns), sorted by start.
     final slots = dayRows.map((r) => r.timeStart).toSet().toList()..sort();
+<<<<<<< HEAD
     // Distinct cohorts (rows), canonical order.
     final cohorts = dayRows
         .map((r) => '${r.batch}|${r.section}')
         .toSet()
         .toList()
+=======
+    final cohorts = dayRows.map((r) => '${r.batch}|${r.section}').toSet().toList()
+>>>>>>> origin/main
       ..sort(_cohortCompare);
 
-    // (cohort,slot) -> entry
     final cell = <String, RoutineEntry>{};
     for (final r in dayRows) {
       cell['${r.batch}|${r.section}@${r.timeStart}'] = r;
@@ -113,7 +107,6 @@ class _TimetableGridScreenState extends State<TimetableGridScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header row
             Row(children: [
               _headCell('Batch·Sec', cohortW),
               for (final s in slots) _headCell(_slotLabel(dayRows, s), slotW),
@@ -195,7 +188,6 @@ class _TimetableGridScreenState extends State<TimetableGridScreen> {
     );
   }
 
-  // Canonical cohort sort: batch descending, then section ascending.
   int _cohortCompare(String a, String b) {
     final pa = a.split('|'), pb = b.split('|');
     final ba = int.tryParse(pa[0]) ?? -1, bb = int.tryParse(pb[0]) ?? -1;

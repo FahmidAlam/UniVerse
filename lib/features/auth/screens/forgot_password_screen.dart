@@ -1,10 +1,3 @@
-// ============================================================
-// FILE: lib/features/auth/screens/forgot_password_screen.dart
-// PURPOSE: User enters their email to receive a password reset
-// link. Calls authController.sendPasswordReset().
-// Shows success state after sending — no navigation needed.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
@@ -28,7 +21,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   bool _emailSent = false;
 
-  // Resend cooldown
   int _cooldown = 0;
   bool _isSending = false;
 
@@ -121,7 +113,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 
-  // ── Before sending ─────────────────────────────────────────
   Widget _buildFormState(bool isLoading) {
     return Form(
       key: _formKey,
@@ -130,7 +121,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         children: [
           const Spacer(flex: 2),
 
-          // Icon
           Container(
             width: 72,
             height: 72,
@@ -162,7 +152,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
           const SizedBox(height: AppSpacing.x3l),
 
-          // Email field
           Text('Email address', style: AppTextStyles.label),
           AppSpacing.smGap,
           TextFormField(
@@ -219,7 +208,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
           const Spacer(flex: 3),
 
-          // Send button
           SizedBox(
             width: double.infinity,
             height: AppSpacing.buttonHeight,
@@ -249,7 +237,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
           AppSpacing.lgGap,
 
-          // Back to sign in
           Center(
             child: TextButton(
               onPressed: () => context.go(RouteNames.emailLogin),
@@ -275,13 +262,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 
-  // ── After sending ──────────────────────────────────────────
   Widget _buildSuccessState() {
     return Column(
       children: [
         const Spacer(flex: 2),
 
-        // Success icon
         Container(
           width: 96,
           height: 96,
@@ -317,7 +302,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
         AppSpacing.smGap,
 
-        // Email chip
         Container(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
@@ -358,7 +342,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
         const Spacer(flex: 2),
 
-        // Resend button with cooldown
         SizedBox(
           width: double.infinity,
           height: AppSpacing.buttonHeight,
@@ -386,7 +369,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
         AppSpacing.lgGap,
 
-        // Back to sign in
         SizedBox(
           width: double.infinity,
           height: AppSpacing.buttonHeight,

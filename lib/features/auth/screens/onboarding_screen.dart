@@ -1,10 +1,3 @@
-// ============================================================
-// FILE: lib/features/auth/screens/onboarding_screen.dart
-// PURPOSE: 3-slide onboarding shown only on first launch.
-// Has Skip (top-right), dot indicators, and Next/Get
-// Started at bottom. Marks SharedPrefs after completion.
-// ============================================================
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
@@ -83,7 +76,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ── Top bar (skip) ─────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.screenH,
@@ -92,7 +84,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Dot indicators
                   Row(
                     children: List.generate(_slides.length, (i) {
                       final isActive = i == _currentPage;
@@ -111,7 +102,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     }),
                   ),
 
-                  // Skip button
                   TextButton(
                     onPressed: _finish,
                     style: TextButton.styleFrom(
@@ -129,7 +119,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             ),
 
-            // ── Slides ────────────────────────────────────
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
@@ -147,7 +136,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             ),
 
-            // ── Bottom button ──────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screenH,

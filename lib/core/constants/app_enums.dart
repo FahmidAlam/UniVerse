@@ -27,9 +27,6 @@ enum NotifType {
     }
   }
 
-  /// Reverse of [fromString] — the exact string written to the
-  /// `notifications.type` column (must satisfy its CHECK constraint).
-  /// Used by the admin Campus Broadcast composer.
   String get dbValue {
     switch (this) {
       case NotifType.university:
@@ -47,8 +44,6 @@ enum NotifType {
     }
   }
 
-  /// Singular human label for a single type (e.g. the broadcast type
-  /// dropdown). The Alerts filter chips use their own plural labels.
   String get label {
     switch (this) {
       case NotifType.university:

@@ -1,22 +1,13 @@
-// ============================================================
-// FILE: lib/features/auth/services/auth_service.dart
-// PURPOSE: All raw Supabase auth operations.
-// Supports BOTH Google OAuth AND email/password auth.
-// AuthController calls this; screens never touch this directly.
-// ============================================================
-
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/services/push_service.dart';
 
-// ─── Data model returned after every auth operation ───────
 class AuthResult {
   final bool success;
   final String? role;
   final Map<String, dynamic>? profile;
   final String? errorMessage;
-  // Extra flag for email/password flow
   final bool emailNeedsVerification;
 
   const AuthResult({
@@ -37,16 +28,11 @@ class AuthResult {
 class AuthService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  // ─── Current session ──────────────────────────────────────
   User? get currentUser => _supabase.auth.currentUser;
   bool get isLoggedIn => currentUser != null;
 
-  // ─── Auth state stream ────────────────────────────────────
   Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
 
-  // ===========================================================
-  // GOOGLE OAUTH
-  // ===========================================================
 
   Future<void> signInWithGoogle() async {
     await _supabase.auth.signInWithOAuth(
@@ -56,22 +42,12 @@ class AuthService {
     );
   }
 
-  // ===========================================================
-  // EMAIL / PASSWORD AUTH
-  // ===========================================================
 
-  // ─── Sign up with email + password ───────────────────────
-  // Creates a Supabase auth user. Supabase automatically sends
-  // a verification email. The user cannot log in until they
-  // click the link in that email (controlled in Supabase dashboard).
   Future<AuthResult> signUpWithEmail({
     required String email,
     required String password,
   }) async {
     try {
-      // No whitelist check here — students and teachers sign up freely.
-      // Admin accounts are created directly by the department head
-      // and only sign in, never self-register via this screen.
       final response = await _supabase.auth.signUp(
         email: email.trim().toLowerCase(),
         password: password,
@@ -82,13 +58,11 @@ class AuthService {
         return AuthResult.failure('Sign-up failed. Please try again.');
       }
 
-      // No session = email confirmation required
       final needsVerification = response.session == null;
       if (needsVerification) {
         return AuthResult.needsVerification();
       }
 
-      // Email confirmation disabled in Supabase dashboard → proceed
       return await handlePostLogin();
     } on AuthException catch (e) {
       return AuthResult.failure(_friendlyAuthError(e.message));
@@ -99,7 +73,6 @@ class AuthService {
     }
   }
 
-  // ─── Sign in with email + password ────────────────────────
   Future<AuthResult> signInWithEmail({
     required String email,
     required String password,
@@ -114,7 +87,6 @@ class AuthService {
         return AuthResult.failure('Invalid email or password.');
       }
 
-      // Check if email is verified
       final isVerified = response.user!.emailConfirmedAt != null;
       if (!isVerified) {
         await _supabase.auth.signOut();
@@ -129,7 +101,6 @@ class AuthService {
     }
   }
 
-  // ─── Send password reset email ────────────────────────────
   Future<AuthResult> sendPasswordResetEmail(String email) async {
     try {
       await _supabase.auth.resetPasswordForEmail(
@@ -144,7 +115,6 @@ class AuthService {
     }
   }
 
-  // ─── Resend verification email ────────────────────────────
   Future<AuthResult> resendVerificationEmail(String email) async {
     try {
       await _supabase.auth.resend(
@@ -160,11 +130,6 @@ class AuthService {
     }
   }
 
-  // ─── Verify email with 6-digit OTP code ───────────────────
-  // Used instead of the email link: the "Confirm signup" template
-  // shows {{ .Token }} and the user types it into VerifyEmailScreen.
-  // Immune to email-client link prefetch consuming the token.
-  // On success Supabase confirms the email AND establishes a session.
   Future<AuthResult> verifyEmailOtp({
     required String email,
     required String token,
@@ -187,7 +152,6 @@ class AuthService {
     }
   }
 
-  // ─── Update password (from reset link) ───────────────────
   Future<AuthResult> updatePassword(String newPassword) async {
     try {
       await _supabase.auth.updateUser(UserAttributes(password: newPassword));
@@ -199,10 +163,6 @@ class AuthService {
     }
   }
 
-  // ===========================================================
-  // SHARED: POST-LOGIN PROFILE HANDLING
-  // (Same logic for BOTH Google and email auth)
-  // ===========================================================
 
   Future<AuthResult> handlePostLogin() async {
     try {
@@ -212,8 +172,6 @@ class AuthService {
       final email = user.email;
       if (email == null) return AuthResult.failure('Could not read email.');
 
-      // ── Step 1: Check if profile already exists ─────────────
-      // Returning users skip all whitelist logic entirely.
       final existingProfile = await _supabase
           .from(AppConstants.tableProfiles)
           .select()
@@ -225,28 +183,16 @@ class AuthService {
         return AuthResult(success: true, role: role, profile: existingProfile);
       }
 
-      // ── Step 2: First login — check whitelist for admin gate ─
-      // Whitelist is ONLY enforced for admin accounts.
-      // Students and teachers can sign up freely.
       final whitelistRow = await _supabase
           .from(AppConstants.tableWhitelists)
           .select()
           .eq('email', email.toLowerCase())
           .maybeSingle();
 
-      // ── Step 3: No whitelist entry → registration completes it ─
-      // Students and teachers create their profile explicitly via
-      // complete{Student,Faculty}Registration. Returning profile=null
-      // here puts the controller in `registering` so the register
-      // screens (or pending registration data) can finish the job.
-      // Auto-creating a default student row here would skip
-      // registration entirely and mislabel faculty as students.
       if (whitelistRow == null) {
         return const AuthResult(success: true);
       }
 
-      // ── Step 4: Whitelisted (pre-provisioned) account — create
-      // the profile directly from the whitelist row.
       final role = whitelistRow['role'] as String;
       final newProfile = {
         'id': user.id,
@@ -259,8 +205,6 @@ class AuthService {
         'semester': whitelistRow['semester'],
         'student_id': null,
         'teacher_code': whitelistRow['teacher_code'],
-        // whitelists has no designation/department columns — admins
-        // don't need them; lookups stay null-safe if added later.
         'designation': whitelistRow['designation'],
         'department': whitelistRow['department'],
         'courses': const [],
@@ -276,9 +220,6 @@ class AuthService {
     }
   }
 
-  // ===========================================================
-  // PROFILE COMPLETION (after Google OAuth registration)
-  // ===========================================================
 
   Future<AuthResult> completeStudentRegistration({
     required String name,
@@ -358,7 +299,6 @@ class AuthService {
     }
   }
 
-  // ─── Fetch profile ────────────────────────────────────────
   Future<Map<String, dynamic>?> fetchProfile(String userId) async {
     try {
       return await _supabase
@@ -371,18 +311,11 @@ class AuthService {
     }
   }
 
-  // ─── Sign out ─────────────────────────────────────────────
   Future<void> signOut() async {
-    // Delete this device's push token while the session is still alive —
-    // after auth.signOut() the request runs as anon and RLS silently
-    // deletes nothing, leaving a stale row that breaks the next user's
-    // token upsert with a row-level security violation.
     if (!kIsWeb) await PushService.instance.unregisterToken();
     await _supabase.auth.signOut();
   }
 
-  // ─── Human-readable error messages ───────────────────────
-  // Supabase throws technical errors — we translate them.
   String _friendlyAuthError(String raw) {
     final msg = raw.toLowerCase();
     if (msg.contains('invalid login credentials') ||
@@ -404,6 +337,6 @@ class AuthService {
     if (msg.contains('network') || msg.contains('connection')) {
       return 'No internet connection. Please check your network.';
     }
-    return raw; // fallback to raw if no match
+    return raw;
   }
 }

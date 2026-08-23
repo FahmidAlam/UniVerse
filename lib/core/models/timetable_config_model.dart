@@ -1,13 +1,3 @@
-// ============================================================
-// FILE: lib/core/models/timetable_config_model.dart
-// PURPOSE: Typed views of the timetable engine config tables —
-// `timetable_rooms`, `timetable_faculty`, `timetable_settings`.
-// These feed both the admin config screens and the JSON config
-// payload sent to the OR-Tools engine on generate. Pure Dart.
-// ============================================================
-
-/// A bookable room. `isLab` decides the room pool a lab course draws
-/// from; galleries are large theory rooms.
 class TimetableRoom {
   final String id;
   final String name;
@@ -34,7 +24,6 @@ class TimetableRoom {
         isActive: (m['is_active'] as bool?) ?? true,
       );
 
-  /// INSERT/UPDATE payload (Postgres generates `id`).
   Map<String, dynamic> toMap() => {
         'name': name,
         'building': building,
@@ -46,8 +35,6 @@ class TimetableRoom {
   String get kind => isLab ? 'Lab' : (isGallery ? 'Gallery' : 'Theory');
 }
 
-/// A teacher in the scheduling directory, keyed by acronym. `offDays`
-/// are full day names the teacher is unavailable (TRUE=off semantics).
 class TimetableFaculty {
   final String id;
   final String acronym;
@@ -103,13 +90,11 @@ class TimetableFaculty {
       );
 }
 
-/// The single-row solver/render settings. `periods` and `weights` are
-/// passed through to the engine verbatim.
 class TimetableSettings {
   final String? semesterLabel;
   final List<dynamic> periods;
   final bool fridayNoP4;
-  final String serviceScope; // 'resource_only' | 'ignore'
+  final String serviceScope;
   final Map<String, dynamic> weights;
 
   const TimetableSettings({
