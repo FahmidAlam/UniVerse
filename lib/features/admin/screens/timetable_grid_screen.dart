@@ -81,15 +81,11 @@ class _TimetableGridScreenState extends State<TimetableGridScreen> {
     }
 
     final slots = dayRows.map((r) => r.timeStart).toSet().toList()..sort();
-<<<<<<< HEAD
     // Distinct cohorts (rows), canonical order.
     final cohorts = dayRows
         .map((r) => '${r.batch}|${r.section}')
         .toSet()
         .toList()
-=======
-    final cohorts = dayRows.map((r) => '${r.batch}|${r.section}').toSet().toList()
->>>>>>> origin/main
       ..sort(_cohortCompare);
 
     final cell = <String, RoutineEntry>{};

@@ -7,14 +7,9 @@ import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/routine_model.dart';
 
 class TimetableJobStatus {
-<<<<<<< HEAD
   final String
   state; // queued | ingesting | solving | rendering | done | failed
   final double progress; // 0.0 → 1.0
-=======
-  final String state;
-  final double progress;
->>>>>>> origin/main
   final String? error;
   final Map<String, dynamic>? stats;
   final Map<String, dynamic>? validation;
@@ -188,7 +183,6 @@ class TimetableEngineService {
     return rows.length;
   }
 
-<<<<<<< HEAD
   /// Existing course names are the best source when importing a rendered
   /// workbook, because the workbook cells only store code/teacher/room.
   Future<Map<String, String>> fetchSubjectTitleMap() async {
@@ -212,8 +206,6 @@ class TimetableEngineService {
   }
 
   /// Records a generation/publish in `timetable_runs` for history.
-=======
->>>>>>> origin/main
   Future<void> recordRun({
     String? semesterLabel,
     String? filePath,

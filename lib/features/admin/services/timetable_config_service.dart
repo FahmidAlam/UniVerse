@@ -125,8 +125,10 @@ class TimetableConfigService {
       for (var i = 0; i < maps.length; i++)
         {
           ...maps[i].cast<String, dynamic>(),
-          'start': repaired[i].start,
-          'end': repaired[i].end,
+          // `HH:MM`, never `HH:MM:SS` — the engine's render.py unpacks these
+          // with `h, m = hhmm.split(":")` and a third field crashes the job.
+          'start': ClockTime.toHm(repaired[i].start),
+          'end': ClockTime.toHm(repaired[i].end),
         },
     ];
   }
