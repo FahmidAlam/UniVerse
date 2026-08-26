@@ -37,6 +37,8 @@ import 'package:universe/features/admin/screens/timetable_settings_screen.dart';
 import 'package:universe/features/admin/screens/timetable_grid_screen.dart';
 import 'package:universe/features/rooms/screens/rooms_screen.dart';
 import 'package:universe/features/find_teacher/screens/find_teacher_screen.dart';
+import 'package:universe/features/find_teacher/screens/teacher_detail_screen.dart';
+import 'package:universe/features/rooms/screens/room_detail_screen.dart';
 import 'package:universe/core/models/routine_model.dart';
 
 class AppRouter {
@@ -233,8 +235,22 @@ class AppRouter {
 
       GoRoute(path: RouteNames.rooms, builder: (c, s) => const RoomsScreen()),
       GoRoute(
+        path: RouteNames.roomDetail,
+        builder: (c, s) => RoomDetailScreen(room: (s.extra as String?) ?? ''),
+      ),
+      GoRoute(
         path: RouteNames.findTeacher,
         builder: (c, s) => const FindTeacherScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.teacherDetail,
+        builder: (c, s) {
+          final args = (s.extra as TeacherDetailArgs?);
+          return TeacherDetailScreen(
+            teacherCode: args?.code ?? '',
+            teacherName: args?.name ?? args?.code ?? 'Teacher',
+          );
+        },
       ),
       GoRoute(
         path: RouteNames.adminRegistration,

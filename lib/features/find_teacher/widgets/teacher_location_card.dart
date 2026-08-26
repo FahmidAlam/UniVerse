@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
+import 'package:universe/core/router/route_names.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
 import 'package:universe/features/find_teacher/controllers/find_teacher_controller.dart';
+import 'package:universe/features/find_teacher/screens/teacher_detail_screen.dart';
 
 class TeacherLocationCard extends StatelessWidget {
   final TeacherInfo teacherInfo;
@@ -176,7 +179,60 @@ class TeacherLocationCard extends StatelessWidget {
               ),
             ),
           ],
+          const Divider(
+            color: AppColors.border,
+            height: AppSpacing.lg,
+            thickness: AppSpacing.borderThin,
+          ),
+          _MoreDetailsLink(
+            onTap: () => context.push(
+              RouteNames.teacherDetail,
+              extra: TeacherDetailArgs(
+                code: teacherInfo.code,
+                name: teacherInfo.name,
+              ),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── "More details" affordance ──────────────────────────────
+
+/// Opens this teacher's full day-by-day schedule.
+class _MoreDetailsLink extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _MoreDetailsLink({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: AppSpacing.radiusSm,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: AppSpacing.radiusSm,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'More details',
+                style: AppTextStyles.link.copyWith(color: AppColors.primary),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Icon(
+                PhosphorIconsRegular.caretRight,
+                size: AppSpacing.iconSm,
+                color: AppColors.primary,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
