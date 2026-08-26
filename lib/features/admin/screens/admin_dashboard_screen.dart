@@ -12,7 +12,7 @@ import 'package:universe/features/auth/controllers/auth_controller.dart';
 import 'package:universe/shared/widgets/quick_action_card.dart';
 import 'package:universe/shared/widgets/stat_card.dart';
 import 'package:universe/shared/widgets/u_app_bar.dart';
-import 'package:universe/shared/widgets/u_local_avatar.dart';
+import 'package:universe/shared/widgets/app_drawer.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   final AuthController authController;
@@ -53,20 +53,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         title: me?.displayName ?? 'Admin',
         subtitle: 'Administrator · ${AppConstants.appName}',
         showBackButton: false,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.screenH),
-            child: Center(
-              child: ULocalAvatar(
-                userId: widget.authController.profile?['id'] as String?,
-                name: me?.displayName ?? 'Admin',
-                imageUrl: me?.avatarUrl,
-                size: AppSpacing.avatarSm,
-                onTap: () => context.go(RouteNames.profile),
-              ),
-            ),
-          ),
-        ],
+        actions: const [UDrawerButton()],
+      ),
+      // Tells AppShell to hide the Explore FAB while the drawer is open.
+      onEndDrawerChanged: (isOpen) => drawerOpenNotifier.value = isOpen,
+      endDrawer: AppDrawer(
+        profile: me,
+        userId: widget.authController.profile?['id'] as String?,
+        role: widget.authController.role,
+        onSignOut: widget.authController.signOut,
       ),
       body: ListenableBuilder(
         listenable: _controller,

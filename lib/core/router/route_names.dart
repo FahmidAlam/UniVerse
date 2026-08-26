@@ -21,7 +21,9 @@ abstract class RouteNames {
   static const String teacherDirectory = '/teacher-directory';
 
   static const String rooms = '/rooms';
+  static const String roomDetail = '/rooms/detail';
   static const String findTeacher = '/find-teacher';
+  static const String teacherDetail = '/find-teacher/detail';
 
   static const String teacherDashboard = '/teacher/dashboard';
   static const String teacherRoutine = '/teacher/routine';

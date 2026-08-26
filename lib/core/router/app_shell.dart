@@ -3,7 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/features/auth/controllers/auth_controller.dart';
 import 'package:universe/features/notifications/controllers/notification_controller.dart';
+import 'package:universe/core/router/route_names.dart';
 import 'package:universe/shared/widgets/app_bottom_nav.dart';
+import 'package:universe/shared/widgets/app_drawer.dart';
 import 'package:universe/shared/widgets/explore_fab_menu.dart';
 
 class AppShell extends StatefulWidget {
@@ -61,10 +63,8 @@ class _AppShellState extends State<AppShell> {
         return Scaffold(
           backgroundColor: AppColors.bgPrimary,
           body: widget.child,
-          floatingActionButton: (location == '/student/dashboard' ||
-                  location == '/teacher/dashboard' ||
-                  location == '/admin/dashboard')
-              ? const ExploreFabMenu()
+          floatingActionButton: _isDashboard(location)
+              ? const _ExploreFab()
               : null,
           floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           bottomNavigationBar: AppBottomNav(
@@ -74,6 +74,40 @@ class _AppShellState extends State<AppShell> {
           ),
         );
       },
+    );
+  }
+
+  /// The Explore FAB only belongs on the three role dashboards.
+  bool _isDashboard(String location) =>
+      location == RouteNames.studentDashboard ||
+      location == RouteNames.teacherDashboard ||
+      location == RouteNames.adminDashboard;
+}
+
+/// The Explore FAB, folded away while the drawer is open.
+///
+/// The drawer slides in over this corner, so leaving the FAB up would float
+/// it on top of the menu. `drawerOpenNotifier` is set by each dashboard's
+/// `onEndDrawerChanged`; the scale animation makes it drop out and pop back
+/// rather than blink.
+class _ExploreFab extends StatelessWidget {
+  const _ExploreFab();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: drawerOpenNotifier,
+      builder: (context, isDrawerOpen, child) => AnimatedScale(
+        scale: isDrawerOpen ? 0 : 1,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutBack,
+        child: AnimatedOpacity(
+          opacity: isDrawerOpen ? 0 : 1,
+          duration: const Duration(milliseconds: 140),
+          child: child,
+        ),
+      ),
+      child: const ExploreFabMenu(),
     );
   }
 }
