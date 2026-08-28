@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/router/route_names.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
 import 'package:universe/features/auth/controllers/auth_controller.dart';
+import 'package:universe/shared/utils/nav_utils.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   final AuthController authController;
@@ -96,7 +96,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             elevation: 0,
             leading: IconButton(
               icon: const Icon(PhosphorIconsRegular.arrowLeft),
-              onPressed: () => context.go(RouteNames.emailLogin),
+              onPressed: () => context.backOr(RouteNames.emailLogin),
             ),
             title: Text('Reset password', style: AppTextStyles.h2),
           ),
@@ -239,7 +239,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
           Center(
             child: TextButton(
-              onPressed: () => context.go(RouteNames.emailLogin),
+              onPressed: () => context.backOr(RouteNames.emailLogin),
               style: TextButton.styleFrom(
                 padding: EdgeInsets.zero,
                 minimumSize: Size.zero,
@@ -373,7 +373,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           width: double.infinity,
           height: AppSpacing.buttonHeight,
           child: ElevatedButton(
-            onPressed: () => context.go(RouteNames.emailLogin),
+            onPressed: () => context.backOr(RouteNames.emailLogin),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               shape: const RoundedRectangleBorder(

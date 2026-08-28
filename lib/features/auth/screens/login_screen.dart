@@ -137,7 +137,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: OutlinedButton(
                       onPressed: isLoading
                           ? null
-                          : () => context.go(RouteNames.emailLogin),
+                          : () => context.push(RouteNames.emailLogin),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: AppColors.border),
                         shape: const RoundedRectangleBorder(
@@ -181,7 +181,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: OutlinedButton(
                       onPressed: isLoading
                           ? null
-                          : () => context.go(RouteNames.roleSelection),
+                          : () => context.push(RouteNames.roleSelection),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: AppColors.border),
                         shape: const RoundedRectangleBorder(
