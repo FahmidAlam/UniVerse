@@ -53,3 +53,5 @@ dart_defines.json
 __pycache__/
 engine/.venv/
 engine/__pycache__/
+# Widget Preview related
+.widget_preview/
