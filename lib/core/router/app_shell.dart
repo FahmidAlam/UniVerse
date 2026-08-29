@@ -6,6 +6,7 @@ import 'package:universe/core/theme/app_text_styles.dart';
 import 'package:universe/features/auth/controllers/auth_controller.dart';
 import 'package:universe/features/notifications/controllers/notification_controller.dart';
 import 'package:universe/shared/widgets/app_bottom_nav.dart';
+import 'package:universe/shared/widgets/app_drawer.dart';
 import 'package:universe/shared/widgets/explore_fab_menu.dart';
 import 'package:universe/shared/widgets/shell_back_scope.dart';
 
@@ -61,9 +62,18 @@ class _AppShellState extends State<AppShell> {
 
   /// Tabs are entered with `go()`, which replaces the stack, so the shell never
   /// has anything to pop and a raw back press would quit the app. Resolve it
-  /// the way Material specifies instead: unwind the screen, then fall back to
-  /// the role's start destination, then require a confirmed exit.
+  /// the way Material specifies instead: unwind whatever is on top, then fall
+  /// back to the role's start destination, then require a confirmed exit.
   void _onBackPressed() {
+    // The drawer opens over everything else, so it unwinds first. It registers
+    // a local history entry that would normally absorb the press on its own,
+    // but our PopScope is consulted before that entry is, so close it by hand.
+    if (drawerOpenNotifier.value) {
+      Navigator.of(context).pop();
+      return;
+    }
+
+    // Then any screen with internal state to shed (open folder, selection mode).
     if (_backRegistry.handleBack()) return;
 
     if (_location != _home) {
@@ -79,7 +89,8 @@ class _AppShellState extends State<AppShell> {
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(
-            content: Text('Press back again to exit', style: AppTextStyles.bodySm),
+            content:
+                Text('Press back again to exit', style: AppTextStyles.bodySm),
             backgroundColor: AppColors.bgElevated,
             behavior: SnackBarBehavior.floating,
             duration: _exitWindow,
@@ -94,6 +105,8 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     _location = GoRouterState.of(context).matchedLocation;
+    // Each role's first tab is its dashboard, so this doubles as the "is this
+    // a dashboard" test the Explore FAB needs.
     _home = AppBottomNav.destinationsFor(widget.authController.role).first.route;
 
     return ListenableBuilder(
@@ -113,8 +126,9 @@ class _AppShellState extends State<AppShell> {
               backgroundColor: AppColors.bgPrimary,
               body: widget.child,
               floatingActionButton:
-                  _location == _home ? const ExploreFabMenu() : null,
-              floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+                  _location == _home ? const _ExploreFab() : null,
+              floatingActionButtonLocation:
+                  FloatingActionButtonLocation.endFloat,
               bottomNavigationBar: AppBottomNav(
                 role: widget.authController.role,
                 currentRoute: _location,
@@ -124,6 +138,34 @@ class _AppShellState extends State<AppShell> {
           ),
         );
       },
+    );
+  }
+}
+
+/// The Explore FAB, folded away while the drawer is open.
+///
+/// The drawer slides in over this corner, so leaving the FAB up would float
+/// it on top of the menu. `drawerOpenNotifier` is set by each dashboard's
+/// `onEndDrawerChanged`; the scale animation makes it drop out and pop back
+/// rather than blink.
+class _ExploreFab extends StatelessWidget {
+  const _ExploreFab();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: drawerOpenNotifier,
+      builder: (context, isDrawerOpen, child) => AnimatedScale(
+        scale: isDrawerOpen ? 0 : 1,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutBack,
+        child: AnimatedOpacity(
+          opacity: isDrawerOpen ? 0 : 1,
+          duration: const Duration(milliseconds: 140),
+          child: child,
+        ),
+      ),
+      child: const ExploreFabMenu(),
     );
   }
 }

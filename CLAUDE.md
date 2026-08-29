@@ -1,10 +1,12 @@
 # CLAUDE.md — UniVerse Project Context
 > Load this at the start of every session. Dense reference only — no fluff.
-> Last updated: June 2026 — **feature-complete + polished; defense-ready.**
+> Last updated: August 2026 — **feature-complete + polished; defense-ready.**
 > The app is BUILT and runs end-to-end (auth · routine · **student/teacher dashboards** ·
 > resources hub w/ **admin upload + semester folders** · notifications w/ **live push** ·
 > profile · admin · **teacher Manage Classes (cancel/notice)** · **automatic timetable
-> generator deployed live** · **Find Teacher + Room Availability — real-time campus explore**).
+> generator deployed live** · **Find Teacher + Room Availability — real-time campus explore
+> w/ per-room & per-teacher weekly detail** · **admin Upload Routine (workbook → publish)**
+> · **side drawer on all dashboards**).
 > AI assistant is **DESCOPED** (future scope — see that section).
 > ⚙️ `polish/defense-prep` branch merged to `main` (commit f886b2c). All features are on
 > `main`. The agent never pushes — Fahmid merges + rebuilds the APK.
@@ -41,6 +43,19 @@ whole system or the defense build.
   row = in-app alert + push; don't add a second push path.
 - **`FindTeacherService` + `RoomStatusService` read only `routines` + `cancellations`.**
   They derive live/next state from the current time vs the weekly schedule. No extra tables.
+- **Clock text ⇒ always through `ClockTime` (`core/utils/clock_time.dart`).** Period
+  boundaries arrive hand-typed ("13:10", "1:50", "1:50 PM"). A bare `1:50` written
+  straight to Postgres lands as **01:50 — 1:50 AM**, which put afternoon classes in the
+  middle of the night. Both producers of `routines` rows (the workbook uploader AND
+  `buildEngineConfig()`) normalize with it. **Two different output shapes — do not mix
+  them up:** Postgres gets `HH:MM:SS`; the **engine gets `HH:MM` only**, because
+  `render.py::_fmt_clock` unpacks with `h, m = hhmm.split(":")` and a third field aborts
+  the job with "too many values to unpack (expected 2)". Covered by `test/clock_time_test.dart`.
+- **Never commit a merge with conflict markers.** It has happened (commit `893d96f`
+  shipped `>>>>>>> origin/main` inside four `.dart` files and broke every build). After
+  any merge: `grep -rn "^<<<<<<< \|^>>>>>>> " lib/ engine/` must return nothing, then
+  `flutter analyze`. Resolve additively — taking "theirs" blindly once would have deleted
+  `fetchSubjectTitleMap()` (Upload Routine) and `_registerPushToken()` (push).
 
 **Never touch / never commit:**
 - Supabase URL + anon key live as defaults in `app_constants.dart` (anon key is safe to
@@ -51,6 +66,11 @@ whole system or the defense build.
 - `dart_defines.json` (gitignored). `google-services.json` / `firebase_options.dart` are
   committed (Android client config, not secret).
 - **Don't downgrade Gradle below 8.14** — the dev machine runs JDK 24, which needs it.
+  ⚠️ **Gradle 8.14 / AGP 8.9.1 top out at Java 24.** If the machine's JDK is upgraded
+  (e.g. to Temurin 25), Gradle can't parse the version and reports the bare version
+  string as the whole error — `* What went wrong: 25.0.4` — with no other clue. Fix by
+  pointing Flutter back at JDK 24, **not** by editing Gradle:
+  `flutter config --jdk-dir "C:\Program Files\Java\jdk-24"` (verify with `flutter doctor -v`).
 
 **Don't re-add the AI assistant** without first running the `documents` table migration
 (it's intentionally descoped — see AI ASSISTANT section).
@@ -92,7 +112,10 @@ manually. The engine is stateless (in-memory jobs) — no DB on the engine side.
 | **Timetable engine (Excel→CP-SAT→workbook) + admin config + publish** | ✅ built, deployed, verified live |
 | **Find Teacher** — real-time teacher locator (current room · remaining time · next class) | ✅ built (`features/find_teacher/`) |
 | **Room Availability** — real-time room occupancy (current class · next class · status) | ✅ built (`features/rooms/`) |
+| **Room / Teacher detail** — "More details" → full day-by-day weekly schedule | ✅ built (`weekly_schedule_view.dart`) |
 | **Explore FAB** — floating "Explore Campus" button on all three dashboards | ✅ built (`shared/widgets/explore_fab_menu.dart`) |
+| **App drawer** — hamburger (top-right) on all three dashboards; role-aware links + Sign Out | ✅ built (`shared/widgets/app_drawer.dart`) |
+| **Admin Upload Routine** — parse a rendered workbook in-app → publish to `routines` | ✅ built (`routine_workbook_parser.dart`) |
 | App icon (orbit mark via `flutter_launcher_icons`) | ✅ wired |
 | AI assistant (RAG/Gemini) | ⛔ **descoped → future scope** |
 
@@ -122,10 +145,12 @@ directly edit `app_router.dart`, `route_names.dart`, `app_constants.dart`,
 ## TECH STACK (current, see `pubspec.yaml`)
 
 ```
-Dart SDK: ^3.9.2   (Flutter ~3.35)
+Dart SDK: >=3.0.0 <4.0.0   (toolchain in use: Flutter 3.44.9 / Dart 3.12.2)
 supabase_flutter: ^2.12.4      go_router: ^17.2.3
 google_sign_in: ^6.2.1         google_fonts: ^8.1.0
-phosphor_flutter: ^2.1.0       hive_flutter: ^1.1.0
+phosphor_flutter: REMOVED — see note below
+archive: ^4.0.9                xml: ^6.6.1        (Upload Routine .xlsx parsing)
+hive_flutter: ^1.1.0
 flutter_local_notifications: ^17.2.2
 firebase_core: ^4.10.0         firebase_messaging: ^16.3.0
 file_picker: ^8.1.2            flutter_pdfview: ^1.3.2
@@ -133,6 +158,17 @@ cached_network_image: ^3.3.1   http: ^1.6.0
 shared_preferences: ^2.5.5     path_provider: ^2.1.4   open_filex: ^4.5.0
 url_launcher: ^6.3.2           flutter_launcher_icons: ^0.14.4 (dev)
 ```
+
+> ⚠️ **Icons: `phosphor_flutter` is NOT installed.** It is commented out in
+> `pubspec.yaml` and replaced by a Material-Icons shim,
+> `lib/shared/widgets/utils/phosphor_compat.dart` (re-exported from
+> `lib/shared/utils/phosphor_compat.dart`, which every screen imports). It exposes
+> `PhosphorIcons` / `PhosphorIconsRegular` with the same member names, so existing
+> `PhosphorIconsRegular.*` code compiles unchanged — but the app actually renders
+> **Material** icons, not Phosphor. This was a workaround for the package breaking on the
+> newer Flutter, not a design decision. **Adding a new icon means adding a member to the
+> shim.** To restore real Phosphor: un-comment the dep at a Dart-3.12-compatible version,
+> repoint the two `phosphor_compat.dart` files at the package, delete the shim.
 
 ### Backend / services
 - **Supabase** (project ref `yxqyrjyzxitrgkhgauli`) — Postgres + Auth + Storage + Realtime.
@@ -191,7 +227,9 @@ icons `iconSm16 iconMd20 iconLg24 iconXl32` · borders `borderThin0.5 ..Thick2`.
 ### Theme
 `AppTheme.dark` → `MaterialApp.router(theme:)`. `AppTheme.setSystemUI()` in `main()`.
 Font **Inter** via `GoogleFonts.interTextTheme()` (global — never set fontFamily).
-Icons **phosphor_flutter** → always `PhosphorIconsRegular.*`.
+Icons: always `PhosphorIconsRegular.*`, imported from
+`package:universe/shared/utils/phosphor_compat.dart` — **not** from `phosphor_flutter`,
+which is no longer a dependency (see the icon note in TECH STACK).
 
 ---
 
@@ -239,7 +277,19 @@ lib/
 - All paths are `RouteNames.*` constants. Redirect logic lives only in `AppRouter.redirect()`.
 - Tab sets: **Student** Home·Routine·Alerts·Profile · **Teacher** Home·Routine·Classes·
   Alerts·Profile · **Admin** Dashboard·Broadcast·Routine·Users·Profile.
+- **`AppDrawer`** (`shared/widgets/app_drawer.dart`) — right-side `endDrawer` opened by
+  `UDrawerButton` (hamburger) in the top-right of all three dashboards, replacing the old
+  profile-avatar action. Every role opens with **Profile · Find Teacher · Room
+  Availability**, then role-specific links, then Sign Out (same confirm dialog as Profile).
+  `_destinationsFor(role)` is the single source of truth, mirroring `AppBottomNav`.
+  The drawer lives on each **screen's** Scaffold while the Explore FAB lives on the
+  **shell's**, so they can't see each other in the tree — a shared `drawerOpenNotifier`
+  (exported from `app_drawer.dart`, driven by `Scaffold.onEndDrawerChanged`) lets
+  `AppShell` scale the FAB away while the drawer is open.
 - **Routes added (f886b2c):** `RouteNames.rooms = '/rooms'` · `RouteNames.findTeacher = '/find-teacher'` · `RouteNames.teacherDirectory = '/teacher-directory'` (defined, not yet wired to a screen).
+- **Routes added (Aug 2026):** `RouteNames.roomDetail = '/rooms/detail'` (`extra` = room
+  name `String`) · `RouteNames.teacherDetail = '/find-teacher/detail'` (`extra` =
+  `TeacherDetailArgs(code, name)`). Both secondary/pushed.
 
 ---
 
@@ -405,6 +455,26 @@ Both features are **real-time** (Supabase Realtime streaming) and are reached fr
   room list with occupancy chips, current teacher/subject/batch, countdown to free.
 - **Route**: `RouteNames.rooms = '/rooms'` (secondary, pushed).
 
+### Detail screens (weekly schedule)
+- Each room card and teacher card ends in a **"More details"** link → a screen showing the
+  full **day-by-day** schedule, built on the shared
+  `shared/widgets/weekly_schedule_view.dart` (day strip on top + that day's class list).
+- `WeeklyScheduleView` takes the entries + a `rowBuilder`, so Rooms can emphasise the
+  teacher while Find Teacher emphasises the room / course code from one implementation.
+- Opens on **today**; if today is empty it falls back to the first day that has classes.
+- **Cancellations are not applied here** (deliberate) — plain weekly timetable only.
+
+### ⚠️ Known gaps in these two features (not yet fixed)
+- Both controllers extend plain `ChangeNotifier`, not `SafeChangeNotifier` like every
+  other screen-scoped controller, **and** their `streamAllRoutines().listen(...)`
+  subscription is never cancelled → a Realtime event after the screen is popped notifies
+  a disposed notifier.
+- `subscribeToRealTimeUpdates()` assigns the streamed rows and then immediately re-fetches
+  over the network, discarding the payload it was just handed.
+- The list screens ignore `cancellations`, so a cancelled class still shows the teacher as
+  "In Class" and the room as occupied.
+- Both duplicate a local `['Sunday', …]` list instead of using `AppConstants.weekDays`.
+
 ### Explore FAB (`lib/shared/widgets/explore_fab_menu.dart`)
 - `FloatingActionButton` wired into all three dashboard scaffolds.
 - Tapping opens a bottom sheet with two tiles: **Rooms** and **Find Teacher**.
@@ -437,8 +507,10 @@ profile. · Teacher (`features/teacher/`): **dashboard (built)**, routine, **Man
 (built — cancel/notice/undo)**. · Admin: dashboard, **Routine hub (Manage + Generate)**,
 campus broadcast (+ **Broadcast History**), admin registration, manage users, **Manage
 Resources (+ Resource Library)**, manage rooms, manage faculty, timetable settings,
-timetable grid. · **Campus Explore (all roles via FAB):** **Find Teacher** (real-time
-teacher locator), **Room Availability** (real-time occupancy).
+timetable grid, **Upload Routine** (3rd segment of the Routine hub). · **Campus Explore
+(all roles via FAB or drawer):** **Find Teacher** (real-time teacher locator), **Room
+Availability** (real-time occupancy), **Room Detail** + **Teacher Detail** (full weekly
+schedule, reached via the "More details" link on each card).
 
 ---
 
@@ -479,6 +551,46 @@ teacher locator), **Room Availability** (real-time occupancy).
   Auth deep link scheme updated accordingly.
 - **`ULocalAvatar` widget** — `shared/widgets/u_local_avatar.dart`; user profile avatars.
 
+### August 2026 session (branch `room_teacher_find`)
+
+- **About credits** — `AppConstants.supervisorName/supervisorRole/developers/teamName/course`
+  feed the Profile → About dialog: supervisor **Md. Jamaner Rahaman, Assistant Professor,
+  Leading University**, then the 3-member team with student IDs.
+- **AM/PM clock fix** (`core/utils/clock_time.dart` + `test/clock_time_test.dart`) —
+  see the guardrail above. `normalize()` reads a bare hour of **1–7 as PM** (campus teaches
+  ~08:00–21:00); `repairSequence()` pushes any slot that starts *before* the one preceding
+  it forward 12h, because a teaching day only moves forward. Replaced the old naive
+  `_dbTime()` string-concat in `routine_workbook_parser.dart` and now also normalizes
+  `buildEngineConfig()`. `engine/render.py::_fmt_clock` was hardened to accept `HH:MM` and
+  `HH:MM:SS` alike (**render-only label formatter — no CP-SAT/solver change**).
+  ⚠️ This fixes the WRITE path only; routines already published with wrong times must be
+  re-uploaded / re-generated.
+- **Admin Upload Routine** — `upload_routine_screen.dart` + `routine_upload_controller.dart`
+  + `routine_workbook_parser.dart` (pure-Dart .xlsx reader via `archive` + `xml`). Parses a
+  **rendered** UniVerse routine workbook → `routines` rows → publishes through the same
+  `TimetableEngineService.publishToRoutines` path as generated output, records a
+  `timetable_runs` row and posts a "routine published" broadcast. It is a **second producer
+  of `routines` rows** alongside the engine — keep both in sync with the row shape.
+- **App drawer + FAB coordination** — see NAVIGATION.
+- **Room / Teacher detail** — `rooms/screens/room_detail_screen.dart` +
+  `find_teacher/screens/teacher_detail_screen.dart`, both built on the shared
+  `shared/widgets/weekly_schedule_view.dart` (day strip + per-day list). Opens on **today**,
+  falling back to the first day that has classes so an empty day never reads as "no schedule
+  at all". Each screen **fetches its own rows** (survives deep link / back-stack restore
+  from `extra` alone). **Cancellations are NOT applied here** — deliberate: these show the
+  plain weekly timetable.
+- **Push: data-only messages** (`core/services/push_service.dart`) — FCM *notification*
+  messages are drawn by Android; **data-only messages are drawn by nobody**. Both handlers
+  used to drop them (`_showForeground` bailed on `notification == null`; the background
+  handler only `debugPrint`ed), so such a push could never reach the notification bar.
+  Both now fall back to `data['title']`/`data['body']` via `_contentOf()` + `_displayLocal()`;
+  the background isolate initializes its own plugin + channel and returns early when a
+  `notification` block is present (which Android already drew) to avoid double alerts.
+  `registerToken` now logs its outcome — an empty `device_tokens` used to fail silently.
+  ⚠️ **Unverified server-side links:** whether the DB Webhook on `notifications` INSERT is
+  actually configured, and whether `FCM_SERVICE_ACCOUNT` is set. `send-push` IS deployed
+  (a bare POST returns `"No record"`, not 404). Check Edge Functions → send-push → Logs.
+
 ---
 
 ## GITHUB / BUILD
@@ -498,10 +610,13 @@ teacher locator), **Room Availability** (real-time occupancy).
 
 - No hardcoded hex → `AppColors.*` · no raw spacing → `AppSpacing.*` · no raw
   `TextStyle()` → `AppTextStyles.*` (+ `.copyWith`).
+- All clock text through `ClockTime` — `HH:MM:SS` to Postgres, `HH:MM` to the engine.
+- No conflict markers in a commit. Grep + `flutter analyze` before every merge commit.
 - No `MaterialPageRoute` → `context.go/push` with `RouteNames.*`. No hardcoded route strings.
 - No Supabase in screens/controllers → services only. `is_late` is a DB trigger.
-- `ChangeNotifier` only (no Riverpod/Bloc/Provider). Icons `PhosphorIconsRegular.*`. Font
-  Inter (global). One theme: `AppTheme.dark`. App name "UniVerse".
+- `ChangeNotifier` only (no Riverpod/Bloc/Provider). Icons `PhosphorIconsRegular.*` **via
+  `shared/utils/phosphor_compat.dart`**. Font Inter (global). One theme: `AppTheme.dark`.
+  App name "UniVerse".
 - `DropdownButtonFormField`: use `initialValue:` (not deprecated `value:`).
 - Shared infra (`app_router`, `route_names`, `app_constants`, `pubspec.yaml`, `main.dart`,
   `app_shell.dart`) → Fahmid only.
@@ -527,3 +642,9 @@ import 'package:universe/core/router/route_names.dart';
   (`uvicorn main:app --port 8000` + `--dart-define=TIMETABLE_BASE_URL=http://10.0.2.2:8000`),
   then push `main` to auto-deploy.
 - **Regenerate engine config/seed from workbooks:** `python engine/tools/seed_config.py`.
+- **Run tests:** `flutter test` (currently `test/clock_time_test.dart` — the AM/PM rules).
+- **Build won't start / cryptic Gradle version error:** see the JDK note in GUARDRAILS.
+- **Routine times look wrong (AM instead of PM):** the write path is fixed, but existing
+  rows are not — re-upload or re-generate. `timetable_settings.periods` is the source;
+  it is NOT editable from the Timetable Settings screen (passed through as
+  `// unchanged (advanced)`), so it can only be corrected via SQL today.

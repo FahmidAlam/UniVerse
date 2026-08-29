@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
+import 'package:universe/core/router/route_names.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
@@ -123,7 +125,62 @@ class RoomStatusCard extends StatelessWidget {
               ),
             ],
           ],
+          const _MoreDetailsDivider(),
+          _MoreDetailsLink(
+            onTap: () =>
+                context.push(RouteNames.roomDetail, extra: roomStatus.room),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── "More details" affordance ──────────────────────────────
+
+class _MoreDetailsDivider extends StatelessWidget {
+  const _MoreDetailsDivider();
+
+  @override
+  Widget build(BuildContext context) => const Divider(
+        color: AppColors.border,
+        height: AppSpacing.lg,
+        thickness: AppSpacing.borderThin,
+      );
+}
+
+/// Opens the full day-by-day schedule for this room / teacher.
+class _MoreDetailsLink extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _MoreDetailsLink({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: AppSpacing.radiusSm,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: AppSpacing.radiusSm,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'More details',
+                style: AppTextStyles.link.copyWith(color: AppColors.primary),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Icon(
+                PhosphorIconsRegular.caretRight,
+                size: AppSpacing.iconSm,
+                color: AppColors.primary,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
