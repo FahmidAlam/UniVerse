@@ -62,14 +62,31 @@ class TimetableReport {
   );
 }
 
+/// Outcome of an atomic routine publish.
+class RoutinePublishResult {
+  /// The `routine_versions` row now marked active.
+  final String versionId;
+  final int rowCount;
+
+  const RoutinePublishResult({required this.versionId, required this.rowCount});
+}
+
 class TimetableResult {
   final List<RoutineEntry> rows;
+  /// Service / non-CSE classes. Not part of a CSE cohort's routine, but they
+  /// occupy real teachers and rooms, so they are published alongside `rows`.
+  final List<RoutineEntry> serviceRows;
   final Map<String, dynamic> stats;
   final Map<String, dynamic> validation;
   final TimetableReport report;
 
+  /// Everything that must reach `routines`: the printed routine plus the
+  /// service classes that hold teacher and room time.
+  List<RoutineEntry> get allRows => [...rows, ...serviceRows];
+
   const TimetableResult({
     required this.rows,
+    this.serviceRows = const [],
     required this.stats,
     required this.validation,
     required this.report,
@@ -127,11 +144,12 @@ class TimetableEngineService {
       );
     }
     final body = jsonDecode(res.body) as Map<String, dynamic>;
-    final rows = (body['rows'] as List)
+    List<RoutineEntry> parse(String key) => ((body[key] as List?) ?? const [])
         .map((r) => RoutineEntry.fromMap((r as Map).cast<String, dynamic>()))
         .toList();
     return TimetableResult(
-      rows: rows,
+      rows: parse('rows'),
+      serviceRows: parse('service_rows'),
       stats: (body['stats'] as Map?)?.cast<String, dynamic>() ?? const {},
       validation:
           (body['validation'] as Map?)?.cast<String, dynamic>() ?? const {},
@@ -169,18 +187,57 @@ class TimetableEngineService {
     return path;
   }
 
-  Future<int> publishToRoutines(List<RoutineEntry> rows) async {
-    if (rows.isEmpty) return 0;
-    final batches = rows.map((r) => r.batch).toSet();
-    for (final batch in batches) {
-      await _supabase
-          .from(AppConstants.tableRoutines)
-          .delete()
-          .eq('batch', batch);
+  /// Replaces the entire active routine with [rows].
+  ///
+  /// This is a replacement, never a merge. The old implementation deleted only
+  /// the batches present in the incoming payload, so publishing routine B after
+  /// routine A left every batch that existed only in A still live and students
+  /// saw the two merged. It was also a delete-loop followed by a separate
+  /// insert, so a failure in between left a half-cleared routine.
+  ///
+  /// The work now happens inside the `publish_routine` RPC (migration 011), so
+  /// clearing the old routine and inserting the new one are one transaction:
+  /// either the new routine is live or the old one is untouched.
+  ///
+  /// Pass [rows] including service/non-CSE classes — they hold teacher and room
+  /// time that Room Availability and Find Teacher must see.
+  Future<RoutinePublishResult> publishToRoutines(
+    List<RoutineEntry> rows, {
+    String? semesterLabel,
+    String source = 'engine',
+    Map<String, dynamic> stats = const {},
+    Map<String, dynamic> validation = const {},
+    String? notes,
+  }) async {
+    if (rows.isEmpty) {
+      throw Exception('Refusing to publish an empty routine.');
     }
-    final payload = rows.map((r) => r.toMap()).toList();
-    await _supabase.from(AppConstants.tableRoutines).insert(payload);
-    return rows.length;
+    final res = await _supabase.rpc(
+      'publish_routine',
+      params: {
+        'p_rows': rows.map((r) => r.toMap()).toList(),
+        'p_semester_label': semesterLabel,
+        'p_source': source,
+        'p_stats': stats,
+        'p_validation': validation,
+        'p_notes': notes,
+      },
+    );
+    final map = (res as Map).cast<String, dynamic>();
+    return RoutinePublishResult(
+      versionId: map['version_id']?.toString() ?? '',
+      rowCount: (map['row_count'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  /// The routine currently served to students and teachers, if any.
+  Future<Map<String, dynamic>?> fetchActiveVersion() async {
+    final row = await _supabase
+        .from(AppConstants.tableRoutineVersions)
+        .select()
+        .eq('is_active', true)
+        .maybeSingle();
+    return row?.cast<String, dynamic>();
   }
 
   /// Existing course names are the best source when importing a rendered

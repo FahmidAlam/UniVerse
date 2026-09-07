@@ -51,6 +51,10 @@ def _run_job(job_id: str, file_bytes: bytes, config_override: dict | None,
         job["file"] = render.render_bytes(result["rows"], dataset["cohorts"], cfg)
 
         job["rows"] = result["rows"]
+        # Service / non-CSE classes are not drawn on the printed grid, but they
+        # occupy real teachers and rooms and must be published so Room
+        # Availability and Find Teacher tell the truth.
+        job["service_rows"] = result["service_rows"]
         job["stats"] = result["stats"]
         job["validation"] = result["validation"]
         job["report"] = {
@@ -123,6 +127,7 @@ def result(job_id: str) -> dict:
     return {
         "job_id": job_id,
         "rows": job["rows"],
+        "service_rows": job.get("service_rows", []),
         "stats": job["stats"],
         "validation": job["validation"],
         "report": job["report"],

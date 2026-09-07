@@ -255,6 +255,57 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
     );
   }
 
+  /// Names the courses behind a failed validation. "3 courses missing" is not
+  /// actionable; "CSE-4116 for 60-A is missing" is.
+  Widget _validationDetails(Map<String, dynamic> v) {
+    final details = (v['details'] as Map?)?.cast<String, dynamic>() ?? const {};
+    const labels = {
+      'missing_courses': 'Missing from the routine',
+      'under_scheduled': 'Too few classes for the credit',
+      'over_scheduled': 'Too many classes',
+      'unexpected_courses': 'Not in the distribution',
+    };
+
+    final blocks = <Widget>[];
+    for (final entry in labels.entries) {
+      final items = (details[entry.key] as List?) ?? const [];
+      if (items.isEmpty) continue;
+      blocks
+        ..add(Text(entry.value, style: AppTextStyles.h4))
+        ..add(AppSpacing.xsGap);
+      for (final raw in items.take(12)) {
+        final m = (raw as Map).cast<String, dynamic>();
+        final req = m['required'];
+        final got = m['scheduled'];
+        final suffix = (req != null && got != null)
+            ? ' — needs $req, has $got'
+            : (req != null ? ' — needs $req' : '');
+        blocks.add(Text('${m['code']}  ${m['cohort']}$suffix',
+            style: AppTextStyles.bodySm));
+      }
+      if (items.length > 12) {
+        blocks.add(Text('+ ${items.length - 12} more',
+            style: AppTextStyles.caption));
+      }
+      blocks.add(AppSpacing.smGap);
+    }
+    if (blocks.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.bgCard,
+        borderRadius: AppSpacing.radiusMd,
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: blocks,
+      ),
+    );
+  }
+
   List<Widget> _doneContent(TimetableResult result) {
     final v = result.validation;
     final ok = v['ok'] == true;
@@ -267,15 +318,27 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
         icon: ok
             ? PhosphorIconsRegular.checkCircle
             : PhosphorIconsRegular.warningCircle,
-        color: ok ? AppColors.success : AppColors.warning,
-        soft: ok ? AppColors.successSoft : AppColors.warningSoft,
-        title: ok ? 'Conflict-free timetable' : 'Generated with warnings',
+        color: ok ? AppColors.success : AppColors.error,
+        soft: ok ? AppColors.successSoft : AppColors.errorSoft,
+        title: ok
+            ? 'Valid against the distribution'
+            : 'This routine is not academically valid',
         body: ok
-            ? 'No teacher, section or room clashes · day-offs & Friday rules respected.'
-            : 'Teacher: ${n('teacher_clashes')} · Section: ${n('cohort_clashes')} · '
-                'Room: ${n('room_clashes')} · Day-off: ${n('dayoff_violations')} · '
-                'Lab-room: ${n('lab_room_violations')}',
+            ? 'All ${n('required_offerings')} courses scheduled with the right '
+                  'number of classes · no teacher, section or room clashes · '
+                  'day-offs and blocked periods respected.'
+            : 'Missing: ${n('missing_courses')} · Too few classes: '
+                  '${n('under_scheduled')} · Too many: ${n('over_scheduled')} · '
+                  'Not in distribution: ${n('unexpected_courses')} · '
+                  'Teacher: ${n('teacher_clashes')} · Section: '
+                  '${n('cohort_clashes')} · Room: ${n('room_clashes')} · '
+                  'Day-off: ${n('dayoff_violations')} · Lab-room: '
+                  '${n('lab_room_violations')}',
       ),
+      if (!ok) ...[
+        AppSpacing.smGap,
+        _validationDetails(v),
+      ],
       AppSpacing.sectionGap,
       _statsGrid(result),
       AppSpacing.sectionGap,
@@ -319,7 +382,11 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
           label: 'Publish to App',
           icon: PhosphorIconsRegular.uploadSimple,
           isLoading: _controller.isPublishing,
-          onPressed: _controller.publish,
+          // A routine that does not match the distribution must never reach
+          // students. Fix the input or the settings and generate again.
+          onPressed: _controller.blockingValidationError == null
+              ? _controller.publish
+              : null,
         ),
       ],
       AppSpacing.smGap,
