@@ -242,7 +242,7 @@ def main() -> None:
         _json("weights"),
     ]
     updates = ", ".join(f"{c}=excluded.{c}" for c in cols if c != "id")
-    lines.append("\n-- Settings (single row) — needs migration 010")
+    lines.append("\n-- Settings (single row) — needs migration 011")
     lines.append(
         f"insert into public.timetable_settings ({', '.join(cols)}) values "
         f"({', '.join(vals)}) on conflict (id) do update set {updates};")

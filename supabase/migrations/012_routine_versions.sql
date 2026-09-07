@@ -1,5 +1,5 @@
 -- ============================================================
--- 011 — Give a published routine an identity, and replace it atomically.
+-- 012 — Give a published routine an identity, and replace it atomically.
 --
 -- PROBLEM (confirmed):
 --   TimetableEngineService.publishToRoutines() deleted only the batches
@@ -24,6 +24,19 @@
 --
 -- Idempotent.
 -- ============================================================
+
+-- ─── preflight ──────────────────────────────────────────────
+-- publish_routine() below authorises with public.is_admin(), created by
+-- migration 006. plpgsql does not resolve that call until run time, so a
+-- missing helper would surface as a failed publish rather than a failed
+-- migration. Fail here instead, where it is obvious.
+do $$
+begin
+  if to_regprocedure('public.is_admin()') is null then
+    raise exception
+      'public.is_admin() is missing — run migration 006 before this one.';
+  end if;
+end $$;
 
 -- ─── routine_versions ───────────────────────────────────────
 create table if not exists public.routine_versions (
@@ -62,11 +75,19 @@ create index if not exists routines_lookup_idx
 create index if not exists routines_teacher_idx
   on public.routines (teacher_code, day);
 
--- ─── keep cancellation history across a republish ───────────
--- cancellations.routine_id was ON DELETE CASCADE, so every republish silently
--- deleted the entire cancellation history while the matching class_cancel
--- notifications stayed behind. The row carries its own batch/section/subject/
--- day/time_start, so it stays meaningful with a null routine_id.
+-- ─── make `delete from routines` possible at all ────────────
+-- The live constraint is:
+--     cancellations_routine_id_fkey FOREIGN KEY (routine_id)
+--       REFERENCES public.routines(id)
+-- with NO ON DELETE action, i.e. NO ACTION. Migration 007 declared CASCADE,
+-- but the table already existed, so `add column if not exists` never changed
+-- it. That means clearing the routine would RAISE a foreign-key violation as
+-- soon as a single class had ever been cancelled — publish_routine() below
+-- cannot work until this is fixed.
+--
+-- SET NULL, not CASCADE: a cancellation carries its own batch/section/subject/
+-- day/time_start/class_date, so the record stays meaningful and the history
+-- survives a republish instead of being wiped with it.
 do $$
 declare c_name text;
 begin
@@ -180,7 +201,7 @@ begin
     insert into public.routine_versions
       (semester_label, source, is_active, published_at, notes)
     values ('Adopted (pre-versioning)', 'manual', true, now(),
-            'Created by migration 011 to claim rows published before routine '
+            'Created by migration 012 to claim rows published before routine '
             'versioning existed.')
     returning id into v_id;
 

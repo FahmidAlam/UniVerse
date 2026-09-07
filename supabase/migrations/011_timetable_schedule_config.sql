@@ -1,5 +1,5 @@
 -- ============================================================
--- 010 — Make the university's scheduling rules configuration.
+-- 011 — Make the university's scheduling rules configuration.
 --
 -- The engine used to hard-code rules that the university actually
 -- changes between terms:
@@ -63,8 +63,11 @@ begin
   end if;
 end $$;
 
--- Ensure the singleton row exists so the admin screen always has something
--- to edit. Column defaults supply the rest.
-insert into public.timetable_settings (id)
-values (1)
-on conflict (id) do nothing;
+-- Ensure the singleton row exists so the admin screen always has something to
+-- edit. `periods` is NOT NULL with no default on the live table, so the value
+-- has to be supplied here; `where not exists` is used instead of ON CONFLICT
+-- because the not-null check fires while the tuple is built, before the
+-- conflict is ever detected.
+insert into public.timetable_settings (id, periods)
+select 1, '[]'::jsonb
+where not exists (select 1 from public.timetable_settings where id = 1);

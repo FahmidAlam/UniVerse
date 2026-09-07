@@ -50,7 +50,7 @@ This is a working app with a **live backend**. Breaking these breaks the whole s
   like the `routines` table. There are **two producers** of `routines` rows — the engine AND
   the Upload Routine workbook parser (`routine_workbook_parser.dart`). Both must stay in sync
   with the row shape, and both publish through the same path.
-- **`routines` is written ONLY by the `publish_routine()` RPC** (migration 011). It replaces
+- **`routines` is written ONLY by the `publish_routine()` RPC** (migration 012). It replaces
   the entire routine in one transaction. Never insert into or delete from `routines` directly,
   and never reintroduce a per-batch delete — that is exactly the bug that let two routines
   merge. See §P1.
@@ -354,7 +354,7 @@ fix covers both.
 4. Mark the new routine active.
 5. The UI must read only the active routine.
 
-## How it works now (migration 011) — do not route around this
+## How it works now (migration 012) — do not route around this
 
 - **`routine_versions`** — one row per published routine (`semester_label`, `source`
   engine|upload|manual, `is_active`, `row_count`, `stats`, `validation`, `published_by`).
@@ -447,7 +447,7 @@ days, breaks and term structure. **None of this may live in code.**
 Target flow: **Admin UI → stored configuration (`timetable_*` tables) → engine reads it.**
 Changing summer/winter timings must require **no backend edit and no new APK**.
 
-## P3.1 — Class periods ✅ EDITABLE (commit pending, migration 010)
+## P3.1 — Class periods ✅ EDITABLE (migration 011)
 
 `timetable_settings_screen.dart` now edits the whole grid: add/remove periods, start and end
 times, which days each period is **not** taught, and whether it is an online/reserve slot.
@@ -706,7 +706,7 @@ Required, in order:
 | Push (FCM) — `send-push` Edge Function deployed, DB webhook on `notifications` INSERT | ✅ |
 | Auto-notify: resource upload → students · routine publish → everyone | ✅ |
 | **Timetable engine (Excel→CP-SAT→workbook) + admin config + publish** | ✅ distribution is a hard constraint; sessions derived from credits; validated against the distribution — open items in §P0.5 |
-| **Routine publish/replace** | ✅ atomic full replacement via `publish_routine` RPC (migration 011) |
+| **Routine publish/replace** | ✅ atomic full replacement via `publish_routine` RPC (migration 012) |
 | Find Teacher — real-time teacher locator | ⚠️ built, ignores cancellations |
 | Room Availability — real-time room occupancy | ⚠️ built; service rows are now published, but it still ignores `cancellations` |
 | Room / Teacher weekly detail (`weekly_schedule_view.dart`) | ✅ (cancellations deliberately not applied) |

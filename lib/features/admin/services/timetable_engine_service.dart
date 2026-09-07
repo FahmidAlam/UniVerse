@@ -195,7 +195,7 @@ class TimetableEngineService {
   /// saw the two merged. It was also a delete-loop followed by a separate
   /// insert, so a failure in between left a half-cleared routine.
   ///
-  /// The work now happens inside the `publish_routine` RPC (migration 011), so
+  /// The work now happens inside the `publish_routine` RPC (migration 012), so
   /// clearing the old routine and inserting the new one are one transaction:
   /// either the new routine is live or the old one is untouched.
   ///

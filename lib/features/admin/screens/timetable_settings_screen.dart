@@ -135,7 +135,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
         blockedFor.putIfAbsent(i, () => <String>{}).add(day);
       }
     });
-    // Legacy flag, kept working for rows written before migration 010.
+    // Legacy flag, kept working for rows written before migration 011.
     if (s.fridayNoP4 && s.blockedPeriods.isEmpty) {
       blockedFor.putIfAbsent(4, () => <String>{}).add('Friday');
     }
@@ -252,8 +252,11 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
       allowOnlinePeriods: _allowOnline,
       excludedPeriods: const [],
       semesterMap: _controller.settings.semesterMap,
-      // Superseded by blockedPeriods; kept false so the two can't disagree.
-      fridayNoP4: false,
+      // Superseded by `blockedPeriods`, but kept in step with it rather than
+      // hard-coded false: an engine build older than migration 011 reads only
+      // this flag, and writing false there would quietly let it schedule
+      // Friday P4 again. Derived, so the two can never disagree.
+      fridayNoP4: blocked['Friday']?.contains(4) ?? false,
       serviceScope: _serviceScope,
       weights: {
         for (final k in _kWeights.keys)
