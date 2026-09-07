@@ -169,11 +169,25 @@ def _set_header_value(ws, row: int, col: int, text: str) -> None:
 
 def _write_period_headers(ws, day: str, config: dict) -> None:
     """Rewrite row 2's period-time labels from config (in-person periods +
-    computed break). Online column and Batch/Section headers are left as-is."""
-    in_person = sorted((p for p in config["periods"] if int(p["idx"]) <= 6),
+    computed break). Online column and Batch/Section headers are left as-is.
+
+    Which periods are in-person and which are blocked on a given day come from
+    the normalized config, so the header matches whatever the solver was
+    actually allowed to use. `friday_no_p4` is honoured only as a fallback for
+    callers that pass a raw, un-normalized config.
+    """
+    excluded = config.get("excluded_periods")
+    if excluded is None:
+        excluded = {7}
+    blocked = config.get("blocked_periods")
+    if blocked is None:
+        blocked = {"Friday": {4}} if config.get("friday_no_p4", True) else {}
+    day_blocked = set(blocked.get(day, ()))
+
+    in_person = sorted((p for p in config["periods"]
+                        if int(p["idx"]) not in excluded),
                        key=lambda p: int(p["idx"]))
-    drop_p4 = day == "Friday" and config.get("friday_no_p4", True)
-    day_periods = [p for p in in_person if not (drop_p4 and int(p["idx"]) == 4)]
+    day_periods = [p for p in in_person if int(p["idx"]) not in day_blocked]
     for p in day_periods:
         col = openpyxl.utils.column_index_from_string(p["col"])
         _set_header_value(ws, HEADER_ROW, col, _period_label(p["start"], p["end"]))

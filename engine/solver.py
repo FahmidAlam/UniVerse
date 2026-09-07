@@ -1,3 +1,14 @@
+"""CP-SAT timetable solver + post-generation validation.
+
+Works only on the normalized records produced by `ingest.py` — it has no
+knowledge of spreadsheets.
+
+Phase 1 (CP-SAT) assigns every session a (day, period).
+Phase 2 (greedy) assigns rooms.
+Phase 3 validates the result against the distribution it came from; a routine
+that loses a required course, or gives one the wrong amount of teaching time,
+is a FAILURE, not a warning.
+"""
 
 from __future__ import annotations
 
@@ -5,6 +16,7 @@ import json
 import os
 import re
 import time
+from collections import defaultdict
 from pathlib import Path
 
 from ortools.sat.python import cp_model
@@ -13,6 +25,9 @@ CONFIG_PATH = Path(__file__).parent / "config.json"
 
 SOLVER_WORKERS = int(os.environ.get("SOLVER_WORKERS", "8"))
 
+#: How many offending items each validation list carries back to the client.
+#: The counts are always exact; only the examples are capped.
+DETAIL_LIMIT = 50
 
 
 def load_config(override: dict | None = None) -> dict:
@@ -23,14 +38,50 @@ def load_config(override: dict | None = None) -> dict:
 
 def _normalize_config(cfg: dict) -> dict:
     """Accept either the engine config.json shape or the DB-sourced shape
-    (rooms[], faculty[], settings{}) and normalise to one internal form."""
-    days = cfg.get("days") or ["Sunday", "Monday", "Tuesday", "Wednesday",
-                               "Thursday", "Friday", "Saturday"]
+    (rooms[], faculty[], settings{}) and normalise to one internal form.
+
+    Everything the university can change between terms — days taught, period
+    times, which periods are unavailable on which day, term length — arrives
+    here as data. None of it may become a literal further down.
+    """
     settings = cfg.get("settings", cfg)
+    days = cfg.get("days") or settings.get("days") or [
+        "Sunday", "Monday", "Tuesday", "Wednesday",
+        "Thursday", "Friday", "Saturday"]
     periods = cfg.get("periods") or settings.get("periods")
-    friday_no_p4 = cfg.get("friday_no_p4", settings.get("friday_no_p4", True))
     weights = settings.get("weights", {"different_days": 8, "compactness": 3,
                                        "spread": 2, "late_slot": 1})
+
+    weeks = settings.get("weeks_in_term", cfg.get("weeks_in_term", 14))
+    try:
+        weeks = max(1, int(weeks))
+    except (TypeError, ValueError):
+        weeks = 14
+
+    # Periods the solver may use. `online_periods` (e.g. the 19:00 slot) are
+    # real teachable periods that simply aren't drawn on the printed grid;
+    # they are schedulable only when explicitly enabled.
+    excluded = _int_set(settings.get("excluded_periods", cfg.get("excluded_periods")))
+    online = settings.get("online_periods", cfg.get("online_periods"))
+    if online is None:
+        # Legacy default, now expressed as data: the printed template's last
+        # column is the 7:00pm "OL Class" slot the department holds in reserve.
+        # It used to be dropped by a hard-coded `idx <= 6` filter in solve();
+        # Timetable Settings can now enable it without a code change.
+        online = [7]
+    allow_online = bool(settings.get("allow_online_periods",
+                                     cfg.get("allow_online_periods", False)))
+    if not allow_online:
+        excluded |= _int_set(online)
+
+    # Per-day unavailable periods, e.g. {"Friday": [4]}. `friday_no_p4` is the
+    # legacy single-purpose flag; it is folded in so old configs keep working.
+    blocked: dict[str, set[int]] = {}
+    for day, plist in (settings.get("blocked_periods",
+                                    cfg.get("blocked_periods")) or {}).items():
+        blocked.setdefault(str(day), set()).update(_int_set(plist))
+    if settings.get("friday_no_p4", cfg.get("friday_no_p4", True)):
+        blocked.setdefault("Friday", set()).add(4)
 
     rooms = cfg.get("rooms") or []
     lab_rooms, theory_rooms = [], []
@@ -63,17 +114,29 @@ def _normalize_config(cfg: dict) -> dict:
     return {
         "days": days,
         "periods": periods,
-        "friday_no_p4": friday_no_p4,
+        "excluded_periods": excluded,
+        "blocked_periods": blocked,
+        "weeks_in_term": weeks,
         "weights": weights,
         "lab_rooms": lab_rooms,
         "theory_rooms": theory_rooms,
         "off_days": off_days,
         "names": names,
         "semester_label": settings.get("semester_label"),
+        "semester_map": settings.get("semester_map", cfg.get("semester_map")) or {},
         "lab_adjacency": cfg.get("lab_adjacency",
                                  settings.get("lab_adjacency", "hard")),
     }
 
+
+def _int_set(v) -> set[int]:
+    out: set[int] = set()
+    for item in (v or []):
+        try:
+            out.add(int(item))
+        except (TypeError, ValueError):
+            continue
+    return out
 
 
 class _Progress:
@@ -85,53 +148,40 @@ class _Progress:
             self.cb(value)
 
 
-
 def _last_digit_pos(code: str):
     """(int last digit, match) of the trailing number, or (None, None)."""
     m = re.search(r"(\d)\s*$", code)
     return (int(m.group(1)), m) if m else (None, None)
 
 
-def _build_pairs(by_offering: dict) -> list[tuple[dict, dict]]:
+def _build_pairs(offerings: list[dict],
+                 sessions_by_oid: dict[int, list[dict]]) -> list[tuple[dict, dict]]:
     """Match each lab offering to its sibling theory offering and return the
     per-occurrence (theory_session, lab_session) pairs to keep adjacent.
 
     Pairing key = the department's even-digit rule: a lab `code` ending in an
-    even digit `d` pairs with the theory whose code is identical except the
-    last digit is `d-1` (e.g. CSE-1102 ↔ CSE-1101), in the same cohort. When a
-    cohort splits a subject across teachers, match on equal teacher first, then
-    fall back to any remaining theory offering. Standalone labs (no sibling
-    theory) yield no pair and stay unconstrained.
+    even digit `d` pairs with the theory whose code is identical except the last
+    digit is `d-1` (e.g. CSE-1102 <-> CSE-1101), in the same cohort. Now that a
+    cohort has exactly one offering per course code, this is a direct lookup —
+    the old teacher-matching fallback is gone with the duplicate rows that
+    forced it. Standalone labs yield no pair and stay unconstrained.
     """
-    by_cc: dict[tuple, list] = {}
-    for (cohort, code, teacher), sess in by_offering.items():
-        by_cc.setdefault((cohort, code), []).append(
-            (teacher, sorted(sess, key=lambda s: s["occurrence"])))
+    by_cc = {(o["cohort"], o["code"]): o for o in offerings}
 
     pairs: list[tuple[dict, dict]] = []
-    for (cohort, code), labs in by_cc.items():
-        d, m = _last_digit_pos(code)
+    for o in offerings:
+        d, m = _last_digit_pos(o["code"])
         if d is None or d % 2 != 0:
             continue
-        theory_code = code[:m.start(1)] + str(d - 1) + code[m.end(1):]
-        theories = by_cc.get((cohort, theory_code))
-        if not theories:
+        theory = by_cc.get((o["cohort"], o["code"][:m.start(1)] + str(d - 1)
+                            + o["code"][m.end(1):]))
+        if theory is None:
             continue
-        used: set[int] = set()
-        for lteacher, lsess in labs:
-            choice = next((i for i, (tt, _) in enumerate(theories)
-                           if i not in used and tt == lteacher), None)
-            if choice is None:
-                choice = next((i for i in range(len(theories))
-                               if i not in used), None)
-            if choice is None:
-                break
-            used.add(choice)
-            _, tsess = theories[choice]
-            for occ in range(min(len(tsess), len(lsess))):
-                pairs.append((tsess[occ], lsess[occ]))
+        tsess = sorted(sessions_by_oid[theory["oid"]], key=lambda s: s["occurrence"])
+        lsess = sorted(sessions_by_oid[o["oid"]], key=lambda s: s["occurrence"])
+        for occ in range(min(len(tsess), len(lsess))):
+            pairs.append((tsess[occ], lsess[occ]))
     return pairs
-
 
 
 def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
@@ -139,9 +189,15 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
     progress = progress or _Progress()
     cfg = config
     days = cfg["days"]
-    periods = [p for p in cfg["periods"] if int(p["idx"]) <= 6]
+    periods = [p for p in cfg["periods"]
+               if int(p["idx"]) not in cfg["excluded_periods"]]
+    if not periods:
+        raise RuntimeError(
+            "No usable periods in the configuration. Every configured period is "
+            "excluded — check Timetable Settings.")
     pidx = [int(p["idx"]) for p in periods]
     pmeta = {int(p["idx"]): p for p in periods}
+    blocked = cfg["blocked_periods"]
     off_days = cfg["off_days"]
     n_lab = len(cfg["lab_rooms"])
     n_theory = len(cfg["theory_rooms"])
@@ -154,15 +210,30 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
                  for p in pidx}
 
     sessions = dataset["sessions"]
+    offerings = dataset.get("offerings", [])
+    offering_of = {o["oid"]: o for o in offerings}
+
+    sessions_by_oid: dict[int, list[dict]] = defaultdict(list)
+    for s in sessions:
+        sessions_by_oid[s["oid"]].append(s)
+
+    def teachers_of(s) -> list[str]:
+        return s.get("teachers") or [s["teacher"]]
 
     def valid_slots(s) -> list[tuple[int, int]]:
+        """(day, period) options for a session. Every teacher sharing the
+        offering must be free — a co-teacher takes the same slot later in the
+        term, so the slot has to suit all of them."""
         out = []
-        tea_off = off_days.get(s["teacher"], set())
+        blocked_days = set()
+        for t in teachers_of(s):
+            blocked_days |= off_days.get(t, set())
         for di, dname in enumerate(days):
-            if dname in tea_off:
+            if dname in blocked_days:
                 continue
+            day_blocked = blocked.get(dname, set())
             for p in pidx:
-                if cfg["friday_no_p4"] and dname == "Friday" and p == 4:
+                if p in day_blocked:
                     continue
                 out.append((di, p))
         return out
@@ -179,16 +250,16 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
     for s in sessions:
         vs = [x[(s["sid"], d, p)] for (d, p) in slots_for[s["sid"]]]
         if not vs:
-            raise RuntimeError(
-                f"No valid slot for {s['code']} {s['cohort']} (teacher {s['teacher']} "
-                f"off-days leave no room). Adjust day-offs or periods.")
+            raise RuntimeError(_no_slot_message(s, cfg, days, pidx, teachers_of(s)))
         model.AddExactlyOne(vs)
 
-    by_teacher: dict[str, list[dict]] = {}
-    by_cohort: dict[str, list[dict]] = {}
+    # A teacher is busy for every offering they are attached to, co-taught or not.
+    by_teacher: dict[str, list[dict]] = defaultdict(list)
+    by_cohort: dict[str, list[dict]] = defaultdict(list)
     for s in sessions:
-        by_teacher.setdefault(s["teacher"], []).append(s)
-        by_cohort.setdefault(s["cohort"], []).append(s)
+        for t in teachers_of(s):
+            by_teacher[t].append(s)
+        by_cohort[s["cohort"]].append(s)
 
     for di in range(len(days)):
         for p in pidx:
@@ -211,23 +282,38 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
 
     penalties = []
 
-    by_offering: dict[tuple, list[dict]] = {}
-    for s in sessions:
-        by_offering.setdefault((s["cohort"], s["code"], s["teacher"]), []).append(s)
-    for key, pair in by_offering.items():
-        if len(pair) < 2:
+    # Occurrences of one offering are interchangeable. Ordering them by slot
+    # removes that symmetry, which matters now that an offering can need three
+    # sessions instead of always two.
+    npp = len(pidx)
+    slot_rank = {p: i for i, p in enumerate(pidx)}
+    for oid, group in sessions_by_oid.items():
+        group = sorted(group, key=lambda s: s["occurrence"])
+        if len(group) < 2:
             continue
-        s1, s2 = pair[0], pair[1]
-        for di in range(len(days)):
-            y1 = [x[(s1["sid"], di, p)] for p in pidx if (s1["sid"], di, p) in x]
-            y2 = [x[(s2["sid"], di, p)] for p in pidx if (s2["sid"], di, p) in x]
-            if not y1 or not y2:
-                continue
-            same = model.NewBoolVar(f"same_{s1['sid']}_{s2['sid']}_{di}")
-            model.Add(sum(y1) + sum(y2) - 1 <= same)
-            penalties.append(w.get("different_days", 8) * same)
+        ranks = []
+        for s in group:
+            r = model.NewIntVar(0, len(days) * npp - 1, f"rank_{s['sid']}")
+            model.Add(r == sum(x[(s["sid"], d, p)] * (d * npp + slot_rank[p])
+                               for (d, p) in slots_for[s["sid"]]))
+            ranks.append(r)
+        for a, b in zip(ranks, ranks[1:]):
+            model.Add(a < b)
 
-    lt_pairs = _build_pairs(by_offering)
+    # Soft: spread an offering's sessions across different days.
+    for oid, group in sessions_by_oid.items():
+        if len(group) < 2:
+            continue
+        for di in range(len(days)):
+            terms = [x[(s["sid"], di, p)] for s in group for p in pidx
+                     if (s["sid"], di, p) in x]
+            if len(terms) < 2:
+                continue
+            extra = model.NewIntVar(0, len(group) - 1, f"same_{oid}_{di}")
+            model.Add(extra >= sum(terms) - 1)
+            penalties.append(w.get("different_days", 8) * extra)
+
+    lt_pairs = _build_pairs(offerings, sessions_by_oid)
     if adj_mode == "hard":
         for a, b in lt_pairs:
             asid, bsid = a["sid"], b["sid"]
@@ -289,9 +375,9 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
     progress(0.82)
 
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        raise RuntimeError(
-            f"No feasible timetable (status={solver.StatusName(status)}). "
-            "A teacher likely has more sessions than free (day,period) slots.")
+        raise RuntimeError(_infeasible_message(
+            solver.StatusName(status), sessions, teachers_of, slots_for,
+            offering_of, days, pidx))
 
     placed = []
     for s in sessions:
@@ -311,10 +397,12 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
         if pa and pb and pa[0] == pb[0] and pb[1] in neighbors.get(pa[1], []):
             adj_ok += 1
 
-    validation = _validate(dataset, cfg, rows + service_rows, days)
+    validation = _validate(dataset, cfg, rows + service_rows, days, pmeta)
     validation["lab_theory_pairs"] = len(lt_pairs)
     validation["lab_theory_adjacent"] = adj_ok
     validation["lab_theory_violations"] = len(lt_pairs) - adj_ok
+    if adj_mode == "hard" and validation["lab_theory_violations"] > 0:
+        validation["ok"] = False
 
     return {
         "rows": rows,
@@ -324,6 +412,7 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
             "solve_ms": solve_ms,
             "meetings": len(rows),
             "service_meetings": len(service_rows),
+            "offerings": len(offerings),
             "cohorts": len(dataset["cohorts"]),
             "teachers": len(by_teacher),
             "objective": int(solver.ObjectiveValue()),
@@ -334,18 +423,76 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
     }
 
 
+def _no_slot_message(s, cfg, days, pidx, teachers) -> str:
+    """Traceable failure for a session with an empty domain: name the course,
+    the cohort, every teacher involved, and the rule that emptied it."""
+    parts = []
+    for t in teachers:
+        off = sorted(cfg["off_days"].get(t, set()))
+        parts.append(f"{t} off {off or 'never'}")
+    blocked = {d: sorted(p) for d, p in cfg["blocked_periods"].items() if p}
+    return (
+        f"No valid slot for {s['code']} ({s['cohort']}, occurrence "
+        f"{s['occurrence']}). Teachers: {'; '.join(parts)}. "
+        f"Days taught: {days}. Periods available: {pidx}. "
+        f"Per-day blocked periods: {blocked or 'none'}. "
+        f"Free a day-off, add a period, or reassign the course.")
+
+
+def _infeasible_message(status_name, sessions, teachers_of, slots_for,
+                        offering_of, days, pidx) -> str:
+    """Explain WHY the model has no solution instead of returning a bare
+    INFEASIBLE. The usual cause is a teacher whose demand exceeds the slots
+    their day-offs leave them, so name the worst offenders."""
+    load: dict[str, int] = defaultdict(int)
+    capacity: dict[str, int] = {}
+    for s in sessions:
+        for t in teachers_of(s):
+            load[t] += 1
+            capacity[t] = min(capacity.get(t, 10**9), len(slots_for[s["sid"]]))
+
+    over = sorted(((t, load[t], capacity.get(t, 0)) for t in load
+                   if load[t] > capacity.get(t, 0)),
+                  key=lambda r: r[1] - r[2], reverse=True)[:5]
+    lines = [f"No feasible timetable (status={status_name})."]
+    if over:
+        lines.append("Over-committed teachers (sessions needed vs slots free):")
+        lines += [f"  - {t}: needs {n}, has {cap} usable (day,period) slots"
+                  for t, n, cap in over]
+        lines.append("Reduce their load, remove a day-off, or add periods.")
+    else:
+        lines.append(
+            "No single teacher is over-committed, so the clash is structural: "
+            "room capacity, lab/theory adjacency, or cohort load. Try relaxing "
+            "lab_adjacency to 'soft', adding rooms, or raising the time limit.")
+    return " ".join(lines) if len(lines) == 2 else "\n".join(lines)
+
 
 def _assign_rooms(dataset, cfg, placed, days, pmeta):
     busy: dict[tuple[int, int], set[str]] = {}
     lab_pool = cfg["lab_rooms"]
     theory_pool = cfg["theory_rooms"]
     names = cfg["names"]
+    semester_map = cfg.get("semester_map") or {}
 
     numeric_batches = [int(p["s"]["batch"]) for p in placed
                        if p["s"]["batch"].isdigit()]
     max_batch = max(numeric_batches) if numeric_batches else 0
 
     def semester_for(batch: str) -> int:
+        """Which study semester a batch is in.
+
+        An explicit `semester_map` from configuration wins. The fallback assumes
+        one intake per term and counts down from the newest batch — correct for a
+        bi-semester year but wrong under a tri-semester calendar, which is why
+        the map exists. Set it in Timetable Settings rather than relying on this.
+        """
+        mapped = semester_map.get(batch)
+        if mapped is not None:
+            try:
+                return int(mapped)
+            except (TypeError, ValueError):
+                pass
         if not batch.isdigit() or max_batch == 0:
             return 1
         return min(8, max(1, max_batch - int(batch) + 1))
@@ -380,6 +527,10 @@ def _assign_rooms(dataset, cfg, placed, days, pmeta):
             "section": s["section"],
             "semester": semester_for(s["batch"]),
             "is_active": True,
+            # Engine-side metadata. `RoutineEntry.toMap()` only emits the
+            # `routines` columns, so these never reach Postgres.
+            "oid": s["oid"],
+            "teachers": s.get("teachers") or [s["teacher"]],
             "is_service": s["is_service"],
             "is_lab": s["is_lab"],
         }
@@ -391,55 +542,104 @@ def _assign_rooms(dataset, cfg, placed, days, pmeta):
     return rows, service_rows
 
 
+def _validate(dataset, cfg, all_rows, days, pmeta) -> dict:
+    """Compare the generated routine back against the distribution it came from.
 
-def _validate(dataset, cfg, all_rows, days):
-    seen_t, seen_c, seen_r = {}, {}, {}
-    dayoff = 0
-    fri_p4 = 0
-    lab_bad = 0
-    tba = 0
+    Course completeness and session allocation are correctness failures, not
+    quality metrics: a routine that loses a required course must never be
+    publishable. Every failure carries enough identity to act on.
+    """
+    offerings = dataset.get("offerings", [])
+    day_set = set(days)
+    valid_slots = {(str(p["start"]), str(p["end"])) for p in pmeta.values()}
     lab_set = set(cfg["lab_rooms"])
     off_days = cfg["off_days"]
+    blocked = cfg["blocked_periods"]
+
+    # ── Distribution -> Routine reconciliation ────────────────────────────
+    required = {(o["cohort"], o["code"]): o for o in offerings}
+    actual: dict[tuple[str, str], int] = defaultdict(int)
     for r in all_rows:
-        kt = (r["teacher_code"], r["day"], r["period"])
-        kc = (r["batch"], r["section"], r["day"], r["period"])
-        kr = (r["room"], r["day"], r["period"])
-        seen_t[kt] = seen_t.get(kt, 0) + 1
-        seen_c[kc] = seen_c.get(kc, 0) + 1
+        cohort = f"{r['batch']}-{r['section']}" if r["section"] else r["batch"]
+        actual[(cohort, r["subject_code"])] += 1
+
+    missing, under, over, unexpected = [], [], [], []
+    for key, o in required.items():
+        got = actual.get(key, 0)
+        if got == 0:
+            missing.append({"cohort": o["cohort"], "code": o["code"],
+                            "teacher": o["teachers"][0],
+                            "required": o["required_sessions"]})
+        elif got < o["required_sessions"]:
+            under.append({"cohort": o["cohort"], "code": o["code"],
+                          "required": o["required_sessions"], "scheduled": got})
+        elif got > o["required_sessions"]:
+            over.append({"cohort": o["cohort"], "code": o["code"],
+                         "required": o["required_sessions"], "scheduled": got})
+    for key, got in actual.items():
+        if key not in required:
+            unexpected.append({"cohort": key[0], "code": key[1], "scheduled": got})
+
+    # ── Conflicts, rules and slot validity ───────────────────────────────
+    seen_t: dict[tuple, int] = defaultdict(int)
+    seen_c: dict[tuple, int] = defaultdict(int)
+    seen_r: dict[tuple, int] = defaultdict(int)
+    dayoff = fri_p4 = lab_bad = tba = bad_slot = bad_day = 0
+
+    for r in all_rows:
+        for t in (r.get("teachers") or [r["teacher_code"]]):
+            seen_t[(t, r["day"], r["period"])] += 1
+            if r["day"] in off_days.get(t, set()):
+                dayoff += 1
+        seen_c[(r["batch"], r["section"], r["day"], r["period"])] += 1
         if r["room"] != "TBA":
-            seen_r[kr] = seen_r.get(kr, 0) + 1
-        if r["day"] in off_days.get(r["teacher_code"], set()):
-            dayoff += 1
-        if cfg["friday_no_p4"] and r["day"] == "Friday" and r["period"] == 4:
+            seen_r[(r["room"], r["day"], r["period"])] += 1
+        else:
+            tba += 1
+        if r["period"] in blocked.get(r["day"], set()):
             fri_p4 += 1
         if r["is_lab"] and r["room"] not in lab_set and r["room"] != "TBA":
             lab_bad += 1
-        if r["room"] == "TBA":
-            tba += 1
+        if (str(r["time_start"]), str(r["time_end"])) not in valid_slots:
+            bad_slot += 1
+        if r["day"] not in day_set:
+            bad_day += 1
 
     tclash = sum(v - 1 for v in seen_t.values() if v > 1)
     cclash = sum(v - 1 for v in seen_c.values() if v > 1)
     rclash = sum(v - 1 for v in seen_r.values() if v > 1)
 
-    placed_per_off = {}
-    for r in all_rows:
-        k = (r["batch"], r["section"], r["subject_code"], r["teacher_code"])
-        placed_per_off[k] = placed_per_off.get(k, 0) + 1
-    bad_count = sum(1 for v in placed_per_off.values() if v != 2)
+    fatal = (len(missing), len(under), len(over), len(unexpected),
+             tclash, cclash, rclash, dayoff, fri_p4, lab_bad, tba,
+             bad_slot, bad_day)
 
     return {
+        # correctness against the distribution
+        "required_offerings": len(required),
+        "scheduled_offerings": len(actual),
+        "missing_courses": len(missing),
+        "under_scheduled": len(under),
+        "over_scheduled": len(over),
+        "unexpected_courses": len(unexpected),
+        # conflicts and rules
         "teacher_clashes": tclash,
         "cohort_clashes": cclash,
         "room_clashes": rclash,
         "dayoff_violations": dayoff,
-        "friday_p4_violations": fri_p4,
+        "blocked_period_violations": fri_p4,
         "lab_room_violations": lab_bad,
         "unplaced_rooms": tba,
-        "offerings_not_twice": bad_count,
-        "ok": all(v == 0 for v in
-                  (tclash, cclash, rclash, dayoff, fri_p4, lab_bad, tba, bad_count)),
+        "invalid_time_slots": bad_slot,
+        "invalid_days": bad_day,
+        # traceability
+        "details": {
+            "missing_courses": missing[:DETAIL_LIMIT],
+            "under_scheduled": under[:DETAIL_LIMIT],
+            "over_scheduled": over[:DETAIL_LIMIT],
+            "unexpected_courses": unexpected[:DETAIL_LIMIT],
+        },
+        "ok": all(v == 0 for v in fatal),
     }
-
 
 
 if __name__ == "__main__":
@@ -448,10 +648,11 @@ if __name__ == "__main__":
 
     path = sys.argv[1] if len(sys.argv) > 1 else \
         "routine generation files/Main_Distribution_Summer25.xlsx"
-    ds = ingest.ingest_path(path)
     cfg = load_config()
+    ds = ingest.ingest_path(path, weeks_in_term=cfg["weeks_in_term"])
     res = solve(ds, cfg, time_limit_s=float(sys.argv[2]) if len(sys.argv) > 2 else 60.0)
-    print(json.dumps({"stats": res["stats"], "validation": res["validation"]}, indent=2))
+    print(json.dumps({"stats": res["stats"], "validation": res["validation"]},
+                     indent=2))
     print(f"\nfirst 8 of {len(res['rows'])} CSE rows:")
     for r in res["rows"][:8]:
         print(f"  {r['batch']}-{r['section']:4} {r['day']:9} P{r['period']} "
