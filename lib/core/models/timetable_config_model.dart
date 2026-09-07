@@ -209,6 +209,47 @@ class TimetableSettings {
         weights: weights ?? this.weights,
       );
 
+  /// Why this period list cannot be saved, or null when it is usable.
+  ///
+  /// The engine trusts these boundaries completely — it schedules into them and
+  /// writes them straight into `routines` — so a typo here becomes a wrong
+  /// class time for every student. Checked before the row reaches Postgres.
+  static String? validatePeriods(List<dynamic> periods) {
+    final maps = periods.whereType<Map>().toList();
+    if (maps.isEmpty) return 'Add at least one class period.';
+
+    final seen = <int>{};
+    int? prevEnd;
+    for (final p in maps) {
+      final idx = (p['idx'] as num?)?.toInt();
+      if (idx == null || idx < 1) return 'Every period needs a number.';
+      if (!seen.add(idx)) return 'Period $idx appears more than once.';
+
+      final start = _minutes(p['start']);
+      final end = _minutes(p['end']);
+      if (start == null || end == null) {
+        return 'Period $idx has a time that cannot be read. Use HH:MM.';
+      }
+      if (end <= start) {
+        return 'Period $idx ends before it starts.';
+      }
+      if (prevEnd != null && start < prevEnd) {
+        return 'Period $idx starts before the previous one ends.';
+      }
+      prevEnd = end;
+    }
+    return null;
+  }
+
+  static int? _minutes(dynamic v) {
+    final parts = v?.toString().split(':') ?? const [];
+    if (parts.length < 2) return null;
+    final h = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    if (h == null || m == null || h > 23 || m > 59) return null;
+    return h * 60 + m;
+  }
+
   static List<String> _stringList(dynamic v) => v is List
       ? [for (final e in v) e.toString()]
       : const [];

@@ -138,4 +138,74 @@ void main() {
     expect(winter.periods, hasLength(2));
     expect(s.periods, hasLength(1), reason: 'the original is untouched');
   });
+
+  group('TimetableSettings.validatePeriods', () {
+    // The engine trusts these boundaries completely - it schedules into them
+    // and writes them straight into `routines` - so a typo here becomes a wrong
+    // class time for every student.
+    List<Map<String, dynamic>> p(List<List<String>> spans) => [
+          for (var i = 0; i < spans.length; i++)
+            {'idx': i + 1, 'start': spans[i][0], 'end': spans[i][1]},
+        ];
+
+    test('accepts a normal teaching day', () {
+      expect(
+        TimetableSettings.validatePeriods(p([
+          ['08:50', '10:05'],
+          ['10:05', '11:20'],
+          ['13:10', '14:25'],
+        ])),
+        isNull,
+      );
+    });
+
+    test('rejects an empty grid', () {
+      expect(TimetableSettings.validatePeriods(const []),
+          contains('at least one'));
+    });
+
+    test('rejects a period that ends before it starts', () {
+      expect(
+        TimetableSettings.validatePeriods(p([
+          ['13:10', '12:00'],
+        ])),
+        contains('ends before it starts'),
+      );
+    });
+
+    test('rejects overlapping periods', () {
+      expect(
+        TimetableSettings.validatePeriods(p([
+          ['08:50', '10:05'],
+          ['09:30', '10:45'],
+        ])),
+        contains('starts before the previous one ends'),
+      );
+    });
+
+    test('rejects a duplicate period number', () {
+      expect(
+        TimetableSettings.validatePeriods(const [
+          {'idx': 1, 'start': '08:50', 'end': '10:05'},
+          {'idx': 1, 'start': '10:05', 'end': '11:20'},
+        ]),
+        contains('more than once'),
+      );
+    });
+
+    test('rejects an unreadable or impossible time', () {
+      expect(
+        TimetableSettings.validatePeriods(const [
+          {'idx': 1, 'start': 'half nine', 'end': '10:05'},
+        ]),
+        contains('cannot be read'),
+      );
+      expect(
+        TimetableSettings.validatePeriods(const [
+          {'idx': 1, 'start': '25:00', 'end': '26:00'},
+        ]),
+        contains('cannot be read'),
+      );
+    });
+  });
 }

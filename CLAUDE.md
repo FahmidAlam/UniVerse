@@ -47,9 +47,15 @@ This is a working app with a **live backend**. Breaking these breaks the whole s
 
 **Never change one side without the matching change everywhere:**
 - **Engine row shape ↔ `routines` columns.** The Python engine emits rows shaped exactly
-  like the `routines` table; the app publishes them with a direct insert. There are now
-  **two producers** of `routines` rows — the engine AND the Upload Routine workbook parser
-  (`routine_workbook_parser.dart`). Both must stay in sync with the row shape.
+  like the `routines` table. There are **two producers** of `routines` rows — the engine AND
+  the Upload Routine workbook parser (`routine_workbook_parser.dart`). Both must stay in sync
+  with the row shape, and both publish through the same path.
+- **`routines` is written ONLY by the `publish_routine()` RPC** (migration 011). It replaces
+  the entire routine in one transaction. Never insert into or delete from `routines` directly,
+  and never reintroduce a per-batch delete — that is exactly the bug that let two routines
+  merge. See §P1.
+- **A routine that fails validation must not be publishable.** The distribution is a hard
+  constraint; `TimetableGenController.blockingValidationError` is the gate. See §P0.
 - **Config tables (`timetable_rooms` / `timetable_faculty` / `timetable_settings` /
   `timetable_courses`).** Edited by admin screens, read by
   `TimetableConfigService.buildEngineConfig()`, consumed by the engine's
@@ -65,7 +71,8 @@ This is a working app with a **live backend**. Breaking these breaks the whole s
   Sun–Thu (5-day) assumption.
 - **`cancellations` table (migration 007) is LIVE.** Teacher Manage Classes writes one dated
   row (`routine_id`+`class_date`) per cancelled occurrence AND a `class_cancel` notification.
-  ⚠️ `cancellations.routine_id` is `ON DELETE CASCADE` — see the **known defect** in §P1.
+  `cancellations.routine_id` is `ON DELETE SET NULL` since migration 011 — it used to be
+  CASCADE, which silently wiped the whole cancellation history on every republish.
 - **Notifications ⇒ push (automatic).** Any INSERT into `notifications` fires the deployed
   `send-push` Edge Function (DB webhook) → OS push to the audience. Creating a notification
   row = in-app alert + push; don't add a second push path.
@@ -179,16 +186,16 @@ with `weeks_in_term = 14` for Summer-2025. Evidence:
 `weeks_in_term` must become **configuration**, not a literal. `Credit` should be validated
 against `No. Of Classes` and a mismatch reported, rather than either being ignored.
 
-## P0.3 — Team-taught / split offerings share slots (known defect)
+## P0.3 — Team-taught / split offerings share slots ✅ FIXED (commit 23a6b03)
 
-**Confirmed defect.** When a cohort's course is split between two teachers, the workbook
+**Was a confirmed defect; keep the rule.** When a cohort's course is split between two teachers, the workbook
 carries **two rows** whose `No. Of Classes` sum to the full term total (14+14=28, or 9+10=19).
 The published routine gives that course its **normal weekly slots with ONE teacher shown** —
 the second row is an administrative record of who teaches which half of the term, *not*
 extra timetable slots.
 
-`ingest.py` treats each row independently and emits 2 sessions per row, so a split offering
-gets **4 weekly slots instead of 2**.
+`ingest.py` used to treat each row independently and emit 2 sessions per row, so a split
+offering got **4 weekly slots instead of 2**.
 
 Measured on `Main_Distribution_Summer25.xlsx`:
 - 356 offerings ingested, 686 sessions emitted.
@@ -198,9 +205,16 @@ Measured on `Main_Distribution_Summer25.xlsx`:
 - Ground truth check: official routine shows `64-A CSE-2111` on Thu P5 + Sat P1, teacher
   **DCP only** — the ABM row adds nothing.
 
-The fix is at the **offering** level, not the row level: group distribution rows by
-`(cohort, course_code)`, sum `No. Of Classes`, derive the weekly occurrence count once,
-and record the co-teachers as metadata. Do not fix this by de-duplicating output rows.
+The fix is at the **offering** level, not the row level: `ingest.py` groups distribution
+rows by `(cohort, course_code)`, sums `No. Of Classes`, derives the weekly occurrence count
+once, and carries the co-teachers on the session. Never fix this by de-duplicating output
+rows.
+
+**The first row in sheet order owns the printed slot** — verified against the published
+routine for every case checked (`64-A CSE-2111`→DCP, `66-D CSE-1101`→PRP,
+`60-A CSE-4113`→ZMM). Co-teachers are still held free at that time, because they take the
+same slot in the second half of the term; the solver's teacher-clash and day-off constraints
+apply to **every** teacher on `session["teachers"]`, not just the printed one.
 
 ## P0.4 — Post-generation validation layer (build this)
 
@@ -228,23 +242,29 @@ The validation result must be **exposed to the admin before publish**, and a rou
 fails course-completeness or credit-allocation **must not be publishable** without an
 explicit, logged override.
 
-## P0.5 — Known engine defects (documented, NOT yet fixed)
+## P0.5 — Engine defect register
 
-Ordered by severity. Each is a root-cause item — fix the cause, not the output.
+Each is a root-cause item — fix the cause, not the output. Fixed rows stay here so the
+behaviour is not "simplified" back later; the tests named are the ones that would break.
 
-| # | Severity | Defect | Location |
-|---|---|---|---|
-| 1 | **Critical** | Split/team-taught offerings produce double the required weekly slots (36 phantom classes in Summer-25) | `ingest.py` — per-row `for occ in (1, 2)` |
-| 2 | **Critical** | Weekly occurrence count hard-coded to 2; `Credit` and `No. Of Classes` ignored. `CSE-4116` needs 3/week, gets 2 | `ingest.py`, `solver.py::_validate` (`offerings_not_twice`) |
-| 3 | **Critical** | No Distribution→Routine completeness validation at all | `solver.py::_validate` |
-| 4 | **High** | Rows with a blank Teacher are silently excluded (13 in Summer-25: `CSE-3240`, `CSE-4140`, `CSE-4801` — project/thesis; plus `ACM-1000/2000` with no batch). Reported in `report.excluded` but untyped and easy to miss | `ingest.py` |
-| 5 | **High** | Period 7 (the 19:00 "OL Class" online slot, real in the published routine) is dropped by `periods = [p for p in cfg["periods"] if int(p["idx"]) <= 6]` | `solver.py::solve`, `render.py::_write_period_headers` |
-| 6 | **High** | `friday_no_p4` is a hard-coded, named, single-purpose rule. Should generalise to per-day disabled periods in config | `solver.py`, `render.py`, `timetable_settings` |
-| 7 | **High** | `semester_for(batch) = max_batch - batch + 1` assumes exactly one batch per term — breaks under tri-semester and mislabels `semester` on every published row | `solver.py::_assign_rooms` |
-| 8 | **Medium** | `different_days` soft penalty is applied to every offering, but the real routine deliberately places low-credit courses as **consecutive doubles on one day** (`58-B+C CSE-4233` Tue P4+P5). Needs to be occurrence-count-aware | `solver.py` |
-| 9 | **Medium** | Renderer is bound to a fixed 55-row template and to spreadsheet column letters (`period.col`) carried inside the engine config — layout leaking into the data model | `render.py`, `config.json` |
-| 10 | **Medium** | Room assignment is a greedy first-fit with no capacity awareness; `No. Of Students` is parsed but unused | `solver.py::_assign_rooms` |
-| 11 | **Low** | Job state is an in-memory dict on a free Render dyno — jobs vanish on sleep/restart mid-generation | `main.py::JOBS` |
+| # | Severity | Status | Defect | Location |
+|---|---|---|---|---|
+| 1 | Critical | ✅ 23a6b03 | Split/team-taught offerings produced double the required weekly slots (36 phantom classes in Summer-25) | `ingest.py` — was a per-row `for occ in (1, 2)`; now grouped per offering. `test_ingest.py::test_split_teacher_rows_collapse_into_one_offering` |
+| 2 | Critical | ✅ 23a6b03 | Weekly occurrence count hard-coded to 2; `No. Of Classes` ignored. `CSE-4116` needs 3/week, got 2 | `ingest.derive_required_sessions`. `test_ingest.py::test_required_sessions_follow_the_class_count` |
+| 3 | Critical | ✅ 23a6b03 | No Distribution→Routine completeness validation at all | `solver.py::_validate` now reconciles both ways; `offerings_not_twice` is gone. `test_solver.py` validation group |
+| 4 | High | ✅ 23a6b03 | Rows with a blank Teacher were silently excluded (13 in Summer-25: `CSE-3240`, `CSE-4140`, `CSE-4801` — project/thesis; plus `ACM-1000/2000` with no batch) | `ingest.py` — typed `EXCLUDE_*` reasons + `detail`, surfaced in `report.excluded` |
+| 5 | High | ✅ 23a6b03 | Period 7 (the 19:00 "OL Class" slot, real in the published routine) was dropped by `int(p["idx"]) <= 6` | now `online_periods` + `allow_online_periods` in config; default reproduces the old behaviour |
+| 6 | High | ✅ 23a6b03 | `friday_no_p4` was a hard-coded, named, single-purpose rule | generalized to `blocked_periods {day: [idx]}`; the legacy flag is still folded in |
+| 7 | High | ⚠️ partial | `semester_for(batch) = max_batch - batch + 1` assumes one batch per term — wrong under tri-semester | `semester_map` config now overrides it, but there is **no admin UI for the map yet** and the fallback is unchanged |
+| 8 | Medium | ❌ open | `different_days` penalty applies to every offering, but the real routine deliberately places low-credit courses as **consecutive doubles on one day** (`58-B+C CSE-4233` Tue P4+P5). Should be occurrence-count-aware | `solver.py` |
+| 9 | Medium | ❌ open | Renderer is bound to a fixed 55-row template and to spreadsheet column letters (`period.col`) carried inside the engine config — layout leaking into the data model. This is why the settings screen caps the grid at 7 periods | `render.py`, `config.json` |
+| 10 | Medium | ❌ open | Room assignment is greedy first-fit with no capacity awareness; `No. Of Students` is parsed but unused | `solver.py::_assign_rooms` |
+| 11 | Low | ❌ open | Job state is an in-memory dict on a free Render dyno — jobs vanish on sleep/restart mid-generation | `main.py::JOBS` |
+
+### Verified result on the real Summer-2025 distribution
+356 rows → **325 offerings** → **656 sessions** (was 686: −36 phantom, +6 for `CSE-4116`).
+Solves with `missing_courses 0 · under/over_scheduled 0 · unexpected 0 · all clashes 0 ·
+178/178 lab-theory pairs adjacent · ok: true`.
 
 ## P0.6 — Current pipeline (preserve this shape; fix inside it)
 
@@ -300,11 +320,11 @@ sleeps after ~15 min → first request ~50 s cold start. Pre-warm before a demo.
 
 ---
 
-# ═══ P1 — ROUTINE REPLACEMENT & DATABASE STATE ═══
+# ═══ P1 — ROUTINE REPLACEMENT & DATABASE STATE ✅ FIXED (commit 116269c) ═══
 
-## The defect (confirmed)
+## The defect (kept here so it is not reintroduced)
 
-`TimetableEngineService.publishToRoutines()`:
+`TimetableEngineService.publishToRoutines()` used to be:
 
 ```dart
 final batches = rows.map((r) => r.batch).toSet();   // batches in the NEW routine only
@@ -334,24 +354,39 @@ fix covers both.
 4. Mark the new routine active.
 5. The UI must read only the active routine.
 
-## Architectural direction (agree before implementing)
+## How it works now (migration 011) — do not route around this
 
-Introduce a real routine identity. Preferred shape:
+- **`routine_versions`** — one row per published routine (`semester_label`, `source`
+  engine|upload|manual, `is_active`, `row_count`, `stats`, `validation`, `published_by`).
+  A **partial unique index** `where is_active` makes "exactly one active routine" a database
+  guarantee, not a convention.
+- **`routines.routine_version_id`** (FK, cascade) + **`routines.is_service`** + lookup
+  indexes on `(batch, section, day)` and `(teacher_code, day)`.
+- **`publish_routine(p_rows, p_semester_label, p_source, p_stats, p_validation, p_notes)`**
+  RPC — admin-only, `security invoker`, one transaction: insert version → deactivate the old
+  one → `delete from routines` (**all** of it) → insert the new rows → flip active. Returns
+  `{version_id, row_count}`. It **refuses an empty payload** rather than wiping the routine.
+- `routines` holds only the **active** routine, so republishing does not grow the table;
+  history lives in `routine_versions` and `timetable_runs`.
+- **`cancellations.routine_id` is now `ON DELETE SET NULL`**, not cascade. The row carries
+  its own `batch/section/subject/day/time_start/class_date`, so cancellation history
+  survives a republish.
+- **Service rows are published** (flagged `is_service`), so Room Availability and Find
+  Teacher see the teacher/room time they occupy.
 
-- A `routine_versions` (or `timetable_runs`-backed) parent row: `id`, `semester_label` /
-  academic term, `published_at`, `published_by`, `is_active`, `source` (engine | upload),
-  `stats`, `validation`.
-- `routines.routine_version_id` FK + an index; readers filter on the active version.
-- Replacement performed inside **one Postgres function / RPC** so it is transactional:
-  deactivate previous version → insert new rows → flip active. A failure rolls back whole.
-- Decide deliberately what happens to `cancellations` on republish. `ON DELETE CASCADE` is
-  almost certainly wrong; prefer preserving history (nullable FK or a snapshot of the class
-  identity) and reconciling stale `class_cancel` notifications.
-- Publish **service rows too**, flagged, so room/teacher occupancy is truthful.
+**Rules that follow:**
+- Publishing a routine goes through `publishToRoutines()` → the RPC. Never insert into or
+  delete from `routines` directly, and never re-add a per-batch delete.
+- Both producers (engine generate, Upload Routine) share that one path — fix it once.
+- An academically invalid routine is **not publishable**: `TimetableGenController
+  .blockingValidationError` disables the button and names the offending courses.
 
-Also investigate and fix during this work: duplicate classes in student/teacher views,
-stale `SharedPreferences` notification-dismiss sets pointing at deleted rows, and any
-cached routine that survives a republish.
+### Still open in this area
+- Stale `SharedPreferences` notification-dismiss sets (`dismissed_notifs_<uid>`) can point at
+  deleted rows after a republish — harmless today, but unbounded.
+- `class_cancel` notifications for a class that no longer exists are not reconciled.
+- Nothing yet **reads** `routine_versions` in the UI (no "active routine / published at"
+  banner on the admin Routine hub). `fetchActiveVersion()` exists for it.
 
 ---
 
@@ -412,29 +447,32 @@ days, breaks and term structure. **None of this may live in code.**
 Target flow: **Admin UI → stored configuration (`timetable_*` tables) → engine reads it.**
 Changing summer/winter timings must require **no backend edit and no new APK**.
 
-## P3.1 — Class periods (current gap)
+## P3.1 — Class periods ✅ EDITABLE (commit pending, migration 010)
 
-`timetable_settings.periods` (jsonb) already exists and already reaches the engine via
-`buildEngineConfig()` (normalized through `ClockTime`). **But there is no UI to edit it** —
-`timetable_settings_screen.dart` passes `periods: _controller.settings.periods` straight
-through, so today periods can only be changed with raw SQL. Build the editor.
+`timetable_settings_screen.dart` now edits the whole grid: add/remove periods, start and end
+times, which days each period is **not** taught, and whether it is an online/reserve slot.
+Term length (`weeks_in_term`) and working days are on the same screen. Saving validates via
+`TimetableSettings.validatePeriods()` (non-empty, parseable, ordered, non-overlapping, unique
+indices) before the row reaches Postgres.
 
-Must become admin-editable:
-- academic term / session label
-- period list: index, start, end, label
+Admin-editable today:
+- academic term / session label · solver weights · service scope
+- period list: index, start, end (label derived)
 - working days (which of Sun–Sat are taught)
-- breaks (currently an implicit gap computed in `render.py`)
-- special periods (e.g. the 19:00 online slot — currently dropped by `idx <= 6`)
-- per-day disabled periods (generalizing the hard-coded `friday_no_p4`)
-- `weeks_in_term` (needed by the credit→sessions rule; currently an implicit 14)
-- solver weights (already editable)
+- per-day disabled periods — generalizes the hard-coded `friday_no_p4`
+- online / reserve periods + a switch to let the solver use them (was `idx <= 6`)
+- `weeks_in_term` — the credit→sessions divisor (was an implicit 14)
+
+Still not editable:
+- **breaks** — still an implicit gap that `render.py` computes between consecutive periods
+- **`semester_map`** — stored and honoured by the engine, but no UI (defect #7)
 
 Rules:
 - Every period boundary passes through `ClockTime`. `HH:MM:SS` → Postgres, `HH:MM` → engine.
-- Removing/adding a period must not require touching `solver.py`, `render.py`, or the
-  template. Kill the `idx <= 6` filter and the `period.col` spreadsheet-letter coupling.
-- Validate on save: monotonic non-overlapping periods, at least one working day, indices
-  unique.
+- The grid is capped at **7 periods** because `render.py` places each one by a spreadsheet
+  column letter (`period.col`) into a fixed template. That coupling is engine defect #9;
+  raise the cap only by fixing the renderer, not by widening the constant.
+- Saving must keep going through `TimetableSettings.validatePeriods()`.
 
 ## P3.2 — Academic term structure (bi-semester / tri-semester)
 
@@ -667,14 +705,14 @@ Required, in order:
 | Admin: dashboard, Routine hub (Manage / Generate / Upload), broadcast, registration, users, Manage Resources | ✅ |
 | Push (FCM) — `send-push` Edge Function deployed, DB webhook on `notifications` INSERT | ✅ |
 | Auto-notify: resource upload → students · routine publish → everyone | ✅ |
-| **Timetable engine (Excel→CP-SAT→workbook) + admin config + publish** | ⚠️ **built & deployed, academically incorrect — see §P0.5** |
-| **Routine publish/replace** | ❌ **merges old + new — see §P1** |
+| **Timetable engine (Excel→CP-SAT→workbook) + admin config + publish** | ✅ distribution is a hard constraint; sessions derived from credits; validated against the distribution — open items in §P0.5 |
+| **Routine publish/replace** | ✅ atomic full replacement via `publish_routine` RPC (migration 011) |
 | Find Teacher — real-time teacher locator | ⚠️ built, ignores cancellations |
-| Room Availability — real-time room occupancy | ⚠️ built, ignores cancellations + service rows |
+| Room Availability — real-time room occupancy | ⚠️ built; service rows are now published, but it still ignores `cancellations` |
 | Room / Teacher weekly detail (`weekly_schedule_view.dart`) | ✅ (cancellations deliberately not applied) |
 | Explore FAB · App drawer (all three dashboards) | ✅ |
-| Admin Upload Routine (rendered workbook → `routines`) | ✅ (shares the broken publish path) |
-| Automated tests | ❌ only `test/clock_time_test.dart` |
+| Admin Upload Routine (rendered workbook → `routines`) | ✅ (shares the fixed publish path) |
+| Automated tests | ⚠️ 47 engine (pytest) + 22 Dart. No widget/integration tests; the publish RPC is untested |
 | Play Store readiness | ❌ `com.example` id + debug signing |
 | AI assistant (RAG/Gemini) | ⛔ descoped → future scope |
 
@@ -849,8 +887,8 @@ test/                             Dart tests
 |---|---|
 | `whitelists` | admin gate; `role` ∈ student/teacher/admin |
 | `profiles` | extends `auth.users`; created on first login |
-| `routines` | weekly schedule; filtered by batch+section (student) or teacher_code (teacher). `teacher_name`/`teacher_code` are TEXT (003); `teacher_id` nullable. **Two producers publish here.** Also read by `FindTeacherService` + `RoomStatusService`. ⚠️ **no routine/version/term identity — see §P1** |
-| `cancellations` | (007) one dated row per cancelled occurrence: `routine_id, class_date, reason, batch, section, subject, day, time_start, cancelled_by` + unique `(routine_id, class_date)`. RLS: read-all; insert/delete by `cancelled_by = auth.uid()` & teacher/admin. ⚠️ **`routine_id` is ON DELETE CASCADE — republishing wipes history (§P1)** |
+| `routines` | weekly schedule; filtered by batch+section (student) or teacher_code (teacher). `teacher_name`/`teacher_code` are TEXT (003); `teacher_id` nullable. **011** adds `routine_version_id` + `is_service` + lookup indexes. Holds **only the active routine**. Written exclusively by `publish_routine()`. Also read by `FindTeacherService` + `RoomStatusService` |
+| `cancellations` | (007) one dated row per cancelled occurrence: `routine_id, class_date, reason, batch, section, subject, day, time_start, cancelled_by` + unique `(routine_id, class_date)`. RLS: read-all; insert/delete by `cancelled_by = auth.uid()` & teacher/admin. `routine_id` is **ON DELETE SET NULL** since 011, so history survives a republish |
 | `notifications` | typed (CHECK constraint); `notification_reads` tracks per-user read state |
 | `resources` | files in the `resources` bucket + Drive links; browsed by semester folder + category; `uploaded_by` from session (RLS) |
 | `assignments` / `submissions` | `submissions.is_late` set by a DB trigger — **never compute in Dart** |
@@ -858,7 +896,7 @@ test/                             Dart tests
 | `device_tokens` | FCM tokens per device/user |
 | `timetable_rooms` | engine room pool: `name, building, is_lab, is_gallery, is_active` (+ `dept` on the unmerged branch). RLS: 008 |
 | `timetable_faculty` | `acronym, full_name, dept, designation, off_days text[], is_active` (off_days TRUE-semantics = unavailable). RLS: 008 |
-| `timetable_settings` | single row (id=1): `semester_label, periods jsonb, friday_no_p4, service_scope, weights jsonb`. ⚠️ `periods` not editable in the UI (§P3.1). RLS: 008 |
+| `timetable_settings` | single row (id=1): `semester_label, periods jsonb, friday_no_p4, service_scope, weights jsonb` + **010**: `working_days text[], weeks_in_term, blocked_periods, online_periods, allow_online_periods, excluded_periods, semester_map`. All editable from Timetable Settings except `semester_map`. RLS: 008 |
 | `timetable_runs` | generation history: `semester_label, file_path, stats jsonb, validation jsonb, status, row_count, created_by`. RLS: 008 |
 
 **RLS pattern (all tables):** `read_all` (SELECT using true) + `admin_write` (INSERT/… with
@@ -870,8 +908,11 @@ for the MVP — revisit under §P6.
 **Migrations** (`supabase/migrations/`): 001 notification_reads · 002 drop profiles photo_url ·
 003 routines teacher text · 004 device_tokens · 005 register_device_token · 006 RLS on all
 tables (+ `my_role()`/`is_admin()`) · 007 cancellations schema · 008 RLS on `timetable_*` ·
-009 drop unused objects (legacy `cancellations.cancel_date`, `generated_timetable`).
-*(010 room dept + course assignments exists only on `engine/theory-lab-adjacency`.)*
+009 drop unused objects · **010 timetable schedule config** (working_days, weeks_in_term,
+blocked/online/excluded periods, semester_map) · **011 routine versions** (`routine_versions`,
+`routines.routine_version_id`/`is_service`, `publish_routine()` RPC, cancellations FK relaxed).
+*(The abandoned `engine/theory-lab-adjacency` branch also carries a 010 — it is **not** being
+merged; do not renumber ours to accommodate it.)*
 
 **Edge Functions** (`supabase/functions/`): `invite-admin` (service-role; admin provisioning) ·
 `send-push` (FCM v1; triggered by the `notifications` INSERT webhook).
@@ -966,10 +1007,15 @@ import 'package:universe/core/router/route_names.dart';
   (`uvicorn main:app --port 8000` + `--dart-define=TIMETABLE_BASE_URL=http://10.0.2.2:8000`),
   then push `main` to auto-deploy.
 - **Run the engine offline against a real workbook:**
-  `engine/.venv/Scripts/python.exe solver.py "routine generation files/<file>.xlsx" 45`
-  (ingest only: `python -c "import ingest; print(ingest.ingest_path('<file>')['meta'])"`).
+  `engine/.venv/Scripts/python.exe solver.py "routine generation files/<file>.xlsx" 90`
+  — prints stats + the full validation block. Ingest only (fast, shows shared offerings,
+  odd session counts and typed exclusions):
+  `engine/.venv/Scripts/python.exe ingest.py "routine generation files/<file>.xlsx" 14`.
 - **Regenerate engine config/seed from workbooks:** `python engine/tools/seed_config.py`.
-- **Run tests:** `flutter test` · engine tests from `engine/`.
+- **Run tests:** `flutter test` (Dart) · `engine/.venv/Scripts/python.exe -m pytest tests -q`
+  (engine; `pip install -r engine/requirements-dev.txt` once). Add `UNIVERSE_SOLVE=1` to also
+  run the full CP-SAT solve against the real workbook (~2 min, skipped by default and skipped
+  entirely when the gitignored workbook is absent).
 - **Build won't start / cryptic Gradle version error:** see the JDK note in GUARDRAILS.
 - **Routine times look wrong (AM instead of PM):** the write path is fixed, existing rows are
   not — re-upload or re-generate. `timetable_settings.periods` is the source and is currently
