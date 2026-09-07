@@ -5,6 +5,7 @@ import 'package:universe/core/router/route_names.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
+import 'package:universe/shared/utils/nav_utils.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
   const RoleSelectionScreen({super.key});
@@ -44,9 +45,9 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
     if (_selectedRole == null) return;
 
     if (_selectedRole == 'student') {
-      context.go(RouteNames.studentRegister);
+      context.push(RouteNames.studentRegister);
     } else if (_selectedRole == 'teacher') {
-      context.go(RouteNames.facultyRegister);
+      context.push(RouteNames.facultyRegister);
     } else {
       _showAdminInfo();
     }
@@ -121,7 +122,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(PhosphorIconsRegular.arrowLeft),
-          onPressed: () => context.go(RouteNames.login),
+          onPressed: () => context.backOr(RouteNames.login),
         ),
         title: Text('Create account', style: AppTextStyles.h2),
       ),

@@ -123,14 +123,12 @@ class PushService {
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
 
-    // 2) Ask for notification permission (Android 13+ / iOS). Request from
-    // both plugins: FCM handles remote pushes, local_notifications handles
-    // foreground heads-up banners that we draw ourselves.
+    // Ask for notification permission (Android 13+ / iOS). POST_NOTIFICATIONS
+    // is ONE OS permission covering both remote pushes and the local heads-up
+    // banners we draw. Android permits a single in-flight permission dialog
+    // per activity, so requesting it from both plugins back-to-back makes the
+    // second resolve as DENIED and silently kills push on fresh installs.
     await _fcm.requestPermission(alert: true, badge: true, sound: true);
-    await _local
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
 
     FirebaseMessaging.onBackgroundMessage(firebaseBackgroundHandler);
 

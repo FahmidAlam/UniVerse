@@ -8,6 +8,7 @@ import 'package:universe/features/auth/controllers/auth_controller.dart';
 import 'package:universe/features/notifications/controllers/notification_controller.dart';
 import 'package:universe/shared/widgets/notification_tile.dart';
 import 'package:universe/shared/widgets/scrollable_empty.dart';
+import 'package:universe/shared/widgets/shell_back_scope.dart';
 import 'package:universe/shared/widgets/u_app_bar.dart';
 import 'package:universe/shared/widgets/u_chip.dart';
 import 'package:universe/shared/widgets/u_empty_state.dart';
@@ -66,14 +67,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       listenable: _controller,
       builder: (context, _) {
         final selecting = _controller.selectionMode;
-        return Scaffold(
-          backgroundColor: AppColors.bgPrimary,
-          appBar: selecting ? _selectionAppBar() : _defaultAppBar(),
-          body: Column(
-            children: [
-              if (!selecting) _buildFilterBar(),
-              Expanded(child: _buildBody()),
-            ],
+        return ShellBackScope(
+          onBack: selecting ? _controller.exitSelection : null,
+          child: Scaffold(
+            backgroundColor: AppColors.bgPrimary,
+            appBar: selecting ? _selectionAppBar() : _defaultAppBar(),
+            body: Column(
+              children: [
+                if (!selecting) _buildFilterBar(),
+                Expanded(child: _buildBody()),
+              ],
+            ),
           ),
         );
       },

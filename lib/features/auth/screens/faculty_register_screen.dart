@@ -8,6 +8,7 @@ import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
 import 'package:universe/features/auth/controllers/auth_controller.dart';
 import 'package:universe/features/auth/widgets/google_sign_in_button.dart';
+import 'package:universe/shared/utils/nav_utils.dart';
 
 class FacultyRegisterScreen extends StatefulWidget {
   final AuthController authController;
@@ -107,7 +108,7 @@ class _FacultyRegisterScreenState extends State<FacultyRegisterScreen> {
       department: _selectedDepartment!,
       designation: _selectedDesignation!,
     );
-    context.go(RouteNames.emailSignup);
+    context.push(RouteNames.emailSignup);
   }
 
   void _showError(String message) {
@@ -139,7 +140,7 @@ class _FacultyRegisterScreenState extends State<FacultyRegisterScreen> {
             elevation: 0,
             leading: IconButton(
               icon: const Icon(PhosphorIconsRegular.arrowLeft),
-              onPressed: () => context.go(RouteNames.roleSelection),
+              onPressed: () => context.backOr(RouteNames.roleSelection),
             ),
             title: Text('Create account', style: AppTextStyles.h2),
           ),
