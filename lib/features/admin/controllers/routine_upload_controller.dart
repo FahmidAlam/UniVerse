@@ -116,13 +116,23 @@ class RoutineUploadController extends ChangeNotifier {
         bytes,
         _semesterLabel ?? _fileName,
       );
-      _publishedCount = await _engineService.publishToRoutines(parsed.rows);
+      // Replaces the whole routine in one transaction — the previous one is
+      // cleared entirely, not just the batches this workbook happens to carry.
+      final published = await _engineService.publishToRoutines(
+        parsed.rows,
+        semesterLabel: _semesterLabel,
+        source: 'upload',
+        stats: parsed.stats,
+        validation: parsed.validation,
+        notes: _fileName,
+      );
+      _publishedCount = published.rowCount;
       await _engineService.recordRun(
         semesterLabel: _semesterLabel,
         filePath: _workbookPath,
         stats: parsed.stats,
         validation: parsed.validation,
-        rowCount: _publishedCount ?? parsed.rows.length,
+        rowCount: published.rowCount,
         status: 'published',
       );
 

@@ -142,9 +142,49 @@ class TimetableGenController extends ChangeNotifier {
     }
   }
 
+  /// Why this routine must not go live, or null when it is academically valid.
+  ///
+  /// The distribution is a hard constraint: a routine that lost a required
+  /// course, or gave one the wrong amount of teaching time, is a generation
+  /// failure. Publishing it anyway would put a wrong schedule in front of every
+  /// student, so it is blocked here rather than merely reported.
+  String? get blockingValidationError {
+    final v = _result?.validation;
+    if (v == null) return null;
+    int n(String key) => (v[key] as num?)?.toInt() ?? 0;
+
+    final problems = <String>[
+      if (n('missing_courses') > 0)
+        '${n('missing_courses')} course(s) from the distribution are missing',
+      if (n('under_scheduled') > 0)
+        '${n('under_scheduled')} course(s) have too few classes for their credit',
+      if (n('over_scheduled') > 0)
+        '${n('over_scheduled')} course(s) have too many classes',
+      if (n('unexpected_courses') > 0)
+        '${n('unexpected_courses')} course(s) are not in the distribution',
+      if (n('teacher_clashes') > 0) '${n('teacher_clashes')} teacher clash(es)',
+      if (n('cohort_clashes') > 0) '${n('cohort_clashes')} section clash(es)',
+      if (n('room_clashes') > 0) '${n('room_clashes')} room clash(es)',
+      if (n('invalid_time_slots') > 0)
+        '${n('invalid_time_slots')} class(es) at an unconfigured time',
+    ];
+    if (problems.isEmpty) return null;
+    return 'This routine does not match the distribution: '
+        '${problems.join(', ')}. Fix the distribution or the settings and '
+        'generate again.';
+  }
+
   Future<void> publish() async {
     final res = _result;
     if (res == null || res.rows.isEmpty) return;
+
+    final blocker = blockingValidationError;
+    if (blocker != null) {
+      _publishError = blocker;
+      notifyListeners();
+      return;
+    }
+
     _isPublishing = true;
     _publishError = null;
     notifyListeners();
@@ -155,13 +195,23 @@ class TimetableGenController extends ChangeNotifier {
         _workbookPath =
             await _service.uploadWorkbook(_workbookBytes!, _semesterLabel);
       }
-      _publishedCount = await _service.publishToRoutines(res.rows);
+      // Publish the service classes too: they are not on the printed grid but
+      // they hold teacher and room time that Find Teacher / Room Availability
+      // must see. This replaces the whole routine in one transaction.
+      final published = await _service.publishToRoutines(
+        res.allRows,
+        semesterLabel: _semesterLabel,
+        source: 'engine',
+        stats: res.stats,
+        validation: res.validation,
+      );
+      _publishedCount = published.rowCount;
       await _service.recordRun(
         semesterLabel: _semesterLabel,
         filePath: _workbookPath,
         stats: res.stats,
         validation: res.validation,
-        rowCount: _publishedCount ?? res.rows.length,
+        rowCount: published.rowCount,
         status: 'published',
       );
 

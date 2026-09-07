@@ -16,6 +16,12 @@ class RoutineEntry {
   final int semester;
   final bool isActive;
 
+  /// Service / non-CSE classes (GED, or a course this department teaches to
+  /// another). They are not part of any CSE cohort's routine, but they hold
+  /// real teacher and room time, so Room Availability and Find Teacher need
+  /// them. They used to be generated and then never published.
+  final bool isService;
+
   const RoutineEntry({
     required this.id,
     required this.day,
@@ -30,6 +36,7 @@ class RoutineEntry {
     required this.section,
     required this.semester,
     this.isActive = true,
+    this.isService = false,
   });
 
   Map<String, dynamic> toMap() {
@@ -46,12 +53,14 @@ class RoutineEntry {
       'section': section,
       'semester': semester,
       'is_active': isActive,
+      'is_service': isService,
     };
   }
 
   factory RoutineEntry.fromMap(Map<String, dynamic> map) {
     return RoutineEntry(
-      id: map['id'] as String,
+      // Engine rows arrive with a synthetic id ("gen-12"); DB rows with a uuid.
+      id: (map['id'] ?? '').toString(),
       day: (map['day'] as String?) ?? '',
       timeStart: (map['time_start'] as String?) ?? '00:00',
       timeEnd: (map['time_end'] as String?) ?? '00:00',
@@ -64,6 +73,7 @@ class RoutineEntry {
       section: (map['section'] as String?) ?? '',
       semester: (map['semester'] as int?) ?? 0,
       isActive: (map['is_active'] as bool?) ?? true,
+      isService: (map['is_service'] as bool?) ?? false,
     );
   }
 

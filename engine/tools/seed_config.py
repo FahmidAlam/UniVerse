@@ -17,6 +17,11 @@ ROUTINE = REF_DIR / "CSE Routine Summer'25 Version 2.0.xlsx"
 DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 PERIOD_COLS = [4, 5, 6, 8, 9, 10, 11]
 
+# Teaching weeks in the term. The distribution's "No. Of Classes" is a
+# whole-term total, so this is what turns it into weekly sessions:
+# 28 classes / 14 weeks -> 2 a week, 38 -> 3. Summer-2025 ran 14 weeks.
+WEEKS_IN_TERM = 14
+
 LAB_ROOMS = {"ACL-1", "ACL-2", "ACL-3", "ACL-4", "NL", "GL", "ECL-1", "ECL-2"}
 GALLERIES = {"G1", "G2", "G3"}
 
@@ -160,6 +165,16 @@ def main() -> None:
     settings = {
         "semester_label": "Summer 2025",
         "periods": PERIODS,
+        # University scheduling rules the admin can change per term. These
+        # reproduce the department's Summer-2025 calendar exactly; keeping them
+        # as data is what lets summer -> winter be an edit, not a release.
+        "working_days": DAYS,
+        "weeks_in_term": WEEKS_IN_TERM,
+        "blocked_periods": {"Friday": [4]},
+        "online_periods": [7],
+        "allow_online_periods": False,
+        "excluded_periods": [],
+        "semester_map": {},
         "friday_no_p4": True,
         "service_scope": "resource_only",
         "weights": {"different_days": 8, "compactness": 3,
@@ -204,15 +219,33 @@ def main() -> None:
             " on conflict (acronym) do update set full_name=excluded.full_name, "
             "dept=excluded.dept, designation=excluded.designation, off_days=excluded.off_days;")
 
-    periods_json = json.dumps(settings["periods"]).replace("'", "''")
-    weights_json = json.dumps(settings["weights"]).replace("'", "''")
-    lines.append("\n-- Settings (single row)")
+    def _json(key: str) -> str:
+        return "'" + json.dumps(settings[key]).replace("'", "''") + "'::jsonb"
+
+    cols = ["id", "semester_label", "periods", "working_days", "weeks_in_term",
+            "blocked_periods", "online_periods", "allow_online_periods",
+            "excluded_periods", "semester_map", "friday_no_p4",
+            "service_scope", "weights"]
+    vals = [
+        "1",
+        _sql_str(settings["semester_label"]),
+        _json("periods"),
+        _sql_str_array(settings["working_days"]),
+        str(settings["weeks_in_term"]),
+        _json("blocked_periods"),
+        _json("online_periods"),
+        str(settings["allow_online_periods"]).lower(),
+        _json("excluded_periods"),
+        _json("semester_map"),
+        str(settings["friday_no_p4"]).lower(),
+        _sql_str(settings["service_scope"]),
+        _json("weights"),
+    ]
+    updates = ", ".join(f"{c}=excluded.{c}" for c in cols if c != "id")
+    lines.append("\n-- Settings (single row) — needs migration 011")
     lines.append(
-        "insert into public.timetable_settings (id, semester_label, periods, friday_no_p4, service_scope, weights) values ("
-        f"1, {_sql_str(settings['semester_label'])}, '{periods_json}'::jsonb, true, 'resource_only', '{weights_json}'::jsonb)"
-        " on conflict (id) do update set semester_label=excluded.semester_label, "
-        "periods=excluded.periods, friday_no_p4=excluded.friday_no_p4, "
-        "service_scope=excluded.service_scope, weights=excluded.weights;")
+        f"insert into public.timetable_settings ({', '.join(cols)}) values "
+        f"({', '.join(vals)}) on conflict (id) do update set {updates};")
 
     out = REPO_DIR / "supabase" / "seed" / "seed_timetable_config.sql"
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")

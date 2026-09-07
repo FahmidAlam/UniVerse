@@ -872,6 +872,27 @@
         "col": "K"
       }
     ],
+    "working_days": [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday"
+    ],
+    "weeks_in_term": 14,
+    "blocked_periods": {
+      "Friday": [
+        4
+      ]
+    },
+    "online_periods": [
+      7
+    ],
+    "allow_online_periods": false,
+    "excluded_periods": [],
+    "semester_map": {},
     "friday_no_p4": true,
     "service_scope": "resource_only",
     "weights": {

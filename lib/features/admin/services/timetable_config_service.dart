@@ -92,9 +92,19 @@ class TimetableConfigService {
             'off_days': f.offDays,
           },
       ],
+      // Days taught. Omitted rather than sent empty so the engine keeps its
+      // Sun–Sat default instead of scheduling into nothing.
+      if (settings.workingDays.isNotEmpty) 'days': settings.workingDays,
       'settings': {
         'semester_label': settings.semesterLabel,
         'periods': _normalizePeriods(settings.periods),
+        // Every university rule below used to be a literal in solver.py.
+        'weeks_in_term': settings.weeksInTerm,
+        'blocked_periods': settings.blockedPeriods,
+        'online_periods': settings.onlinePeriods,
+        'allow_online_periods': settings.allowOnlinePeriods,
+        'excluded_periods': settings.excludedPeriods,
+        'semester_map': settings.semesterMap,
         'friday_no_p4': settings.fridayNoP4,
         'service_scope': settings.serviceScope,
         'weights': settings.weights,
