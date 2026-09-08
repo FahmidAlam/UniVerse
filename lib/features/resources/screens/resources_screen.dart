@@ -11,6 +11,7 @@ import 'package:universe/features/auth/controllers/auth_controller.dart';
 import 'package:universe/features/resources/controllers/resource_controller.dart';
 import 'package:universe/shared/widgets/resource_card.dart';
 import 'package:universe/shared/widgets/scrollable_empty.dart';
+import 'package:universe/shared/widgets/shell_back_scope.dart';
 import 'package:universe/shared/widgets/u_app_bar.dart';
 import 'package:universe/shared/widgets/u_card.dart';
 import 'package:universe/shared/widgets/u_chip.dart';
@@ -79,11 +80,8 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
       listenable: _controller,
       builder: (context, _) {
         final open = _controller.openSemester;
-        return PopScope(
-          canPop: open == null,
-          onPopInvokedWithResult: (didPop, _) {
-            if (!didPop) _controller.closeFolder();
-          },
+        return ShellBackScope(
+          onBack: open == null ? null : _controller.closeFolder,
           child: Scaffold(
             backgroundColor: AppColors.bgPrimary,
             appBar: open == null
