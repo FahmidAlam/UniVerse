@@ -12,6 +12,7 @@ import io
 
 import openpyxl
 import pytest
+from openpyxl.cell.cell import MergedCell
 from conftest import build_workbook, make_config, make_row
 
 import ingest
@@ -36,6 +37,14 @@ def render_fixture(rows=None, **cfg_kw):
     res = solver.solve(ds, cfg, time_limit_s=8)
     data = render.render_bytes(res["rows"], ds["cohorts"], cfg)
     return res, openpyxl.load_workbook(io.BytesIO(data))
+
+
+def last_cohort_row(ws) -> int:
+    """The last row carrying a cohort, read back from the sheet."""
+    r = render.DATA_FIRST_ROW
+    while ws.cell(row=r + 1, column=2).value is not None:
+        r += 1
+    return r
 
 
 def class_cells(wb):
@@ -90,43 +99,45 @@ def test_the_specific_acm_rows_are_gone(rendered):
     assert "***" not in text, "placeholder teacher leaked from the template"
 
 
-def test_page_furniture_below_the_cohorts_is_preserved(rendered):
-    """Bus timings, headcounts and the teacher-on-duty row are part of the
-    printed page and must survive — the fix clears cohort space, not the whole
-    sheet."""
-    _res, wb = rendered
-    ws = wb["Friday"]
-    labels = {str(ws.cell(row=r, column=1).value or
-                  ws.cell(row=r, column=2).value or "").strip().lower()
-              for r in range(render.DATA_FIRST_ROW, (ws.max_row or 0) + 1)}
-    assert "bus time" in labels
-    assert "student no." in labels
+def test_nothing_at_all_sits_below_the_routine(rendered):
+    """The sheet ends at the last cohort row.
 
-
-def test_data_block_boundary_is_found_not_assumed(rendered):
-    """Each sheet's cohort block ends exactly where its page furniture starts.
-
-    The boundary is not the same on every sheet — Tuesday and Wednesday stop at
-    58, Friday runs to 83 — which is precisely why one DATA_LAST_ROW constant
-    could never be right for all of them.
+    This used to assert the opposite — that bus timings and headcounts were
+    preserved. They are last term's numbers, the engine cannot regenerate
+    them, and they are not part of the routine, so they are now removed with
+    everything else under the grid.
     """
     _res, wb = rendered
     for d in DAYS:
         ws = wb[d]
-        last = render._data_last_row(ws)
-        below = str(ws.cell(row=last + 1, column=1).value or
-                    ws.cell(row=last + 1, column=2).value or "").strip().lower()
-        assert below in render._FURNITURE_LABELS, \
-            f"{d}: row after the block is {below!r}, not page furniture"
+        last = last_cohort_row(ws)
+        for r in range(last + 1, (ws.max_row or 0) + 1):
+            assert ws.row_dimensions[r].hidden, f"{d} row {r} still visible"
+            for c in range(1, 16):
+                cell = ws.cell(row=r, column=c)
+                if isinstance(cell, MergedCell):
+                    continue
+                assert cell.value is None, f"{d} {cell.coordinate}={cell.value!r}"
 
 
-def test_friday_block_covers_the_row_the_old_constant_missed(rendered):
-    """Friday is the sheet that broke: its cohort block runs to row 83, one
-    past the old DATA_LAST_ROW of 82, which is where `ACM-2000 *** GL` sat."""
+def test_the_block_ends_where_the_cohorts_end_on_every_sheet(rendered):
+    """The block used to be sized by scanning each sheet for its furniture,
+    which sits in different places (Tuesday/Wednesday at 59, Friday at 84).
+    It is now driven by the cohort list, so every sheet agrees."""
+    _res, wb = rendered
+    lasts = {d: last_cohort_row(wb[d]) for d in DAYS}
+    assert len(set(lasts.values())) == 1, lasts
+    for d in DAYS:
+        ws = wb[d]
+        assert ws.cell(row=lasts[d] + 1, column=2).value is None, d
+
+
+def test_the_friday_row_that_leaked_a_phantom_class_is_clear(rendered):
+    """Friday row 83 held `ACM-2000 *** GL` in the template — a class the
+    solver knew nothing about, which double-booked room GL."""
     _res, wb = rendered
     ws = wb["Friday"]
-    assert render._data_last_row(ws) == 83
-    assert all(ws.cell(row=83, column=col).value in (None, "") for col in PCOL)
+    assert all(ws.cell(row=83, column=col).value is None for col in PCOL)
 
 
 # ── every scheduled class reaches the page, once ─────────────────────────

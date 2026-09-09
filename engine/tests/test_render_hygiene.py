@@ -207,34 +207,34 @@ def test_the_old_student_id_ranges_are_gone(rendered):
                     pytest.fail(f"{day} {cell.coordinate}: {cell.value!r}")
 
 
-def test_the_stale_teacher_on_duty_roster_is_gone(rendered):
-    """The row under STUDENT NO. held real faculty acronyms from a term that
-    has ended. The label column stays; the names do not."""
+def test_no_faculty_acronym_from_the_old_term_survives(rendered):
+    """The teacher-on-duty roster under the grid held real faculty
+    acronyms from a term that has ended."""
     _, wb = rendered
     for day in DAYS:
         ws = wb[day]
-        duty = None
-        for r in range(1, ws.max_row + 1):
-            v = ws.cell(r, 2).value
-            if isinstance(v, str) and v.strip().lower().startswith("student no"):
-                duty = r + 1
-                break
-        assert duty is not None, f"{day}: furniture not found"
-        values = [ws.cell(duty, c).value for c in range(3, 12)]
-        assert all(v is None for v in values), f"{day} row {duty}: {values}"
+        for r in range(last_cohort_row(ws) + 1, ws.max_row + 1):
+            for c in range(1, 16):
+                v = ws.cell(r, c).value
+                assert v is None, f"{day} {ws.cell(r, c).coordinate}={v!r}"
 
 
-def test_page_furniture_itself_still_survives(rendered):
-    """Bus timings and headcount labels are campus furniture, not routine data,
-    and must not be swept away with the stale blocks."""
+def test_the_page_furniture_is_removed_too(rendered):
+    """Bus timings and headcounts go with everything else.
+
+    They are last term's numbers, the engine has no way to regenerate
+    them, and they are not part of the routine. This test asserted the
+    opposite until the furniture was found sitting in different places on
+    different sheets, which is how it broke Tuesday and Wednesday. To print
+    them again they would have to become admin-maintained configuration,
+    like periods and rooms, rather than template residue.
+    """
     _, wb = rendered
     for day in DAYS:
         ws = wb[day]
-        labels = {str(ws.cell(r, 2).value).strip().lower()
-                  for r in range(1, ws.max_row + 1)
-                  if isinstance(ws.cell(r, 2).value, str)}
-        assert "bus time" in labels, day
-        assert any(x.startswith("student no") for x in labels), day
+        for r in range(last_cohort_row(ws) + 1, ws.max_row + 1):
+            assert not render._is_furniture_row(ws, r), \
+                f"{day} row {r} still carries page furniture"
 
 
 # ── the break column follows configuration, not the day's name ───────────
@@ -299,3 +299,194 @@ def test_a_generic_blocked_period_widens_the_break_on_that_day_too():
         friday_no_p4=False, blocked_periods={"Tuesday": [4]}))
     assert render._break_span("Tuesday", cfg) == 2
     assert render._break_span("Friday", cfg) == 1
+
+
+# ── nothing at all survives below the page furniture ─────────────────────
+#
+# The first version of this cleanup cleared VALUES only, matching blocks by
+# heading text. That left the red banner bar and the green "66 Batch Section
+# Distribution" table as empty coloured rectangles, and missed the TBA* legend
+# entirely — clearing `.value` does not clear a fill. These assert the whole
+# region is gone, formatting included.
+
+def last_cohort_row(ws) -> int:
+    """The last row carrying a cohort, read back from the sheet."""
+    r = render.DATA_FIRST_ROW
+    while ws.cell(r + 1, 2).value is not None:
+        r += 1
+    return r
+
+
+def test_nothing_survives_below_the_routine(rendered):
+    _, wb = rendered
+    for day in DAYS:
+        ws = wb[day]
+        from openpyxl.cell.cell import MergedCell
+        leftovers = []
+        for r in range(last_cohort_row(ws) + 1, ws.max_row + 1):
+            for c in range(1, 16):
+                cell = ws.cell(r, c)
+                # A merged cell cannot carry its own border: column A holds
+                # the tall rotated day label, whose merge reaches past the
+                # furniture on some sheets.
+                if isinstance(cell, MergedCell):
+                    continue
+                b = cell.border
+                if cell.value is not None:
+                    leftovers.append((cell.coordinate, "value", cell.value))
+                elif cell.fill.patternType is not None:
+                    leftovers.append((cell.coordinate, "fill", None))
+                elif any(style(s) for s in (b.top, b.bottom, b.left, b.right)):
+                    leftovers.append((cell.coordinate, "border", None))
+        assert leftovers == [], f"{day}: {leftovers[:5]}"
+
+
+def test_the_tba_legend_is_gone(rendered):
+    """`TBA*` is a human "to be announced later" marker from the template. The
+    engine has never produced it and must not appear to."""
+    _, wb = rendered
+    for day in DAYS:
+        ws = wb[day]
+        for row in ws.iter_rows(min_row=1, max_row=ws.max_row):
+            for cell in row:
+                if isinstance(cell.value, str):
+                    assert "TBA*" not in cell.value, f"{day} {cell.coordinate}"
+
+
+def test_the_red_banner_and_green_table_fills_are_gone(rendered):
+    from openpyxl.cell.cell import MergedCell
+    _, wb = rendered
+    for day in DAYS:
+        ws = wb[day]
+        for r in range(last_cohort_row(ws) + 1, ws.max_row + 1):
+            for c in range(1, 16):
+                cell = ws.cell(r, c)
+                if isinstance(cell, MergedCell):
+                    continue
+                assert cell.fill.patternType is None, \
+                    f"{day} {cell.coordinate} still filled"
+
+
+# ── the break column draws no heavy line inside itself ───────────────────
+
+def test_break_letter_blocks_do_not_stamp_lines_across_the_grid(rendered):
+    """The block style used to be copied wholesale from the template's G3 —
+    the top-left corner of the table, which carries a THICK TOP. Every letter
+    block inherited it, cutting a heavy line through the middle of a batch at
+    the start of each block."""
+    ds, wb = rendered
+    n = len(ds["cohorts"])
+    first, last = render.DATA_FIRST_ROW, render.DATA_FIRST_ROW + n - 1
+    for day in DAYS:
+        ws = wb[day]
+        for m in ws.merged_cells.ranges:
+            if m.min_col != render.BREAK_COL or m.min_row > last:
+                continue
+            b = ws.cell(m.min_row, render.BREAK_COL).border
+            # Heavy only where the block actually touches the table's edge.
+            assert style(b.top) == ("thick" if m.min_row == first else None), \
+                f"{day} {m} top"
+            assert style(b.bottom) == ("thick" if m.max_row == last else None), \
+                f"{day} {m} bottom"
+
+
+# ── every sheet ends up looking the same, whatever the template holds ────
+#
+# The template is not uniform across its own day sheets. Tuesday and Wednesday
+# carry a stray "BUS TIME" row at 59 while every other day has its furniture at
+# 83+. That had two consequences, both fixed here: those two sheets showed ~24
+# empty rows and a leftover "K" between the routine and the headcounts, and the
+# cohort block was silently capped at 56 rows on exactly those two days.
+
+def test_the_template_really_is_inconsistent_across_sheets():
+    """Guard the diagnosis: if the template is ever cleaned up, the tests
+    below stop proving anything and should be revisited."""
+    wb = openpyxl.load_workbook(render.TEMPLATE)
+    firsts = {}
+    for d in DAYS:
+        ws = wb[d]
+        firsts[d] = next(
+            (r for r in range(render.DATA_FIRST_ROW, ws.max_row + 1)
+             if render._is_furniture_row(ws, r)), None)
+    assert len(set(firsts.values())) > 1, \
+        f"template furniture is now uniform ({firsts}); revisit these tests"
+
+
+def test_nothing_is_visible_below_the_routine(rendered):
+    ds, wb = rendered
+    last = render.DATA_FIRST_ROW + len(ds["cohorts"]) - 1
+    for day in DAYS:
+        ws = wb[day]
+        visible = [r for r in range(last + 1, ws.max_row + 1)
+                   if not ws.row_dimensions[r].hidden]
+        assert visible == [], f"{day}: rows {visible[:6]} still visible"
+
+
+def test_every_sheet_ends_at_the_same_row(rendered):
+    """Tuesday used to show BUS TIME, then 24 blank rows, then STUDENT NO.,
+    while every other sheet showed the two together."""
+    ds, wb = rendered
+    lasts = {day: last_cohort_row(wb[day]) for day in DAYS}
+    assert len(set(lasts.values())) == 1, lasts
+    assert set(lasts.values()) == {
+        render.DATA_FIRST_ROW + len(ds["cohorts"]) - 1}
+
+
+def test_a_routine_too_tall_for_a_sheet_fails_loudly():
+    """Silently dropping cohorts is the failure mode this replaces."""
+    wb = openpyxl.load_workbook(render.TEMPLATE)
+    caps = {d: render._cohort_capacity(wb[d]) for d in DAYS}
+    assert len(set(caps.values())) == 1, f"capacity must be uniform: {caps}"
+    capacity = caps["Sunday"]
+    cohorts = [f"{70 - i // 4}-{chr(65 + i % 4)}" for i in range(capacity + 1)]
+    cfg = solver.load_config(override=make_config())
+    with pytest.raises(RuntimeError) as e:
+        render.render_bytes([], cohorts, cfg)
+    msg = str(e.value)
+    assert str(capacity) in msg and str(len(cohorts)) in msg
+
+
+def test_a_routine_that_fits_every_sheet_renders(rendered):
+    ds, wb = rendered
+    for day in DAYS:
+        assert len(ds["cohorts"]) <= render._cohort_capacity(wb[day]), day
+
+
+# ── vertical lines are as deterministic as the horizontal ones ───────────
+
+def _effective(a, b) -> str | None:
+    """Excel draws the union of the two touching sides; the heavier wins."""
+    rank = {None: 0, "thin": 1, "medium": 2, "thick": 3, "double": 3}
+    return max((style(a), style(b)), key=lambda x: rank.get(x, 0))
+
+
+def test_every_row_draws_the_same_vertical_lines(rendered):
+    """Inherited from the template, these were ragged: one row lost the
+    table's right-hand edge entirely and others drew the Batch/Section
+    divider thin instead of heavy."""
+    ds, wb = rendered
+    n = len(ds["cohorts"])
+    for day in DAYS:
+        ws = wb[day]
+        seen = set()
+        for r in range(render.DATA_FIRST_ROW, render.DATA_FIRST_ROW + n):
+            sig = tuple(
+                _effective(ws.cell(r, c - 1).border.right,
+                           ws.cell(r, c).border.left)
+                for c in render.GRID_COLS
+                if not isinstance(ws.cell(r, c),
+                                  __import__("openpyxl").cell.cell.MergedCell))
+            seen.add(sig)
+        assert len(seen) == 1, f"{day}: {len(seen)} different vertical patterns"
+
+
+def test_the_table_has_heavy_outer_edges_and_a_heavy_identity_divider(rendered):
+    ds, wb = rendered
+    n = len(ds["cohorts"])
+    ws = wb["Sunday"]
+    for r in range(render.DATA_FIRST_ROW, render.DATA_FIRST_ROW + n):
+        assert style(ws.cell(r, render.GRID_COLS[0]).border.left) == "thick"
+        assert style(ws.cell(r, max(render.GRID_COLS)).border.right) == "thick"
+        # Batch/Section block meets the class grid.
+        assert _effective(ws.cell(r, min(render.SESSION_COLS) - 1).border.right,
+                          ws.cell(r, min(render.SESSION_COLS)).border.left) == "thick"

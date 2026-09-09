@@ -13,8 +13,10 @@ TEMPLATE = Path(__file__).parent / "templates" / "CSE_Routine_TEMPLATE.xlsx"
 DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 HEADER_ROW = 2
 DATA_FIRST_ROW = 3
-#: Fallback lower bound for the cohort block when the page furniture below it
-#: cannot be located. Only a backstop — `_data_last_row()` is the real answer.
+#: Bottom of the template's designed cohort block, and therefore the maximum
+#: number of cohort rows a day sheet may hold (see `_cohort_capacity`). Rows
+#: below the routine are erased and hidden, so nothing lives past the last
+#: cohort — this is a capacity limit, not a content boundary.
 DATA_LAST_ROW = 90
 BREAK_COL = 7
 
@@ -52,20 +54,6 @@ def _data_last_row(ws) -> int:
             if isinstance(v, str) and v.strip().lower() in _FURNITURE_LABELS:
                 return r - 1
     return min(limit, DATA_LAST_ROW)
-
-
-#: Static blocks the source workbook carried that describe ONE historical
-#: term and are not regenerated. Matched by their heading text, never by row
-#: number, so they stay found if the template shifts. `"batch section
-#: distribution"` is the Summer-2025 student-ID range table — the engine
-#: derives batch->section structure from the distribution every run, so a
-#: frozen copy of one term's table is actively misleading.
-_STALE_BLOCK_HEADINGS = ("batch section distribution",)
-
-#: Rows below the cohort block whose VALUES belong to one historical term
-#: (the per-day teacher-on-duty roster). The label column is page furniture
-#: and is kept; the stale faculty acronyms beside it are cleared.
-_DUTY_ROW_AFTER = ("student no.", "student no")
 
 
 def cohort_groups(cohorts: list[str]) -> list[dict]:
@@ -127,30 +115,38 @@ def render_bytes(rows: list[dict], cohorts: list[str], config: dict,
 
         _write_period_headers(ws, day, config)
 
-        data_last = _data_last_row(ws)
-        _clear_break_merges(ws, config, data_last)
-        _normalize_live_formatting(ws, data_last)
+        # The block is exactly as tall as this term's cohort list. It used to
+        # be sized by scanning the template for its page furniture, which is
+        # NOT in the same place on every sheet: Tuesday and Wednesday carry a
+        # stray "BUS TIME" row at 59 while every other day has it at 83+. That
+        # capped those two sheets at 56 cohorts and would have silently
+        # dropped the rest. Capacity is now checked and reported instead.
+        last_data = DATA_FIRST_ROW + len(cohorts) - 1
+        capacity = _cohort_capacity(ws)
+        if len(cohorts) > capacity:
+            raise RuntimeError(
+                f"The {day} sheet of the routine template has room for "
+                f"{capacity} cohorts but this term has {len(cohorts)}. "
+                f"Its page furniture starts at row {capacity + DATA_FIRST_ROW}. "
+                f"Move the furniture down in the template, or reduce the "
+                f"number of sections.")
 
-        for rr in range(DATA_FIRST_ROW, data_last + 1):
+        _clear_break_merges(ws, config, last_data)
+        _normalize_live_formatting(ws, last_data)
+
+        for rr in range(DATA_FIRST_ROW, last_data + 1):
             for cc in SESSION_COLS:
                 _safe_clear(ws, rr, cc)
 
         groups = cohort_groups(cohorts)
-        for rr in range(DATA_FIRST_ROW, data_last + 1):
-            idx = rr - DATA_FIRST_ROW
-            if idx < len(cohorts):
-                c = cohorts[idx]
-                batch, _, section = c.partition("-")
-                ws.cell(row=rr, column=2, value=_batch_cell(batch))
-                ws.cell(row=rr, column=3, value=section or None)
-                ws.row_dimensions[rr].hidden = False
-            else:
-                _drop_data_row_merges(ws, rr)
-                _safe_clear(ws, rr, 2)
-                _safe_clear(ws, rr, 3)
-                ws.row_dimensions[rr].hidden = True
+        for rr in range(DATA_FIRST_ROW, last_data + 1):
+            c = cohorts[rr - DATA_FIRST_ROW]
+            batch, _, section = c.partition("-")
+            ws.cell(row=rr, column=2, value=_batch_cell(batch))
+            ws.cell(row=rr, column=3, value=section or None)
+            ws.row_dimensions[rr].hidden = False
 
-        _apply_cohort_borders(ws, groups, len(cohorts), data_last)
+        _apply_cohort_borders(ws, groups, len(cohorts), last_data)
 
         for cohort, sess in by_cohort.items():
             rr = row_of.get(cohort)
@@ -165,12 +161,12 @@ def render_bytes(rows: list[dict], cohorts: list[str], config: dict,
                 text = f"{s['subject_code']} {s['teacher_code']} {s['room']}"
                 ws.cell(row=rr, column=col, value=text)
 
-        last_data = min(DATA_FIRST_ROW + len(cohorts) - 1, data_last)
         if last_data >= DATA_FIRST_ROW:
-            _rebuild_break_column(ws, day, last_data, data_last, config)
+            _rebuild_break_column(ws, day, last_data, last_data, config)
+
+        _clear_below_routine(ws, last_data)
 
     _strip_legacy_scaffolding(wb)
-    _clear_stale_term_blocks(wb)
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -220,49 +216,112 @@ def _normalize_live_formatting(ws, data_last: int) -> None:
                 cell.fill = copy(white)
 
 
-def _clear_stale_term_blocks(wb) -> None:
-    """Blank the static, single-term blocks the template carries below the
-    cohort grid.
+def _cohort_capacity(ws) -> int:
+    """How many cohort rows a day sheet may hold.
 
-    Two kinds, both Summer-2025 residue that no part of the pipeline
-    regenerates and that therefore shipped verbatim inside every routine:
+    A single documented limit, identical on every sheet. It is deliberately
+    NOT measured from the template any more:
 
-    1. The "66 Batch Section Distribution" student-ID table (rows 94-106 of
-       each day sheet). Batch->section structure is derived from the
-       distribution on every run, so a frozen table for one past batch is
-       simply wrong once the batches roll over.
-    2. The per-day teacher-on-duty roster under "STUDENT NO." — real faculty
-       acronyms from a term that has ended.
+      * Deriving it from the page furniture made it sheet-dependent, because
+        the furniture is not in the same place on every sheet — Tuesday and
+        Wednesday carry a stray "BUS TIME" at row 59 against 83+ elsewhere.
+        That silently capped those two days at 56 cohorts.
+      * Deriving it from the styled row run gives ~704, since the template
+        sets a row height far past its designed print area. A limit that can
+        never fire is not a limit.
 
-    Both are located by their heading text rather than by row number, and the
-    surrounding page furniture (bus times, headcounts) is left alone.
+    `DATA_LAST_ROW` is the bottom of the template's designed cohort block, so
+    this is the honest answer, uniform and predictable. A term that genuinely
+    outgrows it should be a deliberate template change, not a silent stretch
+    into unstyled rows.
     """
-    for ws in wb.worksheets:
-        limit = ws.max_row or 1
-        for r in range(1, limit + 1):
-            for c in range(1, min(ws.max_column or 12, 14) + 1):
-                v = ws.cell(row=r, column=c).value
-                if not isinstance(v, str):
-                    continue
-                low = v.strip().lower()
-                if any(h in low for h in _STALE_BLOCK_HEADINGS):
-                    _blank_block(ws, r, limit)
-                elif low in _DUTY_ROW_AFTER:
-                    _blank_row_values(ws, r + 1)
+    return DATA_LAST_ROW - DATA_FIRST_ROW + 1
 
 
-def _blank_block(ws, heading_row: int, limit: int) -> None:
-    """Clear a heading and everything under it to the end of the sheet."""
-    for r in range(heading_row, limit + 1):
-        _blank_row_values(ws, r, first_col=1)
+def _is_furniture_row(ws, row: int) -> bool:
+    """A printed page-furniture row (bus timings, headcounts).
+
+    The engine does not generate these and they describe a term that has
+    ended, so they are removed like everything else under the routine. The
+    predicate is kept because the tests assert they are gone.
+    """
+    for c in (1, 2):
+        v = ws.cell(row=row, column=c).value
+        if isinstance(v, str) and v.strip().lower() in _FURNITURE_LABELS:
+            return True
+    return False
 
 
-def _blank_row_values(ws, row: int, first_col: int = 3) -> None:
+def _clear_below_routine(ws, last_data: int) -> None:
+    """Erase and hide every row below the routine.
+
+    The template's tail is a museum of one finished term: a "TBA* = TO BE
+    ANNOUNCED LATER" legend, a red banner bar, a per-day teacher-on-duty
+    roster of real faculty acronyms, a green "66 Batch Section Distribution"
+    student-ID table, leftover BREAK letters, and spare cohort rows. None of
+    it is regenerated, so all of it used to ship inside every routine.
+
+    Two earlier attempts were not enough. Clearing `.value` left the red bar
+    and the green table as empty coloured rectangles, because a fill is not a
+    value. Wiping only *below* the furniture missed Tuesday and Wednesday,
+    whose templates carry a stray "BUS TIME" at row 59 — 24 rows above the
+    real furniture — leaving a visible gap of empty rows in the middle of
+    those two sheets and a stray "K" at row 67.
+
+    So the rule is now total: every row under the routine is stripped of
+    values, fills, borders, merges and font colour, and hidden. That includes
+    the page furniture itself — the bus timings and headcounts are last
+    term's numbers, the engine has no way to regenerate them, and they are
+    not part of the routine. Whatever the template carries, and wherever it
+    carries it, every day sheet now ends at the last cohort row.
+
+    (To print bus times again, they would have to become configuration the
+    admin maintains, like periods and rooms — not template residue.)
+    """
+    from copy import copy
+
     from openpyxl.cell.cell import MergedCell
-    for c in range(first_col, (ws.max_column or 12) + 1):
-        cell = ws.cell(row=row, column=c)
-        if not isinstance(cell, MergedCell):
-            cell.value = None
+    from openpyxl.styles import Border, Font, PatternFill
+
+    blank_fill = PatternFill(fill_type=None)
+    blank_border = Border()
+    black = Font(color="FF000000").color
+    limit = ws.max_row or last_data
+    first = last_data + 1
+    if first > limit:
+        return
+
+    for m in list(ws.merged_cells.ranges):
+        if m.max_row >= first and m.min_row >= first:
+            ws.unmerge_cells(str(m))
+
+    width = max(ws.max_column or 15, 15)
+    for r in range(first, limit + 1):
+        ws.row_dimensions[r].hidden = True
+        for c in range(1, width + 1):
+            cell = ws.cell(row=r, column=c)
+            if isinstance(cell, MergedCell):
+                continue
+            if cell.value is not None:
+                cell.value = None
+            if cell.fill.patternType is not None:
+                cell.fill = blank_fill
+            b = cell.border
+            # A cleared side is `None`, not a Side carrying style=None.
+            if any(s is not None and s.style
+                   for s in (b.left, b.right, b.top, b.bottom)):
+                cell.border = blank_border
+            # Red hand-annotation fonts survive on these rows even with no
+            # value. Invisible today, but the guarantee is worth keeping
+            # absolute: nothing under the routine carries the old term's
+            # styling.
+            f = cell.font
+            rgb = f.color.rgb if (f.color and f.color.type == "rgb") else None
+            if isinstance(rgb, str) and rgb.upper() not in ("FF000000",
+                                                            "00000000"):
+                nf = copy(f)
+                nf.color = black
+                cell.font = nf
 
 
 def _safe_clear(ws, row: int, col: int) -> None:
@@ -434,16 +493,30 @@ def _rebuild_break_column(ws, day: str, last_data: int,
             if not isinstance(cell, MergedCell):
                 cell.value = None
 
-    def _style(cell, text):
+    def _style(cell, text, top=None, bottom=None):
+        """Style one BREAK block.
+
+        Borders are set explicitly rather than copied wholesale from the
+        template's break cell. That cell is G3 — the top-left of the table —
+        so it carries a THICK TOP, and copying it onto every letter block
+        stamped a heavy line at the start of each block (rows 14, 25, 36 and
+        47 on a 55-cohort routine), cutting across the middle of batches 65,
+        62 and 60. The break column is one continuous column visually: only
+        its outer edges are heavy, and the letter boundaries inside it draw
+        nothing at all.
+        """
         cell.font, cell.alignment = copy(font), copy(align)
-        cell.fill, cell.border = copy(fill), copy(border)
+        cell.fill = copy(fill)
+        cell.border = Border(left=border.left, right=border.right,
+                             top=top, bottom=bottom)
         cell.value = text
 
     if span > 1:
         # Wide enough to spell the word out horizontally on one row.
         ws.merge_cells(start_row=DATA_FIRST_ROW, start_column=BREAK_COL,
                        end_row=last_data, end_column=end_col)
-        _style(ws.cell(DATA_FIRST_ROW, BREAK_COL), "BREAK")
+        _style(ws.cell(DATA_FIRST_ROW, BREAK_COL), "BREAK",
+               top=_THICK, bottom=_THICK)
         return
     letters = "BREAK"
     size = max(1, (last_data - DATA_FIRST_ROW + 1) // len(letters))
@@ -452,7 +525,9 @@ def _rebuild_break_column(ws, day: str, last_data: int,
         end = last_data if i == len(letters) - 1 else min(last_data, start + size - 1)
         ws.merge_cells(start_row=start, start_column=BREAK_COL,
                        end_row=end, end_column=BREAK_COL)
-        _style(ws.cell(start, BREAK_COL), ch)
+        _style(ws.cell(start, BREAK_COL), ch,
+               top=_THICK if start == DATA_FIRST_ROW else None,
+               bottom=_THICK if end == last_data else None)
         start = end + 1
         if start > last_data:
             break
@@ -466,6 +541,26 @@ def _drop_data_row_merges(ws, row: int) -> None:
         if (mr.min_row == row == mr.max_row
                 and mr.min_col >= 2 and mr.max_col <= max(GRID_COLS)):
             ws.unmerge_cells(str(mr))
+
+
+def _vertical_sides(col: int) -> tuple[Side | None, Side | None]:
+    """The left and right border of one grid column.
+
+    Verticals were previously inherited from the template, and the template is
+    as ragged vertically as it was horizontally: measured across one rendered
+    sheet, 50 of 55 rows carried the intended pattern and the other 5 did not
+    — one row lost the table's right-hand edge completely, others drew the
+    Batch/Section divider thin instead of heavy. Setting them explicitly, like
+    the horizontals, means every row is identical by construction.
+
+    The structure is heavy at the table's outer edges and where the cohort
+    identity block (Batch, Section) meets the class grid; thin everywhere else.
+    """
+    first_session = min(SESSION_COLS)
+    last_grid = max(GRID_COLS)
+    left = _THICK if col in (GRID_COLS[0], first_session) else _THIN
+    right = _THICK if col == last_grid else _THIN
+    return left, right
 
 
 def _apply_cohort_borders(ws, groups: list[dict], n_cohorts: int,
@@ -510,17 +605,19 @@ def _apply_cohort_borders(ws, groups: list[dict], n_cohorts: int,
             cell = ws.cell(row=rr, column=col)
             if isinstance(cell, MergedCell):
                 continue
-            b = cell.border
-            cell.border = Border(left=b.left, right=b.right,
-                                 top=top, bottom=bottom)
+            left, right = _vertical_sides(col)
+            cell.border = Border(left=left, right=right, top=top, bottom=bottom)
 
 
 if __name__ == "__main__":
     import ingest
     import solver
 
-    ds = ingest.ingest_path("routine generation files/Main_Distribution_Summer25.xlsx")
     cfg = solver.load_config()
+    ds = ingest.ingest_path(
+        "routine generation files/Main_Distribution_Summer25.xlsx",
+        weeks_in_term=cfg["weeks_in_term"],
+        fixed_sessions_per_week=cfg.get("fixed_sessions_per_week"))
     res = solver.solve(ds, cfg, time_limit_s=20.0)
     data = render_bytes(res["rows"], ds["cohorts"], cfg)
     out = Path(__file__).parent / "out_routine.xlsx"
