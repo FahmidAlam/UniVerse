@@ -40,6 +40,8 @@ abstract class RouteNames {
 
   static const String manageRooms = '/admin/timetable/rooms';
   static const String manageFaculty = '/admin/timetable/faculty';
+  static const String manageCourseEligibility =
+      '/admin/timetable/course-eligibility';
   static const String timetableSettings = '/admin/timetable/settings';
   static const String timetableGrid = '/admin/timetable/grid';
 }

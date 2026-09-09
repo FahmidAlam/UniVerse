@@ -32,6 +32,7 @@ import 'package:universe/features/admin/screens/manage_resources_screen.dart';
 import 'package:universe/features/admin/screens/resource_library_screen.dart';
 import 'package:universe/features/admin/screens/broadcast_history_screen.dart';
 import 'package:universe/features/admin/screens/manage_rooms_screen.dart';
+import 'package:universe/features/admin/screens/manage_course_eligibility_screen.dart';
 import 'package:universe/features/admin/screens/manage_faculty_screen.dart';
 import 'package:universe/features/admin/screens/timetable_settings_screen.dart';
 import 'package:universe/features/admin/screens/timetable_grid_screen.dart';
@@ -276,6 +277,10 @@ class AppRouter {
       GoRoute(
         path: RouteNames.manageFaculty,
         builder: (c, s) => const ManageFacultyScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.manageCourseEligibility,
+        builder: (c, s) => const ManageCourseEligibilityScreen(),
       ),
       GoRoute(
         path: RouteNames.timetableSettings,

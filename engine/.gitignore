@@ -8,3 +8,8 @@ __pycache__/
 routine generation files/
 out_routine.xlsx
 dl_test.xlsx
+_expanded.xlsx
+# Local verification renders produced by the __main__ blocks / ad-hoc checks.
+_*.xlsx
+# Excel's lock file, created whenever the template is open in Excel.
+~$*.xlsx

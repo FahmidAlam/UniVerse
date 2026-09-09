@@ -105,6 +105,8 @@ abstract class AppConstants {
   static const String tableTimetableFaculty  = 'timetable_faculty';
   static const String tableTimetableSettings = 'timetable_settings';
   static const String tableTimetableRuns     = 'timetable_runs';
+  static const String tableTimetableEligibility =
+      'timetable_course_eligibility';
 
   static const String bucketResources   = 'resources';
   static const String bucketTimetables  = 'timetables';

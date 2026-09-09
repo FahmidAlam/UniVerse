@@ -55,3 +55,6 @@ engine/.venv/
 engine/__pycache__/
 # Widget Preview related
 .widget_preview/
+
+# Ad-hoc generated routines kept for eyeballing; not project source.
+new genarated routine/

@@ -243,6 +243,9 @@ class AppDrawer extends StatelessWidget {
               RouteNames.manageRooms, push: true),
           const _DrawerEntry(PhosphorIconsRegular.usersThree, 'Manage Faculty',
               RouteNames.manageFaculty, push: true),
+          const _DrawerEntry(PhosphorIconsRegular.checkSquare,
+              'Course Assignments', RouteNames.manageCourseEligibility,
+              push: true),
           const _DrawerEntry(PhosphorIconsRegular.sliders,
               'Timetable Settings', RouteNames.timetableSettings, push: true),
         ];

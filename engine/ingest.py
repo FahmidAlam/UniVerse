@@ -77,6 +77,14 @@ class Offering:
     section: str
     cohort: str
     credit: float | None
+    #: "Conducting Department" — the department that OWNS the course. This is
+    #: independent of who teaches it and of whose students take it: a CSE
+    #: teacher may take a GED course, and a CSE batch takes MAT/PHY/EEE
+    #: courses. Kept distinct from `is_service` for exactly that reason.
+    course_dept: str | None
+    #: "No. Of Students" — capacity input for room sizing. Parsed and carried;
+    #: room assignment does not consult it yet.
+    students: int | None
     classes_total: int | None
     required_sessions: int
     sessions_basis: str
@@ -266,6 +274,13 @@ def ingest_workbook(wb, weeks_in_term: int = 14) -> dict:
                 # Department convention: a course code ending in an even digit
                 # is the sessional/lab half of its odd-digit theory sibling.
                 "is_lab": ld is not None and ld % 2 == 0,
+                # "We teach this class to ANOTHER department's students."
+                # Deliberately NOT the same thing as "the course is not a CSE
+                # course": the 106 GED/MAT/EEE/CHE/PHY offerings taken BY CSE
+                # batches are not service and must appear on the CSE grid,
+                # while the 15 offerings taught to BuA/ENG/CE/Law/THM cohorts
+                # are service — they hold real teacher and room time but are
+                # not drawn on it. Course ownership lives in `course_dept`.
                 "is_service": (not batch.isdigit()) or bool(SERVICE_SECTION.match(section)),
             }
         else:
@@ -305,6 +320,7 @@ def ingest_workbook(wb, weeks_in_term: int = 14) -> dict:
         off = Offering(
             oid=oid, code=code, title=e["title"], batch=e["batch"],
             section=e["section"], cohort=cohort, credit=e["credit"],
+            course_dept=e["dept"], students=e["students"],
             classes_total=total, required_sessions=n, sessions_basis=basis,
             teachers=list(e["teachers"]), is_lab=e["is_lab"],
             is_service=e["is_service"], source_rows=list(e["rows"]))
@@ -392,8 +408,15 @@ def _credit_consistency_warnings(offerings: list[Offering]) -> list[str]:
 
 
 def _ordered_cohorts(cohorts: set[str]) -> list[str]:
-    """Canonical render order: batch descending (66 first), section ascending,
-    with merged sections (B+C) and lettered sections sorted naturally."""
+    """Canonical render order: newest batch first, then section ascending.
+
+    The ordering is DERIVED from the batch numbers present in this term's
+    distribution — there is no notion of a current or special batch anywhere
+    in it. Whatever the highest number in the file is leads, so 66/65/64
+    becomes 70/69/68 with no code change when the batches roll over. A
+    non-numeric batch (BuA, ENG, Law) sorts deterministically after every
+    numeric one instead of being ranked against them.
+    """
     def key(c: str):
         if "-" in c:
             b, s = c.split("-", 1)
@@ -403,7 +426,12 @@ def _ordered_cohorts(cohorts: set[str]) -> list[str]:
             bnum = int(b)
         except ValueError:
             bnum = -1
-        return (-bnum, s)
+        # `c` breaks ties. Every non-numeric batch collapses to bnum -1, so
+        # without it two such cohorts sharing a section letter would be ordered
+        # by the iteration order of the incoming SET — which Python randomises
+        # per process, making the rendered row order differ between runs of the
+        # same input.
+        return (-bnum, s, c)
     return sorted(cohorts, key=key)
 
 

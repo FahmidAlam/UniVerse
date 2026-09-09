@@ -122,6 +122,7 @@ class PhosphorIcons {
   static const brain = Icons.psychology_outlined;
   static const chatTeardropText = Icons.chat_bubble_outline;
   static const checkSquare = Icons.check_box_outlined;
+  static const square = Icons.check_box_outline_blank;
   static const coffee = Icons.coffee_outlined;
   static const envelopeSimple = Icons.mail_outline;
   static const globe = Icons.public;
@@ -260,6 +261,7 @@ class PhosphorIconsRegular {
   static const brain = Icons.psychology_outlined;
   static const chatTeardropText = Icons.chat_bubble_outline;
   static const checkSquare = Icons.check_box_outlined;
+  static const square = Icons.check_box_outline_blank;
   static const coffee = Icons.coffee_outlined;
   static const envelopeSimple = Icons.mail_outline;
   static const globe = Icons.public;

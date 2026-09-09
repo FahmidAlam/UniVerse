@@ -111,6 +111,9 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
         _configBtn('Faculty', PhosphorIconsRegular.usersThree,
             RouteNames.manageFaculty),
         AppSpacing.smHGap,
+        _configBtn('Courses', PhosphorIconsRegular.checkSquare,
+            RouteNames.manageCourseEligibility),
+        AppSpacing.smHGap,
         _configBtn('Settings', PhosphorIconsRegular.sliders,
             RouteNames.timetableSettings),
       ],
@@ -257,6 +260,44 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
 
   /// Names the courses behind a failed validation. "3 courses missing" is not
   /// actionable; "CSE-4116 for 60-A is missing" is.
+  /// One line naming exactly what failed: the course, the cohort, the
+  /// teacher, when, and — where the engine supplied one — why and what to
+  /// change. The engine's detail entries are deliberately not uniform (a room
+  /// clash has no `code`, a missing course has no `day`), so every field is
+  /// optional and only the present ones are shown.
+  String _describeFailure(Map<String, dynamic> m) {
+    final parts = <String>[];
+    if (m['code'] != null) parts.add('${m['code']}');
+    if (m['cohort'] != null) parts.add('${m['cohort']}');
+    if (m['teacher'] != null) parts.add('${m['teacher']}');
+    if (m['room'] != null && m['code'] == null) parts.add('${m['room']}');
+
+    final when = <String>[
+      if (m['day'] != null) '${m['day']}',
+      if (m['periods'] != null)
+        'P${(m['periods'] as List).join(" + P")}'
+      else if (m['period'] != null)
+        'P${m['period']}',
+    ].join(' ');
+    if (when.isNotEmpty) parts.add(when);
+
+    final courses = m['courses'];
+    if (courses is List && courses.isNotEmpty) {
+      parts.add(courses.join(' vs '));
+    }
+
+    final req = m['required'];
+    final got = m['scheduled'];
+    if (req != null && got != null) {
+      parts.add('needs $req, has $got');
+    } else if (req != null) {
+      parts.add('needs $req');
+    }
+    if (m['reason'] != null) parts.add('${m['reason']}');
+
+    return parts.isEmpty ? m.toString() : parts.join('  —  ');
+  }
+
   Widget _validationDetails(Map<String, dynamic> v) {
     final details = (v['details'] as Map?)?.cast<String, dynamic>() ?? const {};
     const labels = {
@@ -264,6 +305,17 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
       'under_scheduled': 'Too few classes for the credit',
       'over_scheduled': 'Too many classes',
       'unexpected_courses': 'Not in the distribution',
+      'same_day_sessions': 'Scheduled twice on the same day',
+      'ineligible_assignments': 'Teacher not eligible for this course',
+      'teacher_clashes': 'Teacher in two places at once',
+      'cohort_clashes': 'Section double-booked',
+      'room_clashes': 'Room double-booked',
+      'dayoff_violations': "On the teacher's day off",
+      'blocked_period_violations': 'In a period that is not taught',
+      'lab_room_violations': 'Lab in a non-lab room',
+      'unplaced_rooms': 'No room could be assigned',
+      'invalid_time_slots': 'At an unconfigured time',
+      'invalid_days': 'On a day that is not taught',
     };
 
     final blocks = <Widget>[];
@@ -274,13 +326,7 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
         ..add(Text(entry.value, style: AppTextStyles.h4))
         ..add(AppSpacing.xsGap);
       for (final raw in items.take(12)) {
-        final m = (raw as Map).cast<String, dynamic>();
-        final req = m['required'];
-        final got = m['scheduled'];
-        final suffix = (req != null && got != null)
-            ? ' — needs $req, has $got'
-            : (req != null ? ' — needs $req' : '');
-        blocks.add(Text('${m['code']}  ${m['cohort']}$suffix',
+        blocks.add(Text(_describeFailure((raw as Map).cast<String, dynamic>()),
             style: AppTextStyles.bodySm));
       }
       if (items.length > 12) {

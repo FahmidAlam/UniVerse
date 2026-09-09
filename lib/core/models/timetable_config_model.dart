@@ -282,3 +282,56 @@ class TimetableSettings {
     return out;
   }
 }
+
+/// One faculty member's relationship to one course.
+///
+/// This is a check on the **distribution**, not an instruction to the solver.
+/// The workbook names the teacher for every offering and the engine's CP-SAT
+/// model only chooses (day, period) — it never picks a teacher. So this cannot
+/// stop the scheduler assigning the wrong person; it catches a distribution
+/// row that gives a course to someone who is not qualified for it, before the
+/// routine can be published.
+///
+/// [priority] orders the courses a teacher prefers (1 = most preferred). It is
+/// stored for preference-ordering and reporting; nothing optimises against it
+/// while teacher identity comes from the workbook.
+class TimetableCourseEligibility {
+  final String id;
+  final String acronym;
+  final String courseCode;
+  final bool isEligible;
+  final int? priority;
+
+  const TimetableCourseEligibility({
+    required this.id,
+    required this.acronym,
+    required this.courseCode,
+    this.isEligible = true,
+    this.priority,
+  });
+
+  factory TimetableCourseEligibility.fromMap(Map<String, dynamic> m) =>
+      TimetableCourseEligibility(
+        id: m['id'] as String,
+        acronym: (m['acronym'] as String?) ?? '',
+        courseCode: (m['course_code'] as String?) ?? '',
+        isEligible: (m['is_eligible'] as bool?) ?? true,
+        priority: (m['priority'] as num?)?.toInt(),
+      );
+
+  Map<String, dynamic> toMap() => {
+        'acronym': acronym,
+        'course_code': courseCode,
+        'is_eligible': isEligible,
+        'priority': priority,
+      };
+
+  TimetableCourseEligibility copyWith({bool? isEligible, int? priority}) =>
+      TimetableCourseEligibility(
+        id: id,
+        acronym: acronym,
+        courseCode: courseCode,
+        isEligible: isEligible ?? this.isEligible,
+        priority: priority ?? this.priority,
+      );
+}

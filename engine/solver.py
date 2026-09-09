@@ -126,7 +126,59 @@ def _normalize_config(cfg: dict) -> dict:
         "semester_map": settings.get("semester_map", cfg.get("semester_map")) or {},
         "lab_adjacency": cfg.get("lab_adjacency",
                                  settings.get("lab_adjacency", "hard")),
+        # An offering meeting twice in one day is an academic rule, not a
+        # preference, so it is enforced in the model rather than penalised.
+        # Both escape hatches are data: a global switch, and a per-course
+        # exemption list for genuinely block-taught courses.
+        "allow_same_day_sessions": bool(
+            settings.get("allow_same_day_sessions",
+                         cfg.get("allow_same_day_sessions", False))),
+        "same_day_exempt_courses": {
+            str(c).strip().upper()
+            for c in (settings.get("same_day_exempt_courses",
+                                   cfg.get("same_day_exempt_courses")) or [])
+            if str(c).strip()
+        },
+        "eligibility": _normalize_eligibility(
+            settings.get("eligibility", cfg.get("eligibility"))),
     }
+
+
+def _normalize_eligibility(raw) -> dict:
+    """Normalize the faculty-course eligibility table into lookup form.
+
+    Shape in:  [{"acronym": "EBH", "course_code": "CSE-1101",
+                 "eligible": true, "priority": 1}, ...]
+    Shape out: {"eligible": {ACRONYM: {CODE, ...}},
+                "priority": {(ACRONYM, CODE): int},
+                "declared": {ACRONYM, ...}}
+
+    `declared` is the set of teachers the admin has actually configured. A
+    teacher with no rows is "not configured", not "eligible for nothing" —
+    otherwise switching the feature on would fail every offering in the
+    distribution at once. Only a teacher who HAS a configured course list can
+    violate it.
+    """
+    eligible: dict[str, set[str]] = {}
+    priority: dict[tuple[str, str], int] = {}
+    declared: set[str] = set()
+    for item in (raw or []):
+        if not isinstance(item, dict):
+            continue
+        ac = str(item.get("acronym") or "").strip().upper()
+        code = str(item.get("course_code") or "").strip().upper()
+        if not ac or not code:
+            continue
+        declared.add(ac)
+        if item.get("eligible", True):
+            eligible.setdefault(ac, set()).add(code)
+            pr = item.get("priority")
+            if pr is not None:
+                try:
+                    priority[(ac, code)] = int(pr)
+                except (TypeError, ValueError):
+                    pass
+    return {"eligible": eligible, "priority": priority, "declared": declared}
 
 
 def _int_set(v) -> set[int]:
@@ -204,6 +256,8 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
     w = cfg["weights"]
 
     adj_mode = cfg.get("lab_adjacency", "hard")
+    same_day_ok = bool(cfg.get("allow_same_day_sessions", False))
+    same_day_exempt = cfg.get("same_day_exempt_courses") or set()
     neighbors = {p: [q for q in pidx if q != p and
                      (pmeta[p]["end"] == pmeta[q]["start"] or
                       pmeta[q]["end"] == pmeta[p]["start"])]
@@ -300,18 +354,36 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
         for a, b in zip(ranks, ranks[1:]):
             model.Add(a < b)
 
-    # Soft: spread an offering's sessions across different days.
+    # One offering may not meet twice on the same day.
+    #
+    # HARD by default. This used to be a soft penalty only, which is why a
+    # rushed solve on the deployed engine (2 workers, short budget) returned
+    # technically-valid routines with a course sitting on, say, Sunday P1 and
+    # Sunday P4: the solver simply had not paid the penalty down yet. A rule
+    # this academic does not belong in the objective function.
+    #
+    # It applies per (cohort, course), so it does NOT touch theory<->sessional
+    # pairing: CSE-1101 and CSE-1102 are different offerings and are still
+    # required to share a day in adjacent periods by `lab_adjacency`.
+    #
+    # `allow_same_day_sessions` in the configuration relaxes it globally, and
+    # `same_day_exempt_courses` exempts individual course codes, so a genuine
+    # block-taught course can be declared instead of the rule being dropped.
     for oid, group in sessions_by_oid.items():
         if len(group) < 2:
             continue
+        exempt = same_day_ok or offering_of.get(oid, {}).get("code") in same_day_exempt
         for di in range(len(days)):
             terms = [x[(s["sid"], di, p)] for s in group for p in pidx
                      if (s["sid"], di, p) in x]
             if len(terms) < 2:
                 continue
-            extra = model.NewIntVar(0, len(group) - 1, f"same_{oid}_{di}")
-            model.Add(extra >= sum(terms) - 1)
-            penalties.append(w.get("different_days", 8) * extra)
+            if exempt:
+                extra = model.NewIntVar(0, len(group) - 1, f"same_{oid}_{di}")
+                model.Add(extra >= sum(terms) - 1)
+                penalties.append(w.get("different_days", 8) * extra)
+            else:
+                model.Add(sum(terms) <= 1)
 
     lt_pairs = _build_pairs(offerings, sessions_by_oid)
     if adj_mode == "hard":
@@ -387,7 +459,8 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
                 break
     progress(0.88)
 
-    rows, service_rows = _assign_rooms(dataset, cfg, placed, days, pmeta)
+    rows, service_rows, room_failures = _assign_rooms(dataset, cfg, placed,
+                                                      days, pmeta)
     progress(0.96)
 
     place_of = {q["s"]["sid"]: (q["day"], q["period"]) for q in placed}
@@ -398,6 +471,8 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
             adj_ok += 1
 
     validation = _validate(dataset, cfg, rows + service_rows, days, pmeta)
+    if room_failures:
+        validation["details"]["unplaced_rooms"] = room_failures[:DETAIL_LIMIT]
     validation["lab_theory_pairs"] = len(lt_pairs)
     validation["lab_theory_adjacent"] = adj_ok
     validation["lab_theory_violations"] = len(lt_pairs) - adj_ok
@@ -503,13 +578,41 @@ def _assign_rooms(dataset, cfg, placed, days, pmeta):
                 return r
         return None
 
+    # Greedy first-fit is safe here, and that is a property of the model rather
+    # than luck: CP-SAT already caps concurrent labs at len(lab_rooms) and
+    # concurrent theory at len(theory_rooms) for every (day, period), and the
+    # two pools are disjoint. So a free room of the right kind always exists
+    # and this pass cannot invalidate a schedule the solver called feasible.
+    # Labs are served first only to keep the assignment stable and readable.
+    #
+    # "TBA" below therefore means the pools were misconfigured (an empty pool,
+    # or a lab session with no lab rooms at all), never "the scheduler gave
+    # up". It is a hard validation failure with a named cause — it is NOT the
+    # template's "TBA*", which is a human "to be announced later" marker the
+    # engine has never produced and must not start producing.
     placed.sort(key=lambda q: (not q["s"]["is_lab"],))
+    room_failures: list[dict] = []
 
     rows, service_rows = [], []
     for i, q in enumerate(placed):
         s, d, p = q["s"], q["day"], q["period"]
         pool = lab_pool if s["is_lab"] else theory_pool
-        room = pick(pool, d, p) or "TBA"
+        room = pick(pool, d, p)
+        if room is None:
+            room = "TBA"
+            kind = "lab" if s["is_lab"] else "theory"
+            room_failures.append({
+                "cohort": s["cohort"], "code": s["code"],
+                "teacher": s["teacher"], "day": days[d], "period": p,
+                "room_kind": kind, "pool_size": len(pool),
+                "in_use_here": sorted(busy.get((d, p), set())),
+                "reason": (f"No free {kind} room at {days[d]} P{p}: the "
+                           f"{kind} pool has {len(pool)} room(s) and all are "
+                           f"taken." if pool else
+                           f"No {kind} rooms are configured at all."),
+                "fix": (f"Add a {kind} room in Manage Rooms, or free one by "
+                        f"moving another class out of {days[d]} P{p}."),
+            })
         busy.setdefault((d, p), set()).add(room)
         meta = pmeta[p]
         row = {
@@ -539,7 +642,7 @@ def _assign_rooms(dataset, cfg, placed, days, pmeta):
     day_order = {d: i for i, d in enumerate(days)}
     rows.sort(key=lambda r: (r["batch"], r["section"],
                              day_order.get(r["day"], 99), r["period"]))
-    return rows, service_rows
+    return rows, service_rows, room_failures
 
 
 def _validate(dataset, cfg, all_rows, days, pmeta) -> dict:
@@ -581,37 +684,99 @@ def _validate(dataset, cfg, all_rows, days, pmeta) -> dict:
             unexpected.append({"cohort": key[0], "code": key[1], "scheduled": got})
 
     # ── Conflicts, rules and slot validity ───────────────────────────────
-    seen_t: dict[tuple, int] = defaultdict(int)
-    seen_c: dict[tuple, int] = defaultdict(int)
-    seen_r: dict[tuple, int] = defaultdict(int)
-    dayoff = fri_p4 = lab_bad = tba = bad_slot = bad_day = 0
+    # Every check below records the offending rows, not just a count: a bare
+    # `"teacher_clashes": 2` is not actionable, and chasing it meant re-running
+    # the engine by hand. Counts stay exact; only the example lists are capped.
+    seen_t: dict[tuple, list] = defaultdict(list)
+    seen_c: dict[tuple, list] = defaultdict(list)
+    seen_r: dict[tuple, list] = defaultdict(list)
+    dayoff_d, blocked_d, lab_bad_d, tba_d, bad_slot_d, bad_day_d = [], [], [], [], [], []
+    inelig_d = []
+
+    elig = cfg.get("eligibility") or {}
+    elig_map = elig.get("eligible") or {}
+    elig_declared = elig.get("declared") or set()
+
+    def _who(r) -> dict:
+        return {"cohort": f"{r['batch']}-{r['section']}" if r["section"]
+                else str(r["batch"]),
+                "code": r["subject_code"], "teacher": r["teacher_code"],
+                "day": r["day"], "period": r["period"], "room": r["room"]}
 
     for r in all_rows:
         for t in (r.get("teachers") or [r["teacher_code"]]):
-            seen_t[(t, r["day"], r["period"])] += 1
+            seen_t[(t, r["day"], r["period"])].append(r)
             if r["day"] in off_days.get(t, set()):
-                dayoff += 1
-        seen_c[(r["batch"], r["section"], r["day"], r["period"])] += 1
+                dayoff_d.append({**_who(r), "teacher": t, "off_day": r["day"]})
+            # Eligibility is a check on the DISTRIBUTION, not on a solver
+            # choice — the workbook names the teacher and the solver never
+            # overrides it. A teacher the admin has not configured at all is
+            # "unknown", not "ineligible", so only declared teachers can fail.
+            tu, cu = t.upper(), str(r["subject_code"]).upper()
+            if tu in elig_declared and cu not in elig_map.get(tu, set()):
+                inelig_d.append({**_who(r), "teacher": t,
+                                 "eligible_for": sorted(elig_map.get(tu, set()))[:8]})
+        seen_c[(r["batch"], r["section"], r["day"], r["period"])].append(r)
         if r["room"] != "TBA":
-            seen_r[(r["room"], r["day"], r["period"])] += 1
+            seen_r[(r["room"], r["day"], r["period"])].append(r)
         else:
-            tba += 1
+            tba_d.append(_who(r))
         if r["period"] in blocked.get(r["day"], set()):
-            fri_p4 += 1
+            blocked_d.append(_who(r))
         if r["is_lab"] and r["room"] not in lab_set and r["room"] != "TBA":
-            lab_bad += 1
+            lab_bad_d.append(_who(r))
         if (str(r["time_start"]), str(r["time_end"])) not in valid_slots:
-            bad_slot += 1
+            bad_slot_d.append({**_who(r), "time_start": str(r["time_start"]),
+                               "time_end": str(r["time_end"])})
         if r["day"] not in day_set:
-            bad_day += 1
+            bad_day_d.append(_who(r))
 
-    tclash = sum(v - 1 for v in seen_t.values() if v > 1)
-    cclash = sum(v - 1 for v in seen_c.values() if v > 1)
-    rclash = sum(v - 1 for v in seen_r.values() if v > 1)
+    def _clashes(seen, label) -> tuple[int, list]:
+        n, out = 0, []
+        for key, rs in seen.items():
+            if len(rs) < 2:
+                continue
+            n += len(rs) - 1
+            out.append({label: key[0], "day": key[-2], "period": key[-1],
+                        "courses": [f"{x['subject_code']} "
+                                    f"({x['batch']}-{x['section']})" for x in rs],
+                        "rooms": sorted({x["room"] for x in rs})})
+        return n, out
+
+    tclash, tclash_d = _clashes(seen_t, "teacher")
+    rclash, rclash_d = _clashes(seen_r, "room")
+    cclash, cclash_d = 0, []
+    for (b, s, d, pd), rs in seen_c.items():
+        if len(rs) < 2:
+            continue
+        cclash += len(rs) - 1
+        cclash_d.append({"cohort": f"{b}-{s}" if s else str(b), "day": d,
+                         "period": pd,
+                         "courses": [x["subject_code"] for x in rs]})
+
+    # ── Same course, same day ────────────────────────────────────────────
+    # A correctness failure, not a quality metric, unless the configuration
+    # says otherwise. It was the first thing to degrade when the deployed
+    # solver ran out of time while this was only a soft penalty.
+    same_day_ok = bool(cfg.get("allow_same_day_sessions", False))
+    exempt = cfg.get("same_day_exempt_courses") or set()
+    per_offering_day: dict[tuple, list] = defaultdict(list)
+    for r in all_rows:
+        cohort = f"{r['batch']}-{r['section']}" if r["section"] else str(r["batch"])
+        per_offering_day[(cohort, r["subject_code"], r["day"])].append(r)
+    same_day, same_day_d = 0, []
+    for (cohort, code, day), rs in per_offering_day.items():
+        if len(rs) < 2 or same_day_ok or str(code).upper() in exempt:
+            continue
+        same_day += len(rs) - 1
+        same_day_d.append({"cohort": cohort, "code": code, "day": day,
+                           "periods": sorted(x["period"] for x in rs),
+                           "teacher": rs[0]["teacher_code"]})
 
     fatal = (len(missing), len(under), len(over), len(unexpected),
-             tclash, cclash, rclash, dayoff, fri_p4, lab_bad, tba,
-             bad_slot, bad_day)
+             tclash, cclash, rclash, len(dayoff_d), len(blocked_d),
+             len(lab_bad_d), len(tba_d), len(bad_slot_d), len(bad_day_d),
+             same_day, len(inelig_d))
 
     return {
         # correctness against the distribution
@@ -625,18 +790,32 @@ def _validate(dataset, cfg, all_rows, days, pmeta) -> dict:
         "teacher_clashes": tclash,
         "cohort_clashes": cclash,
         "room_clashes": rclash,
-        "dayoff_violations": dayoff,
-        "blocked_period_violations": fri_p4,
-        "lab_room_violations": lab_bad,
-        "unplaced_rooms": tba,
-        "invalid_time_slots": bad_slot,
-        "invalid_days": bad_day,
-        # traceability
+        "dayoff_violations": len(dayoff_d),
+        "blocked_period_violations": len(blocked_d),
+        "lab_room_violations": len(lab_bad_d),
+        "unplaced_rooms": len(tba_d),
+        "invalid_time_slots": len(bad_slot_d),
+        "invalid_days": len(bad_day_d),
+        "same_day_sessions": same_day,
+        "ineligible_assignments": len(inelig_d),
+        "same_day_rule": "off" if same_day_ok else "enforced",
+        # traceability — what failed, for which course, cohort and teacher
         "details": {
             "missing_courses": missing[:DETAIL_LIMIT],
             "under_scheduled": under[:DETAIL_LIMIT],
             "over_scheduled": over[:DETAIL_LIMIT],
             "unexpected_courses": unexpected[:DETAIL_LIMIT],
+            "teacher_clashes": tclash_d[:DETAIL_LIMIT],
+            "cohort_clashes": cclash_d[:DETAIL_LIMIT],
+            "room_clashes": rclash_d[:DETAIL_LIMIT],
+            "same_day_sessions": same_day_d[:DETAIL_LIMIT],
+            "ineligible_assignments": inelig_d[:DETAIL_LIMIT],
+            "dayoff_violations": dayoff_d[:DETAIL_LIMIT],
+            "blocked_period_violations": blocked_d[:DETAIL_LIMIT],
+            "lab_room_violations": lab_bad_d[:DETAIL_LIMIT],
+            "unplaced_rooms": tba_d[:DETAIL_LIMIT],
+            "invalid_time_slots": bad_slot_d[:DETAIL_LIMIT],
+            "invalid_days": bad_day_d[:DETAIL_LIMIT],
         },
         "ok": all(v == 0 for v in fatal),
     }

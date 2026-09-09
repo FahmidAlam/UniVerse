@@ -52,6 +52,73 @@ class TimetableConfigService {
         .eq('id', id);
   }
 
+  Future<List<TimetableCourseEligibility>> fetchEligibility() async {
+    final rows = await _supabase
+        .from(AppConstants.tableTimetableEligibility)
+        .select()
+        .order('acronym')
+        .order('priority', nullsFirst: false)
+        .order('course_code');
+    return (rows as List)
+        .map((r) =>
+            TimetableCourseEligibility.fromMap(r as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Replace one teacher's whole course list in a single round trip.
+  ///
+  /// The admin screen edits a teacher at a time, so a delete-then-insert of
+  /// that teacher's rows is both the simplest correct update and the only one
+  /// that removes courses the admin unticked. Scoped to `acronym` so it can
+  /// never touch another teacher's configuration.
+  Future<void> saveEligibilityFor(
+    String acronym,
+    List<TimetableCourseEligibility> entries,
+  ) async {
+    await _supabase
+        .from(AppConstants.tableTimetableEligibility)
+        .delete()
+        .eq('acronym', acronym);
+    final payload = [
+      for (final e in entries.where((e) => e.isEligible))
+        {...e.toMap(), 'acronym': acronym},
+    ];
+    if (payload.isNotEmpty) {
+      await _supabase
+          .from(AppConstants.tableTimetableEligibility)
+          .insert(payload);
+    }
+  }
+
+  /// Course codes the admin can mark a teacher eligible for.
+  ///
+  /// There is no course catalog table: the Course Distribution workbook is the
+  /// authority on what is offered, and it changes every term. The closest
+  /// durable list the app owns is the currently published routine, so the
+  /// catalog is derived from it and merged with anything already configured —
+  /// so a course that has since left the routine does not silently vanish from
+  /// a teacher's saved eligibility.
+  Future<List<({String code, String title})>> fetchCourseCatalog() async {
+    final rows = await _supabase
+        .from(AppConstants.tableRoutines)
+        .select('subject_code, subject');
+    final byCode = <String, String>{};
+    for (final r in (rows as List)) {
+      final m = r as Map<String, dynamic>;
+      final code = (m['subject_code'] as String?)?.trim();
+      if (code == null || code.isEmpty) continue;
+      byCode.putIfAbsent(code, () => (m['subject'] as String?)?.trim() ?? code);
+    }
+    for (final e in await fetchEligibility()) {
+      byCode.putIfAbsent(e.courseCode, () => e.courseCode);
+    }
+    final out = byCode.entries
+        .map((e) => (code: e.key, title: e.value))
+        .toList()
+      ..sort((a, b) => a.code.compareTo(b.code));
+    return out;
+  }
+
   Future<TimetableSettings> fetchSettings() async {
     final row = await _supabase
         .from(AppConstants.tableTimetableSettings)
@@ -74,22 +141,43 @@ class TimetableConfigService {
       fetchRooms(),
       fetchFaculty(),
       fetchSettings(),
+      fetchEligibility(),
     ]);
     final rooms = results[0] as List<TimetableRoom>;
     final faculty = results[1] as List<TimetableFaculty>;
     final settings = results[2] as TimetableSettings;
+    final eligibility = results[3] as List<TimetableCourseEligibility>;
 
     return {
       'rooms': [
         for (final r in rooms.where((r) => r.isActive))
           {'name': r.name, 'is_lab': r.isLab, 'is_gallery': r.isGallery},
       ],
+      // Only faculty who still teach here. `is_active` existed on the table
+      // and on the model but was never applied, so a teacher who had left was
+      // still shipped to the engine every run. Their historical routines are
+      // unaffected — those rows are already published and are never
+      // regenerated from this list.
       'teachers': [
-        for (final f in faculty)
+        for (final f in faculty.where((f) => f.isActive))
           {
             'acronym': f.acronym,
             'full_name': f.fullName,
+            // A teacher's HOME department. It is deliberately independent of
+            // the department that owns the course they teach: a CSE lecturer
+            // may take a GED course, and the engine treats both as the same
+            // person's time either way.
+            'dept': f.dept,
             'off_days': f.offDays,
+          },
+      ],
+      'eligibility': [
+        for (final e in eligibility)
+          {
+            'acronym': e.acronym,
+            'course_code': e.courseCode,
+            'eligible': e.isEligible,
+            'priority': e.priority,
           },
       ],
       // Days taught. Omitted rather than sent empty so the engine keeps its
