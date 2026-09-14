@@ -139,6 +139,12 @@ def _normalize_config(cfg: dict) -> dict:
                                    cfg.get("same_day_exempt_courses")) or [])
             if str(c).strip()
         },
+        # Force every offering to the same number of weekly meetings.
+        # `None` (or 0) keeps the derived behaviour, where the count comes
+        # from each course's own "No. Of Classes" over the term length.
+        "fixed_sessions_per_week": _positive_int(
+            settings.get("fixed_sessions_per_week",
+                         cfg.get("fixed_sessions_per_week"))),
         "eligibility": _normalize_eligibility(
             settings.get("eligibility", cfg.get("eligibility"))),
     }
@@ -179,6 +185,15 @@ def _normalize_eligibility(raw) -> dict:
                 except (TypeError, ValueError):
                     pass
     return {"eligible": eligible, "priority": priority, "declared": declared}
+
+
+def _positive_int(v) -> int | None:
+    """A positive int, or None for "not configured"."""
+    try:
+        n = int(v)
+    except (TypeError, ValueError):
+        return None
+    return n if n > 0 else None
 
 
 def _int_set(v) -> set[int]:
@@ -828,7 +843,9 @@ if __name__ == "__main__":
     path = sys.argv[1] if len(sys.argv) > 1 else \
         "routine generation files/Main_Distribution_Summer25.xlsx"
     cfg = load_config()
-    ds = ingest.ingest_path(path, weeks_in_term=cfg["weeks_in_term"])
+    ds = ingest.ingest_path(
+        path, weeks_in_term=cfg["weeks_in_term"],
+        fixed_sessions_per_week=cfg.get("fixed_sessions_per_week"))
     res = solve(ds, cfg, time_limit_s=float(sys.argv[2]) if len(sys.argv) > 2 else 60.0)
     print(json.dumps({"stats": res["stats"], "validation": res["validation"]},
                      indent=2))

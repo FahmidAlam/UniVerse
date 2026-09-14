@@ -96,6 +96,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
   late final TimetableSettingsController _controller;
   final _semester = TextEditingController();
   final _weeks = TextEditingController();
+  final _fixedSessions = TextEditingController();
   final Map<String, TextEditingController> _weightCtrls = {
     for (final k in _kWeights.keys) k: TextEditingController(),
   };
@@ -118,6 +119,9 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
     final s = _controller.settings;
     _semester.text = s.semesterLabel ?? '';
     _weeks.text = s.weeksInTerm.toString();
+    _fixedSessions.text = (s.fixedSessionsPerWeek ?? 0) > 0
+        ? s.fixedSessionsPerWeek.toString()
+        : '';
     _serviceScope = s.serviceScope;
     _allowOnline = s.allowOnlinePeriods;
     _workingDays = s.workingDays.isEmpty
@@ -173,6 +177,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
     _controller.dispose();
     _semester.dispose();
     _weeks.dispose();
+    _fixedSessions.dispose();
     for (final c in _weightCtrls.values) {
       c.dispose();
     }
@@ -224,6 +229,23 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
       setState(() => _formError = 'Term length must be between 1 and 52 weeks.');
       return;
     }
+
+    // Empty means "work it out per course". Anything else must be a sane
+    // weekly count: the grid cannot hold more classes than it has periods.
+    final fixedText = _fixedSessions.text.trim();
+    int? fixedSessions;
+    if (fixedText.isNotEmpty) {
+      fixedSessions = int.tryParse(fixedText);
+      if (fixedSessions == null ||
+          fixedSessions < 1 ||
+          fixedSessions > AppConstants.weekDays.length) {
+        setState(() => _formError =
+            'Classes per week must be between 1 and '
+            '${AppConstants.weekDays.length}, or empty to work it out per '
+            'course.');
+        return;
+      }
+    }
     setState(() => _formError = null);
 
     final blocked = <String, List<int>>{};
@@ -244,6 +266,9 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
           if (_workingDays.contains(d)) d,
       ],
       weeksInTerm: weeks,
+      // Explicitly null when the field is left empty; the constructor default
+      // only applies when the argument is omitted altogether.
+      fixedSessionsPerWeek: fixedSessions,
       blockedPeriods: blocked,
       onlinePeriods: [
         for (final p in _periods)
@@ -314,6 +339,24 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
                 'Turns each course’s whole-term class count into weekly '
                 'classes. 28 classes over 14 weeks means two a week; over 10 '
                 'weeks it becomes three.',
+                style: AppTextStyles.caption,
+              ),
+              AppSpacing.mdGap,
+              UTextField(
+                label: 'Classes per week for every course',
+                hint: '2 — leave empty to work it out per course',
+                controller: _fixedSessions,
+                keyboardType: TextInputType.number,
+                prefixIcon: PhosphorIconsRegular.repeat,
+              ),
+              AppSpacing.xsGap,
+              Text(
+                'Gives every course the same number of weekly classes, '
+                'ignoring its own class count. Leave empty and each course '
+                'gets what its total needs — a 38-class course would take '
+                'three a week instead of two. A course needing more than the '
+                'number set here will not be fully taught; the generator lists '
+                'each one and how many classes are lost.',
                 style: AppTextStyles.caption,
               ),
               AppSpacing.mdGap,

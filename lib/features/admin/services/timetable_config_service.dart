@@ -188,6 +188,10 @@ class TimetableConfigService {
         'periods': _normalizePeriods(settings.periods),
         // Every university rule below used to be a literal in solver.py.
         'weeks_in_term': settings.weeksInTerm,
+        // Every offering meets this many times a week. Omitted when
+        // unset so the engine falls back to deriving it per course.
+        if ((settings.fixedSessionsPerWeek ?? 0) > 0)
+          'fixed_sessions_per_week': settings.fixedSessionsPerWeek,
         'blocked_periods': settings.blockedPeriods,
         'online_periods': settings.onlinePeriods,
         'allow_online_periods': settings.allowOnlinePeriods,

@@ -93,3 +93,35 @@ def test_the_real_distribution_solves_completely(ds):
     assert v["unexpected_courses"] == 0
     assert v["ok"] is True
     assert len(res["rows"]) + len(res["service_rows"]) == ds["meta"]["sessions"]
+
+
+# ── the department's fixed-rate rule, on the real file ───────────────────
+
+def test_the_fixed_rate_flattens_the_real_distribution_to_two_a_week():
+    """Every course twice a week, including the six that need three.
+
+    The derivation above is the honest reading of the workbook; this is the
+    rule the department chose instead. Both are pinned so a change to either
+    is deliberate.
+    """
+    ds = ingest.ingest_path(str(WORKBOOK), weeks_in_term=14,
+                            fixed_sessions_per_week=2)
+    assert ds["meta"]["sessions_per_week_histogram"] == {2: 325}
+    assert ds["meta"]["sessions"] == 650          # 325 offerings x 2
+    assert ds["meta"]["fixed_sessions_per_week"] == 2
+
+
+def test_the_six_short_changed_sections_are_named_on_the_real_file():
+    ds = ingest.ingest_path(str(WORKBOOK), weeks_in_term=14,
+                            fixed_sessions_per_week=2)
+    short = [w for w in ds["warnings"] if "fixed rate" in w]
+    assert len(short) == 6
+    assert all("CSE-4116" in w and "10 class(es)" in w for w in short)
+    cohorts = {w.split()[1].rstrip(":") for w in short}
+    assert cohorts == {f"60-{s}" for s in "ABCDEF"}
+
+
+def test_the_shipped_engine_config_carries_the_departments_rule():
+    """`config.json` is the fallback the engine uses when the app sends no
+    settings, so it must agree with what Timetable Settings stores."""
+    assert solver.load_config()["fixed_sessions_per_week"] == 2

@@ -900,6 +900,7 @@
       "compactness": 3,
       "spread": 2,
       "late_slot": 1
-    }
+    },
+    "fixed_sessions_per_week": 2
   }
 }

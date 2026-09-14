@@ -109,6 +109,16 @@ class TimetableSettings {
   /// into the number of weekly sessions the routine must contain.
   final int weeksInTerm;
 
+  /// Weekly classes every offering gets, overriding the per-course
+  /// derivation `ceil(No. Of Classes / weeksInTerm)`.
+  ///
+  /// The department's rule is that every course meets exactly twice a
+  /// week. Null or 0 restores the derived behaviour, where a course with a
+  /// larger term total gets the extra weekly class it needs. A course that
+  /// needs more than this rate is not fully taught, and the engine warns
+  /// per offering with the number of classes lost.
+  final int? fixedSessionsPerWeek;
+
   /// Periods unavailable on one specific day, e.g. `{'Friday': [4]}`.
   final Map<String, List<int>> blockedPeriods;
 
@@ -134,6 +144,7 @@ class TimetableSettings {
     this.periods = const [],
     this.workingDays = const [],
     this.weeksInTerm = 14,
+    this.fixedSessionsPerWeek = 2,
     this.blockedPeriods = const {},
     this.onlinePeriods = const [7],
     this.allowOnlinePeriods = false,
@@ -149,6 +160,8 @@ class TimetableSettings {
         periods: (m['periods'] as List?) ?? const [],
         workingDays: _stringList(m['working_days']),
         weeksInTerm: (m['weeks_in_term'] as num?)?.toInt() ?? 14,
+        fixedSessionsPerWeek:
+            (m['fixed_sessions_per_week'] as num?)?.toInt(),
         blockedPeriods: _intListMap(m['blocked_periods']),
         onlinePeriods: _intList(m['online_periods'], fallback: const [7]),
         allowOnlinePeriods: (m['allow_online_periods'] as bool?) ?? false,
@@ -165,6 +178,7 @@ class TimetableSettings {
         'periods': periods,
         'working_days': workingDays.isEmpty ? null : workingDays,
         'weeks_in_term': weeksInTerm,
+        'fixed_sessions_per_week': fixedSessionsPerWeek,
         'blocked_periods': blockedPeriods,
         'online_periods': onlinePeriods,
         'allow_online_periods': allowOnlinePeriods,
@@ -185,6 +199,8 @@ class TimetableSettings {
     List<dynamic>? periods,
     List<String>? workingDays,
     int? weeksInTerm,
+    int? fixedSessionsPerWeek,
+    bool clearFixedSessionsPerWeek = false,
     Map<String, List<int>>? blockedPeriods,
     List<int>? onlinePeriods,
     bool? allowOnlinePeriods,
@@ -199,6 +215,9 @@ class TimetableSettings {
         periods: periods ?? this.periods,
         workingDays: workingDays ?? this.workingDays,
         weeksInTerm: weeksInTerm ?? this.weeksInTerm,
+        fixedSessionsPerWeek: clearFixedSessionsPerWeek
+            ? null
+            : (fixedSessionsPerWeek ?? this.fixedSessionsPerWeek),
         blockedPeriods: blockedPeriods ?? this.blockedPeriods,
         onlinePeriods: onlinePeriods ?? this.onlinePeriods,
         allowOnlinePeriods: allowOnlinePeriods ?? this.allowOnlinePeriods,

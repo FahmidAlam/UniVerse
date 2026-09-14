@@ -167,14 +167,24 @@ def _col(hmap: dict[str, int], *prefixes: str) -> int | None:
 
 def derive_required_sessions(classes_total: int | None,
                              per_week_hint: int | None,
-                             weeks_in_term: int) -> tuple[int, str]:
+                             weeks_in_term: int,
+                             fixed: int | None = None) -> tuple[int, str]:
     """Weekly meetings an offering needs, and the evidence used.
 
-    `No. Of Classes` (whole-term total) is authoritative because it is the only
-    column that actually varies per course. `Class/Week` is a constant 2 in
-    every row of the Summer-2025 file even for courses that demonstrably meet
-    three times a week, so it is only a fallback.
+    `fixed` (from `fixed_sessions_per_week` in Timetable Settings) overrides
+    everything and gives every offering the same number of weekly meetings.
+    It is configuration rather than a literal so the department can set the
+    rule it wants and change it back without a code edit, but be aware of
+    what it costs: a course whose term total needs more meetings than this
+    will not be fully taught. `ingest_workbook` warns for each one.
+
+    Otherwise `No. Of Classes` (whole-term total) is authoritative, because
+    it is the only column that actually varies per course. `Class/Week` is a
+    constant 2 in every row of the Summer-2025 file even for courses that
+    demonstrably meet three times a week, so it is only a fallback.
     """
+    if fixed and fixed > 0:
+        return fixed, "fixed"
     if classes_total and classes_total > 0 and weeks_in_term > 0:
         return max(1, math.ceil(classes_total / weeks_in_term)), "classes_total"
     if per_week_hint and per_week_hint > 0:
@@ -182,18 +192,23 @@ def derive_required_sessions(classes_total: int | None,
     return DEFAULT_SESSIONS_PER_WEEK, "default"
 
 
-def ingest_bytes(data: bytes, weeks_in_term: int = 14) -> dict:
+def ingest_bytes(data: bytes, weeks_in_term: int = 14,
+                 fixed_sessions_per_week: int | None = None) -> dict:
     return ingest_workbook(
         openpyxl.load_workbook(io.BytesIO(data), data_only=True),
-        weeks_in_term=weeks_in_term)
+        weeks_in_term=weeks_in_term,
+        fixed_sessions_per_week=fixed_sessions_per_week)
 
 
-def ingest_path(path: str, weeks_in_term: int = 14) -> dict:
+def ingest_path(path: str, weeks_in_term: int = 14,
+                fixed_sessions_per_week: int | None = None) -> dict:
     return ingest_workbook(openpyxl.load_workbook(path, data_only=True),
-                           weeks_in_term=weeks_in_term)
+                           weeks_in_term=weeks_in_term,
+                           fixed_sessions_per_week=fixed_sessions_per_week)
 
 
-def ingest_workbook(wb, weeks_in_term: int = 14) -> dict:
+def ingest_workbook(wb, weeks_in_term: int = 14,
+                    fixed_sessions_per_week: int | None = None) -> dict:
     if SHEET not in wb.sheetnames:
         raise ValueError(f'Workbook has no "{SHEET}" sheet. Got: {wb.sheetnames}')
     ws = wb[SHEET]
@@ -307,7 +322,22 @@ def ingest_workbook(wb, weeks_in_term: int = 14) -> dict:
 
     for oid, ((cohort, code), e) in enumerate(acc.items()):
         total = e["classes_total"] if e["has_classes"] else None
-        n, basis = derive_required_sessions(total, e["per_week"], weeks_in_term)
+        n, basis = derive_required_sessions(total, e["per_week"], weeks_in_term,
+                                            fixed=fixed_sessions_per_week)
+        # Say out loud what a fixed count costs. The department may well
+        # want every course to meet the same number of times a week, but a
+        # course whose term total needs more than that is being short-
+        # changed, and that must never be silent.
+        if basis == "fixed" and total and weeks_in_term > 0:
+            natural = max(1, math.ceil(total / weeks_in_term))
+            if natural != n:
+                delivered = n * weeks_in_term
+                warnings.append(
+                    f"{code} {cohort}: {total} classes over {weeks_in_term} "
+                    f"weeks needs {natural}/week, but the configured fixed "
+                    f"rate is {n}/week — {abs(total - delivered)} class(es) "
+                    f"{'short of' if delivered < total else 'beyond'} the "
+                    f"distribution.")
         if n > MAX_PLAUSIBLE_SESSIONS:
             warnings.append(
                 f"{code} {cohort}: No. Of Classes={total} over {weeks_in_term} weeks "
@@ -358,6 +388,7 @@ def ingest_workbook(wb, weeks_in_term: int = 14) -> dict:
         "cohorts": len(cohorts),
         "teachers": len(teachers_used),
         "weeks_in_term": weeks_in_term,
+        "fixed_sessions_per_week": fixed_sessions_per_week,
         "sessions_per_week_histogram": dict(
             sorted(Counter(o.required_sessions for o in offerings).items())),
     }

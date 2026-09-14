@@ -34,8 +34,9 @@ def _run_job(job_id: str, file_bytes: bytes, config_override: dict | None,
         # Config first: the parser needs `weeks_in_term` to turn each
         # offering's whole-term class count into weekly sessions.
         cfg = solver.load_config(override=config_override)
-        dataset = ingest.ingest_bytes(file_bytes,
-                                      weeks_in_term=cfg["weeks_in_term"])
+        dataset = ingest.ingest_bytes(
+            file_bytes, weeks_in_term=cfg["weeks_in_term"],
+            fixed_sessions_per_week=cfg.get("fixed_sessions_per_week"))
 
         job["state"] = "solving"
         job["progress"] = 0.2
