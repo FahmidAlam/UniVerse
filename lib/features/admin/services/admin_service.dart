@@ -91,6 +91,32 @@ class AdminService {
     }
   }
 
+  /// Pre-authorizes a teacher. The first time they sign in with [email],
+  /// `AuthService.handlePostLogin` creates their teacher profile from this
+  /// row. Without it the `profiles_guard_role` trigger (migration 016) refuses
+  /// the teacher role.
+  Future<void> addTeacherToWhitelist({
+    required String email,
+    required String name,
+    required String teacherCode,
+    String? department,
+    String? designation,
+  }) async {
+    try {
+      await _supabase.from(AppConstants.tableWhitelists).upsert({
+        'email': email,
+        'email': email.trim().toLowerCase(),
+        'role': AppConstants.roleTeacher,
+        'name': name,
+        'teacher_code': teacherCode,
+        'department': department,
+        'designation': designation,
+      }, onConflict: 'email');
+    } on PostgrestException catch (e) {
+      throw Exception(e.message);
+    }
+  }
+
   Future<void> removeFromWhitelist(String email) async {
     await _supabase
         .from(AppConstants.tableWhitelists)

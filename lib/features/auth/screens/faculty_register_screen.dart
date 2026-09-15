@@ -44,64 +44,80 @@ class _FacultyRegisterScreenState extends State<FacultyRegisterScreen> {
     super.dispose();
   }
 
-  void _onAuthChange() async {
+  // Set only while this screen's own Google sign-in runs, so that sign-in,
+  // and no unrelated controller update, is what finishes the registration.
+  bool _signingInWithGoogle = false;
+
+  // completeFacultyRegistration notifies before its first await, which calls
+  // straight back into _onAuthChange while the status is still `registering`.
+  // Without this guard that recursion never ends and the app freezes.
+  bool _completingRegistration = false;
+
+  void _onAuthChange() {
     if (!mounted) return;
     final status = widget.authController.status;
 
     if (status == AuthStatus.registering) {
-      if (_nameCtrl.text.trim().isEmpty ||
-          _selectedDepartment == null ||
-          _selectedDesignation == null) {
-        _showError('Please fill in all fields before registering.');
-        return;
-      }
+      if (_signingInWithGoogle) _completeRegistration();
+    } else if (status == AuthStatus.notWhitelisted) {
+      context.go(RouteNames.notWhitelisted);
+    } else if (status == AuthStatus.error) {
+      _showError(
+        widget.authController.errorMessage ?? 'Something went wrong.',
+      );
+    }
+  }
 
-      final success = await widget.authController.completeFacultyRegistration(
+  Future<void> _completeRegistration() async {
+    if (_completingRegistration) return;
+    _completingRegistration = true;
+    try {
+      // A failure surfaces through the controller's status above: `error`
+      // shows the message, `notWhitelisted` (no whitelist entry) navigates.
+      await widget.authController.completeFacultyRegistration(
         name: _nameCtrl.text.trim(),
         teacherCode: _codeCtrl.text.trim().toUpperCase(),
         department: _selectedDepartment!,
         designation: _selectedDesignation!,
       );
-
-      if (!success && mounted) {
-        _showError(
-          widget.authController.errorMessage ?? 'Registration failed.',
-        );
-      }
-    } else if (status == AuthStatus.notWhitelisted) {
-      if (mounted) context.go(RouteNames.notWhitelisted);
-    } else if (status == AuthStatus.error) {
-      if (mounted) {
-        _showError(
-          widget.authController.errorMessage ?? 'Something went wrong.',
-        );
-      }
+    } finally {
+      _completingRegistration = false;
     }
+  }
+
+  bool _formIsValid() {
+    if (!_formKey.currentState!.validate()) return false;
+    if (_selectedDepartment == null) {
+      _showError('Please select your department.');
+      return false;
+    }
+    if (_selectedDesignation == null) {
+      _showError('Please select your designation.');
+      return false;
+    }
+    return true;
   }
 
   Future<void> _registerWithGoogle() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_selectedDepartment == null) {
-      _showError('Please select your department.');
-      return;
+    if (!_formIsValid()) return;
+    _signingInWithGoogle = true;
+    try {
+      await widget.authController.signInWithGoogle();
+    } finally {
+      _signingInWithGoogle = false;
     }
-    if (_selectedDesignation == null) {
-      _showError('Please select your designation.');
-      return;
-    }
-    await widget.authController.signInWithGoogle();
+  }
+
+  // Already signed in (sent here from role selection): only the profile is
+  // missing. Starting Google sign-in again opened a second account chooser
+  // and could swap in a different account.
+  Future<void> _finishRegistration() async {
+    if (!_formIsValid()) return;
+    await _completeRegistration();
   }
 
   void _registerWithEmail() {
-    if (!_formKey.currentState!.validate()) return;
-    if (_selectedDepartment == null) {
-      _showError('Please select your department.');
-      return;
-    }
-    if (_selectedDesignation == null) {
-      _showError('Please select your designation.');
-      return;
-    }
+    if (!_formIsValid()) return;
     widget.authController.storePendingFacultyData(
       name: _nameCtrl.text.trim(),
       teacherCode: _codeCtrl.text.trim().toUpperCase(),
@@ -132,6 +148,7 @@ class _FacultyRegisterScreenState extends State<FacultyRegisterScreen> {
       listenable: widget.authController,
       builder: (context, _) {
         final isLoading = widget.authController.isLoading;
+        final signedIn = widget.authController.hasSession;
 
         return Scaffold(
           backgroundColor: AppColors.bgPrimary,
@@ -247,7 +264,11 @@ class _FacultyRegisterScreenState extends State<FacultyRegisterScreen> {
                       width: double.infinity,
                       height: AppSpacing.buttonHeight,
                       child: ElevatedButton(
-                        onPressed: isLoading ? null : _registerWithEmail,
+                        onPressed: isLoading
+                            ? null
+                            : signedIn
+                                ? _finishRegistration
+                                : _registerWithEmail,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           disabledBackgroundColor: AppColors.bgElevated,
@@ -255,24 +276,30 @@ class _FacultyRegisterScreenState extends State<FacultyRegisterScreen> {
                               borderRadius: AppSpacing.radiusMd),
                           elevation: 0,
                         ),
-                        child: Text('Register with Email',
-                            style: AppTextStyles.button),
+                        child: Text(
+                          signedIn
+                              ? 'Finish registration'
+                              : 'Register with Email',
+                          style: AppTextStyles.button,
+                        ),
                       ),
                     ),
 
-                    const SizedBox(height: AppSpacing.sm),
-
-                    GoogleSignInButton(
-                      onTap: isLoading ? null : _registerWithGoogle,
-                      isLoading: isLoading,
-                      label: 'Register with Google',
-                    ),
+                    if (!signedIn) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      GoogleSignInButton(
+                        onTap: isLoading ? null : _registerWithGoogle,
+                        isLoading: isLoading,
+                        label: 'Register with Google',
+                      ),
+                    ],
 
                     AppSpacing.lgGap,
 
                     Center(
                       child: Text(
-                        'Your information must match university HR records.',
+                        'Teacher accounts must first be added by your '
+                        'department admin.',
                         style: AppTextStyles.caption,
                         textAlign: TextAlign.center,
                       ),

@@ -46,12 +46,12 @@ class NotWhitelistedScreen extends StatelessWidget {
 
               const SizedBox(height: AppSpacing.x3l),
 
-              Text('Admin Access Required', style: AppTextStyles.h2),
+              Text('Access Required', style: AppTextStyles.h2),
 
               AppSpacing.lgGap,
 
               Text(
-                'This account is not registered as an admin.',
+                'This account has not been added as a teacher or admin.',
                 style: AppTextStyles.body.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -82,8 +82,8 @@ class NotWhitelistedScreen extends StatelessWidget {
               AppSpacing.lgGap,
 
               Text(
-                'Admin accounts are created directly by the department head. '
-                'Contact your HOD to get admin access, then try signing in again.',
+                'Teacher and admin accounts are added by your department '
+                'admin. Ask them to add this email, then sign in again.',
                 style: AppTextStyles.bodySm,
                 textAlign: TextAlign.center,
               ),

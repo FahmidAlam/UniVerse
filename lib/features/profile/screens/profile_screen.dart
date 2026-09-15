@@ -29,6 +29,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   late final ProfileController _controller;
   int? _localAvatarIndex;
+  bool _isSigningOut = false;
 
   static const _presets = [
     _AvatarPreset(
@@ -126,7 +127,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     if (confirmed == true) {
-      await _controller.signOut();
+      setState(() => _isSigningOut = true);
+      try {
+        await _controller.signOut();
+      } finally {
+        if (mounted) setState(() => _isSigningOut = false);
+      }
     }
   }
 
@@ -155,10 +161,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _buildSettings(),
                 AppSpacing.sectionGap,
                 UButton(
-                  label: 'Sign out',
+                  label: _isSigningOut ? 'Signing out...' : 'Sign out',
                   variant: UButtonVariant.danger,
-                  icon: PhosphorIconsRegular.signOut,
-                  onPressed: _confirmSignOut,
+                  icon: _isSigningOut ? null : PhosphorIconsRegular.signOut,
+                  isLoading: _isSigningOut,
+                  onPressed: _isSigningOut ? null : _confirmSignOut,
                 ),
               ],
             ),

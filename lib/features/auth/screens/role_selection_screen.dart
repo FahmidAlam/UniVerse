@@ -5,10 +5,13 @@ import 'package:universe/core/router/route_names.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
+import 'package:universe/features/auth/controllers/auth_controller.dart';
 import 'package:universe/shared/utils/nav_utils.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
-  const RoleSelectionScreen({super.key});
+  final AuthController authController;
+
+  const RoleSelectionScreen({super.key, required this.authController});
 
   @override
   State<RoleSelectionScreen> createState() => _RoleSelectionScreenState();
@@ -41,19 +44,52 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
     ),
   ];
 
-  void _proceed() {
+  // The router keeps a signed-in user with no profile on the registration
+  // screens, so "back" has to end that session. Otherwise there is no way out,
+  // e.g. to pick a different Google account.
+  Future<void> _back() async {
+    if (widget.authController.status == AuthStatus.registering) {
+      await widget.authController.signOut();
+    }
+    if (mounted) context.backOr(RouteNames.login);
+  }
+
+  Future<void> _proceed() async {
     if (_selectedRole == null) return;
 
     if (_selectedRole == 'student') {
       context.push(RouteNames.studentRegister);
     } else if (_selectedRole == 'teacher') {
-      context.push(RouteNames.facultyRegister);
+      await _proceedAsTeacher();
     } else {
-      _showAdminInfo();
+      _showAccessInfo(
+        title: 'Admin Access',
+        message: 'Admin accounts are created directly by the department head. '
+            'Contact your department admin to get access.',
+      );
     }
   }
 
-  void _showAdminInfo() {
+  // Teacher accounts need a whitelist entry (migration 016). A signed-in user
+  // who is still here has no profile, so they were not whitelisted when they
+  // signed in. Check again in case the admin has added them since; otherwise
+  // say so now, not after a form they cannot submit.
+  Future<void> _proceedAsTeacher() async {
+    final auth = widget.authController;
+    if (!auth.hasSession) {
+      context.push(RouteNames.facultyRegister);
+      return;
+    }
+    await auth.handleOAuthCallback();
+    if (!mounted || auth.status != AuthStatus.registering) return;
+    _showAccessInfo(
+      title: 'Teacher Access',
+      message: 'Teacher accounts are added by the department admin. Ask them '
+          'to add the email you signed in with, then choose Teacher again.',
+    );
+  }
+
+  void _showAccessInfo({required String title, required String message}) {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.bgCard,
@@ -82,11 +118,10 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
               size: 36,
             ),
             AppSpacing.lgGap,
-            Text('Admin Access', style: AppTextStyles.h3),
+            Text(title, style: AppTextStyles.h3),
             AppSpacing.smGap,
             Text(
-              'Admin accounts are created directly by the department head. '
-              'Contact your department admin to get access.',
+              message,
               style: AppTextStyles.bodySm,
               textAlign: TextAlign.center,
             ),
@@ -122,7 +157,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(PhosphorIconsRegular.arrowLeft),
-          onPressed: () => context.backOr(RouteNames.login),
+          onPressed: _back,
         ),
         title: Text('Create account', style: AppTextStyles.h2),
       ),

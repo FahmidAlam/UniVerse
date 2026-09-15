@@ -8,6 +8,9 @@ class WhitelistEntry {
   final String? batch;
   final String? section;
   final int? semester;
+  // Added by migration 016; copied into the teacher profile on first sign-in.
+  final String? department;
+  final String? designation;
 
   const WhitelistEntry({
     required this.email,
@@ -17,6 +20,8 @@ class WhitelistEntry {
     this.batch,
     this.section,
     this.semester,
+    this.department,
+    this.designation,
   });
 
   factory WhitelistEntry.fromMap(Map<String, dynamic> map) {
@@ -28,6 +33,8 @@ class WhitelistEntry {
       batch: map['batch'] as String?,
       section: map['section'] as String?,
       semester: map['semester'] as int?,
+      department: map['department'] as String?,
+      designation: map['designation'] as String?,
     );
   }
 
@@ -40,6 +47,8 @@ class WhitelistEntry {
       'batch': batch,
       'section': section,
       'semester': semester,
+      'department': department,
+      'designation': designation,
     };
   }
 

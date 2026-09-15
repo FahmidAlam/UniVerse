@@ -12,6 +12,7 @@ import 'package:universe/core/theme/app_theme.dart';
 import 'package:universe/features/auth/controllers/auth_controller.dart';
 import 'package:universe/features/auth/services/auth_service.dart';
 import 'package:universe/firebase_options.dart';
+import 'package:universe/shared/widgets/u_blocking_overlay.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -73,6 +74,21 @@ class UniVerseApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
       routerConfig: router.router,
+      // One overlay for every sign-out button in the app.
+      builder: (context, child) => ListenableBuilder(
+        listenable: router.authController,
+        builder: (context, _) => Stack(
+          children: [
+            child!,
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 150),
+              child: router.authController.isSigningOut
+                  ? const UBlockingOverlay(message: 'Signing out…')
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

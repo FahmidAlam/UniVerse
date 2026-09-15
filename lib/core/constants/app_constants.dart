@@ -13,6 +13,15 @@ abstract class AppConstants {
     'GEMINI_API_KEY',
     defaultValue: 'YOUR_GEMINI_API_KEY',
   );
+
+  // OAuth *web* client ID: the audience Supabase checks Google ID tokens
+  // against. Public by design, not a secret.
+  static const String googleWebClientId = String.fromEnvironment(
+    'GOOGLE_WEB_CLIENT_ID',
+    defaultValue:
+        '336302188092-e8h8jjv7ukfp3m0pj6cbmhep3097c0st.apps.googleusercontent.com',
+  );
+
   static const String embeddingModel = 'text-embedding-004';
   static const String generationModel = 'gemini-2.0-flash';
 

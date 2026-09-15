@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/services/push_service.dart';
@@ -34,12 +35,49 @@ class AuthService {
   Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
 
 
-  Future<void> signInWithGoogle() async {
-    await _supabase.auth.signInWithOAuth(
-      OAuthProvider.google,
-      redirectTo: 'com.example.universe://login-callback/',
-      authScreenLaunchMode: LaunchMode.externalApplication,
+  late final GoogleSignIn _googleSignIn = GoogleSignIn(
+    serverClientId: AppConstants.googleWebClientId.isNotEmpty
+        ? AppConstants.googleWebClientId
+        : null,
+  );
+
+  /// Returns `true` once a Supabase session exists and `false` when the user
+  /// dismissed the account chooser.
+  ///
+  /// Web still uses the browser redirect: the session arrives later through
+  /// the `signedIn` listener in `main.dart`, so this returns `false` there.
+  Future<bool> signInWithGoogle() async {
+    if (kIsWeb) {
+      await _supabase.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: 'com.example.universe://login-callback/',
+        authScreenLaunchMode: LaunchMode.externalApplication,
+      );
+      return false;
+    }
+
+    // Forget the last-picked account so the chooser always appears. Otherwise
+    // Google silently re-uses it and the user can never pick another account.
+    await _googleSignIn.signOut();
+
+    final googleUser = await _googleSignIn.signIn();
+    if (googleUser == null) return false;
+
+    final googleAuth = await googleUser.authentication;
+    final idToken = googleAuth.idToken;
+    if (idToken == null) {
+      throw const AuthException(
+        'Google returned no ID token. Check the web client ID and the SHA-1 '
+        'registered for this build.',
+      );
+    }
+
+    await _supabase.auth.signInWithIdToken(
+      provider: OAuthProvider.google,
+      idToken: idToken,
+      accessToken: googleAuth.accessToken,
     );
+    return true;
   }
 
 
@@ -260,6 +298,11 @@ class AuthService {
     }
   }
 
+  /// `true` when the `profiles_guard_role` trigger (migration 016) refused a
+  /// teacher or admin role that `whitelists` does not grant this email.
+  static bool isNotWhitelistedError(PostgrestException e) =>
+      e.hint == 'not_whitelisted';
+
   Future<AuthResult> completeFacultyRegistration({
     required String name,
     required String teacherCode,
@@ -293,6 +336,9 @@ class AuthService {
         profile: profile,
       );
     } on PostgrestException catch (e) {
+      if (isNotWhitelistedError(e)) {
+        return AuthResult.failure('not_whitelisted');
+      }
       return AuthResult.failure(e.message);
     } catch (e) {
       return AuthResult.failure('$e');
