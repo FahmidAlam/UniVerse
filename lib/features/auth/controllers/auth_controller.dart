@@ -98,13 +98,6 @@ class AuthController extends ChangeNotifier {
         return;
       }
 
-      final profile = await _authService.fetchProfile(user.id);
-      if (profile != null) {
-        _profile = profile;
-        _status = AuthStatus.authenticated;
-        _registerPushToken(user.id);
-      } else {
-        _status = AuthStatus.registering;
       try {
         final profile = await _authService.fetchProfile(user.id);
         if (profile != null) {
@@ -358,7 +351,6 @@ class AuthController extends ChangeNotifier {
   Future<bool> checkEmailVerified() async {
     _setLoading(true);
 
-    await _authService.authStateChanges.first;
     try {
       await _authService.authStateChanges.first
           .timeout(const Duration(seconds: 15));
