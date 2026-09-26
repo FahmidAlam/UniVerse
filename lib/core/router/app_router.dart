@@ -55,60 +55,11 @@ class AppRouter {
     refreshListenable: authController,
     debugLogDiagnostics: false,
 
-    redirect: (BuildContext context, GoRouterState state) async {
-      final status = authController.status;
-      final location = state.matchedLocation;
-
-      const authPages = [
-        RouteNames.splash,
-        RouteNames.onboarding,
-        RouteNames.login,
-        RouteNames.emailLogin,
-        RouteNames.emailSignup,
-        RouteNames.verifyEmail,
-        RouteNames.forgotPassword,
-        RouteNames.resetPassword,
-        RouteNames.roleSelection,
-        RouteNames.studentRegister,
-        RouteNames.facultyRegister,
-        RouteNames.notWhitelisted,
-      ];
-
-      if (status == AuthStatus.initial || status == AuthStatus.loading) {
-        return location == RouteNames.splash ? null : RouteNames.splash;
-      }
-
-      if (status == AuthStatus.notWhitelisted) {
-        return location == RouteNames.notWhitelisted
-            ? null
-            : RouteNames.notWhitelisted;
-      }
-
-      if (status == AuthStatus.awaitingVerification) {
-        return location == RouteNames.verifyEmail
-            ? null
-            : RouteNames.verifyEmail;
-      }
-
-      if (status == AuthStatus.registering) {
-        return authPages.contains(location) ? null : RouteNames.roleSelection;
-      }
-
-      if (status == AuthStatus.unauthenticated || status == AuthStatus.error) {
-        return authPages.contains(location) ? null : RouteNames.login;
-      }
-
-      if (status == AuthStatus.authenticated) {
-        if (authPages.contains(location)) {
-          return _dashboardForRole(authController.role);
-        }
-        if (_isWrongRolePage(location, authController.role)) {
-          return _dashboardForRole(authController.role);
-        }
-      }
-
-      return null;
-    },
+    redirect: (BuildContext context, GoRouterState state) async => redirectFor(
+      authController.status,
+      state.matchedLocation,
+      authController.role,
+    ),
 
     routes: [
       GoRoute(
@@ -145,7 +96,7 @@ class AppRouter {
       ),
       GoRoute(
         path: RouteNames.roleSelection,
-        builder: (c, s) => const RoleSelectionScreen(),
+        builder: (c, s) => RoleSelectionScreen(authController: authController),
       ),
       GoRoute(
         path: RouteNames.studentRegister,
@@ -295,7 +246,74 @@ class AppRouter {
     ],
   );
 
-  String _dashboardForRole(String? role) {
+  /// Where a user with [status] and [role] is sent from [location]; `null`
+  /// means they stay.
+  static String? redirectFor(
+    AuthStatus status,
+    String location,
+    String? role,
+  ) {
+    const authPages = [
+      RouteNames.splash,
+      RouteNames.onboarding,
+      RouteNames.login,
+      RouteNames.emailLogin,
+      RouteNames.emailSignup,
+      RouteNames.verifyEmail,
+      RouteNames.forgotPassword,
+      RouteNames.resetPassword,
+      RouteNames.roleSelection,
+      RouteNames.studentRegister,
+      RouteNames.facultyRegister,
+      RouteNames.notWhitelisted,
+    ];
+
+    // Signed in with no profile yet: only these screens can finish the
+    // account. Leaving such a user on /login made "Continue with Google" look
+    // like it did nothing.
+    const registrationPages = [
+      RouteNames.roleSelection,
+      RouteNames.studentRegister,
+      RouteNames.facultyRegister,
+      RouteNames.emailSignup,
+      RouteNames.verifyEmail,
+      RouteNames.resetPassword,
+    ];
+
+    if (status == AuthStatus.initial || status == AuthStatus.loading) {
+      return location == RouteNames.splash ? null : RouteNames.splash;
+    }
+
+    if (status == AuthStatus.notWhitelisted) {
+      return location == RouteNames.notWhitelisted
+          ? null
+          : RouteNames.notWhitelisted;
+    }
+
+    if (status == AuthStatus.awaitingVerification) {
+      return location == RouteNames.verifyEmail ? null : RouteNames.verifyEmail;
+    }
+
+    if (status == AuthStatus.registering) {
+      return registrationPages.contains(location)
+          ? null
+          : RouteNames.roleSelection;
+    }
+
+    if (status == AuthStatus.unauthenticated || status == AuthStatus.error) {
+      return authPages.contains(location) ? null : RouteNames.login;
+    }
+
+    if (status == AuthStatus.authenticated) {
+      if (authPages.contains(location) || _isWrongRolePage(location, role)) {
+        return _dashboardForRole(role);
+      }
+    }
+
+    return null;
+  }
+
+  static String _dashboardForRole(String? role) {
     switch (role) {
       case 'teacher':
         return RouteNames.teacherDashboard;
@@ -306,7 +324,7 @@ class AppRouter {
     }
   }
 
-  bool _isWrongRolePage(String location, String? role) {
+  static bool _isWrongRolePage(String location, String? role) {
     if (role == 'student' && location.startsWith('/admin')) return true;
     if (role == 'student' && location.startsWith('/teacher')) return true;
     if (role == 'teacher' && location.startsWith('/admin')) return true;

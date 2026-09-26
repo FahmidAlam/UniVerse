@@ -540,14 +540,21 @@ work** (no disabling PKCE, no long-lived tokens, no client-side secrets, no skip
 admin whitelist gate).
 
 ## Current implementation
-- **Google OAuth** via `supabase.auth.signInWithOAuth(OAuthProvider.google, redirectTo:
-  'com.example.universe://login-callback/', authScreenLaunchMode:
-  LaunchMode.externalApplication)` — i.e. an **external-browser redirect flow**, returning
-  through an Android deep link. `AuthFlowType.pkce` is set in `Supabase.initialize`.
+- **Google sign-in is native** (`google_sign_in` → `supabase.auth.signInWithIdToken`), not a
+  browser redirect (web still uses `signInWithOAuth`). `signInWithIdToken` emits `signedIn`
+  *before* it returns, while the controller is still loading, so the `main.dart` listener
+  skips it — `AuthController.signInWithGoogle()` calls `handleOAuthCallback()` itself. Don't
+  remove that call. The Android OAuth client is bound to the signing key's SHA-1: an APK
+  signed with any other key fails with `ApiException: 10` until that SHA-1 is registered.
+  `AuthFlowType.pkce` is set in `Supabase.initialize`.
 - **Email/Password** signup → email verify → signin.
-- **Whitelist gate = ADMIN ONLY.** Students/teachers sign up freely; admins must exist in
-  `whitelists`. Enforced in `auth_service.handlePostLogin()`; a non-whitelisted admin is
-  signed out → `NotWhitelistedScreen`.
+- **Whitelist gate = TEACHER + ADMIN** (migration 016). Students sign up freely. A teacher or
+  admin role needs a `whitelists` row for that email: the `profiles_guard_role` trigger
+  enforces it in the database, and the app maps its refusal (hint `not_whitelisted`) to
+  `NotWhitelistedScreen`. Whitelisted users get their profile auto-created in
+  `handlePostLogin()`. Admins add teachers in Admin Registration → "Add a teacher".
+- A signed-in user with no profile (`registering`) is held on the registration screens by
+  `AppRouter.redirectFor()`; the back button on role selection signs them out.
 - `AuthStatus`: `initial · loading · authenticated · unauthenticated · registering ·
   notWhitelisted · awaitingVerification · error`.
 - Deep links: `com.example.universe://login-callback/` and `://reset-callback/`, declared in
@@ -885,7 +892,7 @@ test/                             Dart tests
 
 | Table | Key detail |
 |---|---|
-| `whitelists` | admin gate; `role` ∈ student/teacher/admin |
+| `whitelists` | teacher + admin gate (016 trigger `profiles_guard_role` on `profiles`); `role` ∈ student/teacher/admin; `email, role, name, teacher_code, batch, section, semester` + **016** `department, designation` |
 | `profiles` | extends `auth.users`; created on first login |
 | `routines` | weekly schedule; filtered by batch+section (student) or teacher_code (teacher). `teacher_name`/`teacher_code` are TEXT (003); `teacher_id` nullable. **011** adds `routine_version_id` + `is_service` + lookup indexes. Holds **only the active routine**. Written exclusively by `publish_routine()`. Also read by `FindTeacherService` + `RoomStatusService` |
 | `cancellations` | (007) one dated row per cancelled occurrence: `routine_id, class_date, reason, batch, section, subject, day, time_start, cancelled_by` + unique `(routine_id, class_date)`. RLS: read-all; insert/delete by `cancelled_by = auth.uid()` & teacher/admin. `routine_id` is **ON DELETE SET NULL** since 011, so history survives a republish |
@@ -910,7 +917,8 @@ for the MVP — revisit under §P6.
 tables (+ `my_role()`/`is_admin()`) · 007 cancellations schema · 008 RLS on `timetable_*` ·
 009 drop unused objects · **010 timetable schedule config** (working_days, weeks_in_term,
 blocked/online/excluded periods, semester_map) · **011 routine versions** (`routine_versions`,
-`routines.routine_version_id`/`is_service`, `publish_routine()` RPC, cancellations FK relaxed).
+`routines.routine_version_id`/`is_service`, `publish_routine()` RPC, cancellations FK relaxed) ·
+**016 teacher whitelist gate** (`profiles_guard_role` trigger, `whitelists.department/designation`).
 *(The abandoned `engine/theory-lab-adjacency` branch also carries a 010 — it is **not** being
 merged; do not renumber ours to accommodate it.)*
 

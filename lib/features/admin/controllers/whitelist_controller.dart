@@ -47,6 +47,37 @@ class WhitelistController extends SafeChangeNotifier {
     return ok;
   }
 
+  Future<bool> addTeacher({
+    required String email,
+    required String name,
+    required String teacherCode,
+    String? department,
+    String? designation,
+  }) async {
+    _isSaving = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    var ok = false;
+    try {
+      await _service.addTeacherToWhitelist(
+        email: email,
+        name: name,
+        teacherCode: teacherCode,
+        department: department,
+        designation: designation,
+      );
+      await load();
+      ok = true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+    }
+
+    _isSaving = false;
+    notifyListeners();
+    return ok;
+  }
+
   Future<void> remove(String email) async {
     try {
       await _service.removeFromWhitelist(email);
