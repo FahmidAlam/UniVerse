@@ -10,6 +10,7 @@ class RoutineEntry {
   final String subjectCode;
   final String? teacherName;
   final String? teacherCode;
+  final List<String> coTeacherCodes;
   final String room;
   final String batch;
   final String section;
@@ -22,8 +23,20 @@ class RoutineEntry {
   /// them. They used to be generated and then never published.
   final bool isService;
 
+  /// Additive canonical links; legacy labels and auth IDs stay authoritative until reviewed mapping.
+  final String? schedulingScopeId;
+  final String? cohortId;
+  final String? studentGroupId;
+  final String? facultyId;
+  final String? roomId;
+
   const RoutineEntry({
     required this.id,
+    this.schedulingScopeId,
+    this.cohortId,
+    this.studentGroupId,
+    this.facultyId,
+    this.roomId,
     required this.day,
     required this.timeStart,
     required this.timeEnd,
@@ -31,6 +44,7 @@ class RoutineEntry {
     required this.subjectCode,
     this.teacherName,
     this.teacherCode,
+    this.coTeacherCodes = const [],
     required this.room,
     required this.batch,
     required this.section,
@@ -54,11 +68,39 @@ class RoutineEntry {
       'semester': semester,
       'is_active': isActive,
       'is_service': isService,
+      if (schedulingScopeId != null) 'scheduling_scope_id': schedulingScopeId,
+      if (cohortId != null) 'cohort_id': cohortId,
+      if (studentGroupId != null) 'student_group_id': studentGroupId,
+      if (facultyId != null) 'faculty_id': facultyId,
+      if (roomId != null) 'room_id': roomId,
     };
   }
 
+  /// Private draft persistence retains identities the legacy hosted RPC cannot.
+  Map<String, dynamic> toDraftMap() =>
+      {'id': id, ...toMap(), 'teachers': teacherCodes};
+  List<String> get teacherCodes => {
+        if (teacherCode != null && teacherCode!.trim().isNotEmpty)
+          teacherCode!.trim(),
+        ...coTeacherCodes
+            .where((c) => c.trim().isNotEmpty)
+            .map((c) => c.trim()),
+      }.toList(growable: false);
+  bool get requiresSharedTeacherStorage =>
+      teacherCodes.any((c) => c != teacherCode);
+  bool matchesTeacher(String code) => teacherCodes.contains(code);
+  bool matchesStudent(String requestedBatch, String requestedSection) =>
+      batch == requestedBatch &&
+      (section == requestedSection ||
+          section.split('+').map((s) => s.trim()).contains(requestedSection));
+
   factory RoutineEntry.fromMap(Map<String, dynamic> map) {
     return RoutineEntry(
+      schedulingScopeId: map['scheduling_scope_id'] as String?,
+      cohortId: map['cohort_id'] as String?,
+      studentGroupId: map['student_group_id'] as String?,
+      facultyId: map['faculty_id'] as String?,
+      roomId: map['room_id'] as String?,
       // Engine rows arrive with a synthetic id ("gen-12"); DB rows with a uuid.
       id: (map['id'] ?? '').toString(),
       day: (map['day'] as String?) ?? '',
@@ -68,6 +110,10 @@ class RoutineEntry {
       subjectCode: (map['subject_code'] as String?) ?? '',
       teacherName: map['teacher_name'] as String?,
       teacherCode: map['teacher_code'] as String?,
+      coTeacherCodes:
+          ((map['teachers'] ?? map['teacher_codes']) as List? ?? const [])
+              .map((c) => c.toString())
+              .toList(growable: false),
       room: (map['room'] as String?) ?? '',
       batch: (map['batch'] as String?) ?? '',
       section: (map['section'] as String?) ?? '',
@@ -108,10 +154,11 @@ class RoutineEntry {
   String get startLabel => _to12h(timeStart);
   String get endLabel => _to12h(timeEnd);
 
-  String get teacherDisplay =>
-      (teacherName != null && teacherName!.isNotEmpty)
+  String get teacherDisplay => teacherCodes.length > 1
+      ? teacherCodes.join(' / ')
+      : (teacherName != null && teacherName!.isNotEmpty)
           ? teacherName!
-          : (teacherCode ?? 'TBA');
+          : (teacherCode ?? 'Faculty pending');
 
   ClassStatus statusOn(DateTime date, {required bool isToday}) {
     if (!isToday) return ClassStatus.upcoming;

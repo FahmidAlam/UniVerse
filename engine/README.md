@@ -53,6 +53,22 @@ default input; otherwise it uses `fixtures/offerings.json`.
 
 ## Input data
 
+The current workbook path uses `Course Distribution`, headers on row 5 and
+data from row 6. Optional `Is Service` accepts explicit true/false (also
+yes/no or 1/0); conflicting classifications within an offering are rejected.
+When absent, legacy CSE batch/section conventions still apply. The field lets
+verified local groups with nonnumeric names remain on the main routine grid.
+
+Run-specific config may set `settings.break_col` (default `G`) alongside each
+period's `col`, start and end. Period columns must be unique and cannot overlap
+Batch/Section or the chosen break column. This is an engine configuration
+contract; no new settings UI or hosted schema is deployed by these changes.
+
+`tool/cross_semester_rehearsal.py` runs repeated source reconciliation and private
+workbook checks. Its live-derived input is explicitly a reconstruction of
+observed meetings, not an approved academic distribution. See the cross-semester
+evaluation in `docs/timetable-audit-2026-10-20/` for the tested scope and limits.
+
 `fixtures/offerings.json` — teachers, courses, sections, rooms, day-offs. Teachers/courses are kept
 coherent with `../supabase/seed/seed_routine.sql`, and it generates a **brand-new cohort (batch 63)**
 so published output never collides with the seeded batch 62.

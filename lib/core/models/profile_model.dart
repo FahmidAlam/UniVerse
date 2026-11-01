@@ -19,8 +19,20 @@ class Profile {
 
   final DateTime? createdAt;
 
+  /// Additive canonical links; legacy labels and auth IDs stay authoritative until reviewed mapping.
+  final String? departmentId;
+  final String? programId;
+  final String? cohortId;
+  final String? studentGroupId;
+  final String? facultyId;
+
   const Profile({
     required this.id,
+    this.departmentId,
+    this.programId,
+    this.cohortId,
+    this.studentGroupId,
+    this.facultyId,
     required this.email,
     required this.role,
     this.name,
@@ -38,6 +50,11 @@ class Profile {
 
   factory Profile.fromMap(Map<String, dynamic> map) {
     return Profile(
+      departmentId: map['department_id'] as String?,
+      programId: map['program_id'] as String?,
+      cohortId: map['cohort_id'] as String?,
+      studentGroupId: map['student_group_id'] as String?,
+      facultyId: map['faculty_id'] as String?,
       id: map['id'] as String,
       email: (map['email'] as String?) ?? '',
       role: (map['role'] as String?) ?? AppConstants.roleStudent,

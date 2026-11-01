@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/routine_model.dart';
+import 'package:universe/core/utils/room_identity.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
@@ -9,10 +10,18 @@ import 'package:universe/shared/widgets/u_app_bar.dart';
 import 'package:universe/shared/widgets/u_chip.dart';
 import 'package:universe/shared/widgets/u_empty_state.dart';
 
+class TimetablePreview {
+  final List<RoutineEntry> rows;
+  final Map<String, String> roomAliases;
+  const TimetablePreview({required this.rows, this.roomAliases = const {}});
+}
+
 class TimetableGridScreen extends StatefulWidget {
   final List<RoutineEntry> rows;
+  final Map<String, String> roomAliases;
 
-  const TimetableGridScreen({super.key, required this.rows});
+  const TimetableGridScreen(
+      {super.key, required this.rows, this.roomAliases = const {}});
 
   @override
   State<TimetableGridScreen> createState() => _TimetableGridScreenState();
@@ -20,6 +29,35 @@ class TimetableGridScreen extends StatefulWidget {
 
 class _TimetableGridScreenState extends State<TimetableGridScreen> {
   late String _day;
+  String _student = '', _teacher = '', _room = '';
+  String roomKey(String room) =>
+      RoomIdentity.key(room, aliases: widget.roomAliases);
+  List<RoutineEntry> get visibleRows => widget.rows
+      .where((r) =>
+          (_student.isEmpty ||
+              r.matchesStudent(
+                  _student.split('|')[0], _student.split('|')[1])) &&
+          (_teacher.isEmpty || r.matchesTeacher(_teacher)) &&
+          (_room.isEmpty || roomKey(r.room) == _room))
+      .toList();
+
+  Widget filter(String label, String value, Set<String> choices,
+          ValueChanged<String> update) =>
+      SizedBox(
+          width: 175,
+          child: DropdownButtonFormField<String>(
+              initialValue: value,
+              decoration: InputDecoration(labelText: label),
+              isExpanded: true,
+              items: [
+                DropdownMenuItem(value: '', child: Text('All $label')),
+                for (final c in choices.toList()..sort())
+                  DropdownMenuItem(
+                      value: c,
+                      child: Text(c.replaceAll('|', '-'),
+                          overflow: TextOverflow.ellipsis))
+              ],
+              onChanged: (v) => setState(() => update(v ?? ''))));
 
   List<String> get _daysPresent {
     final present = widget.rows.map((r) => r.day).toSet();
@@ -48,6 +86,29 @@ class _TimetableGridScreenState extends State<TimetableGridScreen> {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Padding(
+                    padding: AppSpacing.screenPaddingH,
+                    child: Wrap(spacing: 8, children: [
+                      filter(
+                          'Student section',
+                          _student,
+                          {
+                            for (final r in widget.rows)
+                              for (final s in r.section.split('+'))
+                                '${r.batch}|${s.trim()}'
+                          },
+                          (v) => _student = v),
+                      filter(
+                          'Faculty',
+                          _teacher,
+                          {for (final r in widget.rows) ...r.teacherCodes},
+                          (v) => _teacher = v),
+                      filter(
+                          'Room',
+                          _room,
+                          {for (final r in widget.rows) roomKey(r.room)},
+                          (v) => _room = v),
+                    ])),
                 SizedBox(
                   height: AppSpacing.chipHeight + AppSpacing.xl,
                   child: ListView(
@@ -72,7 +133,7 @@ class _TimetableGridScreenState extends State<TimetableGridScreen> {
   }
 
   Widget _grid() {
-    final dayRows = widget.rows.where((r) => r.day == _day).toList();
+    final dayRows = visibleRows.where((r) => r.day == _day).toList();
     if (dayRows.isEmpty) {
       return const UEmptyState(
         icon: PhosphorIconsRegular.calendarX,
@@ -88,9 +149,11 @@ class _TimetableGridScreenState extends State<TimetableGridScreen> {
         .toList()
       ..sort(_cohortCompare);
 
-    final cell = <String, RoutineEntry>{};
+    final cell = <String, List<RoutineEntry>>{};
     for (final r in dayRows) {
-      cell['${r.batch}|${r.section}@${r.timeStart}'] = r;
+      cell
+          .putIfAbsent('${r.batch}|${r.section}@${r.timeStart}', () => [])
+          .add(r);
     }
 
     const cohortW = 64.0;
@@ -154,33 +217,39 @@ class _TimetableGridScreenState extends State<TimetableGridScreen> {
     );
   }
 
-  Widget _bodyCell(RoutineEntry? e, double w) {
+  Widget _bodyCell(List<RoutineEntry>? entries, double w) {
     return Container(
       width: w,
       height: AppSpacing.heroCardHeight * 0.45,
       padding: const EdgeInsets.all(AppSpacing.xs),
       decoration: BoxDecoration(
-        color: e == null ? AppColors.bgPrimary : AppColors.bgCard,
+        color: entries == null ? AppColors.bgPrimary : AppColors.bgCard,
         border:
             Border.all(color: AppColors.border, width: AppSpacing.borderThin),
       ),
-      child: e == null
+      child: entries == null
           ? const SizedBox.shrink()
-          : Column(
+          : SingleChildScrollView(
+              child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(e.subjectCode,
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.textPrimary)),
-                Text(e.teacherCode ?? '',
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.textSecondary)),
-                Text(e.room,
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.roleTeacher)),
+                if (entries.length > 1)
+                  Text('${entries.length} overlapping entries',
+                      style: AppTextStyles.bodyError),
+                for (final e in entries) ...[
+                  Text(e.subjectCode,
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.textPrimary)),
+                  Text(e.teacherDisplay,
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.textSecondary)),
+                  Text(e.room,
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.roleTeacher)),
+                ],
               ],
-            ),
+            )),
     );
   }
 

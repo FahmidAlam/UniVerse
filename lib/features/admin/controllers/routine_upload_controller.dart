@@ -13,6 +13,8 @@ import 'package:universe/core/constants/app_enums.dart';
 import 'package:universe/features/admin/services/routine_workbook_parser.dart';
 import 'package:universe/features/admin/services/timetable_config_service.dart';
 import 'package:universe/features/admin/services/timetable_engine_service.dart';
+import 'package:universe/features/admin/controllers/timetable_gen_controller.dart'
+    show blockingValidationErrorFor;
 import 'package:universe/features/notifications/services/notification_service.dart';
 
 enum RoutineUploadPhase { idle, parsing, ready, publishing, published, error }
@@ -40,6 +42,9 @@ class RoutineUploadController extends ChangeNotifier {
   bool get isBusy =>
       _phase == RoutineUploadPhase.parsing ||
       _phase == RoutineUploadPhase.publishing;
+
+  String? get blockingValidationError =>
+      blockingValidationErrorFor(_result?.validation);
 
   Future<void> pickFile() async {
     final res = await FilePicker.platform.pickFiles(
@@ -71,8 +76,7 @@ class RoutineUploadController extends ChangeNotifier {
 
     try {
       final config = await _configService.buildEngineConfig();
-      final settings =
-          (config['settings'] as Map?)?.cast<String, dynamic>() ??
+      final settings = (config['settings'] as Map?)?.cast<String, dynamic>() ??
           const <String, dynamic>{};
       final faculty = ((config['teachers'] as List?) ?? const [])
           .whereType<Map>()
@@ -106,6 +110,13 @@ class RoutineUploadController extends ChangeNotifier {
     final parsed = _result;
     final bytes = _fileBytes;
     if (parsed == null || parsed.rows.isEmpty || bytes == null) return;
+
+    final blocker = blockingValidationError;
+    if (blocker != null) {
+      _errorMessage = blocker;
+      notifyListeners();
+      return;
+    }
 
     _phase = RoutineUploadPhase.publishing;
     _errorMessage = null;

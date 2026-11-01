@@ -5,6 +5,7 @@ class TimetableRoom {
   final bool isLab;
   final bool isGallery;
   final bool isActive;
+  final int? capacity;
 
   const TimetableRoom({
     required this.id,
@@ -13,6 +14,7 @@ class TimetableRoom {
     this.isLab = false,
     this.isGallery = false,
     this.isActive = true,
+    this.capacity,
   });
 
   factory TimetableRoom.fromMap(Map<String, dynamic> m) => TimetableRoom(
@@ -22,6 +24,7 @@ class TimetableRoom {
         isLab: (m['is_lab'] as bool?) ?? false,
         isGallery: (m['is_gallery'] as bool?) ?? false,
         isActive: (m['is_active'] as bool?) ?? true,
+        capacity: (m['capacity'] as num?)?.toInt(),
       );
 
   Map<String, dynamic> toMap() => {
@@ -30,6 +33,7 @@ class TimetableRoom {
         'is_lab': isLab,
         'is_gallery': isGallery,
         'is_active': isActive,
+        if (capacity != null) 'capacity': capacity,
       };
 
   String get kind => isLab ? 'Lab' : (isGallery ? 'Gallery' : 'Theory');
@@ -155,13 +159,13 @@ class TimetableSettings {
     this.weights = const {},
   });
 
-  factory TimetableSettings.fromMap(Map<String, dynamic> m) => TimetableSettings(
+  factory TimetableSettings.fromMap(Map<String, dynamic> m) =>
+      TimetableSettings(
         semesterLabel: m['semester_label'] as String?,
         periods: (m['periods'] as List?) ?? const [],
         workingDays: _stringList(m['working_days']),
         weeksInTerm: (m['weeks_in_term'] as num?)?.toInt() ?? 14,
-        fixedSessionsPerWeek:
-            (m['fixed_sessions_per_week'] as num?)?.toInt(),
+        fixedSessionsPerWeek: (m['fixed_sessions_per_week'] as num?)?.toInt(),
         blockedPeriods: _intListMap(m['blocked_periods']),
         onlinePeriods: _intList(m['online_periods'], fallback: const [7]),
         allowOnlinePeriods: (m['allow_online_periods'] as bool?) ?? false,
@@ -269,9 +273,8 @@ class TimetableSettings {
     return h * 60 + m;
   }
 
-  static List<String> _stringList(dynamic v) => v is List
-      ? [for (final e in v) e.toString()]
-      : const [];
+  static List<String> _stringList(dynamic v) =>
+      v is List ? [for (final e in v) e.toString()] : const [];
 
   static List<int> _intList(dynamic v, {List<int> fallback = const []}) {
     if (v is! List) return fallback;

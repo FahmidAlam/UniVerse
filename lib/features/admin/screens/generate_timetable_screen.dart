@@ -7,6 +7,7 @@ import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
 import 'package:universe/features/admin/controllers/timetable_gen_controller.dart';
 import 'package:universe/features/admin/services/timetable_engine_service.dart';
+import 'package:universe/features/admin/screens/timetable_grid_screen.dart';
 import 'package:universe/shared/widgets/stat_card.dart';
 import 'package:universe/shared/widgets/u_app_bar.dart';
 import 'package:universe/shared/widgets/u_button.dart';
@@ -15,8 +16,14 @@ import 'package:universe/shared/widgets/u_loading.dart';
 
 class GenerateTimetableScreen extends StatefulWidget {
   final bool embedded;
+  final TimetableGenController? controller;
+  final bool showConfigurationLinks;
 
-  const GenerateTimetableScreen({super.key, this.embedded = false});
+  const GenerateTimetableScreen(
+      {super.key,
+      this.embedded = false,
+      this.controller,
+      this.showConfigurationLinks = true});
 
   @override
   State<GenerateTimetableScreen> createState() =>
@@ -29,12 +36,12 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = TimetableGenController();
+    _controller = widget.controller ?? TimetableGenController();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    if (widget.controller == null) _controller.dispose();
     super.dispose();
   }
 
@@ -48,7 +55,9 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
           children: [
             _introCard(),
             AppSpacing.mdGap,
-            _configRow(),
+            if (widget.showConfigurationLinks) _configRow(),
+            AppSpacing.mdGap,
+            _profileCard(),
             AppSpacing.sectionGap,
             ..._phaseContent(),
           ],
@@ -119,6 +128,31 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
       ],
     );
   }
+
+  Widget _profileCard() => UCard(
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(_controller.runProfile?.label ?? 'Run profile (optional)',
+            style: AppTextStyles.bodyMedium),
+        Text(
+            _controller.runProfile?.provenance ??
+                'Use current settings, or import a source-matched profile for a private rehearsal.',
+            style: AppTextStyles.caption),
+        if (_controller.runProfile != null)
+          Text(
+              'Private preview • ${_controller.runProfile!.countPolicy == 'distribution' ? 'Meeting counts from source' : 'Explicit fixed meeting count'} • Database settings unchanged',
+              style: AppTextStyles.caption),
+        if (_controller.profileError != null)
+          Text(_controller.profileError!, style: AppTextStyles.bodyError),
+        TextButton(
+            onPressed: _controller.isBusy ? null : _controller.pickRunProfile,
+            child: const Text('Import run profile (.json)')),
+        if (_controller.runProfile != null)
+          TextButton(
+              onPressed:
+                  _controller.isBusy ? null : _controller.clearRunProfile,
+              child: const Text('Use database settings instead')),
+      ]));
 
   Widget _configBtn(String label, IconData icon, String route) {
     return Expanded(
@@ -221,7 +255,7 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
           ),
           AppSpacing.xsGap,
           Text(
-            'This can take up to ~60 seconds — hang tight, it isn’t stuck.',
+            'Generation can take several minutes, including engine startup and validation.',
             style: AppTextStyles.caption,
             textAlign: TextAlign.center,
           ),
@@ -330,8 +364,8 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
             style: AppTextStyles.bodySm));
       }
       if (items.length > 12) {
-        blocks.add(Text('+ ${items.length - 12} more',
-            style: AppTextStyles.caption));
+        blocks.add(
+            Text('+ ${items.length - 12} more', style: AppTextStyles.caption));
       }
       blocks.add(AppSpacing.smGap);
     }
@@ -354,7 +388,7 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
 
   List<Widget> _doneContent(TimetableResult result) {
     final v = result.validation;
-    final ok = v['ok'] == true;
+    final ok = blockingValidationErrorFor(v) == null;
     final published = _controller.publishedCount != null;
 
     int n(String k) => (v[k] as num?)?.toInt() ?? 0;
@@ -371,15 +405,15 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
             : 'This routine is not academically valid',
         body: ok
             ? 'All ${n('required_offerings')} courses scheduled with the right '
-                  'number of classes · no teacher, section or room clashes · '
-                  'day-offs and blocked periods respected.'
+                'number of classes · no teacher, section or room clashes · '
+                'day-offs and blocked periods respected.'
             : 'Missing: ${n('missing_courses')} · Too few classes: '
-                  '${n('under_scheduled')} · Too many: ${n('over_scheduled')} · '
-                  'Not in distribution: ${n('unexpected_courses')} · '
-                  'Teacher: ${n('teacher_clashes')} · Section: '
-                  '${n('cohort_clashes')} · Room: ${n('room_clashes')} · '
-                  'Day-off: ${n('dayoff_violations')} · Lab-room: '
-                  '${n('lab_room_violations')}',
+                '${n('under_scheduled')} · Too many: ${n('over_scheduled')} · '
+                'Not in distribution: ${n('unexpected_courses')} · '
+                'Teacher: ${n('teacher_clashes')} · Section: '
+                '${n('cohort_clashes')} · Room: ${n('room_clashes')} · '
+                'Day-off: ${n('dayoff_violations')} · Lab-room: '
+                '${n('lab_room_violations')}',
       ),
       if (!ok) ...[
         AppSpacing.smGap,
@@ -394,8 +428,12 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
         label: 'View Full Grid',
         variant: UButtonVariant.secondary,
         icon: PhosphorIconsRegular.gridFour,
-        onPressed: () =>
-            context.push(RouteNames.timetableGrid, extra: result.rows),
+        onPressed: () => context.push(RouteNames.timetableGrid,
+            extra: TimetablePreview(
+                rows: result.allRows,
+                roomAliases: Map<String, String>.from(_controller
+                        .runProfile?.engineConfig['room_aliases'] as Map? ??
+                    {}))),
       ),
       AppSpacing.smGap,
       if (_controller.downloadError != null) ...[
@@ -409,6 +447,29 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
         isLoading: _controller.isDownloading,
         onPressed: _controller.downloadAndOpen,
       ),
+      if (result.allRows.any((r) => r.requiresSharedTeacherStorage))
+        Text(
+            'The workbook prints primary faculty. Save the private draft to retain every shared faculty assignment.',
+            style: AppTextStyles.caption),
+      AppSpacing.smGap,
+      UButton(
+          label: 'Save private draft (all faculty)',
+          variant: UButtonVariant.secondary,
+          onPressed: () async {
+            try {
+              final path = await _controller.saveDraft();
+              if (mounted && path != null) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text(
+                        'Private draft saved with all faculty assignments.')));
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(SnackBar(content: Text('$e')));
+              }
+            }
+          }),
       AppSpacing.sectionGap,
       if (published)
         _messageCard(
@@ -507,9 +568,12 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
             excluded == 0
                 ? PhosphorIconsRegular.checkCircle
                 : PhosphorIconsRegular.minusCircle,
-            '$excluded excluded (project/thesis · no batch)',
+            '$excluded source rows excluded — review the input report',
             color: AppColors.textSecondary,
           ),
+          if (n('pending_faculty_offerings') > 0)
+            _reportRow(PhosphorIconsRegular.usersThree,
+                '${n('pending_faculty_offerings')} offerings have faculty pending; no substitute was assigned.'),
           if (warnings > 0)
             _reportRow(PhosphorIconsRegular.warning,
                 '$warnings data warning${warnings == 1 ? '' : 's'}',

@@ -8,6 +8,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:universe/core/models/timetable_config_model.dart';
 
 void main() {
+  test('room capacity survives config mapping without inventing unknown values',
+      () {
+    final room = TimetableRoom.fromMap(
+        {'id': 'synthetic', 'name': 'ROOM-1', 'capacity': 100});
+    expect(room.capacity, 100);
+    expect(room.toMap()['capacity'], 100);
+    final unknown =
+        TimetableRoom.fromMap({'id': 'synthetic', 'name': 'ROOM-2'});
+    expect(unknown.capacity, isNull);
+    expect(unknown.toMap().containsKey('capacity'), false);
+  });
   group('TimetableSettings.fromMap', () {
     test('reads every scheduling rule out of a full row', () {
       final s = TimetableSettings.fromMap({
@@ -17,7 +28,10 @@ void main() {
         ],
         'working_days': ['Sunday', 'Monday', 'Tuesday'],
         'weeks_in_term': 12,
-        'blocked_periods': {'Friday': [4], 'Saturday': [1, 2]},
+        'blocked_periods': {
+          'Friday': [4],
+          'Saturday': [1, 2]
+        },
         'online_periods': [7],
         'allow_online_periods': true,
         'excluded_periods': [6],
@@ -52,7 +66,8 @@ void main() {
       expect(s.weeksInTerm, 14);
       expect(s.onlinePeriods, [7], reason: 'the 7pm slot stays held back');
       expect(s.allowOnlinePeriods, isFalse);
-      expect(s.workingDays, isEmpty, reason: 'engine keeps its Sun-Sat default');
+      expect(s.workingDays, isEmpty,
+          reason: 'engine keeps its Sun-Sat default');
       expect(s.blockedPeriods, isEmpty);
       expect(s.semesterMap, isEmpty);
     });
@@ -62,7 +77,9 @@ void main() {
         'weeks_in_term': 13.0,
         'online_periods': ['7'],
         'excluded_periods': [6.0, 'nonsense'],
-        'blocked_periods': {'Friday': ['4']},
+        'blocked_periods': {
+          'Friday': ['4']
+        },
         'semester_map': {'66': '1'},
       });
 

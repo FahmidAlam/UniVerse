@@ -213,7 +213,7 @@ class _UploadRoutineScreenState extends State<UploadRoutineScreen> {
         title: ok ? 'Workbook ready' : 'Review warnings',
         body: ok
             ? '${result.rows.length} routine slots from ${result.sourceFormat} are ready to publish.'
-            : 'The workbook can still be published, but check the summary first.',
+            : 'Publication is blocked. Resolve the invalid times or resource conflicts in the source workbook and review it again.',
       ),
       AppSpacing.sectionGap,
       _statsGrid(result),
@@ -237,7 +237,7 @@ class _UploadRoutineScreenState extends State<UploadRoutineScreen> {
       UButton(
         label: 'Publish to App',
         icon: PhosphorIconsRegular.uploadSimple,
-        onPressed: _controller.publish,
+        onPressed: ok ? _controller.publish : null,
       ),
       AppSpacing.smGap,
       UButton(

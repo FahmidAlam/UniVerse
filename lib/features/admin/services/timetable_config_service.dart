@@ -2,9 +2,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/timetable_config_model.dart';
 import 'package:universe/core/utils/clock_time.dart';
+import 'package:universe/core/models/academic_model.dart';
+import 'package:universe/features/admin/services/academic_config_service.dart';
 
 class TimetableConfigService {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  SupabaseClient get _supabase => Supabase.instance.client;
+
+  /// Explicit opt-in canonical snapshot. Existing legacy generation stays on
+  /// buildEngineConfig until policy/input validation and publication are ready.
+  Future<AcademicCatalog> fetchAcademicCatalog() =>
+      AcademicConfigService(client: _supabase).fetchCatalog();
 
   Future<List<TimetableRoom>> fetchRooms() async {
     final rows = await _supabase
@@ -131,9 +138,7 @@ class TimetableConfigService {
   }
 
   Future<void> saveSettings(TimetableSettings s) async {
-    await _supabase
-        .from(AppConstants.tableTimetableSettings)
-        .upsert(s.toMap());
+    await _supabase.from(AppConstants.tableTimetableSettings).upsert(s.toMap());
   }
 
   Future<Map<String, dynamic>> buildEngineConfig() async {
@@ -151,7 +156,12 @@ class TimetableConfigService {
     return {
       'rooms': [
         for (final r in rooms.where((r) => r.isActive))
-          {'name': r.name, 'is_lab': r.isLab, 'is_gallery': r.isGallery},
+          {
+            'name': r.name,
+            'is_lab': r.isLab,
+            'is_gallery': r.isGallery,
+            if (r.capacity != null) 'capacity': r.capacity
+          },
       ],
       // Only faculty who still teach here. `is_active` existed on the table
       // and on the model but was never applied, so a teacher who had left was

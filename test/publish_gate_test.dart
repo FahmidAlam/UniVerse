@@ -33,8 +33,10 @@ void main() {
     expect(blockingValidationErrorFor(clean()), isNull);
   });
 
-  test('no validation at all does not block', () {
-    expect(blockingValidationErrorFor(null), isNull);
+  test('missing or incomplete validation blocks publishing', () {
+    expect(blockingValidationErrorFor(null), isNotNull);
+    expect(blockingValidationErrorFor({}), isNotNull);
+    expect(blockingValidationErrorFor({'teacher_clashes': 0}), isNotNull);
   });
 
   // Each of these used to be invisible to the gate.
@@ -47,10 +49,13 @@ void main() {
     'unplaced_rooms',
     'lab_theory_violations',
     'invalid_days',
+    'teacher_assignment_mismatches',
+    'unknown_rooms',
+    'room_capacity_violations',
+    'unresolved_teachers',
   ]) {
     test('$key blocks publishing', () {
-      final msg =
-          blockingValidationErrorFor(clean({key: 2, 'ok': false}));
+      final msg = blockingValidationErrorFor(clean({key: 2, 'ok': false}));
       expect(msg, isNotNull, reason: '$key must block');
       expect(msg, contains('2'));
     });
@@ -68,8 +73,8 @@ void main() {
     'invalid_time_slots',
   ]) {
     test('$key still blocks publishing', () {
-      expect(blockingValidationErrorFor(clean({key: 1, 'ok': false})),
-          isNotNull);
+      expect(
+          blockingValidationErrorFor(clean({key: 1, 'ok': false})), isNotNull);
     });
   }
 

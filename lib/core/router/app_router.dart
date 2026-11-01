@@ -54,13 +54,11 @@ class AppRouter {
     initialLocation: RouteNames.splash,
     refreshListenable: authController,
     debugLogDiagnostics: false,
-
     redirect: (BuildContext context, GoRouterState state) async => redirectFor(
       authController.status,
       state.matchedLocation,
       authController.role,
     ),
-
     routes: [
       GoRoute(
         path: RouteNames.splash,
@@ -112,7 +110,6 @@ class AppRouter {
         path: RouteNames.notWhitelisted,
         builder: (c, s) => NotWhitelistedScreen(authController: authController),
       ),
-
       ShellRoute(
         builder: (c, s, child) => AppShell(
           authController: authController,
@@ -146,7 +143,6 @@ class AppRouter {
             path: RouteNames.profile,
             builder: (c, s) => ProfileScreen(authController: authController),
           ),
-
           GoRoute(
             path: RouteNames.teacherDashboard,
             builder: (c, s) => TeacherDashboardScreen(
@@ -163,7 +159,6 @@ class AppRouter {
             builder: (c, s) =>
                 ManageClassesScreen(authController: authController),
           ),
-
           GoRoute(
             path: RouteNames.adminDashboard,
             builder: (c, s) =>
@@ -184,7 +179,6 @@ class AppRouter {
           ),
         ],
       ),
-
       GoRoute(path: RouteNames.rooms, builder: (c, s) => const RoomsScreen()),
       GoRoute(
         path: RouteNames.roomDetail,
@@ -240,7 +234,12 @@ class AppRouter {
       GoRoute(
         path: RouteNames.timetableGrid,
         builder: (c, s) => TimetableGridScreen(
-          rows: (s.extra as List<RoutineEntry>?) ?? const [],
+          rows: s.extra is TimetablePreview
+              ? (s.extra as TimetablePreview).rows
+              : (s.extra as List<RoutineEntry>?) ?? const [],
+          roomAliases: s.extra is TimetablePreview
+              ? (s.extra as TimetablePreview).roomAliases
+              : const {},
         ),
       ),
     ],

@@ -58,3 +58,15 @@ engine/__pycache__/
 
 # Ad-hoc generated routines kept for eyeballing; not project source.
 new genarated routine/
+
+# Google Cloud and OAuth Secrets
+client_secret_*.json
+google-services*.json
+*-firebase-adminsdk-*.json
+
+# Local CLI rehearsal files and generated CLI state (never deployment inputs).
+.task1-local/
+# User-supplied originals contain faculty data; keep sanitized fixtures in test/.
+workbook/*.xlsx
+supabase/.temp/
+supabase/.branches/

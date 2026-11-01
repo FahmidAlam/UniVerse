@@ -119,13 +119,15 @@ def test_every_exclusion_is_typed_and_traceable():
         make_row(code="CSE-3240", teacher=None),     # project: no teacher
         make_row(batch=None, code="ACM-1000"),       # not a cohort offering
     ])
-    assert len(ds["offerings"]) == 1
+    assert len(ds["offerings"]) == 2
     reasons = {e["reason"] for e in ds["excluded"]}
-    assert reasons == {ingest.EXCLUDE_NO_TEACHER, ingest.EXCLUDE_NO_BATCH}
+    assert reasons == {ingest.EXCLUDE_NO_BATCH}
+    assert ds['meta']['pending_faculty_offerings']==1
+    assert ds['offerings'][1]['teachers']==[]
     for e in ds["excluded"]:
         assert e["row"] >= ingest.DATA_START
         assert e["detail"]
-    assert ds["meta"]["excluded"] == 2
+    assert ds["meta"]["excluded"] == 1
 
 
 def test_blank_spacer_rows_are_not_reported_as_exclusions():

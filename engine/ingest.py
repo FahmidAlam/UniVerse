@@ -27,6 +27,9 @@ row-per-session behaviour:
 
 Nothing is ever dropped silently. A row that cannot become a scheduled
 offering is recorded in `excluded` with a typed reason and its row number.
+Blank faculty is instead retained as pending. Known teachers on other rows of
+the same offering do not silently fill that pending portion; their identities
+remain available for conservative resource reservations and source review.
 """
 
 from __future__ import annotations
@@ -54,6 +57,7 @@ MAX_PLAUSIBLE_SESSIONS = 6
 # Typed exclusion reasons. Anything not scheduled must carry one of these.
 EXCLUDE_NO_CODE = "no_course_code"
 EXCLUDE_NO_BATCH = "no_batch"
+# Historical report compatibility only; new imports retain these rows pending.
 EXCLUDE_NO_TEACHER = "no_teacher"
 
 EXCLUSION_DETAIL = {
@@ -94,10 +98,11 @@ class Offering:
     is_lab: bool
     is_service: bool
     source_rows: list[int] = field(default_factory=list)
+    pending_faculty_source_rows: list[int] = field(default_factory=list)
 
     @property
-    def teacher(self) -> str:
-        return self.teachers[0]
+    def teacher(self) -> str | None:
+        return self.teachers[0] if self.teachers and not self.pending_faculty_source_rows else None
 
 
 @dataclass
@@ -108,7 +113,7 @@ class Session:
     oid: int
     code: str
     title: str
-    teacher: str
+    teacher: str | None
     teachers: list[str]
     batch: str
     section: str
@@ -225,6 +230,7 @@ def ingest_workbook(wb, weeks_in_term: int = 14,
     cNoC = _col(h, "no. of class", "no of class")
     cDur = _col(h, "class duration")
     cWk = _col(h, "class/week", "class /week", "class per week")
+    cService = _col(h, 'is service')
     missing = [n for n, c in {"Batch": cB, "Section": cS, "Course Code": cCode,
                               "Teacher": cTea}.items() if c is None]
     if missing:
@@ -264,6 +270,14 @@ def ingest_workbook(wb, weeks_in_term: int = 14,
         dept = ws.cell(row=r, column=cDept).value if cDept else None
         dept = str(dept).strip() if dept else None
         students = _as_int(ws.cell(row=r, column=cStud).value) if cStud else None
+        service = (not batch.isdigit() and batch.casefold() not in
+                   {'retake', 'improvement', 'retake/improvement'}) or bool(SERVICE_SECTION.match(section))
+        explicit_service = ws.cell(row=r, column=cService).value if cService else None
+        if explicit_service is not None and str(explicit_service).strip():
+            value = str(explicit_service).strip().casefold()
+            if value not in {'true', 'false', 'yes', 'no', '1', '0'}:
+                raise ValueError(f'Row {r}: Is Service must be an explicit boolean')
+            service = value in {'true', 'yes', '1'}
 
         if cDur:
             dur = _as_float(ws.cell(row=r, column=cDur).value)
@@ -273,8 +287,7 @@ def ingest_workbook(wb, weeks_in_term: int = 14,
                     f"(every other row is 1.5).")
 
         if teacher == "":
-            excluded.append(_exclusion(r, code, batch, section, EXCLUDE_NO_TEACHER))
-            continue
+            warnings.append(f'Row {r} ({code} {batch}-{section}): faculty pending; course requirement retained.')
 
         cohort = f"{batch}-{section}" if section else f"{batch}"
         key = (cohort, code)
@@ -285,7 +298,7 @@ def ingest_workbook(wb, weeks_in_term: int = 14,
                 "code": code, "title": title, "batch": batch, "section": section,
                 "cohort": cohort, "credit": credit, "classes_total": 0,
                 "has_classes": False, "per_week": per_week, "students": students,
-                "dept": dept, "teachers": [], "rows": [],
+                "dept": dept, "teachers": [], "rows": [], "pending_rows": [],
                 # Department convention: a course code ending in an even digit
                 # is the sessional/lab half of its odd-digit theory sibling.
                 "is_lab": ld is not None and ld % 2 == 0,
@@ -296,17 +309,21 @@ def ingest_workbook(wb, weeks_in_term: int = 14,
                 # while the 15 offerings taught to BuA/ENG/CE/Law/THM cohorts
                 # are service — they hold real teacher and room time but are
                 # not drawn on it. Course ownership lives in `course_dept`.
-                "is_service": (not batch.isdigit()) or bool(SERVICE_SECTION.match(section)),
+                "is_service": service,
             }
         else:
+            if entry['is_service'] != service:
+                raise ValueError(f'Row {r}: Is Service disagrees within offering {cohort} {code}')
             if credit is not None and entry["credit"] is not None \
                     and abs(credit - entry["credit"]) > 1e-6:
                 warnings.append(
                     f"{code} {cohort}: rows disagree on Credit "
                     f"({entry['credit']} vs {credit}); keeping {entry['credit']}.")
 
-        if teacher not in entry["teachers"]:
+        if teacher and teacher not in entry["teachers"]:
             entry["teachers"].append(teacher)
+        if not teacher:
+            entry['pending_rows'].append(r)
         entry["rows"].append(r)
         if classes is not None:
             entry["classes_total"] += classes
@@ -353,14 +370,15 @@ def ingest_workbook(wb, weeks_in_term: int = 14,
             course_dept=e["dept"], students=e["students"],
             classes_total=total, required_sessions=n, sessions_basis=basis,
             teachers=list(e["teachers"]), is_lab=e["is_lab"],
-            is_service=e["is_service"], source_rows=list(e["rows"]))
+            is_service=e["is_service"], source_rows=list(e["rows"]),
+            pending_faculty_source_rows=list(e['pending_rows']))
         offerings.append(off)
 
         if len(off.teachers) > 1:
             warnings.append(
                 f"{code} {cohort}: shared by {', '.join(off.teachers)} "
                 f"({total} classes total) — scheduled as {n} weekly slot(s) "
-                f"printed under {off.teacher}; all co-teachers are held free then.")
+                f"printed under {off.teacher or 'faculty pending'}; all known co-teachers are held free then.")
 
         teachers_used.update(off.teachers)
         if not off.is_service:
@@ -387,6 +405,7 @@ def ingest_workbook(wb, weeks_in_term: int = 14,
         "excluded": len(excluded),
         "cohorts": len(cohorts),
         "teachers": len(teachers_used),
+        "pending_faculty_offerings": sum(bool(o.pending_faculty_source_rows) for o in offerings),
         "weeks_in_term": weeks_in_term,
         "fixed_sessions_per_week": fixed_sessions_per_week,
         "sessions_per_week_histogram": dict(

@@ -13,8 +13,9 @@
 // night across every routine screen.
 //
 // Two defences, because a single one is not enough:
-//   1. `normalize()`  — a bare hour of 1–7 can only be afternoon/evening
-//      on a campus that teaches roughly 08:00–21:00, so it gets +12h.
+//   1. `normalize()` retains the legacy PM interpretation of ambiguous bare
+//      hours 1–7. Explicit meridiems and two-digit HH:MM:SS take precedence;
+//      the convention is not a universal summer/winter timing policy.
 //   2. `repairSequence()` — a teaching day only ever moves forward. Once
 //      the periods are in column order their starts must increase; a slot
 //      that jumps backwards lost its PM marker upstream. This catches
@@ -24,9 +25,7 @@
 // engine, so both producers of `routines` rows agree on the clock.
 // ============================================================
 
-/// Latest bare hour that must be read as PM. Campus teaching runs from
-/// ~08:00 to the 19:00–20:20 evening slot, so 1–7 without a meridiem is
-/// always afternoon/evening; 8–12 is always morning.
+/// Legacy compatibility limit for ambiguous bare hours, not a seasonal grid.
 const int _lastAfternoonHour = 7;
 
 const int _minutesPerHalfDay = 12 * 60;
@@ -63,8 +62,11 @@ abstract class ClockTime {
       if (hour < 12) hour += 12;
     } else if (meridiem == 'am') {
       if (hour == 12) hour = 0;
-    } else if (hour >= 1 && hour <= _lastAfternoonHour) {
-      // Bare afternoon hour — the missing "PM" this whole file exists for.
+    } else if (hour >= 1 &&
+        hour <= _lastAfternoonHour &&
+        !(match.group(1)!.length == 2 && match.group(3) != null)) {
+      // Retain the legacy bare-hour convention, but never shift an explicit
+      // two-digit HH:MM:SS literal supplied by storage or a typed source.
       hour += 12;
     }
     if (hour >= 24) hour -= 24;
@@ -124,7 +126,8 @@ abstract class ClockTime {
         continue;
       }
 
-      if (start < previousStart && start + _minutesPerHalfDay < _minutesPerDay) {
+      if (start < previousStart &&
+          start + _minutesPerHalfDay < _minutesPerDay) {
         start += _minutesPerHalfDay;
       }
       if (end <= start && end + _minutesPerHalfDay < _minutesPerDay) {

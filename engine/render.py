@@ -30,6 +30,13 @@ _THIN = Side(style="thin", color="FF000000")
 _THICK = Side(style="thick", color="FF000000")
 
 
+def _break_column(config: dict) -> int:
+    col = openpyxl.utils.column_index_from_string(str(config.get('break_col', 'G')))
+    if col < 4:
+        raise ValueError('Break column overlaps Batch/Section columns')
+    return col
+
+
 def _data_last_row(ws) -> int:
     """Last row of the cohort block on this sheet, found rather than assumed.
 
@@ -100,6 +107,15 @@ def render_bytes(rows: list[dict], cohorts: list[str], config: dict,
 
     pcol = {int(p["idx"]): openpyxl.utils.column_index_from_string(p["col"])
             for p in config["periods"]}
+    break_col = _break_column(config)
+    if len(pcol) != len(config['periods']) or len(set(pcol.values())) != len(pcol):
+        raise ValueError('Period identifiers and template columns must be unique')
+    if any(col < 4 or col == break_col for col in pcol.values()):
+        raise ValueError('Period column overlaps Batch/Section or the template break column')
+    # A later term may add a period beyond the original D:K grid. Clear every
+    # configured column as well, otherwise the copied template can add classes
+    # that were never scheduled by the solver.
+    session_cols = set(SESSION_COLS) | set(pcol.values()) | {BREAK_COL, break_col}
 
     row_of = {c: DATA_FIRST_ROW + i for i, c in enumerate(cohorts)}
 
@@ -112,8 +128,6 @@ def render_bytes(rows: list[dict], cohorts: list[str], config: dict,
         if day not in wb.sheetnames:
             continue
         ws = wb[day]
-
-        _write_period_headers(ws, day, config)
 
         # The block is exactly as tall as this term's cohort list. It used to
         # be sized by scanning the template for its page furniture, which is
@@ -132,10 +146,11 @@ def render_bytes(rows: list[dict], cohorts: list[str], config: dict,
                 f"number of sections.")
 
         _clear_break_merges(ws, config, last_data)
+        _write_period_headers(ws, day, config)
         _normalize_live_formatting(ws, last_data)
 
         for rr in range(DATA_FIRST_ROW, last_data + 1):
-            for cc in SESSION_COLS:
+            for cc in session_cols:
                 _safe_clear(ws, rr, cc)
 
         groups = cohort_groups(cohorts)
@@ -156,9 +171,9 @@ def render_bytes(rows: list[dict], cohorts: list[str], config: dict,
                 if s["day"] != day:
                     continue
                 col = pcol.get(int(s["period"]))
-                if col is None or col == BREAK_COL:
+                if col is None or col == break_col:
                     continue
-                text = f"{s['subject_code']} {s['teacher_code']} {s['room']}"
+                text = f"{s['subject_code']} {s.get('teacher_code') or 'FACULTY-PENDING'} {s['room']}"
                 ws.cell(row=rr, column=col, value=text)
 
         if last_data >= DATA_FIRST_ROW:
@@ -382,7 +397,7 @@ def _period_label(start: str, end: str) -> str:
     return f"{s}-{e}{ap}"
 
 
-def _set_header_value(ws, row: int, col: int, text: str) -> None:
+def _set_header_value(ws, row: int, col: int, text: str | None) -> None:
     """Set a header cell's text, preserving its style; skip merged interiors."""
     from openpyxl.cell.cell import MergedCell
     cell = ws.cell(row=row, column=col)
@@ -392,8 +407,10 @@ def _set_header_value(ws, row: int, col: int, text: str) -> None:
 
 
 def _write_period_headers(ws, day: str, config: dict) -> None:
-    """Rewrite row 2's period-time labels from config (in-person periods +
-    computed break). Online column and Batch/Section headers are left as-is.
+    """Rewrite row 2's configured period labels and computed break.
+
+    Clear excluded/blocked labels so copied seasonal headers cannot survive.
+    Batch/Section headers are left as-is.
 
     Which periods are in-person and which are blocked on a given day come from
     the normalized config, so the header matches whatever the solver was
@@ -407,6 +424,10 @@ def _write_period_headers(ws, day: str, config: dict) -> None:
     if blocked is None:
         blocked = {"Friday": {4}} if config.get("friday_no_p4", True) else {}
     day_blocked = set(blocked.get(day, ()))
+    break_col = _break_column(config)
+    for col in {BREAK_COL, break_col} | {
+            openpyxl.utils.column_index_from_string(p['col']) for p in config['periods']}:
+        _set_header_value(ws, HEADER_ROW, col, None)
 
     in_person = sorted((p for p in config["periods"]
                         if int(p["idx"]) not in excluded),
@@ -417,7 +438,7 @@ def _write_period_headers(ws, day: str, config: dict) -> None:
         _set_header_value(ws, HEADER_ROW, col, _period_label(p["start"], p["end"]))
     for a, b in zip(day_periods, day_periods[1:]):
         if a["end"] != b["start"]:
-            _set_header_value(ws, HEADER_ROW, BREAK_COL,
+            _set_header_value(ws, HEADER_ROW, break_col,
                               _period_label(a["end"], b["start"]))
             break
 
@@ -440,11 +461,12 @@ def _break_span(day: str, config: dict) -> int:
     excluded = config.get("excluded_periods") or set()
     blocked = config.get("blocked_periods") or {}
     day_blocked = set(blocked.get(day, ()))
+    break_col = _break_column(config)
     for pr in config.get("periods", []):
         idx = int(pr["idx"])
         if idx in excluded or idx in day_blocked:
             continue
-        if openpyxl.utils.column_index_from_string(pr["col"]) == BREAK_COL + 1:
+        if openpyxl.utils.column_index_from_string(pr["col"]) == break_col + 1:
             return 1
     return 2
 
@@ -456,8 +478,9 @@ def _clear_break_merges(ws, config: dict, data_last: int) -> None:
     sheet arrives with G2:H2 and a full-height G:H block already merged, and
     writing into a merged cell raises.
     """
+    break_col = _break_column(config)
     for m in list(ws.merged_cells.ranges):
-        if (m.max_col >= BREAK_COL and m.min_col <= BREAK_COL + 1
+        if (any(m.max_col >= col and m.min_col <= col + 1 for col in {BREAK_COL, break_col})
                 and m.min_row >= HEADER_ROW and m.min_row <= data_last):
             ws.unmerge_cells(str(m))
 
@@ -478,17 +501,18 @@ def _rebuild_break_column(ws, day: str, last_data: int,
 
     from openpyxl.cell.cell import MergedCell
     span = _break_span(day, config or {})
-    end_col = BREAK_COL + span - 1
+    break_col = _break_column(config or {})
+    end_col = break_col + span - 1
 
-    src = ws.cell(DATA_FIRST_ROW, BREAK_COL)
+    src = ws.cell(DATA_FIRST_ROW, break_col)
     font, align, fill, border = (copy(src.font), copy(src.alignment),
                                  copy(src.fill), copy(src.border))
     for m in list(ws.merged_cells.ranges):
-        if (m.max_col >= BREAK_COL and m.min_col <= end_col
+        if (m.max_col >= break_col and m.min_col <= end_col
                 and DATA_FIRST_ROW <= m.min_row <= data_last):
             ws.unmerge_cells(str(m))
     for r in range(DATA_FIRST_ROW, data_last + 1):
-        for c in range(BREAK_COL, end_col + 1):
+        for c in range(break_col, end_col + 1):
             cell = ws.cell(r, c)
             if not isinstance(cell, MergedCell):
                 cell.value = None
@@ -513,9 +537,9 @@ def _rebuild_break_column(ws, day: str, last_data: int,
 
     if span > 1:
         # Wide enough to spell the word out horizontally on one row.
-        ws.merge_cells(start_row=DATA_FIRST_ROW, start_column=BREAK_COL,
+        ws.merge_cells(start_row=DATA_FIRST_ROW, start_column=break_col,
                        end_row=last_data, end_column=end_col)
-        _style(ws.cell(DATA_FIRST_ROW, BREAK_COL), "BREAK",
+        _style(ws.cell(DATA_FIRST_ROW, break_col), "BREAK",
                top=_THICK, bottom=_THICK)
         return
     letters = "BREAK"
@@ -523,9 +547,9 @@ def _rebuild_break_column(ws, day: str, last_data: int,
     start = DATA_FIRST_ROW
     for i, ch in enumerate(letters):
         end = last_data if i == len(letters) - 1 else min(last_data, start + size - 1)
-        ws.merge_cells(start_row=start, start_column=BREAK_COL,
-                       end_row=end, end_column=BREAK_COL)
-        _style(ws.cell(start, BREAK_COL), ch,
+        ws.merge_cells(start_row=start, start_column=break_col,
+                       end_row=end, end_column=break_col)
+        _style(ws.cell(start, break_col), ch,
                top=_THICK if start == DATA_FIRST_ROW else None,
                bottom=_THICK if end == last_data else None)
         start = end + 1

@@ -34,7 +34,8 @@ def ds():
 def test_one_offering_per_cohort_and_course(ds):
     keys = [(o["cohort"], o["code"]) for o in ds["offerings"]]
     assert len(keys) == len(set(keys))
-    assert ds["meta"]["offerings"] == 325
+    assert ds["meta"]["offerings"] == 338
+    assert ds['meta']['pending_faculty_offerings']==13
     assert ds["meta"]["rows"] == 356
 
 
@@ -43,7 +44,7 @@ def test_the_eighteen_shared_offerings_are_collapsed(ds):
     assert len(shared) == 18
     # Each was producing four weekly classes instead of two.
     assert all(o["required_sessions"] == 2 for o in shared)
-    assert ds["meta"]["sessions"] == 656
+    assert ds["meta"]["sessions"] == 682
 
 
 def test_shared_offerings_print_under_the_same_teacher_as_the_official_routine(ds):
@@ -53,7 +54,7 @@ def test_shared_offerings_print_under_the_same_teacher_as_the_official_routine(d
                 ("66-D", "CSE-1101"): "PRP",
                 ("60-A", "CSE-4113"): "ZMM",
                 ("58-B+C", "CSE-4233"): "DCP"}
-    got = {(o["cohort"], o["code"]): o["teachers"][0] for o in ds["offerings"]}
+    got = {(o["cohort"], o["code"]): o["teachers"][0] for o in ds["offerings"] if o['teachers']}
     for key, teacher in expected.items():
         assert got[key] == teacher, key
 
@@ -65,20 +66,20 @@ def test_cse_4116_needs_three_classes_a_week(ds):
         if o["code"] == "CSE-4116":
             assert o["classes_total"] == 38
             assert o["required_sessions"] == 3
-    assert ds["meta"]["sessions_per_week_histogram"] == {2: 319, 3: 6}
+    assert ds["meta"]["sessions_per_week_histogram"] == {2: 332, 3: 6}
 
 
-def test_non_timetabled_courses_are_typed_not_dropped(ds):
+def test_missing_batch_exclusions_and_pending_faculty_are_distinct(ds):
     by_code = {}
     for e in ds["excluded"]:
         by_code.setdefault(e["code"], []).append(e)
-    assert set(by_code) == {"CSE-3240", "CSE-4140", "CSE-4801",
-                            "ACM-1000", "ACM-2000"}
-    for code in ("CSE-3240", "CSE-4140", "CSE-4801"):
-        assert all(e["reason"] == ingest.EXCLUDE_NO_TEACHER for e in by_code[code])
+    assert set(by_code) == {"ACM-1000", "ACM-2000"}
+    pending=[o for o in ds['offerings'] if not o['teachers']]
+    assert len(pending)==13
+    assert {o['code'] for o in pending}=={'CSE-3240','CSE-4140','CSE-4801'}
     for code in ("ACM-1000", "ACM-2000"):
         assert all(e["reason"] == ingest.EXCLUDE_NO_BATCH for e in by_code[code])
-    assert len(ds["excluded"]) == 15
+    assert len(ds["excluded"]) == 2
 
 
 @pytest.mark.skipif(os.environ.get("UNIVERSE_SOLVE") != "1",
@@ -106,8 +107,8 @@ def test_the_fixed_rate_flattens_the_real_distribution_to_two_a_week():
     """
     ds = ingest.ingest_path(str(WORKBOOK), weeks_in_term=14,
                             fixed_sessions_per_week=2)
-    assert ds["meta"]["sessions_per_week_histogram"] == {2: 325}
-    assert ds["meta"]["sessions"] == 650          # 325 offerings x 2
+    assert ds["meta"]["sessions_per_week_histogram"] == {2: 338}
+    assert ds["meta"]["sessions"] == 676          # pending courses retained
     assert ds["meta"]["fixed_sessions_per_week"] == 2
 
 

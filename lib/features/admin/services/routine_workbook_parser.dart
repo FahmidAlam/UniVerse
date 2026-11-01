@@ -12,6 +12,7 @@ import 'package:archive/archive.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/routine_model.dart';
 import 'package:universe/core/utils/clock_time.dart';
+import 'package:universe/core/utils/room_identity.dart';
 import 'package:xml/xml.dart';
 
 class RoutineWorkbookParseResult {
@@ -33,6 +34,13 @@ class RoutineWorkbookParseResult {
 }
 
 class RoutineWorkbookParser {
+  final Map<String, String> roomAliases;
+  final Set<String> unavailableRooms;
+  RoutineWorkbookParser(
+      {Map<String, String> roomAliases = const {},
+      Set<String> unavailableRooms = const {}})
+      : roomAliases = Map.unmodifiable(roomAliases),
+        unavailableRooms = Set.unmodifiable(unavailableRooms);
   static const int _firstDataRow = 3;
   static const Set<String> _fallbackSessionCols = {
     'D',
@@ -54,6 +62,14 @@ class RoutineWorkbookParser {
     final sharedStrings = _readSharedStrings(archive);
     final sheetPaths = _readSheetPaths(archive);
     final periodByCol = _periodsByColumn(periods);
+    final configuredColumns = <String>{
+      for (final raw in periods)
+        if (raw is Map &&
+            raw['start'] != null &&
+            raw['end'] != null &&
+            raw['col'] != null)
+          raw['col'].toString().trim().toUpperCase(),
+    };
     final rawRows = <_RawRoutineCell>[];
     final daySheetWarnings = <String>[];
 
@@ -71,6 +87,7 @@ class RoutineWorkbookParser {
           xmlText: _decode(file),
           sharedStrings: sharedStrings,
           periodByCol: periodByCol,
+          configuredColumns: configuredColumns,
           warnings: daySheetWarnings,
         ),
       );
@@ -214,6 +231,7 @@ class RoutineWorkbookParser {
     required String xmlText,
     required List<String> sharedStrings,
     required Map<String, _PeriodSlot> periodByCol,
+    required Set<String> configuredColumns,
     required List<String> warnings,
   }) {
     final values = _readGrid(xmlText, sharedStrings);
@@ -223,6 +241,9 @@ class RoutineWorkbookParser {
       grid: values,
       periodByCol: periodByCol,
       cohortCols: cohortCols,
+      warnings: warnings,
+      day: day,
+      configuredColumns: configuredColumns,
     );
 
     final rows = <_RawRoutineCell>[];
@@ -291,6 +312,9 @@ class RoutineWorkbookParser {
     required Map<int, Map<String, String>> grid,
     required Map<String, _PeriodSlot> periodByCol,
     required _CohortColumns cohortCols,
+    required List<String> warnings,
+    required String day,
+    required Set<String> configuredColumns,
   }) {
     final slots = <String, _PeriodSlot>{...periodByCol};
     final rows = grid.keys.toList()..sort();
@@ -302,7 +326,17 @@ class RoutineWorkbookParser {
           continue;
         }
         final slot = _timeRange(combined: cell.value, start: '', end: '');
-        if (slot != null) slots[cell.key] = slot;
+        if (slot != null) {
+          final configured = periodByCol[cell.key];
+          if (configuredColumns.contains(cell.key) &&
+              configured != null &&
+              (configured.start != slot.start || configured.end != slot.end)) {
+            warnings.add('$day column ${cell.key}: workbook time '
+                '${slot.start}-${slot.end} differs from configured time '
+                '${configured.start}-${configured.end}; workbook time retained.');
+          }
+          slots[cell.key] = slot;
+        }
       }
     }
 
@@ -476,7 +510,6 @@ class RoutineWorkbookParser {
     if (day == null ||
         batch.isEmpty ||
         section.isEmpty ||
-        teacherCode.isEmpty ||
         room.isEmpty ||
         timeRange == null ||
         (code.isEmpty && subject.isEmpty)) {
@@ -538,7 +571,8 @@ class RoutineWorkbookParser {
           subjectCode: rawRows[i].subjectCode,
           teacherName:
               rawRows[i].teacherName ?? teacherNames[rawRows[i].teacherCode],
-          teacherCode: rawRows[i].teacherCode,
+          teacherCode:
+              rawRows[i].teacherCode.isEmpty ? null : rawRows[i].teacherCode,
           room: rawRows[i].room,
           batch: rawRows[i].batch,
           section: rawRows[i].section,
@@ -549,6 +583,16 @@ class RoutineWorkbookParser {
     ];
 
     final validation = _validate(rows);
+    final pending = validation['pending_faculty_assignments'] as int;
+    if (pending > 0) {
+      warnings.add(
+          '$pending class(es) have faculty pending; course, time and room retained.');
+    }
+    final namedUnresolved = validation['unresolved_faculty_names'] as int;
+    if (namedUnresolved > 0) {
+      warnings.add(
+          '$namedUnresolved class(es) name a faculty member without a resolved code; supplied name retained without guessing initials.');
+    }
     final cohorts = rows.map((r) => '${r.batch}-${r.section}').toSet();
     final teachers = rows
         .map((r) => r.teacherCode)
@@ -578,12 +622,16 @@ class RoutineWorkbookParser {
         .toList();
     if (parts.length < 3) return null;
     final code = parts[0].trim().toUpperCase();
-    final teacher = parts[1].trim().toUpperCase();
+    final token = parts[1].trim().toUpperCase();
+    final teacher = {'FACULTY-PENDING', 'PENDING', 'TBA', 'TBD', 'UNASSIGNED'}
+            .contains(token)
+        ? ''
+        : token;
     final room = parts.sublist(2).join(' ').trim();
     if (!RegExp(r'^[A-Z]{2,5}[- ]?\d{3,4}[A-Z]?$').hasMatch(code)) {
       return null;
     }
-    if (teacher.isEmpty || room.isEmpty) return null;
+    if (room.isEmpty) return null;
     return _ParsedCell(
       subjectCode: code.replaceFirst(' ', '-'),
       teacherCode: teacher,
@@ -724,21 +772,8 @@ class RoutineWorkbookParser {
     required String start,
     required String end,
   }) {
-    var startText = start;
-    var endText = end;
-    final startMeridiem = _meridiemOf(startText);
-    final endMeridiem = _meridiemOf(endText);
-    if (startMeridiem == null && endMeridiem != null) {
-      startText = '$startText $endMeridiem';
-    } else if (endMeridiem == null && startMeridiem != null) {
-      endText = '$endText $startMeridiem';
-    }
-
-    final parsedStart = _parseTimeValue(startText);
-    final parsedEnd = _parseTimeValue(endText);
-    if (parsedStart != null && parsedEnd != null) {
-      return _PeriodSlot(parsedStart, parsedEnd);
-    }
+    final separate = _parseEndpoints(start, end);
+    if (separate != null) return separate;
 
     final normalized = combined
         .replaceAll('–', '-')
@@ -746,32 +781,51 @@ class RoutineWorkbookParser {
         .replaceAll('to', '-');
     final parts = normalized.split(RegExp(r'\s*-\s*'));
     if (parts.length >= 2) {
-      var startPart = parts[0];
-      var endPart = parts[1];
-      final startMeridiem = _meridiemOf(startPart);
-      final endMeridiem = _meridiemOf(endPart);
-      if (startMeridiem == null && endMeridiem != null) {
-        startPart = '$startPart $endMeridiem';
-      } else if (endMeridiem == null && startMeridiem != null) {
-        endPart = '$endPart $startMeridiem';
-      }
-
-      final a = _parseTimeValue(startPart);
-      final b = _parseTimeValue(endPart);
-      if (a != null && b != null) return _PeriodSlot(a, b);
+      return _parseEndpoints(parts[0], parts[1]);
     }
     return null;
   }
 
   String? _meridiemOf(String input) =>
-      RegExp(r'\b(am|pm)\b', caseSensitive: false)
+      RegExp(r'(a\.?m\.?|p\.?m\.?)\s*$', caseSensitive: false)
           .firstMatch(input)
           ?.group(1)
-          ?.toLowerCase();
+          ?.toLowerCase()
+          .replaceAll('.', '');
+
+  _PeriodSlot? _parseEndpoints(String start, String end) {
+    start = start.trim().replaceFirst(RegExp(r'^\(\s*'), '');
+    end = end.trim().replaceFirst(RegExp(r'\s*\)$'), '');
+    final a = _parseTimeValue(start);
+    final b = _parseTimeValue(end);
+    if (a == null || b == null) return null;
+    final am = _meridiemOf(start);
+    final bm = _meridiemOf(end);
+    // A trailing meridiem may qualify both endpoints (9-10PM), but copying
+    // PM onto 11 in 11:10-12:15PM reverses a noon-crossing interval.
+    // Explicit HH:MM:SS endpoints already specify their own 24-hour clock.
+    bool bareClock(String value) =>
+        RegExp(r'^\s*\d{1,2}(?::\d{1,2})?\s*$').hasMatch(value);
+    var inheritedStart = a;
+    var inheritedEnd = b;
+    if (am == null && bm != null && bareClock(start)) {
+      inheritedStart = _parseTimeValue('$start $bm') ?? a;
+    } else if (bm == null && am != null && bareClock(end)) {
+      inheritedEnd = _parseTimeValue('$end $am') ?? b;
+    }
+    if (ClockTime.toMinutes(inheritedStart)! <
+        ClockTime.toMinutes(inheritedEnd)!) {
+      return _PeriodSlot(inheritedStart, inheritedEnd);
+    }
+    // Preserve explicit midnight/reversed source values for validation; never
+    // repair them against the current season or silently add twelve hours.
+    return _PeriodSlot(a, b);
+  }
 
   /// Reads a single clock value out of workbook text. Shares `ClockTime` with
   /// the settings path so a bare "1:50" means the same afternoon everywhere.
-  String? _parseTimeValue(String input) => ClockTime.normalize(_cleanText(input));
+  String? _parseTimeValue(String input) =>
+      ClockTime.normalize(_cleanText(input));
 
   String _normalizeCourseCode(String input) {
     final text = _cleanText(input).toUpperCase();
@@ -782,38 +836,78 @@ class RoutineWorkbookParser {
   String _teacherAcronym(String code, String name) {
     final cleanedCode = _cleanText(code).toUpperCase();
     if (cleanedCode.isNotEmpty) return cleanedCode;
-    final words = _cleanText(name)
-        .split(RegExp(r'\s+'))
-        .where((w) => w.isNotEmpty)
-        .toList();
-    if (words.isEmpty) return '';
-    if (words.length == 1) return words.first.toUpperCase();
-    return words.take(4).map((w) => w[0].toUpperCase()).join();
+    // Preserve a supplied full name separately; never invent an acronym/identity.
+    return '';
   }
 
   Map<String, dynamic> _validate(List<RoutineEntry> rows) {
-    final teacher = <String, int>{};
-    final cohort = <String, int>{};
-    final room = <String, int>{};
+    final teacher = <String, List<({int start, int end})>>{};
+    final cohort = <String, List<({int start, int end})>>{};
+    final room = <String, List<({int start, int end})>>{};
+    var invalidTimes = 0;
+    var pendingFaculty = 0;
+    var unresolvedFacultyNames = 0;
+    var unavailableAssignments = 0;
+    String physical(String label) =>
+        RoomIdentity.key(label, aliases: roomAliases);
+    final unavailable = unavailableRooms.map(physical).toSet();
 
     for (final r in rows) {
-      final slot = '${r.day}|${r.timeStart}';
+      final start = ClockTime.toMinutes(r.timeStart);
+      final end = ClockTime.toMinutes(r.timeEnd);
+      if (start == null ||
+          end == null ||
+          start < 0 ||
+          end > 1440 ||
+          end <= start) {
+        invalidTimes++;
+        continue;
+      }
+      final interval = (start: start, end: end);
       final teacherCode = r.teacherCode;
+      final suppliedName =
+          r.teacherName?.trim().toUpperCase().replaceAll(RegExp(r'\s+'), ' ');
       if (teacherCode != null && teacherCode.isNotEmpty) {
-        teacher.update('$teacherCode|$slot', (v) => v + 1, ifAbsent: () => 1);
+        teacher
+            .putIfAbsent('${r.day}|code:$teacherCode', () => [])
+            .add(interval);
+      } else if (suppliedName != null && suppliedName.isNotEmpty) {
+        teacher
+            .putIfAbsent('${r.day}|name:$suppliedName', () => [])
+            .add(interval);
+        unresolvedFacultyNames++;
+      } else {
+        pendingFaculty++;
       }
-      cohort.update(
-        '${r.batch}|${r.section}|$slot',
-        (v) => v + 1,
-        ifAbsent: () => 1,
-      );
+      // Membership comes from this workbook's section field, never a UI guess.
+      final groups = r.section.split('+').map((s) => s.trim()).toSet();
+      for (final group in groups) {
+        cohort
+            .putIfAbsent('${r.day}|${r.batch}|$group', () => [])
+            .add(interval);
+      }
       if (r.room.toUpperCase() != 'TBA') {
-        room.update('${r.room}|$slot', (v) => v + 1, ifAbsent: () => 1);
+        room
+            .putIfAbsent('${r.day}|${physical(r.room)}', () => [])
+            .add(interval);
       }
+      if (unavailable.contains(physical(r.room))) unavailableAssignments++;
     }
 
-    int clashes(Map<String, int> m) =>
-        m.values.where((v) => v > 1).fold(0, (sum, v) => sum + v - 1);
+    int clashes(Map<String, List<({int start, int end})>> resources) {
+      var count = 0;
+      for (final intervals in resources.values) {
+        intervals.sort((a, b) => a.start.compareTo(b.start));
+        for (var i = 0; i < intervals.length; i++) {
+          for (var j = i + 1;
+              j < intervals.length && intervals[j].start < intervals[i].end;
+              j++) {
+            if (intervals[i].start < intervals[j].end) count++;
+          }
+        }
+      }
+      return count;
+    }
 
     final teacherClashes = clashes(teacher);
     final cohortClashes = clashes(cohort);
@@ -823,7 +917,15 @@ class RoutineWorkbookParser {
       'teacher_clashes': teacherClashes,
       'cohort_clashes': cohortClashes,
       'room_clashes': roomClashes,
-      'ok': teacherClashes == 0 && cohortClashes == 0 && roomClashes == 0,
+      'invalid_time_slots': invalidTimes,
+      'pending_faculty_assignments': pendingFaculty,
+      'unresolved_faculty_names': unresolvedFacultyNames,
+      'unavailable_room_assignments': unavailableAssignments,
+      'ok': unavailableAssignments == 0 &&
+          invalidTimes == 0 &&
+          teacherClashes == 0 &&
+          cohortClashes == 0 &&
+          roomClashes == 0,
     };
   }
 

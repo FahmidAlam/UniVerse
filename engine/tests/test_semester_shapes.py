@@ -169,10 +169,11 @@ def test_a_new_faculty_member_needs_no_code_change():
     assert res["validation"]["ok"] is True
 
 
-def test_a_teacher_absent_from_the_faculty_list_still_schedules():
+def test_a_teacher_absent_from_the_faculty_list_is_retained_but_not_certified():
     """Test I. A leaver is removed from `timetable_faculty`, but if the
     distribution still names them the routine must not silently lose the
-    course — they simply have no day-offs on record."""
+    course. Retain the offering, but require faculty verification before
+    certifying publication; missing day-offs cannot imply availability."""
     rows = [make_row(batch="70", section="A", code="CSE-1101",
                      teacher="GONE")]
     cfg = solver.load_config(override=make_config(teachers=["T1"]))
@@ -180,7 +181,9 @@ def test_a_teacher_absent_from_the_faculty_list_still_schedules():
                              weeks_in_term=cfg["weeks_in_term"])
     res = solver.solve(ds, cfg, time_limit_s=FAST)
     assert res["validation"]["missing_courses"] == 0
-    assert res["validation"]["ok"] is True
+    assert {r['teacher_code'] for r in res['rows']} == {'GONE'}
+    assert res["validation"]["unresolved_teachers"] == 2
+    assert res["validation"]["ok"] is False
 
 
 def test_a_completely_different_course_list_just_works():

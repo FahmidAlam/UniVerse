@@ -104,7 +104,6 @@ class AdminService {
   }) async {
     try {
       await _supabase.from(AppConstants.tableWhitelists).upsert({
-        //'email': email,
         'email': email.trim().toLowerCase(),
         'role': AppConstants.roleTeacher,
         'name': name,

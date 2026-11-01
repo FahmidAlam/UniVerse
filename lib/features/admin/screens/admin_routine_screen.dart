@@ -17,16 +17,21 @@ class AdminRoutineScreen extends StatefulWidget {
 
 class _AdminRoutineScreenState extends State<AdminRoutineScreen> {
   int _index = 0;
-  bool _readInitialTab = false;
+  String? _lastTabQuery;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_readInitialTab) {
-      _readInitialTab = true;
-      final tab = GoRouterState.of(context).uri.queryParameters['tab'];
-      if (tab == 'generate') _index = 1;
-      if (tab == 'upload') _index = 2;
+    final tab = GoRouterState.of(context).uri.queryParameters['tab'];
+    if (tab != _lastTabQuery) {
+      _lastTabQuery = tab;
+      if (tab == 'generate') {
+        _index = 1;
+      } else if (tab == 'upload') {
+        _index = 2;
+      } else if (tab == 'manage') {
+        _index = 0;
+      }
     }
   }
 

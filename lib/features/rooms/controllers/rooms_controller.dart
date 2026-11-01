@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:universe/core/models/routine_model.dart';
+import 'package:universe/core/utils/room_identity.dart';
 import 'package:universe/features/rooms/services/room_status_service.dart';
 
 class RoomStatus {
@@ -57,10 +58,8 @@ class RoomsController extends ChangeNotifier {
 
       final routinesByRoom = <String, List<RoutineEntry>>{};
       for (final entry in _allRoutines!) {
-        if (!routinesByRoom.containsKey(entry.room)) {
-          routinesByRoom[entry.room] = [];
-        }
-        routinesByRoom[entry.room]!.add(entry);
+        final physical = RoomIdentity.currentKey(entry.room);
+        routinesByRoom.putIfAbsent(physical, () => []).add(entry);
       }
 
       for (final room in routinesByRoom.keys) {
@@ -88,9 +87,8 @@ class RoomsController extends ChangeNotifier {
               currentTeacher: entry.teacherName ?? entry.teacherCode ?? 'N/A',
               currentSubject: entry.subject,
               currentClass: '${entry.batch} - ${entry.section}',
-              remainingTime: remaining > 0
-                  ? '$remaining min'
-                  : 'Less than 1 min',
+              remainingTime:
+                  remaining > 0 ? '$remaining min' : 'Less than 1 min',
               timeStart: entry.timeStart,
               timeEnd: entry.timeEnd,
             );

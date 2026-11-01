@@ -20,6 +20,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from ortools.sat.python import cp_model
+from room_policy import room_key
 
 CONFIG_PATH = Path(__file__).parent / "config.json"
 
@@ -28,6 +29,24 @@ SOLVER_WORKERS = int(os.environ.get("SOLVER_WORKERS", "8"))
 #: How many offending items each validation list carries back to the client.
 #: The counts are always exact; only the examples are capped.
 DETAIL_LIMIT = 50
+
+
+def _minutes(clock):
+    match = re.fullmatch(r'(\d{1,2}):(\d{2})(?::(\d{2}))?', str(clock))
+    if not match:
+        raise ValueError('Period times must use HH:MM or HH:MM:SS')
+    h, m, s = int(match[1]), int(match[2]), int(match[3] or 0)
+    if h > 24 or m > 59 or s > 59 or (h == 24 and (m or s)):
+        raise ValueError('Invalid clock boundary')
+    return h * 60 + m + s / 60
+
+
+def _groups(batch, section):
+    """CSE import adapter: source-specified joint sections reserve all members.
+
+    This does not create canonical aliases or infer membership in routine UI.
+    """
+    return {(str(batch), member.strip()) for member in str(section).split('+')}
 
 
 def load_config(override: dict | None = None) -> dict:
@@ -74,6 +93,15 @@ def _normalize_config(cfg: dict) -> dict:
     if not allow_online:
         excluded |= _int_set(online)
 
+    usable = [p for p in (periods or []) if int(p['idx']) not in excluded]
+    if len({int(p['idx']) for p in usable}) != len(usable):
+        raise ValueError('Duplicate period identifiers')
+    spans = sorted((_minutes(p['start']), _minutes(p['end'])) for p in usable)
+    if any(end <= start for start, end in spans):
+        raise ValueError('Periods must be forward same-day intervals')
+    if any(b[0] < a[1] for a, b in zip(spans, spans[1:])):
+        raise ValueError('Configured clock periods overlap; use a non-overlapping grid')
+
     # Per-day unavailable periods, e.g. {"Friday": [4]}. `friday_no_p4` is the
     # legacy single-purpose flag; it is folded in so old configs keep working.
     blocked: dict[str, set[int]] = {}
@@ -83,7 +111,22 @@ def _normalize_config(cfg: dict) -> dict:
     if settings.get("friday_no_p4", cfg.get("friday_no_p4", True)):
         blocked.setdefault("Friday", set()).add(4)
 
-    rooms = cfg.get("rooms") or []
+    aliases = cfg.get('room_aliases', settings.get('room_aliases')) or {}
+    unavailable = {room_key(r, aliases) for r in
+                   (cfg.get('unavailable_rooms', settings.get('unavailable_rooms')) or [])}
+    rooms = []
+    physical = {}
+    for raw in cfg.get('rooms') or []:
+        key = room_key(raw['name'], aliases)
+        if key in unavailable or not raw.get('is_active', True):
+            continue
+        if key in physical:
+            old = physical[key]
+            if any(old.get(field) != raw.get(field) for field in ('is_lab','capacity')):
+                raise ValueError('Room aliases have conflicting type/capacity metadata')
+            continue
+        physical[key] = raw
+        rooms.append(raw)
     lab_rooms, theory_rooms = [], []
     for r in rooms:
         name = r["name"]
@@ -91,9 +134,18 @@ def _normalize_config(cfg: dict) -> dict:
             lab_rooms.append(name)
         elif r.get("is_gallery") or any(ch.isdigit() for ch in name):
             theory_rooms.append(name)
-    if not rooms:
-        lab_rooms = cfg.get("lab_rooms", [])
-        theory_rooms = cfg.get("theory_rooms", [])
+    if 'rooms' not in cfg:
+        def unique_rooms(values):
+            by_key = {}
+            for label in values:
+                key = room_key(label, aliases)
+                if key not in unavailable:
+                    by_key.setdefault(key, label)
+            return list(by_key.values())
+        lab_rooms = unique_rooms(cfg.get('lab_rooms', []))
+        theory_rooms = unique_rooms(cfg.get('theory_rooms', []))
+        if {room_key(r,aliases) for r in lab_rooms} & {room_key(r,aliases) for r in theory_rooms}:
+            raise ValueError('Conflicting room kinds for physical aliases')
 
     teachers = cfg.get("teachers", {})
     off_days: dict[str, set[str]] = {}
@@ -114,12 +166,16 @@ def _normalize_config(cfg: dict) -> dict:
     return {
         "days": days,
         "periods": periods,
+        "break_col": settings.get('break_col', cfg.get('break_col', 'G')),
         "excluded_periods": excluded,
         "blocked_periods": blocked,
         "weeks_in_term": weeks,
         "weights": weights,
         "lab_rooms": lab_rooms,
         "theory_rooms": theory_rooms,
+        "room_metadata": {r['name']: r for r in rooms},
+        "room_aliases": aliases,
+        "unavailable_rooms": unavailable,
         "off_days": off_days,
         "names": names,
         "semester_label": settings.get("semester_label"),
@@ -287,7 +343,7 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
         sessions_by_oid[s["oid"]].append(s)
 
     def teachers_of(s) -> list[str]:
-        return s.get("teachers") or [s["teacher"]]
+        return s.get("teachers") or ([s["teacher"]] if s.get("teacher") else [])
 
     def valid_slots(s) -> list[tuple[int, int]]:
         """(day, period) options for a session. Every teacher sharing the
@@ -328,7 +384,8 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
     for s in sessions:
         for t in teachers_of(s):
             by_teacher[t].append(s)
-        by_cohort[s["cohort"]].append(s)
+        for group in _groups(s['batch'], s['section']):
+            by_cohort[group].append(s)
 
     for di in range(len(days)):
         for p in pidx:
@@ -587,32 +644,34 @@ def _assign_rooms(dataset, cfg, placed, days, pmeta):
             return 1
         return min(8, max(1, max_batch - int(batch) + 1))
 
-    def pick(pool, d, p):
-        for r in pool:
+    offering_of = {o['oid']: o for o in dataset.get('offerings', [])}
+    def pick(pool, d, p, session):
+        students = offering_of.get(session['oid'], {}).get('students')
+        candidates = sorted(pool, key=lambda r: (
+            cfg.get('room_metadata', {}).get(r, {}).get('capacity')
+            if cfg.get('room_metadata', {}).get(r, {}).get('capacity') is not None
+            else float('inf'))) if students is not None else pool
+        for r in candidates:
+            capacity = cfg.get('room_metadata', {}).get(r, {}).get('capacity')
+            if students is not None and capacity is not None and students > capacity:
+                continue
             if r not in busy.get((d, p), set()):
                 return r
         return None
 
-    # Greedy first-fit is safe here, and that is a property of the model rather
-    # than luck: CP-SAT already caps concurrent labs at len(lab_rooms) and
-    # concurrent theory at len(theory_rooms) for every (day, period), and the
-    # two pools are disjoint. So a free room of the right kind always exists
-    # and this pass cannot invalidate a schedule the solver called feasible.
-    # Labs are served first only to keep the assignment stable and readable.
-    #
-    # "TBA" below therefore means the pools were misconfigured (an empty pool,
-    # or a lab session with no lab rooms at all), never "the scheduler gave
-    # up". It is a hard validation failure with a named cause — it is NOT the
-    # template's "TBA*", which is a human "to be announced later" marker the
-    # engine has never produced and must not start producing.
-    placed.sort(key=lambda q: (not q["s"]["is_lab"],))
+    # CP-SAT caps simultaneous room-kind demand. Known capacity further limits
+    # eligibility here; first-fit is not a proof that every feasible matching
+    # will be found. Any failure remains visible as TBA and blocks publication.
+    # Unknown capacities are retained as unknown, never invented.
+    placed.sort(key=lambda q: (not q["s"]["is_lab"],
+        -(offering_of.get(q['s']['oid'], {}).get('students') or 0)))
     room_failures: list[dict] = []
 
     rows, service_rows = [], []
     for i, q in enumerate(placed):
         s, d, p = q["s"], q["day"], q["period"]
         pool = lab_pool if s["is_lab"] else theory_pool
-        room = pick(pool, d, p)
+        room = pick(pool, d, p, s)
         if room is None:
             room = "TBA"
             kind = "lab" if s["is_lab"] else "theory"
@@ -648,7 +707,8 @@ def _assign_rooms(dataset, cfg, placed, days, pmeta):
             # Engine-side metadata. `RoutineEntry.toMap()` only emits the
             # `routines` columns, so these never reach Postgres.
             "oid": s["oid"],
-            "teachers": s.get("teachers") or [s["teacher"]],
+            "teachers": s.get('teachers') or ([s['teacher']] if s.get('teacher') else []),
+            "teacher_state": 'assigned' if s.get('teacher') else 'pending',
             "is_service": s["is_service"],
             "is_lab": s["is_lab"],
         }
@@ -670,7 +730,8 @@ def _validate(dataset, cfg, all_rows, days, pmeta) -> dict:
     offerings = dataset.get("offerings", [])
     day_set = set(days)
     valid_slots = {(str(p["start"]), str(p["end"])) for p in pmeta.values()}
-    lab_set = set(cfg["lab_rooms"])
+    aliases = cfg.get('room_aliases') or {}
+    lab_set = {room_key(r,aliases) for r in cfg['lab_rooms']}
     off_days = cfg["off_days"]
     blocked = cfg["blocked_periods"]
 
@@ -686,7 +747,7 @@ def _validate(dataset, cfg, all_rows, days, pmeta) -> dict:
         got = actual.get(key, 0)
         if got == 0:
             missing.append({"cohort": o["cohort"], "code": o["code"],
-                            "teacher": o["teachers"][0],
+                            "teacher": o["teachers"][0] if o['teachers'] else None,
                             "required": o["required_sessions"]})
         elif got < o["required_sessions"]:
             under.append({"cohort": o["cohort"], "code": o["code"],
@@ -707,6 +768,10 @@ def _validate(dataset, cfg, all_rows, days, pmeta) -> dict:
     seen_r: dict[tuple, list] = defaultdict(list)
     dayoff_d, blocked_d, lab_bad_d, tba_d, bad_slot_d, bad_day_d = [], [], [], [], [], []
     inelig_d = []
+    assignment_d, unknown_room_d, capacity_d, unknown_teacher_d = [], [], [], []
+    room_set = {room_key(r,aliases) for r in cfg['lab_rooms']+cfg['theory_rooms']}
+    room_metadata = {room_key(k,aliases):v for k,v in cfg.get('room_metadata',{}).items()}
+    pending_faculty = 0
 
     elig = cfg.get("eligibility") or {}
     elig_map = elig.get("eligible") or {}
@@ -719,7 +784,25 @@ def _validate(dataset, cfg, all_rows, days, pmeta) -> dict:
                 "day": r["day"], "period": r["period"], "room": r["room"]}
 
     for r in all_rows:
-        for t in (r.get("teachers") or [r["teacher_code"]]):
+        cohort = f"{r['batch']}-{r['section']}" if r['section'] else str(r['batch'])
+        offering = required.get((cohort, r['subject_code']))
+        assigned = r.get('teachers') or ([r['teacher_code']] if r.get('teacher_code') else [])
+        if not r.get('teacher_code'):
+            pending_faculty += 1
+        if offering is not None and (
+                r.get('teacher_code') != (offering['teachers'][0] if offering['teachers'] and not offering.get('pending_faculty_source_rows') else None) or
+                set(assigned) != set(offering['teachers'])):
+            assignment_d.append(_who(r))
+        physical_room = room_key(r['room'],aliases)
+        if r['room'] != 'TBA' and physical_room not in room_set:
+            unknown_room_d.append(_who(r))
+        students = offering.get('students') if offering else None
+        capacity = room_metadata.get(physical_room,{}).get('capacity')
+        if students is not None and capacity is not None and students > capacity:
+            capacity_d.append(_who(r))
+        for t in assigned:
+            if t not in off_days:
+                unknown_teacher_d.append({**_who(r), 'teacher': t})
             seen_t[(t, r["day"], r["period"])].append(r)
             if r["day"] in off_days.get(t, set()):
                 dayoff_d.append({**_who(r), "teacher": t, "off_day": r["day"]})
@@ -731,14 +814,15 @@ def _validate(dataset, cfg, all_rows, days, pmeta) -> dict:
             if tu in elig_declared and cu not in elig_map.get(tu, set()):
                 inelig_d.append({**_who(r), "teacher": t,
                                  "eligible_for": sorted(elig_map.get(tu, set()))[:8]})
-        seen_c[(r["batch"], r["section"], r["day"], r["period"])].append(r)
+        for batch, section in _groups(r['batch'], r['section']):
+            seen_c[(batch, section, r['day'], r['period'])].append(r)
         if r["room"] != "TBA":
-            seen_r[(r["room"], r["day"], r["period"])].append(r)
+            seen_r[(physical_room, r["day"], r["period"])].append(r)
         else:
             tba_d.append(_who(r))
         if r["period"] in blocked.get(r["day"], set()):
             blocked_d.append(_who(r))
-        if r["is_lab"] and r["room"] not in lab_set and r["room"] != "TBA":
+        if r["is_lab"] and physical_room not in lab_set and r["room"] != "TBA":
             lab_bad_d.append(_who(r))
         if (str(r["time_start"]), str(r["time_end"])) not in valid_slots:
             bad_slot_d.append({**_who(r), "time_start": str(r["time_start"]),
@@ -791,7 +875,7 @@ def _validate(dataset, cfg, all_rows, days, pmeta) -> dict:
     fatal = (len(missing), len(under), len(over), len(unexpected),
              tclash, cclash, rclash, len(dayoff_d), len(blocked_d),
              len(lab_bad_d), len(tba_d), len(bad_slot_d), len(bad_day_d),
-             same_day, len(inelig_d))
+             same_day, len(inelig_d), len(assignment_d), len(unknown_room_d), len(capacity_d), len(unknown_teacher_d))
 
     return {
         # correctness against the distribution
@@ -813,6 +897,11 @@ def _validate(dataset, cfg, all_rows, days, pmeta) -> dict:
         "invalid_days": len(bad_day_d),
         "same_day_sessions": same_day,
         "ineligible_assignments": len(inelig_d),
+        "teacher_assignment_mismatches": len(assignment_d),
+        "unknown_rooms": len(unknown_room_d),
+        "room_capacity_violations": len(capacity_d),
+        "unresolved_teachers": len(unknown_teacher_d),
+        "pending_faculty_assignments": pending_faculty,
         "same_day_rule": "off" if same_day_ok else "enforced",
         # traceability — what failed, for which course, cohort and teacher
         "details": {
@@ -825,6 +914,10 @@ def _validate(dataset, cfg, all_rows, days, pmeta) -> dict:
             "room_clashes": rclash_d[:DETAIL_LIMIT],
             "same_day_sessions": same_day_d[:DETAIL_LIMIT],
             "ineligible_assignments": inelig_d[:DETAIL_LIMIT],
+            "teacher_assignment_mismatches": assignment_d[:DETAIL_LIMIT],
+            "unknown_rooms": unknown_room_d[:DETAIL_LIMIT],
+            "room_capacity_violations": capacity_d[:DETAIL_LIMIT],
+            "unresolved_teachers": unknown_teacher_d[:DETAIL_LIMIT],
             "dayoff_violations": dayoff_d[:DETAIL_LIMIT],
             "blocked_period_violations": blocked_d[:DETAIL_LIMIT],
             "lab_room_violations": lab_bad_d[:DETAIL_LIMIT],

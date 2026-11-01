@@ -8,7 +8,7 @@ import 'package:universe/core/models/routine_model.dart';
 
 class TimetableJobStatus {
   final String
-  state; // queued | ingesting | solving | rendering | done | failed
+      state; // queued | ingesting | solving | rendering | done | failed
   final double progress; // 0.0 → 1.0
   final String? error;
   final Map<String, dynamic>? stats;
@@ -49,17 +49,17 @@ class TimetableReport {
   });
 
   factory TimetableReport.fromMap(Map<String, dynamic> m) => TimetableReport(
-    cohorts: ((m['cohorts'] as List?) ?? const [])
-        .map((e) => e.toString())
-        .toList(),
-    meta: (m['meta'] as Map?)?.cast<String, dynamic>() ?? const {},
-    excluded: ((m['excluded'] as List?) ?? const [])
-        .map((e) => (e as Map).cast<String, dynamic>())
-        .toList(),
-    warnings: ((m['warnings'] as List?) ?? const [])
-        .map((e) => e.toString())
-        .toList(),
-  );
+        cohorts: ((m['cohorts'] as List?) ?? const [])
+            .map((e) => e.toString())
+            .toList(),
+        meta: (m['meta'] as Map?)?.cast<String, dynamic>() ?? const {},
+        excluded: ((m['excluded'] as List?) ?? const [])
+            .map((e) => (e as Map).cast<String, dynamic>())
+            .toList(),
+        warnings: ((m['warnings'] as List?) ?? const [])
+            .map((e) => e.toString())
+            .toList(),
+      );
 }
 
 /// Outcome of an atomic routine publish.
@@ -73,6 +73,7 @@ class RoutinePublishResult {
 
 class TimetableResult {
   final List<RoutineEntry> rows;
+
   /// Service / non-CSE classes. Not part of a CSE cohort's routine, but they
   /// occupy real teachers and rooms, so they are published alongside `rows`.
   final List<RoutineEntry> serviceRows;
@@ -94,9 +95,13 @@ class TimetableResult {
 }
 
 class TimetableEngineService {
-  final SupabaseClient _supabase = Supabase.instance.client;
-
-  String get _base => AppConstants.timetableBaseUrl;
+  SupabaseClient get _supabase => Supabase.instance.client;
+  final http.Client _http;
+  final String _base;
+  TimetableEngineService({http.Client? client, String? baseUrl})
+      : _http = client ?? http.Client(),
+        _base = baseUrl ?? AppConstants.timetableBaseUrl;
+  void close() => _http.close();
 
   Future<String> generate({
     required Uint8List fileBytes,
@@ -114,7 +119,9 @@ class TimetableEngineService {
     if (config != null) req.fields['config'] = jsonEncode(config);
     req.fields['time_limit_s'] = timeLimitS.toString();
 
-    final res = await http.Response.fromStream(await req.send());
+    final res = await http.Response.fromStream(
+            await _http.send(req).timeout(const Duration(seconds: 90)))
+        .timeout(const Duration(seconds: 90));
     if (res.statusCode != 200) {
       throw Exception(
         'Engine returned ${res.statusCode}. Is the server reachable?',
@@ -127,7 +134,9 @@ class TimetableEngineService {
   }
 
   Future<TimetableJobStatus> pollStatus(String jobId) async {
-    final res = await http.get(Uri.parse('$_base/api/timetable/status/$jobId'));
+    final res = await _http
+        .get(Uri.parse('$_base/api/timetable/status/$jobId'))
+        .timeout(const Duration(seconds: 90));
     if (res.statusCode != 200) {
       throw Exception('Could not read job status (${res.statusCode}).');
     }
@@ -137,7 +146,9 @@ class TimetableEngineService {
   }
 
   Future<TimetableResult> fetchResult(String jobId) async {
-    final res = await http.get(Uri.parse('$_base/api/timetable/result/$jobId'));
+    final res = await _http
+        .get(Uri.parse('$_base/api/timetable/result/$jobId'))
+        .timeout(const Duration(seconds: 90));
     if (res.statusCode != 200) {
       throw Exception(
         'Could not fetch the generated timetable (${res.statusCode}).',
@@ -160,9 +171,11 @@ class TimetableEngineService {
   }
 
   Future<Uint8List> downloadWorkbook(String jobId) async {
-    final res = await http.get(
-      Uri.parse('$_base/api/timetable/download/$jobId'),
-    );
+    final res = await _http
+        .get(
+          Uri.parse('$_base/api/timetable/download/$jobId'),
+        )
+        .timeout(const Duration(seconds: 90));
     if (res.statusCode != 200) {
       throw Exception('Could not download the workbook (${res.statusCode}).');
     }
@@ -173,9 +186,7 @@ class TimetableEngineService {
     final safe = (semesterLabel ?? 'timetable').replaceAll(RegExp(r'\s+'), '_');
     final path =
         'CSE_Routine_${safe}_${DateTime.now().millisecondsSinceEpoch}.xlsx';
-    await _supabase.storage
-        .from(AppConstants.bucketTimetables)
-        .uploadBinary(
+    await _supabase.storage.from(AppConstants.bucketTimetables).uploadBinary(
           path,
           bytes,
           fileOptions: const FileOptions(
@@ -211,6 +222,14 @@ class TimetableEngineService {
   }) async {
     if (rows.isEmpty) {
       throw Exception('Refusing to publish an empty routine.');
+    }
+    if (validation['ok'] != true) {
+      throw Exception(
+          'Refusing to publish a routine without successful validation.');
+    }
+    if (rows.any((r) => r.requiresSharedTeacherStorage)) {
+      throw Exception(
+          'Shared faculty must be retained in a private draft; hosted storage cannot preserve them yet.');
     }
     final res = await _supabase.rpc(
       'publish_routine',

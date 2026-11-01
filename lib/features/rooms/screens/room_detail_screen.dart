@@ -10,6 +10,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:universe/core/models/routine_model.dart';
+import 'package:universe/core/utils/room_identity.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/features/rooms/services/room_status_service.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
@@ -47,7 +48,11 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
       final all = await _service.fetchAllRoutines();
       if (!mounted) return;
       setState(() {
-        _entries = all.where((e) => e.room == widget.room).toList();
+        _entries = all
+            .where((e) =>
+                RoomIdentity.currentKey(e.room) ==
+                RoomIdentity.currentKey(widget.room))
+            .toList();
       });
     } catch (e) {
       if (!mounted) return;
