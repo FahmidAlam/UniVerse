@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "approval_status": "not_approved",
+  "source_checksum_md5": "07da7d69a5d0b0dd816133f41716eae7",
+  "routine_count": 795,
+  "proposed_or_applied_links": 0,
+  "quarantined_count": 795,
+  "reason_counts": {
+    "mapping_not_approved": 795,
+    "invalid_same_day_interval": 125
+  },
+  "scope": "Read-only sanitized fixture assessment; no hosted data changed. Source identity/stage/alias links remain unverified for actual backfill; formal calendar rollout is deferred. Timing is seasonal configuration, not a static legacy grid.",
+  "interpretation": "Read-only identity-link hold, not a verdict that source classes are invalid. invalid_same_day_interval is a historical diagnostic key counting stored anomalies.",
+  "time_anomaly_breakdown": {
+    "11:10:00->00:15:00": 96,
+    "23:10:00->12:15:00": 29
+  },
+  "clarification_status": "Formal academic-calendar rollout deferred; summer/winter timing and study-stage observations require applicable source/config revisions. B+C joint attendance confirmed; each occurrence must be source-backed. No blanket data repair authorized.",
+  "source_comparison": {
+    "source_sha256": "3acf7cce904d3711898a127f89e344990c1411fda8d45e79dd3f77b7b7d27008",
+    "source_numeric_batches": [
+      "58",
+      "59",
+      "60",
+      "61",
+      "62",
+      "63",
+      "64",
+      "65",
+      "66"
+    ],
+    "snapshot_numeric_batches": [
+      "61",
+      "62",
+      "63",
+      "64",
+      "65",
+      "66",
+      "67",
+      "68",
+      "69"
+    ],
+    "snapshot_rows_with_same_source_batch_section_course_label": 18,
+    "snapshot_rows_without_same_source_label": 777,
+    "source_combined_labels": [
+      [
+        "58",
+        "B+C"
+      ],
+      [
+        "CE",
+        "WD+WE"
+      ],
+      [
+        "Civil",
+        "WD+WE"
+      ],
+      [
+        "EEE",
+        "WD+WE"
+      ]
+    ],
+    "snapshot_combined_labels": [
+      [
+        "65",
+        "E+F"
+      ],
+      [
+        "67",
+        "F+G"
+      ],
+      [
+        "M. Sc",
+        "6+7"
+      ]
+    ],
+    "snapshot_has_original_routine_ids": false,
+    "snapshot_teacher_aliases_only": true,
+    "routine_count": 795
+  },
+  "completion_blocker": "Private export authorized and completed. Actual canonical backfill still requires verified catalog identities for 356 unmatched teacher rows and 127 unmatched room rows, reviewed source time corrections/duplicates and an approved source-revision scope contract without invented calendar/stage values.",
+  "recovered_source": {
+    "original_filename": "DOC-20261009-WA0035.xlsx",
+    "storage_object": "timetables/CSE_Routine_Summer_2025_1791562982460.xlsx",
+    "sha256": "466157f8d40742f247f79376e8d2ffc522f156b0bf39853a2fb0675b0ff56542",
+    "bytes": 295039,
+    "banner": "Fall-2026",
+    "fixed_parser_row_count": 795,
+    "explicit_source_am_noon_end_rows": 96,
+    "pm_rows_corrected_by_parser_in_memory_only": 29
+  },
+  "catalog_label_checks": {
+    "rows_with_faculty_code_match": 439,
+    "unresolved_teacher_rows": 356,
+    "rows_with_room_name_match": 668,
+    "unresolved_room_rows": 127
+  },
+  "approved_private_reconciliation": {
+    "export_count": 795,
+    "source_parsed_count": 795,
+    "status_counts": {
+      "source_identity_and_time_verified": 640,
+      "explicit_source_reversed_interval": 91,
+      "ambiguous_source_occurrence": 36,
+      "parser_time_discrepancy": 28
+    },
+    "export_storage": "ignored local only; no record IDs or teacher codes in this summary",
+    "hosted_writes": 0,
+    "private_review_queue": ".task1-local/task2-private-review-queue.csv"
+  },
+  "source_roster_checks": {
+    "source_rows_with_teacher_in_roster": 625,
+    "source_rows_without_teacher_in_roster": 170,
+    "source_rows_with_room_in_legend": 234,
+    "source_rows_without_room_in_legend": 561,
+    "note": "Roster/legend coverage of source only; not joined to live catalog-match counts. Missing legend is not proof a room is invalid."
+  }
+}

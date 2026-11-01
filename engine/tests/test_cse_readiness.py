@@ -77,7 +77,8 @@ def test_pending_faculty_renders_explicit_marker_not_a_fictitious_teacher():
     ds,cfg,res=generated([make_row(teacher=None,classes=14)])
     wb=openpyxl.load_workbook(io.BytesIO(render.render_bytes(res['rows'],ds['cohorts'],cfg)))
     classes=[str(c.value) for sheet in wb for row in sheet for c in row if 'CSE-1101' in str(c.value or '')]
-    assert len(classes)==1 and 'FACULTY-PENDING' in classes[0]
+    assert len(classes)==1 and 'TBA' in classes[0]
+    assert 'FACULTY-PENDING' not in classes[0]
     assert 'None' not in classes[0]
 
 

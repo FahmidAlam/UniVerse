@@ -1,141 +1,192 @@
 # ============================================================
-# tool/usecase_diagram.py  ->  docs/diagrams/use-case-diagram.png
-# UniVerse use-case diagram — 22 UCs, 3 human actors, 3 system actors,
-# <<include>> / <<extend>> arrows, "Send Push" as a shared sub-UC.
+# tool/usecase_diagram.py -> docs/diagrams/use-case-diagram.png
+# Modern, spacious Use Case Diagram for UniVerse
+# Includes all 3 human actors, 3 external systems, and complete
+# feature packages (Campus Explore, Routine Hub, Academic Config,
+# Whitelist Gating, Push Notification Pipeline).
+# Run: python tool/usecase_diagram.py
 # ============================================================
-from matplotlib.patches import Rectangle
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle, FancyBboxPatch, Ellipse
 import diagram_helpers as d
 
-fig, ax = d.canvas((0, 244), (0, 168), figsize=(24.4, 16.8), dpi=140)
+fig, ax = d.canvas((0, 360), (0, 240), figsize=(36, 24), dpi=140)
 
-# ── System boundary ───────────────────────────────────────────
-ax.add_patch(Rectangle((28, 5), 182, 155, fc="#FAFAFA", ec=d.INK, lw=2.0))
-ax.text(119, 156, "UniVerse — A Campus Companion", ha="center",
-        fontsize=15, fontweight="bold")
+# ── Title ─────────────────────────────────────────────────────
+ax.text(180, 234, "UniVerse — Comprehensive System Use Case Diagram",
+        ha="center", va="center", fontsize=22, fontweight="bold", color="#0f172a")
+ax.text(180, 228, "Human Actors, External Subsystems, Multi-Modal Ingest, and Automated Notification Pipeline",
+        ha="center", va="center", fontsize=12, color="#475569")
 
-# ── Actors ────────────────────────────────────────────────────
-# Human actors LEFT (outside boundary)
-d.actor(ax, 13, 130, "Guest",   s=2.8)
-d.actor(ax, 13, 95,  "Student", s=2.8)
-d.actor(ax, 13, 54,  "Teacher", s=2.8)
-# Human actor RIGHT (outside boundary)
-d.actor(ax, 228, 100, "Admin",  s=2.8)
+# ── System Boundary ───────────────────────────────────────────
+boundary = FancyBboxPatch((44, 10), 266, 212,
+                          boxstyle="round,pad=0.5,rounding_size=3.0",
+                          facecolor="#f8fafc", edgecolor="#1e293b",
+                          linewidth=2.2, zorder=1)
+ax.add_patch(boundary)
+ax.text(52, 218, "System Boundary: UniVerse — A Campus Companion",
+        fontsize=13, fontweight="bold", color="#1e3a8a", zorder=3)
 
-# System actors (right, outside boundary — plain boxes)
-d.box(ax, 230, 145, 28, 10, "Supabase Auth /\nGoogle OAuth", bold=True, fs=8.2)
-d.box(ax, 230, 58,  28, 10, "Timetable\nEngine (OR-Tools)", bold=True, fs=8.2)
-d.box(ax, 230, 18,  28, 10, "Firebase FCM", bold=True, fs=9.5)
+# ── Primary Human Actors (Left) ───────────────────────────────
+ST_POS = (22, 160)
+TE_POS = (22, 100)
+AD_POS = (22, 40)
 
-# ── Helpers ───────────────────────────────────────────────────
-def uc(x, y, text, fs=8.3):
+d.actor(ax, ST_POS[0], ST_POS[1], "Student", s=3.8, zorder=5)
+d.actor(ax, TE_POS[0], TE_POS[1], "Teacher\n(Faculty)", s=3.8, zorder=5)
+d.actor(ax, AD_POS[0], AD_POS[1], "Admin\n(Department)", s=3.8, zorder=5)
+
+# Role Generalization (Teacher & Admin inherit Common student capabilities)
+def gen_arrow(p1, p2):
+    ax.annotate("", xy=p2, xytext=p1,
+                arrowprops=dict(arrowstyle="-|>", color="#334155", lw=1.6,
+                                facecolor="#ffffff", edgecolor="#334155", mutation_scale=14))
+gen_arrow((TE_POS[0], TE_POS[1] + 12), (ST_POS[0], ST_POS[1] - 8))
+gen_arrow((AD_POS[0], AD_POS[1] + 12), (TE_POS[0], TE_POS[1] - 8))
+
+# ── Secondary External Actors (Right) ─────────────────────────
+AUTH_POS = (335, 185)
+ENG_POS  = (335, 105)
+FCM_POS  = (335, 35)
+
+d.box(ax, AUTH_POS[0], AUTH_POS[1], 36, 15,
+      "Supabase Auth /\nGoogle OAuth", bold=True, fs=9.5, fc="#eff6ff", ec="#1e40af", rounded=True)
+d.box(ax, ENG_POS[0], ENG_POS[1], 36, 15,
+      "Timetable Engine\n(FastAPI / OR-Tools)", bold=True, fs=9.5, fc="#f0fdf4", ec="#166534", rounded=True)
+d.box(ax, FCM_POS[0], FCM_POS[1], 36, 16,
+      "Supabase Webhook\n& Firebase FCM", bold=True, fs=9.5, fc="#fff7ed", ec="#9a3412", rounded=True)
+
+# ── Use Case Ellipse Helper ───────────────────────────────────
+def uc(x, y, text, w=32, h=8.5, fs=8.2, fc="#ffffff", ec="#1e293b"):
     lines = text.split("\n")
-    w = max(24, max(len(s) for s in lines) * 0.94 + 6)
-    d.ellipse(ax, x, y, w, 6.2, text, fs=fs, bold=True)
-    return (x, y, w)
+    computed_w = max(w, max(len(s) for s in lines) * 0.95 + 6.0)
+    ax.add_patch(Ellipse((x, y), computed_w, h, facecolor=fc, edgecolor=ec,
+                         linewidth=1.4, zorder=4))
+    ax.text(x, y, text, ha="center", va="center", fontsize=fs,
+            fontweight="bold", color="#0f172a", zorder=5)
+    return (x, y, computed_w, h)
 
-def a2uc(ax_xy, ucx, side=1):
-    """Solid line: actor head → nearest ellipse edge."""
-    ax_, ay_ = ax_xy[0], ax_xy[1] + 3   # top of stick figure (approx)
-    ex = ucx[0] - side * ucx[2] / 2
-    d.line(ax, (ax_, ay_), (ex, ucx[1]), color="#444", lw=1.0)
+def connect(p_actor, u_target, side="left", color="#475569", lw=1.1):
+    ax_x, ax_y = p_actor[0] + 5, p_actor[1] + 2
+    ux, uy, uw, uh = u_target
+    tx = ux - uw / 2 if side == "left" else ux + uw / 2
+    ax.plot([ax_x, tx], [ax_y, uy], color=color, linewidth=lw, zorder=2)
 
-def dash(u_from, u_to, label, rad=0.0, tpos=0.5):
+def rel_dash(u_from, u_to, label, rad=0.0, fs=7.2, tpos=0.5):
     d.arrow(ax, (u_from[0], u_from[1]), (u_to[0], u_to[1]),
-            text=label, fs=7.4, dashed=True, color="#333", lw=1.0,
+            text=label, fs=fs, dashed=True, color="#1e293b", lw=1.1,
             tpos=tpos, rad=rad)
 
-# ── Guest / Auth use cases ────────────────────────────────────
-GUEST = (13, 130)
-g1 = uc(60, 143, "View Onboarding")
-g2 = uc(60, 134, "Create Account")
-g3 = uc(60, 125, "Login")
-g4 = uc(60, 116, "Reset Password")
-for g in (g1, g2, g3, g4):
-    a2uc(GUEST, g)
+# ── Package Containers ────────────────────────────────────────
+def draw_pkg(x, y, w, h, label, color="#cbd5e1"):
+    ax.add_patch(FancyBboxPatch((x, y - h), w, h,
+                                boxstyle="round,pad=0.2,rounding_size=1.5",
+                                facecolor="#ffffff", edgecolor=color,
+                                linewidth=1.2, linestyle="--", zorder=2))
+    ax.text(x + 3.0, y - 3.2, label, fontsize=9.0, fontweight="bold",
+            color="#475569", zorder=3)
 
-ve = uc(115, 134, "Verify Email (OTP)")
-wl = uc(115, 119, "Verify Whitelist\n(admin path only)")
-dash(g2, ve, "<<include>>")
-dash(g3, ve, "<<extend>>")
-dash(wl, g3, "<<extend>>")
-# Login touches Supabase Auth
-d.line(ax, (g3[0] + g3[2]/2, g3[1]), (216, 145), color="#888", lw=0.9)
+# ══════════════════════════════════════════════════════════════
+# USE CASES BY PACKAGE
+# ══════════════════════════════════════════════════════════════
 
-# ── Shared (Student + Teacher) ────────────────────────────────
-STUDENT = (13, 95)
-TEACHER = (13, 54)
-r1 = uc(58, 100, "View Dashboard\n(live / next class)")
-r2 = uc(58, 90,  "View Weekly Routine")
-r3 = uc(58, 80,  "Browse Resources")
-r4 = uc(58, 71,  "View Notifications")
-r5 = uc(58, 62,  "Manage Profile")
-r6 = uc(58, 53,  "Sign Out")
-shared = (r1, r2, r3, r4, r5, r6)
-for r in shared:
-    a2uc(STUDENT, r)
-    a2uc(TEACHER, r)
+# 1. Authentication & Profile
+draw_pkg(52, 210, 80, 52, "Authentication & Profile")
+uc_login   = uc(72, 196, "Sign Up / Log In")
+uc_verify  = uc(114, 196, "Verify Email (OTP)", w=24, fs=7.5)
+uc_wl      = uc(114, 182, "Verify Whitelist Gate\n(Teacher & Admin)", w=26, fs=7.2)
+uc_profile = uc(72, 178, "Edit Profile", w=24)
+uc_logout  = uc(72, 166, "Sign Out", w=20)
 
-# Routine + Resources sub-UCs
-rc = uc(116, 95, "View Cancelled Classes")
-ro = uc(116, 80, "Open File / Link")
-dash(rc, r2, "<<extend>>")
-dash(ro, r3, "<<extend>>")
+rel_dash(uc_verify, uc_login, "<<extend>>")
+rel_dash(uc_wl, uc_login, "<<extend>>")
 
-# ── Teacher-only use cases ────────────────────────────────────
-td = uc(58, 43, "Teacher Dashboard\n(countdown + class list)")
-mc = uc(58, 33, "Manage Classes")
-a2uc(TEACHER, td)
-a2uc(TEACHER, mc)
+# 2. Campus Exploration (Common to All Roles)
+draw_pkg(140, 210, 84, 52, "Campus Exploration (All Roles)")
+uc_find_t = uc(182, 196, "Find Teacher\n(Live Classroom Location)", w=34, fs=7.8)
+uc_rooms  = uc(182, 182, "View Room Availability\n(Live Vacancy & Grid)", w=34, fs=7.8)
+uc_notif  = uc(182, 168, "View Notifications & Alerts", w=32, fs=7.8)
 
-tc = uc(112, 43, "Cancel Class")
-tn = uc(112, 34, "Post Notice /\nRoom Change",  fs=8.0)
-tu = uc(112, 25, "Undo Cancellation")
-dash(tc, mc, "<<extend>>")
-dash(tn, mc, "<<extend>>")
-dash(tu, mc, "<<extend>>")
+# 3. Student Features
+draw_pkg(52, 152, 80, 48, "Student Features")
+uc_routine = uc(92, 138, "View Weekly Routine", w=28)
+uc_dash    = uc(92, 124, "View Student Dashboard\n(Live Countdown)", w=30)
+uc_res     = uc(92, 110, "Browse Academic Resources", w=30)
 
-# ── Shared sub-UC: Send Push Notification ─────────────────────
-push = uc(155, 14, "Send Push\nNotification", fs=8.0)
-# Teachers trigger push via Cancel / Notice
-dash(tc, push, "<<include>>", rad=0.25)
-dash(tn, push, "<<include>>", rad=0.15)
-# Connect Send Push → Firebase FCM
-d.line(ax, (push[0] + push[2]/2, push[1]), (216, 18), color="#888", lw=0.9)
+# 4. Teacher Features
+draw_pkg(140, 152, 84, 48, "Teacher Features")
+uc_tdash   = uc(182, 138, "View Teacher Dashboard", w=30)
+uc_manage  = uc(182, 120, "Manage Classes\n(Cancel, Notice, Undo)", w=32, fs=8.0)
 
-# ── Admin use cases ───────────────────────────────────────────
-ADMIN = (228, 100)
-a1 = uc(150, 133, "Manage Routine")
-a2 = uc(150, 123, "Generate Timetable")
-a3 = uc(150, 113, "Manage Config\n(rooms / faculty / settings)", fs=7.8)
-a4 = uc(150, 103, "Broadcast Notification")
-a5 = uc(150, 93,  "Manage Users")
-a6 = uc(150, 83,  "Manage Resources")
-a7 = uc(150, 73,  "View Admin Dashboard")
-for a in (a1, a2, a3, a4, a5, a6, a7):
-    a2uc(ADMIN, a, side=-1)
+# 5. Routine Hub (Admin)
+draw_pkg(52, 98, 114, 82, "Admin — Routine Hub")
+uc_man_rout = uc(108, 86, "Manage Routine (Manual CRUD)", w=36)
+uc_gen_tt   = uc(108, 68, "Generate Timetable (CP-SAT Solver)", w=36)
+uc_upload_w = uc(108, 50, "Upload Routine Workbook (Direct)", w=36)
+uc_solve    = uc(108, 32, "Run CP-SAT Solver", w=28, fc="#f0fdf4")
+uc_publish  = uc(108, 16, "Publish Routine (Atomic RPC)", w=32, fc="#f0fdf4")
 
-# Admin sub-UCs (extend / include)
-ax1 = uc(195, 140, "Add / Edit /\nDelete Routine", fs=7.8)
-ax2 = uc(195, 128, "Publish to Routines")
-ax4 = uc(195, 108, "View Broadcast\nHistory",        fs=7.8)
-ax5 = uc(195, 93,  "Invite Admin")
-ax6 = uc(195, 83,  "View Resource\nLibrary",          fs=7.8)
-dash(ax1, a1, "<<extend>>")
-dash(ax2, a2, "<<extend>>")
-dash(ax4, a4, "<<extend>>")
-dash(ax5, a5, "<<extend>>")
-dash(ax6, a6, "<<extend>>")
+rel_dash(uc_gen_tt, uc_solve, "<<include>>")
+rel_dash(uc_gen_tt, uc_publish, "<<include>>", rad=0.2)
+rel_dash(uc_upload_w, uc_publish, "<<include>>")
 
-# Generate Timetable → Engine (external system)
-d.line(ax, (a2[0] + a2[2]/2, a2[1]), (216, 58), color="#888", lw=0.9)
+# 6. Academic Configuration & Governance (Admin)
+draw_pkg(172, 98, 130, 82, "Admin — Configuration & Governance")
+uc_conf_rf   = uc(236, 86, "Manage Rooms & Faculty Pools", w=36)
+uc_eligib    = uc(236, 70, "Manage Course Eligibility Matrix", w=36)
+uc_settings  = uc(236, 54, "Configure Scheduling Rules (Term & Limits)", w=36)
+uc_broadcast = uc(236, 38, "Dispatch Campus Broadcast", w=34)
+uc_staff_reg = uc(236, 22, "Admin Registration (Add Teacher / Invite)", w=36)
 
-# Broadcast, Routine Publish, Resource Upload → Send Push (include)
-dash(a4,  push, "<<include>>", rad=-0.30, tpos=0.45)
-dash(ax2, push, "<<include>>", rad=-0.20, tpos=0.42)
-dash(a6,  push, "<<include>>", rad=-0.10, tpos=0.44)
+# 7. Automated Notification Sub-Use-Case
+uc_push = uc(275, 140, "Send Push\nNotification (FCM)", w=28, h=10, fs=8.2, fc="#fff7ed", ec="#9a3412")
 
-# ── Caption ───────────────────────────────────────────────────
-ax.text(119, 1, "UniVerse — Use Case Diagram", ha="center", fontsize=14,
-        fontweight="bold")
+# ── Connections to Push Notification ──────────────────────────
+rel_dash(uc_publish, uc_push, "<<include>>", rad=0.22)
+rel_dash(uc_manage, uc_push, "<<include>>", rad=0.1)
+rel_dash(uc_broadcast, uc_push, "<<include>>", rad=-0.15)
 
-d.save(fig, "docs/diagrams/use-case-diagram.png")
+# ── Actor to Use Case Links ───────────────────────────────────
+# Student connections
+connect(ST_POS, uc_login)
+connect(ST_POS, uc_profile)
+connect(ST_POS, uc_logout)
+connect(ST_POS, uc_find_t)
+connect(ST_POS, uc_rooms)
+connect(ST_POS, uc_notif)
+connect(ST_POS, uc_routine)
+connect(ST_POS, uc_dash)
+connect(ST_POS, uc_res)
+
+# Teacher connections
+connect(TE_POS, uc_tdash)
+connect(TE_POS, uc_manage)
+
+# Admin connections
+connect(AD_POS, uc_man_rout)
+connect(AD_POS, uc_gen_tt)
+connect(AD_POS, uc_upload_w)
+connect(AD_POS, uc_conf_rf)
+connect(AD_POS, uc_eligib)
+connect(AD_POS, uc_settings)
+connect(AD_POS, uc_broadcast)
+connect(AD_POS, uc_staff_reg)
+
+# ── External System Links ─────────────────────────────────────
+# Auth link
+ax.plot([uc_login[0] + uc_login[2]/2, AUTH_POS[0] - 18],
+        [uc_login[1], AUTH_POS[1]], color="#1d4ed8", lw=1.4, linestyle=":")
+
+# Solver Engine link
+ax.plot([uc_solve[0] + uc_solve[2]/2, ENG_POS[0] - 18],
+        [uc_solve[1], ENG_POS[1]], color="#15803d", lw=1.4, linestyle=":")
+
+# Push FCM link
+ax.plot([uc_push[0] + uc_push[2]/2, FCM_POS[0] - 18],
+        [uc_push[1], FCM_POS[1]], color="#c2410c", lw=1.4, linestyle=":")
+
+out = "docs/diagrams/use-case-diagram.png"
+fig.savefig(out, dpi=140, facecolor="#ffffff", bbox_inches="tight", pad_inches=0.3)
+print("wrote", out)

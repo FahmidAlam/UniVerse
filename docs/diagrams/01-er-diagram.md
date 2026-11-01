@@ -1,252 +1,276 @@
 # Diagram 1 — Entity-Relationship (ER) Diagram
 
-> **What this shows:** the database design — every table the app uses (an *entity*), its
-> attributes, and how the tables connect to each other through foreign keys (the *relationships*).
->
-> **Tool to use:** dbdiagram.io (best looking) or mermaid.live (fastest). Both code blocks below
-> produce the same diagram.
+> **What this shows:** The complete relational database design of UniVerse — all 14 actively used tables, primary keys (PK), foreign keys (FK), data types, and inter-table relationships.  
+> **Source of Truth:** Live Supabase PostgreSQL database schema (Migrations 001–016).  
+> **Tools to render:** [dbdiagram.io](https://dbdiagram.io) (DBML) or [mermaid.live](https://mermaid.live) (Mermaid).
 
 ---
 
-## 1. Which entities to draw (and which to skip)
+## 1. Entity Inventory: 14 Implemented Tables
 
-Draw exactly these **12 entities**. Do **NOT** draw `documents`, `assignments`, or `submissions`
-— those are future-scope tables the app never uses (see [README.md](README.md)).
+The production database contains 18 total tables, but **only 14 are actively utilized by the deployed application**. The remaining 4 tables (`assignments`, `submissions`, `documents`, `timetable_courses`) represent future scope or legacy prototypes and are omitted from this diagram to maintain strict fidelity to the running software.
 
-| # | Entity (table) | What it stores in one line |
-|---|---|---|
-| 1 | **profiles** | One row per registered person (student / teacher / admin). The central "user" entity. |
-| 2 | **whitelists** | The list of emails pre-authorised to become an **admin**. |
-| 3 | **routines** | The weekly class schedule — one row per class slot (day + time + subject + room). |
-| 4 | **cancellations** | One row per cancelled class occurrence (a specific date). |
-| 5 | **notifications** | Every alert/broadcast (cancellations, room changes, campus news, etc.). |
-| 6 | **notification_reads** | Which user has read which notification (a link table). |
-| 7 | **resources** | Study materials — uploaded files and Google Drive links, per semester. |
-| 8 | **device_tokens** | Each phone's push-notification token, per user (for FCM). |
-| 9 | **timetable_rooms** | The pool of rooms the timetable generator can assign. |
-| 10 | **timetable_faculty** | The teacher directory the generator uses (acronyms, off-days). |
-| 11 | **timetable_settings** | A single config row for the generator (periods, weights, etc.). |
-| 12 | **timetable_runs** | A history log — one row each time a timetable is generated/published. |
-
-> **Note about `auth.users`:** Supabase keeps the real login identity in a system table called
-> `auth.users`, and `profiles` mirrors it 1-to-1 (same `id`). To keep the diagram clean and
-> understandable, **treat `profiles` as the single "user" entity** and add a caption:
-> *"profiles.id = auth.users.id (managed by Supabase Auth)."* Do not draw a second user table.
+| # | Entity (Table) | Purpose & Description | Cardinality Context |
+|---|---|---|---|
+| 1 | **`profiles`** | Central user record (1:1 with `auth.users.id`). Stores student & teacher academic identities. | Central entity |
+| 2 | **`whitelists`** | Pre-authorisation security gate for **both Teachers and Admins** (Migration 016). | 1:1 logical link to `profiles` by email |
+| 3 | **`routines`** | Individual scheduled class slots (day, timeslot, course code, room, batch, section, teacher). | Child of `routine_versions` |
+| 4 | **`routine_versions`** | **Atomic routine version manager** (Migration 012). Stores active status, audit metadata, and stats. | Parent of `routines` |
+| 5 | **`cancellations`** | Specific cancelled class occurrences with date and reason. `routine_id` is `ON DELETE SET NULL`. | Child of `routines` & `profiles` |
+| 6 | **`notifications`** | System alerts, cancellation notices, room changes, and campus broadcasts. | Parent of `notification_reads` |
+| 7 | **`notification_reads`** | Junction table tracking read/dismiss receipts per user (`user_id` + `notification_id` composite PK). | Resolves M:N users $\leftrightarrow$ alerts |
+| 8 | **`resources`** | Academic study materials, lecture slides, PYQs, and Google Drive links by semester. | Child of `profiles` |
+| 9 | **`device_tokens`** | FCM registration tokens mapped to user accounts for OS-level push notifications. | Child of `profiles` |
+| 10 | **`timetable_rooms`** | Pool of physical rooms with building, capacity, and lab/gallery specifications. | Standalone config |
+| 11 | **`timetable_faculty`** | Teacher directory with acronyms, departments, designations, and weekly off-days. | Standalone config |
+| 12 | **`timetable_settings`** | Singleton configuration (ID=1) holding term calendar rules (14 columns). | Standalone config |
+| 13 | **`timetable_runs`** | Generation log recording solver runtime metrics, row counts, and output status. | Child of `profiles` |
+| 14 | **`timetable_course_eligibility`** | Qualification matrix mapping teacher acronyms to permissible course codes (Migration 013). | Logical config link |
 
 ---
 
-## 2. Attributes of each entity
+## 2. Table Schemas & Attributes
 
-List these attributes inside each entity box. **PK** = Primary Key, **FK** = Foreign Key.
-(Only the meaningful columns are listed; you may show all or trim to these.)
+### 1. `profiles` *(Core User Entity)*
+- **`id`** (UUID, PK) — Matches Supabase `auth.users.id`
+- `email` (TEXT, UNIQUE)
+- `role` (TEXT) — `'student' | 'teacher' | 'admin'`
+- `name` (TEXT)
+- `avatar_url` (TEXT)
+- `batch` (TEXT, nullable) — For students (e.g. `'60'`)
+- `section` (TEXT, nullable) — For students (e.g. `'A'`)
+- `semester` (INT, nullable) — For students (1–8)
+- `student_id` (TEXT, nullable) — University ID
+- `teacher_code` (TEXT, nullable) — For teachers (e.g. `'EBH'`)
+- `designation` (TEXT, nullable) — For teachers
+- `department` (TEXT, nullable) — (e.g. `'CSE'`)
+- `created_at` (TIMESTAMPTZ)
 
-### profiles  *(the user)*
-- **id** (uuid, PK) — equals the Supabase auth user id
-- email (text)
-- role (text: student / teacher / admin)
-- name (text)
-- avatar_url (text)
-- batch (text) · section (text) · semester (int) — for students
-- student_id (text) — for students
-- teacher_code (text) — for teachers
-- designation (text) · department (text) — for teachers
-- created_at (timestamp)
+### 2. `whitelists` *(Authorization Gate)*
+- **`email`** (TEXT, PK) — Normalized lowercase email
+- `role` (TEXT) — `'teacher' | 'admin'`
+- `name` (TEXT)
+- `teacher_code` (TEXT, nullable)
+- `department` (TEXT, nullable)
+- `designation` (TEXT, nullable)
+- `batch` (TEXT, nullable)
+- `section` (TEXT, nullable)
+- `semester` (INT, nullable)
 
-### whitelists  *(admin gate; keyed by email, not id)*
-- **email** (text, PK)
-- role (text: student / teacher / admin)
-- name (text)
-- teacher_code (text) · batch (text) · section (text) · semester (int)
+### 3. `routine_versions` *(Schedule Version Control)*
+- **`id`** (UUID, PK) — Default `gen_random_uuid()`
+- `semester_label` (TEXT) — e.g. `'Summer 2025'`
+- `source` (TEXT) — `'engine' | 'upload' | 'manual'`
+- `is_active` (BOOLEAN) — Partial unique index enforces at most one active version
+- `row_count` (INT)
+- `stats` (JSONB)
+- `validation` (JSONB)
+- `notes` (TEXT, nullable)
+- `published_at` (TIMESTAMPTZ, nullable)
+- **`published_by`** (UUID, FK $\rightarrow$ `profiles.id`)
+- `created_at` (TIMESTAMPTZ)
 
-### routines
-- **id** (uuid, PK)
-- day (text: Sunday … Saturday)
-- time_start (time) · time_end (time)
-- subject (text) · subject_code (text)
-- room (text)
-- batch (text) · section (text) · semester (int)
-- teacher_name (text) · teacher_code (text)
-- **teacher_id** (uuid, FK → profiles.id)  *(nullable)*
-- is_active (boolean)
+### 4. `routines` *(Scheduled Class Slots)*
+- **`id`** (UUID, PK)
+- **`routine_version_id`** (UUID, FK $\rightarrow$ `routine_versions.id` ON DELETE CASCADE)
+- `day` (TEXT) — `'Sunday' ... 'Saturday'`
+- `time_start` (TIME)
+- `time_end` (TIME)
+- `subject` (TEXT)
+- `subject_code` (TEXT)
+- `room` (TEXT)
+- `batch` (TEXT)
+- `section` (TEXT)
+- `semester` (INT)
+- `teacher_name` (TEXT)
+- `teacher_code` (TEXT)
+- **`teacher_id`** (UUID, FK $\rightarrow$ `profiles.id`, nullable)
+- `is_active` (BOOLEAN)
+- `is_service` (BOOLEAN) — Identifies non-departmental/service offerings
 
-### cancellations
-- **id** (uuid, PK)
-- **routine_id** (uuid, FK → routines.id)
-- **cancelled_by** (uuid, FK → profiles.id)
-- class_date (date) — the specific day the class is cancelled
-- reason (text)
-- batch · section · subject · day · time_start (denormalised copies for display)
-- created_at (timestamp)
+### 5. `cancellations` *(Class Cancellations)*
+- **`id`** (UUID, PK)
+- **`routine_id`** (UUID, FK $\rightarrow$ `routines.id` ON DELETE SET NULL)
+- **`cancelled_by`** (UUID, FK $\rightarrow$ `profiles.id`)
+- `class_date` (DATE) — The exact date of cancellation
+- `reason` (TEXT)
+- `batch` (TEXT) · `section` (TEXT) · `subject` (TEXT) · `day` (TEXT) · `time_start` (TEXT)
+- `created_at` (TIMESTAMPTZ)
 
-### notifications
-- **id** (uuid, PK)
-- title (text) · body (text)
-- type (text: university / class_cancel / room_change / test_reminder / assignment / exam)
-- **sent_by** (uuid, FK → profiles.id)  *(nullable)*
-- target_role (text) · target_batch (text) · target_section (text)  *(null = everyone)*
-- created_at (timestamp)
+### 6. `notifications` *(System Alerts & Announcements)*
+- **`id`** (UUID, PK)
+- `title` (TEXT)
+- `body` (TEXT)
+- `type` (TEXT) — `'university' | 'class_cancel' | 'room_change' | 'test_reminder' | 'resource'`
+- **`sent_by`** (UUID, FK $\rightarrow$ `profiles.id`, nullable)
+- `target_role` (TEXT, nullable)
+- `target_batch` (TEXT, nullable)
+- `target_section` (TEXT, nullable)
+- `created_at` (TIMESTAMPTZ)
 
-### notification_reads  *(link / junction table)*
-- **user_id** (uuid, PK, FK → profiles.id)
-- **notification_id** (uuid, PK, FK → notifications.id)
-- read_at (timestamp)
-- *(composite primary key = user_id + notification_id)*
+### 7. `notification_reads` *(Read Receipts)*
+- **`user_id`** (UUID, PK, FK $\rightarrow$ `profiles.id` ON DELETE CASCADE)
+- **`notification_id`** (UUID, PK, FK $\rightarrow$ `notifications.id` ON DELETE CASCADE)
+- `read_at` (TIMESTAMPTZ)
 
-### resources
-- **id** (uuid, PK)
-- title (text)
-- category (text: PYQ / Notes / Slides / Assignments)
-- semester (int)
-- subject_code (text)
-- drive_link (text) · file_url (text)
-- **uploaded_by** (uuid, FK → profiles.id)
-- created_at (timestamp)
+### 8. `resources` *(Academic Materials)*
+- **`id`** (UUID, PK)
+- `title` (TEXT)
+- `category` (TEXT) — `'PYQ' | 'Notes' | 'Slides' | 'Assignments'`
+- `semester` (INT)
+- `subject_code` (TEXT)
+- `drive_link` (TEXT, nullable)
+- `file_url` (TEXT, nullable)
+- **`uploaded_by`** (UUID, FK $\rightarrow$ `profiles.id`)
+- `created_at` (TIMESTAMPTZ)
 
-### device_tokens
-- **token** (text, PK) — the FCM token
-- **user_id** (uuid, FK → profiles.id)
-- platform (text, default 'android')
-- updated_at (timestamp)
+### 9. `device_tokens` *(FCM Mobile Tokens)*
+- **`token`** (TEXT, PK) — FCM device registration token
+- **`user_id`** (UUID, FK $\rightarrow$ `profiles.id` ON DELETE CASCADE)
+- `platform` (TEXT) — Default `'android'`
+- `updated_at` (TIMESTAMPTZ)
 
-### timetable_rooms
-- **id** (uuid, PK)
-- name (text, unique) · building (text)
-- is_lab (boolean) · is_gallery (boolean)
-- capacity (int) · is_active (boolean)
+### 10. `timetable_rooms` *(Facility Inventory)*
+- **`id`** (UUID, PK)
+- `name` (TEXT, UNIQUE) — e.g. `'Lab 3'`, `'Room 402'`
+- `building` (TEXT)
+- `is_lab` (BOOLEAN)
+- `is_gallery` (BOOLEAN)
+- `capacity` (INT)
+- `is_active` (BOOLEAN)
 
-### timetable_faculty
-- **id** (uuid, PK)
-- acronym (text, unique) · full_name (text)
-- dept (text) · designation (text)
-- off_days (text array) — days the teacher is unavailable
-- is_active (boolean)
+### 11. `timetable_faculty` *(Teacher Directory & Availability)*
+- **`id`** (UUID, PK)
+- `acronym` (TEXT, UNIQUE) — e.g. `'EBH'`
+- `full_name` (TEXT)
+- `dept` (TEXT)
+- `designation` (TEXT)
+- `off_days` (TEXT[]) — Weekly off-days (e.g. `['Tuesday']`)
+- `is_active` (BOOLEAN)
 
-### timetable_settings  *(only one row ever; id is always 1)*
-- **id** (int, PK, always = 1)
-- semester_label (text)
-- periods (jsonb) · weights (jsonb)
-- friday_no_p4 (boolean)
-- service_scope (text)
+### 12. `timetable_settings` *(Term Calendar & Solver Parameters)*
+- **`id`** (INT, PK) — Always `1` (singleton row)
+- `semester_label` (TEXT)
+- `periods` (JSONB) — Slot definitions
+- `weights` (JSONB) — Solver penalty weights
+- `working_days` (TEXT[]) — Active teaching days
+- `weeks_in_term` (INT) — Default `14`
+- `blocked_periods` (JSONB) — Blocked slots per day
+- `online_periods` (JSONB) — Held-back online slots
+- `allow_online_periods` (BOOLEAN)
+- `excluded_periods` (JSONB)
+- `semester_map` (JSONB) — Cohort to semester mapping
+- `fixed_sessions_per_week` (INT) — Weekly meetings override (default `2`)
+- `friday_no_p4` (BOOLEAN, legacy fallback)
+- `service_scope` (TEXT)
 
-### timetable_runs
-- **id** (uuid, PK)
-- semester_label (text)
-- file_path (text) — where the generated Excel file is stored
-- stats (jsonb) · validation (jsonb)
-- status (text: generated / published)
-- row_count (int)
-- **created_by** (uuid, FK → profiles.id)
-- created_at (timestamp)
+### 13. `timetable_runs` *(Solver & Publication History)*
+- **`id`** (UUID, PK)
+- `semester_label` (TEXT)
+- `file_path` (TEXT, nullable) — Path in Supabase Storage `timetables/`
+- `stats` (JSONB)
+- `validation` (JSONB)
+- `status` (TEXT) — `'generated' | 'published'`
+- `row_count` (INT)
+- **`created_by`** (UUID, FK $\rightarrow$ `profiles.id`)
+- `created_at` (TIMESTAMPTZ)
+
+### 14. `timetable_course_eligibility` *(Teacher Qualifications)*
+- **`id`** (UUID, PK)
+- `acronym` (TEXT) — Maps to `timetable_faculty.acronym`
+- `course_code` (TEXT) — e.g. `'CSE-3240'`
+- `is_eligible` (BOOLEAN) — Default `true`
+- `priority` (INT, nullable)
+- `created_at` (TIMESTAMPTZ)
+- `updated_at` (TIMESTAMPTZ)
 
 ---
 
-## 3. Relationships — the exact connections (from → to)
+## 3. Relationships & Foreign Key Map
 
-Every line below is a **real foreign key**. Use this one rule to draw each line correctly:
-
-> **The foreign-key column lives in the CHILD table and points to the PARENT's `id`.**
-> Put the **crow's foot (the "many" / `N` mark) at the CHILD end**, and the **single bar (`1`)
-> at the PARENT end**. So the line literally goes *child.fk_column → parent.id*.
-
-| # | Parent ( "1" end, bar ) | Child ( "N" end, crow's foot ) | Exact FK column → target | Verb on the line | Read it as |
+| ID | Parent Table (1) | Child Table (N) | Foreign Key Column $\rightarrow$ Target | Relationship Name | Semantic Description |
 |---|---|---|---|---|---|
-| **R1** | profiles | routines | `routines.teacher_id` → `profiles.id` | **teaches** | one teacher appears on many routine rows |
-| **R2** | profiles | cancellations | `cancellations.cancelled_by` → `profiles.id` | **cancels** | one user cancels many class occurrences |
-| **R3** | profiles | notifications | `notifications.sent_by` → `profiles.id` | **sends** | one user sends many notifications |
-| **R4** | profiles | resources | `resources.uploaded_by` → `profiles.id` | **uploads** | one user uploads many resources |
-| **R5** | profiles | device_tokens | `device_tokens.user_id` → `profiles.id` | **registers** | one user registers many devices |
-| **R6** | profiles | timetable_runs | `timetable_runs.created_by` → `profiles.id` | **generates** | one admin generates many timetable runs |
-| **R7** | profiles | notification_reads | `notification_reads.user_id` → `profiles.id` | **reads** | one user has many read-marks |
-| **R8** | routines | cancellations | `cancellations.routine_id` → `routines.id` | **is cancelled in** | one class slot is cancelled on many dates |
-| **R9** | notifications | notification_reads | `notification_reads.notification_id` → `notifications.id` | **is read in** | one notification has many read-marks |
-| **R10** | whitelists | profiles | matched by **email** — *no FK column* | **authorises** | one whitelist entry authorises one profile |
+| **R1** | `routine_versions` | `routines` | `routines.routine_version_id` $\rightarrow$ `routine_versions.id` | **contains** | One routine version contains many class slots (CASCADE delete) |
+| **R2** | `profiles` | `routine_versions` | `routine_versions.published_by` $\rightarrow$ `profiles.id` | **publishes** | An admin publishes multiple routine versions |
+| **R3** | `routines` | `cancellations` | `cancellations.routine_id` $\rightarrow$ `routines.id` | **is cancelled in** | A scheduled class is cancelled on specific dates (ON DELETE SET NULL) |
+| **R4** | `profiles` | `cancellations` | `cancellations.cancelled_by` $\rightarrow$ `profiles.id` | **cancels** | A teacher/admin logs class cancellations |
+| **R5** | `profiles` | `notifications` | `notifications.sent_by` $\rightarrow$ `profiles.id` | **sends** | A user/admin issues notifications |
+| **R6** | `notifications` | `notification_reads` | `notification_reads.notification_id` $\rightarrow$ `notifications.id` | **tracks** | Resolves M:N read state between users and notifications |
+| **R7** | `profiles` | `notification_reads` | `notification_reads.user_id` $\rightarrow$ `profiles.id` | **reads** | A user maintains read markers for notifications |
+| **R8** | `profiles` | `resources` | `resources.uploaded_by` $\rightarrow$ `profiles.id` | **uploads** | Faculty/admins upload academic course resources |
+| **R9** | `profiles` | `device_tokens` | `device_tokens.user_id` $\rightarrow$ `profiles.id` | **registers** | A user registers mobile devices for push notifications |
+| **R10** | `profiles` | `timetable_runs` | `timetable_runs.created_by` $\rightarrow$ `profiles.id` | **executes** | An admin runs and records timetable solver jobs |
+| **R11** | `whitelists` | `profiles` | Matched on `profiles.email` = `whitelists.email` | **authorises** | Logical gate authorizing Teacher and Admin roles |
+| **R12** | `timetable_faculty`| `timetable_course_eligibility` | Matched on `acronym` | **qualifies** | Logical link mapping faculty to permissible courses |
 
-That is **10 lines total** — and only **8 boxes** carry lines (profiles, whitelists, routines,
-cancellations, notifications, notification_reads, resources, device_tokens, timetable_runs).
-
-**Two boxes have TWO parents each — draw both lines into them:**
-- `cancellations` ← from **profiles** (R2) **and** from **routines** (R8).
-- `notification_reads` ← from **profiles** (R7) **and** from **notifications** (R9). This is the
-  **junction / associative entity** that resolves the many-to-many between users and
-  notifications (one notification → many users; one user → many notifications). **Say this in the
-  defense** — examiners look for it. Its primary key is the *pair* (`user_id` + `notification_id`).
-
-**Standalone boxes (draw them, but with NO lines):** `timetable_rooms`, `timetable_faculty`,
-`timetable_settings`. They have no foreign keys — the timetable engine just reads them as config.
-Group them in a corner with the caption *"Config tables — read by the timetable engine; no FK links."*
-R10 (whitelists → profiles) has **no FK** either; draw it as a **dashed** line labelled
-*"by email"* so it's clearly a logical, not enforced, link.
+> **Defense Note on `routines.teacher_id`:** While `routines.teacher_id` exists in the schema as a nullable FK to `profiles.id`, routine generation and workbook ingestion bind schedules to **`teacher_code`** (acronym). This ensures classes are accurately scheduled even before an instructor creates their application account.
 
 ---
 
-## 3b. Placement plan (draw it like this so it isn't messy)
+## 4. Ready-to-Render Diagram Specifications
 
-```
-          whitelists ----dashed("by email")----  (R10)
-              \                                    \
-   routines    \                                    timetable_runs
-      │  \(R8)  \                                   /(R6)
-      │   cancellations                            /
-      │(R1)        ╲(R2)                          /
-      └────────────► P R O F I L E S ◄───────────┘
-              (R4)/   (R3)│   \(R5)   \(R7)
-                /         │    \        \
-          resources   notifications  device_tokens   notification_reads
-                            │(R9)                      ▲
-                            └──────────────────────────┘
-
-   ┌─ corner box (no lines): timetable_rooms · timetable_faculty · timetable_settings ─┐
-```
-
-- **profiles in the dead centre** — 7 lines fan out from it (R1–R7).
-- Put **cancellations between profiles and routines** (it links to both — R2 & R8).
-- Put **notification_reads between profiles and notifications** (R7 & R9).
-- Each entity's **attribute ellipses** point *outward, away from the centre*, so they never cross
-  the relationship lines. Primary-key attributes are **underlined**.
-- The 3 config tables sit alone in a corner.
-
----
-
-## 4. Ready-to-render code
-
-### Option A — Mermaid (paste into https://mermaid.live)
+### Option A: Mermaid ER Diagram (Native Markdown & GitHub Compatible)
 
 ```mermaid
 erDiagram
-    PROFILES ||--o{ ROUTINES : "teaches"
+    PROFILES ||--o{ ROUTINE_VERSIONS : "publishes"
+    ROUTINE_VERSIONS ||--o{ ROUTINES : "contains"
+    ROUTINES ||--o{ CANCELLATIONS : "is cancelled in"
     PROFILES ||--o{ CANCELLATIONS : "cancels"
     PROFILES ||--o{ NOTIFICATIONS : "sends"
+    NOTIFICATIONS ||--o{ NOTIFICATION_READS : "tracks"
+    PROFILES ||--o{ NOTIFICATION_READS : "reads"
     PROFILES ||--o{ RESOURCES : "uploads"
     PROFILES ||--o{ DEVICE_TOKENS : "registers"
-    PROFILES ||--o{ TIMETABLE_RUNS : "generates"
-    PROFILES ||--o{ NOTIFICATION_READS : "reads"
-    ROUTINES ||--o{ CANCELLATIONS : "is cancelled in"
-    NOTIFICATIONS ||--o{ NOTIFICATION_READS : "tracked by"
+    PROFILES ||--o{ TIMETABLE_RUNS : "executes"
     WHITELISTS ||..o| PROFILES : "authorises (by email)"
+    TIMETABLE_FACULTY ||..o{ TIMETABLE_COURSE_ELIGIBILITY : "qualifies (by acronym)"
 
     PROFILES {
         uuid id PK
         text email
         text role
         text name
+        text avatar_url
         text batch
         text section
-        int  semester
+        int semester
         text student_id
         text teacher_code
         text designation
         text department
+        timestamptz created_at
     }
+
     WHITELISTS {
         text email PK
         text role
         text name
         text teacher_code
+        text department
+        text designation
         text batch
         text section
+        int semester
     }
+
+    ROUTINE_VERSIONS {
+        uuid id PK
+        text semester_label
+        text source
+        bool is_active
+        int row_count
+        jsonb stats
+        jsonb validation
+        text notes
+        timestamptz published_at
+        uuid published_by FK
+        timestamptz created_at
+    }
+
     ROUTINES {
         uuid id PK
+        uuid routine_version_id FK
         text day
         time time_start
         time time_end
@@ -255,11 +279,14 @@ erDiagram
         text room
         text batch
         text section
-        int  semester
+        int semester
+        text teacher_name
         text teacher_code
         uuid teacher_id FK
         bool is_active
+        bool is_service
     }
+
     CANCELLATIONS {
         uuid id PK
         uuid routine_id FK
@@ -267,7 +294,9 @@ erDiagram
         date class_date
         text reason
         text subject
+        timestamptz created_at
     }
+
     NOTIFICATIONS {
         uuid id PK
         text title
@@ -277,35 +306,44 @@ erDiagram
         text target_role
         text target_batch
         text target_section
+        timestamptz created_at
     }
+
     NOTIFICATION_READS {
         uuid user_id PK,FK
         uuid notification_id PK,FK
         timestamptz read_at
     }
+
     RESOURCES {
         uuid id PK
         text title
         text category
-        int  semester
+        int semester
         text subject_code
         text drive_link
         text file_url
         uuid uploaded_by FK
+        timestamptz created_at
     }
+
     DEVICE_TOKENS {
         text token PK
         uuid user_id FK
         text platform
+        timestamptz updated_at
     }
+
     TIMETABLE_ROOMS {
         uuid id PK
         text name
         text building
         bool is_lab
         bool is_gallery
+        int capacity
         bool is_active
     }
+
     TIMETABLE_FACULTY {
         uuid id PK
         text acronym
@@ -315,13 +353,24 @@ erDiagram
         text_array off_days
         bool is_active
     }
+
     TIMETABLE_SETTINGS {
-        int  id PK
+        int id PK
         text semester_label
         jsonb periods
         jsonb weights
+        text_array working_days
+        int weeks_in_term
+        jsonb blocked_periods
+        jsonb online_periods
+        bool allow_online_periods
+        jsonb excluded_periods
+        jsonb semester_map
+        int fixed_sessions_per_week
         bool friday_no_p4
+        text service_scope
     }
+
     TIMETABLE_RUNS {
         uuid id PK
         text semester_label
@@ -329,17 +378,30 @@ erDiagram
         jsonb stats
         jsonb validation
         text status
-        int  row_count
+        int row_count
         uuid created_by FK
+        timestamptz created_at
+    }
+
+    TIMETABLE_COURSE_ELIGIBILITY {
+        uuid id PK
+        text acronym
+        text course_code
+        bool is_eligible
+        int priority
+        timestamptz created_at
+        timestamptz updated_at
     }
 ```
 
-### Option B — DBML (paste into https://dbdiagram.io, exports a cleaner PDF)
+---
+
+### Option B: DBML (Paste into https://dbdiagram.io)
 
 ```dbml
 Table profiles {
-  id uuid [pk, note: 'equals auth.users.id']
-  email text
+  id uuid [pk, note: 'matches auth.users.id']
+  email text [unique]
   role text
   name text
   avatar_url text
@@ -358,13 +420,30 @@ Table whitelists {
   role text
   name text
   teacher_code text
+  department text
+  designation text
   batch text
   section text
   semester int
 }
 
+Table routine_versions {
+  id uuid [pk]
+  semester_label text
+  source text [note: 'engine, upload, manual']
+  is_active boolean [note: 'partial unique index enforces <= 1 active']
+  row_count int
+  stats jsonb
+  validation jsonb
+  notes text
+  published_at timestamptz
+  published_by uuid [ref: > profiles.id]
+  created_at timestamptz
+}
+
 Table routines {
   id uuid [pk]
+  routine_version_id uuid [ref: > routine_versions.id]
   day text
   time_start time
   time_end time
@@ -377,7 +456,8 @@ Table routines {
   teacher_name text
   teacher_code text
   teacher_id uuid [ref: > profiles.id]
-  is_active bool
+  is_active boolean
+  is_service boolean
 }
 
 Table cancellations {
@@ -386,11 +466,7 @@ Table cancellations {
   cancelled_by uuid [ref: > profiles.id]
   class_date date
   reason text
-  batch text
-  section text
   subject text
-  day text
-  time_start text
   created_at timestamptz
 }
 
@@ -438,10 +514,10 @@ Table timetable_rooms {
   id uuid [pk]
   name text [unique]
   building text
-  is_lab bool
-  is_gallery bool
+  is_lab boolean
+  is_gallery boolean
   capacity int
-  is_active bool
+  is_active boolean
 }
 
 Table timetable_faculty {
@@ -451,15 +527,23 @@ Table timetable_faculty {
   dept text
   designation text
   off_days "text[]"
-  is_active bool
+  is_active boolean
 }
 
 Table timetable_settings {
-  id int [pk, note: 'always 1 (single row)']
+  id int [pk, note: 'singleton row id=1']
   semester_label text
   periods jsonb
   weights jsonb
-  friday_no_p4 bool
+  working_days "text[]"
+  weeks_in_term int
+  blocked_periods jsonb
+  online_periods jsonb
+  allow_online_periods boolean
+  excluded_periods jsonb
+  semester_map jsonb
+  fixed_sessions_per_week int
+  friday_no_p4 boolean
   service_scope text
 }
 
@@ -474,18 +558,14 @@ Table timetable_runs {
   created_by uuid [ref: > profiles.id]
   created_at timestamptz
 }
+
+Table timetable_course_eligibility {
+  id uuid [pk]
+  acronym text
+  course_code text
+  is_eligible boolean
+  priority int
+  created_at timestamptz
+  updated_at timestamptz
+}
 ```
-
----
-
-## 5. Don't-skip checklist
-
-- [ ] Exactly **12 entities** drawn (no `documents` / `assignments` / `submissions`).
-- [ ] `profiles` is shown as the central user entity, connected to 7 children.
-- [ ] All **10 relationship lines** from the table in §3 are present.
-- [ ] `notification_reads` is shown with a **composite primary key** (both columns marked PK).
-- [ ] The 3 `timetable_*` config tables are present even though they have no lines.
-- [ ] Crow's-foot / cardinality marks show "1 — many" on each relationship.
-- [ ] Caption added: *"profiles.id = auth.users.id (Supabase Auth)"* and the config-table note.
-- [ ] Foreign-key columns marked **FK** (teacher_id, routine_id, cancelled_by, sent_by,
-      uploaded_by, user_id, notification_id, created_by).

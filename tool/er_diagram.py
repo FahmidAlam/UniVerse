@@ -1,228 +1,419 @@
 # ============================================================
 # tool/er_diagram.py
-# Renders the UniVerse ER diagram (Chen notation) to a PNG.
-#   - entity   = rectangle
-#   - attribute= ellipse (primary keys underlined)
-#   - relation = diamond, with 1 / N cardinality labels
-# Only the 12 tables the app actually uses are drawn
-# (documents / assignments / submissions are future scope -> excluded).
-# Run:  python tool/er_diagram.py
+# Renders a modern, highly legible Crow's Foot / Relational Schema
+# ER Diagram for UniVerse (14 implemented production tables).
+# Replaces messy Chen bubble-fans with crisp, clear Entity Tables.
+# Run: python tool/er_diagram.py
 # ============================================================
-import math
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle, Ellipse, Polygon, FancyBboxPatch
+from matplotlib.patches import FancyBboxPatch, Rectangle, PathPatch
+import matplotlib.path as mpath
 
-# ---- colors / style ----
-ENT_FC   = "#ffffff"; ENT_EC = "#1a1a1a"
-ATT_FC   = "#ffffff"; ATT_EC = "#333333"
-REL_FC   = "#ffffff"; REL_EC = "#1a1a1a"
-LINE_C   = "#555555"
-TXT_C    = "#111111"
-
-fig, ax = plt.subplots(figsize=(34, 20.5), dpi=130)
-ax.set_xlim(-3, 185)
-ax.set_ylim(-22, 116)
+fig, ax = plt.subplots(figsize=(38, 26), dpi=140)
+ax.set_xlim(0, 380)
+ax.set_ylim(0, 260)
 ax.set_aspect("equal")
 ax.axis("off")
 
-# ---------------------------------------------------------------
-def entity(name, x, y):
-    w = max(14, 0.85 * len(name) + 7)
-    h = 6.2
-    ax.add_patch(Rectangle((x - w / 2, y - h / 2), w, h,
-                           facecolor=ENT_FC, edgecolor=ENT_EC,
-                           linewidth=2.0, zorder=4))
-    ax.text(x, y, name, ha="center", va="center", fontsize=11.5,
-            fontweight="bold", color=TXT_C, zorder=6)
-    return (x, y)
+# ── Color Palette ─────────────────────────────────────────────
+BG_HEADER_USER    = "#1e3a8a"  # Dark Blue
+BG_HEADER_ROUTINE = "#065f46"  # Dark Green
+BG_HEADER_NOTIF   = "#7c2d12"  # Deep Amber/Rust
+BG_HEADER_CONFIG  = "#374151"  # Slate Gray
+BG_ROW_EVEN       = "#f8fafc"
+BG_ROW_ODD        = "#ffffff"
+BORDER_COLOR      = "#1e293b"
+LINE_COLOR        = "#334155"
+PK_COLOR          = "#b91c1c"  # Crimson
+FK_COLOR          = "#0369a1"  # Cerulean
 
-def attr(text, x, y, ex, ey, pk=False):
-    w = max(8.0, 0.62 * len(text) + 3.2)
-    h = 3.7
-    # connector first (under the shapes)
-    ax.plot([x, ex], [y, ey], color=LINE_C, linewidth=0.9, zorder=1)
-    ax.add_patch(Ellipse((x, y), w, h, facecolor=ATT_FC, edgecolor=ATT_EC,
-                         linewidth=1.0, zorder=3))
-    if pk:
-        label = r"$\underline{\mathdefault{%s}}$" % text.replace("_", r"\_")
+# ── Title Block ───────────────────────────────────────────────
+ax.text(190, 252, "UniVerse — Relational Entity-Relationship Diagram (ERD)",
+        ha="center", va="center", fontsize=24, fontweight="bold", color="#0f172a")
+ax.text(190, 246, "14 Implemented Production Tables · Reconciled with PostgreSQL Migrations 001–016",
+        ha="center", va="center", fontsize=13, color="#475569")
+
+# ── Entity Box Helper ─────────────────────────────────────────
+def draw_table(ax, x, y, w, title, columns, header_bg=BG_HEADER_USER):
+    """
+    Draws an Entity Table Box with a header and column rows.
+    (x, y) is top-left corner.
+    columns is list of tuples: (col_name, data_type, key_type)
+    key_type: 'PK', 'FK', 'PK,FK', or ''
+    Returns (x, y, w, total_h) and anchor points dict.
+    """
+    row_h = 3.6
+    header_h = 5.2
+    total_h = header_h + len(columns) * row_h
+    
+    # Outer box border
+    outer = FancyBboxPatch((x, y - total_h), w, total_h,
+                           boxstyle="round,pad=0.0,rounding_size=1.2",
+                           facecolor="#ffffff", edgecolor=BORDER_COLOR,
+                           linewidth=1.8, zorder=3)
+    ax.add_patch(outer)
+    
+    # Header box
+    hdr = FancyBboxPatch((x, y - header_h), w, header_h,
+                          boxstyle="round,pad=0.0,rounding_size=1.2",
+                          facecolor=header_bg, edgecolor=BORDER_COLOR,
+                          linewidth=1.8, zorder=4)
+    ax.add_patch(hdr)
+    # Square bottom of header
+    ax.add_patch(Rectangle((x, y - header_h), w, 2.0, facecolor=header_bg,
+                           edgecolor="none", zorder=5))
+    ax.plot([x, x + w], [y - header_h, y - header_h], color=BORDER_COLOR,
+            linewidth=1.5, zorder=6)
+    
+    # Header text
+    ax.text(x + w / 2, y - header_h / 2, title, ha="center", va="center",
+            fontsize=12, fontweight="bold", color="#ffffff", zorder=7)
+    
+    # Rows
+    curr_y = y - header_h
+    for i, (col, dtype, ktype) in enumerate(columns):
+        bg = BG_ROW_EVEN if i % 2 == 0 else BG_ROW_ODD
+        ax.add_patch(Rectangle((x + 0.2, curr_y - row_h), w - 0.4, row_h,
+                               facecolor=bg, edgecolor="none", zorder=4))
+        
+        # Key badge
+        if ktype:
+            kc = PK_COLOR if "PK" in ktype else FK_COLOR
+            ax.text(x + 1.8, curr_y - row_h / 2, ktype, ha="left", va="center",
+                    fontsize=8.5, fontweight="bold", color=kc, zorder=7)
+        
+        # Column name
+        fw = "bold" if ktype else "normal"
+        ax.text(x + (8.5 if any(c[2] for c in columns) else 2.5), curr_y - row_h / 2,
+                col, ha="left", va="center", fontsize=9.2, fontweight=fw,
+                color="#0f172a", zorder=7)
+        
+        # Data type
+        ax.text(x + w - 1.8, curr_y - row_h / 2, dtype, ha="right", va="center",
+                fontsize=8.5, style="italic", color="#64748b", zorder=7)
+        
+        curr_y -= row_h
+        if i < len(columns) - 1:
+            ax.plot([x, x + w], [curr_y, curr_y], color="#e2e8f0",
+                    linewidth=0.8, zorder=5)
+
+    anchors = {
+        "top": (x + w / 2, y),
+        "bottom": (x + w / 2, y - total_h),
+        "left": (x, y - total_h / 2),
+        "right": (x + w, y - total_h / 2),
+        "tl": (x, y),
+        "tr": (x + w, y),
+        "bl": (x, y - total_h),
+        "br": (x + w, y - total_h),
+        "bounds": (x, y, w, total_h)
+    }
+    return anchors
+
+# ── Draw Connection Line ──────────────────────────────────────
+def link(ax, p1, p2, label="", c1="1", c2="N", route="direct", rad=0.0):
+    """Draws relationship path between two anchor points with cardinalities."""
+    x1, y1 = p1
+    x2, y2 = p2
+    
+    if route == "hv":
+        path_data = [
+            (mpath.Path.MOVETO, (x1, y1)),
+            (mpath.Path.LINETO, (x2, y1)),
+            (mpath.Path.LINETO, (x2, y2))
+        ]
+        mid = (x2, (y1 + y2) / 2)
+    elif route == "vh":
+        path_data = [
+            (mpath.Path.MOVETO, (x1, y1)),
+            (mpath.Path.LINETO, (x1, y2)),
+            (mpath.Path.LINETO, (x2, y2))
+        ]
+        mid = ((x1 + x2) / 2, y2)
+    elif route == "hvh":
+        mx = (x1 + x2) / 2
+        path_data = [
+            (mpath.Path.MOVETO, (x1, y1)),
+            (mpath.Path.LINETO, (mx, y1)),
+            (mpath.Path.LINETO, (mx, y2)),
+            (mpath.Path.LINETO, (x2, y2))
+        ]
+        mid = (mx, (y1 + y2) / 2)
     else:
-        label = text
-    ax.text(x, y, label, ha="center", va="center", fontsize=8.2,
-            color=TXT_C, zorder=6)
+        path_data = [
+            (mpath.Path.MOVETO, (x1, y1)),
+            (mpath.Path.LINETO, (x2, y2))
+        ]
+        mid = ((x1 + x2) / 2, (y1 + y2) / 2)
+        
+    codes, verts = zip(*path_data)
+    path = mpath.Path(verts, codes)
+    patch = PathPatch(path, facecolor="none", edgecolor=LINE_COLOR,
+                      linewidth=1.6, zorder=2)
+    ax.add_patch(patch)
+    
+    # Cardinality badges
+    ax.text(x1 + (2.5 if x2 >= x1 else -2.5), y1 + (1.8 if y2 >= y1 else -1.8),
+            c1, fontsize=11, fontweight="bold", color="#b91c1c",
+            ha="center", va="center", zorder=8,
+            bbox=dict(boxstyle="circle,pad=0.2", fc="#ffffff", ec="#b91c1c", lw=0.9))
+    ax.text(x2 + (2.5 if x1 >= x2 else -2.5), y2 + (1.8 if y1 >= y2 else -1.8),
+            c2, fontsize=11, fontweight="bold", color="#0369a1",
+            ha="center", va="center", zorder=8,
+            bbox=dict(boxstyle="circle,pad=0.2", fc="#ffffff", ec="#0369a1", lw=0.9))
+    
+    if label:
+        ax.text(mid[0], mid[1] + 1.2, label, fontsize=8.5, style="italic",
+                fontweight="bold", color="#1e293b", ha="center", va="center",
+                zorder=9, bbox=dict(boxstyle="round,pad=0.2", fc="#ffffff", ec="#cbd5e1", lw=0.8))
 
-def fan(ex, ey, attrs, base_deg, span_deg, radius, stagger=6.0):
-    """Place attribute ellipses on an arc 'outward' from an entity."""
-    n = len(attrs)
-    if n == 1:
-        angles = [base_deg]
-    else:
-        angles = [base_deg - span_deg / 2 + span_deg * i / (n - 1) for i in range(n)]
-    for i, ((text, pk), ang) in enumerate(zip(attrs, angles)):
-        r = radius + (stagger if i % 2 else 0.0)
-        rad = math.radians(ang)
-        ax_ = ex + r * math.cos(rad)
-        ay_ = ey + r * math.sin(rad)
-        attr(text, ax_, ay_, ex, ey, pk=pk)
+# ══════════════════════════════════════════════════════════════
+# ZONE 1: CORE USERS & IDENTITY (TOP LEFT)
+# ══════════════════════════════════════════════════════════════
+t_profiles = draw_table(ax, 16, 235, 46, "profiles", [
+    ("id", "uuid", "PK"),
+    ("email", "text", ""),
+    ("role", "text", ""),
+    ("name", "text", ""),
+    ("avatar_url", "text", ""),
+    ("batch", "text", ""),
+    ("section", "text", ""),
+    ("semester", "int", ""),
+    ("student_id", "text", ""),
+    ("teacher_code", "text", ""),
+    ("designation", "text", ""),
+    ("department", "text", ""),
+    ("created_at", "timestamptz", ""),
+], header_bg=BG_HEADER_USER)
 
-def relationship(name, p1, p2, dx, dy, c1, c2):
-    """Diamond at (dx,dy) linking entity p1 (card c1) and p2 (card c2)."""
-    hw = max(8.5, 0.52 * len(name) + 3.0)
-    hh = 5.2
-    # connector lines entity-center -> diamond-center (under shapes)
-    ax.plot([p1[0], dx], [p1[1], dy], color=LINE_C, linewidth=1.1, zorder=2)
-    ax.plot([p2[0], dx], [p2[1], dy], color=LINE_C, linewidth=1.1, zorder=2)
-    pts = [(dx, dy + hh), (dx + hw, dy), (dx, dy - hh), (dx - hw, dy)]
-    ax.add_patch(Polygon(pts, closed=True, facecolor=REL_FC, edgecolor=REL_EC,
-                         linewidth=1.6, zorder=3))
-    ax.text(dx, dy, name, ha="center", va="center", fontsize=8.4,
-            style="italic", color=TXT_C, zorder=6)
-    # cardinality labels near each entity end
-    def card(p, txt):
-        t = 0.30
-        cx = dx + t * (p[0] - dx)
-        cy = dy + t * (p[1] - dy)
-        ax.text(cx, cy, txt, ha="center", va="center", fontsize=11,
-                fontweight="bold", color="#b00000", zorder=7)
-    card(p1, c1)
-    card(p2, c2)
+t_whitelists = draw_table(ax, 16, 172, 46, "whitelists", [
+    ("email", "text", "PK"),
+    ("role", "text", ""),
+    ("name", "text", ""),
+    ("teacher_code", "text", ""),
+    ("department", "text", ""),
+    ("designation", "text", ""),
+    ("batch", "text", ""),
+    ("section", "text", ""),
+    ("semester", "int", ""),
+], header_bg=BG_HEADER_USER)
 
-# ===============================================================
-# ENTITIES
-# ===============================================================
-profiles      = entity("profiles",            86, 58)
-routines      = entity("routines",            22, 66)
-whitelists    = entity("whitelists",          24, 92)
-cancellations = entity("cancellations",       26, 30)
-resources     = entity("resources",           54, 14)
-device_tokens = entity("device_tokens",       84, 12)
-timetable_runs= entity("timetable_runs",     116, 42)
-notifications = entity("notifications",       140, 12)
-notif_reads   = entity("notification_reads", 164, 60)
-tt_settings   = entity("timetable_settings", 118, 98)
-tt_faculty    = entity("timetable_faculty",  146, 100)
-tt_rooms      = entity("timetable_rooms",    172, 98)
+t_device_tokens = draw_table(ax, 16, 124, 46, "device_tokens", [
+    ("token", "text", "PK"),
+    ("user_id", "uuid", "FK"),
+    ("platform", "text", ""),
+    ("updated_at", "timestamptz", ""),
+], header_bg=BG_HEADER_USER)
 
-# ===============================================================
-# ATTRIBUTES  (text, is_primary_key)
-# ===============================================================
-fan(*profiles, [
-    ("id", True), ("email", False), ("role", False), ("name", False),
-    ("batch", False), ("section", False), ("semester", False),
-    ("student_id", False), ("teacher_code", False), ("designation", False),
-    ("department", False),
-], base_deg=90, span_deg=130, radius=28, stagger=8)
+# ══════════════════════════════════════════════════════════════
+# ZONE 2: ROUTINE VERSIONING & CLASSES (TOP CENTER & RIGHT)
+# ══════════════════════════════════════════════════════════════
+t_versions = draw_table(ax, 100, 235, 52, "routine_versions", [
+    ("id", "uuid", "PK"),
+    ("semester_label", "text", ""),
+    ("source", "text", ""),
+    ("is_active", "boolean", ""),
+    ("row_count", "int", ""),
+    ("stats", "jsonb", ""),
+    ("validation", "jsonb", ""),
+    ("published_by", "uuid", "FK"),
+    ("published_at", "timestamptz", ""),
+    ("created_at", "timestamptz", ""),
+], header_bg=BG_HEADER_ROUTINE)
 
-fan(*routines, [
-    ("id", True), ("day", False), ("time_start", False), ("time_end", False),
-    ("subject", False), ("subject_code", False), ("room", False),
-    ("batch", False), ("section", False), ("semester", False),
-    ("teacher_code", False), ("teacher_id", False),
-], base_deg=176, span_deg=170, radius=24, stagger=7)
+t_routines = draw_table(ax, 184, 235, 54, "routines", [
+    ("id", "uuid", "PK"),
+    ("routine_version_id", "uuid", "FK"),
+    ("day", "text", ""),
+    ("time_start", "time", ""),
+    ("time_end", "time", ""),
+    ("subject", "text", ""),
+    ("subject_code", "text", ""),
+    ("room", "text", ""),
+    ("batch", "text", ""),
+    ("section", "text", ""),
+    ("semester", "int", ""),
+    ("teacher_name", "text", ""),
+    ("teacher_code", "text", ""),
+    ("teacher_id", "uuid", "FK"),
+    ("is_active", "boolean", ""),
+    ("is_service", "boolean", ""),
+], header_bg=BG_HEADER_ROUTINE)
 
-fan(*whitelists, [
-    ("email", True), ("role", False), ("name", False), ("teacher_code", False),
-    ("batch", False), ("section", False), ("semester", False),
-], base_deg=128, span_deg=128, radius=20, stagger=6)
+t_cancellations = draw_table(ax, 270, 235, 50, "cancellations", [
+    ("id", "uuid", "PK"),
+    ("routine_id", "uuid", "FK"),
+    ("cancelled_by", "uuid", "FK"),
+    ("class_date", "date", ""),
+    ("reason", "text", ""),
+    ("batch", "text", ""),
+    ("section", "text", ""),
+    ("subject", "text", ""),
+    ("created_at", "timestamptz", ""),
+], header_bg=BG_HEADER_ROUTINE)
 
-fan(*cancellations, [
-    ("id", True), ("routine_id", False), ("cancelled_by", False),
-    ("class_date", False), ("reason", False), ("subject", False),
-], base_deg=212, span_deg=128, radius=20, stagger=7)
+# ══════════════════════════════════════════════════════════════
+# ZONE 3: COMMUNICATIONS & ACADEMIC CONTENT (MIDDLE LEFT)
+# ══════════════════════════════════════════════════════════════
+t_notifications = draw_table(ax, 100, 180, 52, "notifications", [
+    ("id", "uuid", "PK"),
+    ("title", "text", ""),
+    ("body", "text", ""),
+    ("type", "text", ""),
+    ("sent_by", "uuid", "FK"),
+    ("target_role", "text", ""),
+    ("target_batch", "text", ""),
+    ("target_section", "text", ""),
+    ("created_at", "timestamptz", ""),
+], header_bg=BG_HEADER_NOTIF)
 
-fan(*resources, [
-    ("id", True), ("title", False), ("category", False), ("semester", False),
-    ("subject_code", False), ("drive_link", False), ("file_url", False),
-    ("uploaded_by", False), ("created_at", False),
-], base_deg=232, span_deg=132, radius=20, stagger=7)
+t_reads = draw_table(ax, 184, 154, 54, "notification_reads", [
+    ("user_id", "uuid", "PK,FK"),
+    ("notification_id", "uuid", "PK,FK"),
+    ("read_at", "timestamptz", ""),
+], header_bg=BG_HEADER_NOTIF)
 
-fan(*device_tokens, [
-    ("token", True), ("user_id", False), ("platform", False), ("updated_at", False),
-], base_deg=294, span_deg=120, radius=18, stagger=6)
+t_resources = draw_table(ax, 100, 130, 52, "resources", [
+    ("id", "uuid", "PK"),
+    ("title", "text", ""),
+    ("category", "text", ""),
+    ("semester", "int", ""),
+    ("subject_code", "text", ""),
+    ("drive_link", "text", ""),
+    ("file_url", "text", ""),
+    ("uploaded_by", "uuid", "FK"),
+    ("created_at", "timestamptz", ""),
+], header_bg=BG_HEADER_NOTIF)
 
-fan(*timetable_runs, [
-    ("id", True), ("semester_label", False), ("file_path", False),
-    ("stats", False), ("validation", False), ("status", False),
-    ("row_count", False), ("created_by", False),
-], base_deg=255, span_deg=110, radius=20, stagger=8)
+# ══════════════════════════════════════════════════════════════
+# ZONE 4: SOLVER ENGINE & CONFIGURATION (BOTTOM)
+# ══════════════════════════════════════════════════════════════
+t_rooms = draw_table(ax, 16, 75, 46, "timetable_rooms", [
+    ("id", "uuid", "PK"),
+    ("name", "text", ""),
+    ("building", "text", ""),
+    ("is_lab", "boolean", ""),
+    ("is_gallery", "boolean", ""),
+    ("capacity", "int", ""),
+    ("is_active", "boolean", ""),
+], header_bg=BG_HEADER_CONFIG)
 
-fan(*notifications, [
-    ("id", True), ("title", False), ("body", False), ("type", False),
-    ("sent_by", False), ("target_role", False), ("target_batch", False),
-    ("target_section", False), ("created_at", False),
-], base_deg=-42, span_deg=150, radius=21, stagger=8)
+t_faculty = draw_table(ax, 72, 75, 52, "timetable_faculty", [
+    ("id", "uuid", "PK"),
+    ("acronym", "text", ""),
+    ("full_name", "text", ""),
+    ("dept", "text", ""),
+    ("designation", "text", ""),
+    ("off_days", "text[]", ""),
+    ("is_active", "boolean", ""),
+], header_bg=BG_HEADER_CONFIG)
 
-fan(*notif_reads, [
-    ("user_id", True), ("notification_id", True), ("read_at", False),
-], base_deg=0, span_deg=110, radius=18, stagger=6)
+t_eligibility = draw_table(ax, 134, 75, 54, "timetable_course_eligibility", [
+    ("id", "uuid", "PK"),
+    ("acronym", "text", ""),
+    ("course_code", "text", ""),
+    ("is_eligible", "boolean", ""),
+    ("priority", "int", ""),
+    ("created_at", "timestamptz", ""),
+], header_bg=BG_HEADER_CONFIG)
 
-fan(*tt_settings, [
-    ("id", True), ("semester_label", False), ("periods", False),
-    ("weights", False), ("friday_no_p4", False), ("service_scope", False),
-], base_deg=90, span_deg=150, radius=15, stagger=6)
+t_settings = draw_table(ax, 198, 75, 62, "timetable_settings", [
+    ("id", "int", "PK"),
+    ("semester_label", "text", ""),
+    ("working_days", "text[]", ""),
+    ("weeks_in_term", "int", ""),
+    ("blocked_periods", "jsonb", ""),
+    ("online_periods", "jsonb", ""),
+    ("allow_online_periods", "boolean", ""),
+    ("excluded_periods", "jsonb", ""),
+    ("semester_map", "jsonb", ""),
+    ("fixed_sessions_per_week", "int", ""),
+    ("periods", "jsonb", ""),
+    ("weights", "jsonb", ""),
+    ("friday_no_p4", "boolean", ""),
+    ("service_scope", "text", ""),
+], header_bg=BG_HEADER_CONFIG)
 
-fan(*tt_faculty, [
-    ("id", True), ("acronym", False), ("full_name", False), ("dept", False),
-    ("designation", False), ("off_days", False), ("is_active", False),
-], base_deg=90, span_deg=150, radius=15, stagger=6)
+t_runs = draw_table(ax, 270, 75, 50, "timetable_runs", [
+    ("id", "uuid", "PK"),
+    ("semester_label", "text", ""),
+    ("file_path", "text", ""),
+    ("stats", "jsonb", ""),
+    ("validation", "jsonb", ""),
+    ("status", "text", ""),
+    ("row_count", "int", ""),
+    ("created_by", "uuid", "FK"),
+    ("created_at", "timestamptz", ""),
+], header_bg=BG_HEADER_CONFIG)
 
-fan(*tt_rooms, [
-    ("id", True), ("name", False), ("building", False), ("is_lab", False),
-    ("is_gallery", False), ("capacity", False), ("is_active", False),
-], base_deg=90, span_deg=150, radius=15, stagger=6)
+# ══════════════════════════════════════════════════════════════
+# RELATIONSHIPS
+# ══════════════════════════════════════════════════════════════
+# R1: routine_versions -> routines (contains)
+link(ax, (t_versions["right"][0], t_versions["right"][1] + 4),
+     (t_routines["left"][0], t_routines["left"][1] + 4),
+     label="contains [ON DELETE CASCADE]", c1="1", c2="N")
 
-# ===============================================================
-# RELATIONSHIPS  (diamonds + cardinalities)
-# ===============================================================
-relationship("teaches",        profiles, routines,       44, 63, "1", "N")
-relationship("cancels",        profiles, cancellations,  50, 41, "1", "N")
-relationship("cancelled_in",   routines, cancellations,  24, 48, "1", "N")
-relationship("authorises",     whitelists, profiles,     40, 84, "1", "1")
-relationship("uploads",        profiles, resources,      70, 36, "1", "N")
-relationship("registers",      profiles, device_tokens,  86, 34, "1", "N")
-relationship("generates",      profiles, timetable_runs,101, 50, "1", "N")
-relationship("sends",          profiles, notifications, 112, 35, "1", "N")
-relationship("reads",          profiles, notif_reads,   126, 59, "1", "N")
-relationship("acknowledged_by",notifications, notif_reads,155, 44, "1", "N")
+# R2: profiles -> routine_versions (publishes)
+link(ax, (t_profiles["right"][0], t_profiles["right"][1] + 12),
+     (t_versions["left"][0], t_versions["left"][1] + 12),
+     label="publishes", c1="1", c2="N")
 
-# ===============================================================
-# config-cluster note (the 3 standalone tables) + title + legend
-# ===============================================================
-ax.add_patch(FancyBboxPatch((101, 86), 88, 26,
-             boxstyle="round,pad=0.6,rounding_size=2",
-             facecolor="none", edgecolor="#9aa0a6", linewidth=1.2,
-             linestyle=(0, (6, 4)), zorder=0))
-ax.text(101.5, 84.0,
-        "Timetable-generator configuration — read by the engine at "
-        "generation time; no foreign-key links (standalone).",
-        ha="left", va="top", fontsize=9.5, style="italic", color="#5f6368")
+# R3: routines -> cancellations (is cancelled in)
+link(ax, (t_routines["right"][0], t_routines["right"][1] + 6),
+     (t_cancellations["left"][0], t_cancellations["left"][1] + 6),
+     label="is cancelled in [SET NULL]", c1="1", c2="N")
 
-ax.text(2, 113.5, "UniVerse — Entity-Relationship Diagram",
-        ha="left", va="top", fontsize=20, fontweight="bold", color="#0f0f10")
-ax.text(2, 109.0,
-        "Chen notation · 12 implemented tables "
-        "(documents / assignments / submissions are future scope and excluded)",
-        ha="left", va="top", fontsize=11, color="#444")
+# R4: profiles -> notifications (sends)
+link(ax, (t_profiles["right"][0], t_profiles["right"][1] - 8),
+     (t_notifications["left"][0], t_notifications["left"][1] + 6),
+     label="sends", c1="1", c2="N")
 
-# legend (in the empty bottom margin, below all content)
-lx, ly = 6, -15
-ax.add_patch(Rectangle((lx, ly - 1.8), 7, 3.6, facecolor="white",
-             edgecolor=ENT_EC, linewidth=1.8, zorder=8))
-ax.text(lx + 9, ly, "Entity", fontsize=11.5, va="center", zorder=8)
-ax.add_patch(Ellipse((lx + 33, ly), 8, 3.8, facecolor="white",
-             edgecolor=ATT_EC, linewidth=1.0, zorder=8))
-ax.text(lx + 39, ly, "Attribute  (underlined = primary key)",
-        fontsize=11.5, va="center", zorder=8)
-dpx, dpy = lx + 92, ly
-ax.add_patch(Polygon([(dpx, dpy + 3.2), (dpx + 6.5, dpy), (dpx, dpy - 3.2),
-             (dpx - 6.5, dpy)], closed=True, facecolor="white",
-             edgecolor=REL_EC, linewidth=1.6, zorder=8))
-ax.text(dpx + 9, dpy, "Relationship", fontsize=11.5, va="center", zorder=8)
-ax.text(dpx + 35, dpy, "1 / N  =  cardinality", fontsize=11.5, va="center",
-        color="#b00000", fontweight="bold", zorder=8)
+# R5: notifications -> notification_reads (tracks)
+link(ax, (t_notifications["right"][0], t_notifications["right"][1] - 4),
+     (t_reads["left"][0], t_reads["left"][1] - 4),
+     label="tracks", c1="1", c2="N")
 
-plt.subplots_adjust(left=0.01, right=0.99, top=0.99, bottom=0.01)
+# R6: profiles -> resources (uploads)
+link(ax, (t_profiles["right"][0], t_profiles["right"][1] - 22),
+     (t_resources["left"][0], t_resources["left"][1]),
+     label="uploads", c1="1", c2="N")
+
+# R7: profiles -> device_tokens (registers)
+link(ax, (t_profiles["bottom"][0] - 12, t_profiles["bottom"][1]),
+     (t_device_tokens["top"][0] - 12, t_device_tokens["top"][1]),
+     label="registers", c1="1", c2="N")
+
+# R8: whitelists -> profiles (authorises logical)
+link(ax, (t_whitelists["top"][0], t_whitelists["top"][1]),
+     (t_profiles["bottom"][0], t_profiles["bottom"][1]),
+     label="authorises (by email)", c1="1", c2="1")
+
+# R9: faculty -> eligibility (qualifies logical)
+link(ax, t_faculty["right"], t_eligibility["left"],
+     label="qualifies", c1="1", c2="N")
+
+# R10: profiles -> timetable_runs (executes)
+link(ax, (t_profiles["right"][0], t_profiles["right"][1] - 26),
+     (t_runs["left"][0], t_runs["left"][1] + 10),
+     label="executes", c1="1", c2="N", route="hvh")
+
+# R11: routines -> profiles (teaches logical / teacher_code)
+link(ax, (t_profiles["top"][0] + 16, t_profiles["top"][1]),
+     (t_routines["top"][0] - 16, t_routines["top"][1]),
+     label="teaches (teacher_code)", c1="1", c2="N", route="hvh")
+
+# ── Config Box Outline ────────────────────────────────────────
+cfg_box = FancyBboxPatch((10, 5), 360, 80,
+                         boxstyle="round,pad=0.8,rounding_size=2.0",
+                         facecolor="none", edgecolor="#94a3b8",
+                         linewidth=1.4, linestyle=(0, (6, 4)), zorder=1)
+ax.add_patch(cfg_box)
+ax.text(14, 82.5, "Timetable Engine Configuration & Solved Run Records (Read by Python CP-SAT solver at generation)",
+        fontsize=10.5, style="italic", fontweight="bold", color="#64748b")
+
 out = "docs/diagrams/er-diagram.png"
-plt.savefig(out, dpi=130, facecolor="white", bbox_inches="tight", pad_inches=0.2)
+fig.savefig(out, dpi=140, facecolor="#ffffff", bbox_inches="tight", pad_inches=0.3)
 print("wrote", out)

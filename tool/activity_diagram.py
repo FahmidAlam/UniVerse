@@ -1,217 +1,292 @@
 # ============================================================
 # tool/activity_diagram.py  ->  docs/diagrams/activity-diagram.png
-# UniVerse activity diagram — three side-by-side swimlanes:
+# Modern, spacious Activity Diagram for UniVerse
+# Three side-by-side vertical swimlanes:
 #   Student / User  |  Teacher / Faculty  |  Admin
+# Highly legible, unbloated, large text, accurate business logic.
+# Run: python tool/activity_diagram.py
 # ============================================================
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from matplotlib.patches import Circle, FancyBboxPatch, Polygon
 import diagram_helpers as d
 
-# Wide landscape: x 0-360, y 80-232
-fig, ax = d.canvas((0, 360), (80, 232), figsize=(36, 15.5), dpi=140)
+fig, ax = d.canvas((0, 380), (0, 240), figsize=(38, 24), dpi=140)
 
-INK = d.INK
+# ── Title ─────────────────────────────────────────────────────
+ax.text(190, 234, "UniVerse — End-to-End System Activity Diagram",
+        ha="center", va="center", fontsize=22, fontweight="bold", color="#0f172a")
+ax.text(190, 227, "Role-Specific Execution Paths · Whitelist Gating (Migration 016) · Multi-Modal Routine Hub · Real-Time Campus Exploration",
+        ha="center", va="center", fontsize=12, color="#475569")
 
-# ── helpers ──────────────────────────────────────────────────
-def bx(x, y, t, w=19, h=7.5, fs=6.6, dashed=False):
-    d.box(ax, x, y, w, h, t, rounded=True, fs=fs, dashed=dashed)
+# ── Swimlane Divider & Header Helper ──────────────────────────
+def draw_swimlane(x1, x2, title, subtitle, header_bg="#1e3a8a"):
+    w = x2 - x1
+    # Swimlane boundary
+    box = FancyBboxPatch((x1, 10), w, 206, boxstyle="round,pad=0.2,rounding_size=2.0",
+                         facecolor="#ffffff", edgecolor="#cbd5e1", linewidth=1.6, zorder=1)
+    ax.add_patch(box)
+    # Header box
+    hdr = FancyBboxPatch((x1, 198), w, 18, boxstyle="round,pad=0.2,rounding_size=1.8",
+                          facecolor=header_bg, edgecolor="#cbd5e1", linewidth=1.6, zorder=2)
+    ax.add_patch(hdr)
+    ax.text((x1 + x2) / 2, 209, title, ha="center", va="center", fontsize=14,
+            fontweight="bold", color="#ffffff", zorder=3)
+    ax.text((x1 + x2) / 2, 203, subtitle, ha="center", va="center", fontsize=9.5,
+            color="#e2e8f0", zorder=3)
 
-def dm(x, y, t, w=16, h=10, fs=6.2):
-    d.diamond(ax, x, y, t, w=w, h=h, fs=fs)
+draw_swimlane(10, 125, "Student / User Swimlane", "Self-Registration · Routine · Campus Explore · Resources", "#0369a1")
+draw_swimlane(130, 245, "Teacher / Faculty Swimlane", "Whitelist Gated · Class Management (Cancellations) · Alerts", "#047857")
+draw_swimlane(250, 370, "Admin Swimlane", "Routine Hub (Solver/Upload/CRUD) · Academic Config · Governance", "#6d28d9")
 
-def aw(p1, p2, lbl=None, fs=6.2, off=(0, 0), rad=0.0):
-    d.arrow(ax, p1, p2, text=lbl, fs=fs, color=INK, lw=1.1, off=off, rad=rad)
+# ── Shape Drawing Helpers ─────────────────────────────────────
+def act(x, y, text, w=28, h=7.5, fs=8.6, fc="#ffffff", ec="#1e293b", dashed=False):
+    ls = (0, (5, 3)) if dashed else "solid"
+    box = FancyBboxPatch((x - w / 2, y - h / 2), w, h,
+                         boxstyle="round,pad=0.2,rounding_size=1.2",
+                         facecolor=fc, edgecolor=ec, linewidth=1.4, linestyle=ls, zorder=4)
+    ax.add_patch(box)
+    ax.text(x, y, text, ha="center", va="center", fontsize=fs,
+            fontweight="bold", color="#0f172a", zorder=5)
+    return (x, y)
 
-def ln(a, b):
-    d.line(ax, a, b, color=INK, lw=1.1)
+def dec(x, y, text, w=22, h=10, fs=8.0, fc="#f8fafc", ec="#1e293b"):
+    pts = [(x, y + h / 2), (x + w / 2, y), (x, y - h / 2), (x - w / 2, y)]
+    ax.add_patch(Polygon(pts, closed=True, facecolor=fc, edgecolor=ec, linewidth=1.4, zorder=4))
+    ax.text(x, y, text, ha="center", va="center", fontsize=fs,
+            fontweight="bold", color="#0f172a", zorder=5)
+    return (x, y)
 
-# Shared y levels
-BUS_Y       = 190   # fork bus bar
-HEAD_Y      = 186   # branch header box center
-CHAIN_START = 179   # first item in chain (center)
-CHAIN_STEP  = 13    # spacing between chain items
-JOIN_Y      = 117   # join bus bar
-LOGOUT_Y    = 105   # logout diamond center
-END_Y       = 91    # end node center
+def start_node(x, y):
+    ax.add_patch(Circle((x, y), 3.2, facecolor="#0f172a", edgecolor="none", zorder=5))
+    return (x, y)
 
-def chain(cx, items, w=18, h=7.0, fs=6.1):
-    """Draw chain boxes below a branch header. Returns bottom-centre of last box."""
-    y = CHAIN_START
-    for i, it in enumerate(items):
-        bx(cx, y, it, w=w, h=h, fs=fs)
-        prev_y = HEAD_Y if i == 0 else y + CHAIN_STEP
-        # arrow from previous box bottom → this box top
-        aw((cx, prev_y - 3.5), (cx, y + 3.5))
-        y -= CHAIN_STEP
-    return (cx, y + CHAIN_STEP)   # centre of last drawn box
+def end_node(x, y):
+    ax.add_patch(Circle((x, y), 3.8, facecolor="none", edgecolor="#0f172a", linewidth=1.4, zorder=4))
+    ax.add_patch(Circle((x, y), 2.4, facecolor="#0f172a", edgecolor="none", zorder=5))
+    return (x, y)
 
-# ─────────────────────────────────────────────────────────────
-# TITLE
-# ─────────────────────────────────────────────────────────────
-ax.text(180, 229, "UniVerse — Activity Diagram  (Student · Teacher / Faculty · Admin)",
-        ha="center", fontsize=15, fontweight="bold")
+def flow(p1, p2, label="", fs=7.8, rad=0.0, off=(0, 0), color="#1e293b"):
+    d.arrow(ax, p1, p2, text=label, fs=fs, rad=rad, off=off, color=color, lw=1.2)
 
-# Section dividers
-for xv in [121, 242]:
-    ax.plot([xv, xv], [82, 224], color="#BBBBBB", lw=0.8, ls="--")
+# ══════════════════════════════════════════════════════════════
+# SWIMLANE 1: STUDENT
+# ══════════════════════════════════════════════════════════════
+# Entry
+start_node(67.5, 192)
+act(67.5, 181, "Create Account / Login\n(Google / Email)", w=34, h=8)
+flow((67.5, 188.8), (67.5, 185))
 
-# ═══════════════════════════════════════════════════════════════
-# SECTION 1 — STUDENT / USER    (x: 0 – 120, logical centre 60)
-# ═══════════════════════════════════════════════════════════════
-ax.text(5, 224, "Student / User", ha="left", fontsize=11, fontweight="bold")
+dec(67.5, 166, "Verify\nCredentials?", w=24, h=9)
+flow((67.5, 177), (67.5, 170.5))
 
-# --- login block ---
-d.node(ax, 8, 216)
-bx(30, 216, "Create Account\n/ Login", w=22)
-aw((8, 216), (19, 216), "Start")
-aw((41, 216), (52, 216))
-dm(63, 216, "Verify\nCredentials")
-bx(63, 227, "Show Error", w=18, h=7, dashed=True, fs=6.2)
-aw((63, 221), (63, 223.5), "No")
-aw((54, 227), (41, 220), rad=-0.25)           # error → login
-aw((71, 216), (80, 216), "Yes")
-bx(91, 216, "Home /\nDashboard", w=20)
+# Error loopback
+act(25, 166, "Show Error", w=18, h=6.5, fs=7.8, dashed=True)
+flow((55.5, 166), (34, 166), "No", off=(0, 2))
+flow((25, 169.5), (50, 181), rad=0.2)
 
-# dashboard → select option
-ln((91, 212.25), (91, 201))
-aw((91, 201), (71, 201))
-dm(62, 201, "Select\nOption", w=18, h=10)
-aw((62, 196), (62, 191))
+act(67.5, 150, "Student Dashboard", w=28, h=7.5, fc="#e0f2fe", ec="#0369a1")
+flow((67.5, 161.5), (67.5, 153.8), "Yes", off=(3, 0))
 
-# fork bus
-COLS_U = [8, 27, 46, 65, 84, 103]
-HEADS_U = ["Dashboard", "Routine", "Resources", "Notifications",
-           "Manage\nClasses", "Profile"]
-ln((COLS_U[0], BUS_Y), (COLS_U[-1], BUS_Y))
-for cx, h in zip(COLS_U, HEADS_U):
-    aw((cx, BUS_Y), (cx, HEAD_Y + 3.75))
-    bx(cx, HEAD_Y, h, w=18, h=8.5, fs=6.2)
+dec(67.5, 137, "Select\nFeature", w=22, h=8.5)
+flow((67.5, 146.2), (67.5, 141.2))
 
-# branch chains
-lu0 = chain(COLS_U[0], ["Live / Next Class\nCountdown", "Today's Classes", "Recent Alerts"])
-lu1 = chain(COLS_U[1], ["Load Routine", "View Weekly\nGrid", "Cancelled\nClasses"])
-lu2 = chain(COLS_U[2], ["Load Resources", "Browse by\nSemester", "Open File /\nLink"])
-lu3 = chain(COLS_U[3], ["Load Alerts", "Mark / Dismiss\nAlert"])
-lu4 = chain(COLS_U[4], ["Select Class", "Cancel / Post\nNotice / Undo", "Alert Sent to\nStudents"])
-lu5 = chain(COLS_U[5], ["Load Profile", "Edit Profile"])
+# Fork Bar
+FORK_Y_S = 126
+ax.plot([20, 115], [FORK_Y_S, FORK_Y_S], color="#0f172a", linewidth=3.5, zorder=4)
+flow((67.5, 132.8), (67.5, FORK_Y_S))
 
-for lf in [lu0, lu1, lu2, lu3, lu4, lu5]:
-    ln((lf[0], lf[1] - 3.5), (lf[0], JOIN_Y))
-ln((COLS_U[0], JOIN_Y), (COLS_U[-1], JOIN_Y))
-aw((62, JOIN_Y), (62, LOGOUT_Y + 5))
-dm(62, LOGOUT_Y, "Logout?", w=15, h=9, fs=6.2)
-d.node(ax, 62, END_Y, end=True)
-aw((62, LOGOUT_Y - 5), (62, END_Y + 3.5), "Yes")
-ax.text(66, END_Y, "End", va="center", fontsize=8)
-# "No" loop → right rail → back to Select Option
-ln((70, LOGOUT_Y), (119, LOGOUT_Y))
-ln((119, LOGOUT_Y), (119, 201))
-aw((119, 201), (71, 201), "No")
+# Branches
+# B1: Dashboard
+flow((24, FORK_Y_S), (24, 118))
+act(24, 114, "Live / Next Class\nCountdown", w=20, h=7.5)
+act(24, 102, "Today's Schedule\n& Alerts", w=20, h=7.5)
+flow((24, 110.2), (24, 105.8))
 
-# ═══════════════════════════════════════════════════════════════
-# SECTION 2 — TEACHER / FACULTY  (x: 124 – 240, centre 182)
-# ═══════════════════════════════════════════════════════════════
-ax.text(126, 224, "Teacher / Faculty", ha="left", fontsize=11, fontweight="bold")
+# B2: Routine
+flow((46, FORK_Y_S), (46, 118))
+act(46, 114, "Load Routine\n(Batch / Section)", w=20, h=7.5)
+act(46, 102, "View Weekly Grid &\nCancelled Slots", w=20, h=7.5)
+flow((46, 110.2), (46, 105.8))
 
-T_CX = 182   # main vertical spine
+# B3: Campus Explore
+flow((68, FORK_Y_S), (68, 118))
+act(68, 114, "Find Teacher:\nLive Classroom", w=20, h=7.5)
+act(68, 102, "Room Availability:\nVacancy & Grid", w=20, h=7.5)
+flow((68, 110.2), (68, 105.8))
 
-# --- login block ---
-d.node(ax, 127, 216)
-bx(148, 216, "Teacher Login", w=21)
-aw((127, 216), (137.5, 216), "Start")
-aw((158.5, 216), (167, 216))
-dm(178, 216, "Verify\nCredentials")
-bx(178, 227, "Show Error", w=18, h=7, dashed=True, fs=6.2)
-aw((178, 221), (178, 223.5), "No")
-aw((169, 227), (159, 220), rad=-0.25)         # error → login
-aw((186, 216), (196, 216), "Yes")
-bx(208, 216, "Teacher\nDashboard", w=21)
+# B4: Resources
+flow((90, FORK_Y_S), (90, 118))
+act(90, 114, "Browse Resources\nby Semester", w=20, h=7.5)
+act(90, 102, "Download File /\nOpen Drive Link", w=20, h=7.5)
+flow((90, 110.2), (90, 105.8))
 
-# dashboard → select option
-ln((208, 212.25), (208, 201))
-aw((208, 201), (191, 201))
-dm(T_CX, 201, "Select\nOption", w=18, h=10)
-aw((T_CX, 196), (T_CX, 191))
+# B5: Notifications & Profile
+flow((111, FORK_Y_S), (111, 118))
+act(111, 114, "View Notifications\n& Dismiss", w=20, h=7.5)
+act(111, 102, "View & Update\nProfile Details", w=20, h=7.5)
+flow((111, 110.2), (111, 105.8))
 
-# fork bus
-COLS_T = [128, 149, 172, 198, 222]
-HEADS_T = ["Dashboard", "Routine", "Manage\nClasses", "Notifications", "Profile"]
-ln((COLS_T[0], BUS_Y), (COLS_T[-1], BUS_Y))
-for cx, h in zip(COLS_T, HEADS_T):
-    aw((cx, BUS_Y), (cx, HEAD_Y + 3.75))
-    bx(cx, HEAD_Y, h, w=19, h=8.5, fs=6.2)
+# Join Bar
+JOIN_Y_S = 88
+ax.plot([20, 115], [JOIN_Y_S, JOIN_Y_S], color="#0f172a", linewidth=3.5, zorder=4)
+for bx_pos in [24, 46, 68, 90, 111]:
+    flow((bx_pos, 98.2), (bx_pos, JOIN_Y_S))
 
-# branch chains
-lt0 = chain(COLS_T[0], ["Live / Next Class\nCountdown", "Today's Classes", "Recent Alerts"])
-lt1 = chain(COLS_T[1], ["Load Routine", "View Weekly\nGrid", "Cancelled\nClasses"])
-lt2 = chain(COLS_T[2], ["Select Day\n& Class", "Cancel / Post\nNotice / Undo",
-                          "Confirm &\nSend Alert"])
-lt3 = chain(COLS_T[3], ["Load Alerts", "Mark / Dismiss\nAlert"])
-lt4 = chain(COLS_T[4], ["Load Profile", "Edit Profile"])
+dec(67.5, 74, "Sign Out?", w=20, h=8.5)
+flow((67.5, JOIN_Y_S), (67.5, 78.2))
+end_node(67.5, 56)
+flow((67.5, 69.8), (67.5, 60), "Yes", off=(3, 0))
+# No loopback
+flow((77.5, 74), (120, 74))
+ax.plot([120, 120], [74, 137], color="#1e293b", linewidth=1.2)
+flow((120, 137), (78.5, 137), "No", off=(0, 2))
 
-for lf in [lt0, lt1, lt2, lt3, lt4]:
-    ln((lf[0], lf[1] - 3.5), (lf[0], JOIN_Y))
-ln((COLS_T[0], JOIN_Y), (COLS_T[-1], JOIN_Y))
-aw((T_CX, JOIN_Y), (T_CX, LOGOUT_Y + 5))
-dm(T_CX, LOGOUT_Y, "Logout?", w=15, h=9, fs=6.2)
-d.node(ax, T_CX, END_Y, end=True)
-aw((T_CX, LOGOUT_Y - 5), (T_CX, END_Y + 3.5), "Yes")
-ax.text(T_CX + 4, END_Y, "End", va="center", fontsize=8)
-# "No" loop → right rail
-ln((T_CX + 7.5, LOGOUT_Y), (240, LOGOUT_Y))
-ln((240, LOGOUT_Y), (240, 201))
-aw((240, 201), (191, 201), "No")
+# ══════════════════════════════════════════════════════════════
+# SWIMLANE 2: TEACHER / FACULTY
+# ══════════════════════════════════════════════════════════════
+start_node(187.5, 192)
+act(187.5, 181, "Teacher Login\n(Google / Email)", w=32, h=8)
+flow((187.5, 188.8), (187.5, 185))
 
-# ═══════════════════════════════════════════════════════════════
-# SECTION 3 — ADMIN              (x: 245 – 358, centre 303)
-# ═══════════════════════════════════════════════════════════════
-ax.text(248, 224, "Admin", ha="left", fontsize=11, fontweight="bold")
+dec(187.5, 167, "Verify\nCredentials?", w=22, h=8.5)
+flow((187.5, 177), (187.5, 171.2))
 
-A_CX = 302   # main vertical spine
+# Whitelist Decision (Migration 016)
+dec(187.5, 151, "Whitelisted as\nTeacher?", w=24, h=9)
+flow((187.5, 162.8), (187.5, 155.5), "Yes", off=(3, 0))
 
-# --- login block ---
-d.node(ax, 248, 216)
-bx(268, 216, "Admin Login", w=20)
-aw((248, 216), (258, 216), "Start")
-aw((278, 216), (287, 216))
-dm(298, 216, "Verify\nCredentials")
-bx(298, 227, "Show Error", w=18, h=7, dashed=True, fs=6.2)
-aw((298, 221), (298, 223.5), "No")
-aw((289, 227), (279, 220), rad=-0.25)         # error → login
-aw((306, 216), (315, 216), "Yes")
-bx(327, 216, "Admin\nDashboard", w=21)
+# Not Whitelisted Screen
+act(144, 151, "Not Whitelisted\nScreen", w=20, h=7.5, dashed=True)
+flow((175.5, 151), (154, 151), "No", off=(0, 2))
+act(144, 137, "Contact Admin /\nSwitch Account", w=20, h=7)
+flow((144, 147.2), (144, 140.5))
 
-# dashboard → select option
-ln((327, 212.25), (327, 201))
-aw((327, 201), (311, 201))
-dm(A_CX, 201, "Select\nOption", w=18, h=10)
-aw((A_CX, 196), (A_CX, 191))
+act(187.5, 135, "Teacher Dashboard", w=28, h=7.5, fc="#ecfdf5", ec="#047857")
+flow((187.5, 146.5), (187.5, 138.8))
 
-# fork bus
-COLS_A = [252, 272, 298, 322, 345]
-HEADS_A = ["Manage\nRoutine", "Generate\nTimetable", "Broadcast", "Manage\nUsers",
-           "Manage\nResources"]
-ln((COLS_A[0], BUS_Y), (COLS_A[-1], BUS_Y))
-for cx, h in zip(COLS_A, HEADS_A):
-    aw((cx, BUS_Y), (cx, HEAD_Y + 3.75))
-    bx(cx, HEAD_Y, h, w=19, h=8.5, fs=6.2)
+dec(187.5, 122, "Select\nFeature", w=22, h=8.5)
+flow((187.5, 131.2), (187.5, 126.2))
 
-# branch chains
-la0 = chain(COLS_A[0], ["Add / Edit /\nDelete Routine"])
-la1 = chain(COLS_A[1], ["Upload Excel", "Run Engine\n& Review", "Publish\nRoutine"])
-la2 = chain(COLS_A[2], ["Compose &\nSend Broadcast"])
-la3 = chain(COLS_A[3], ["View Users /\nChange Role", "Invite Admin"])
-la4 = chain(COLS_A[4], ["Upload /\nDelete Resource"])
+# Fork Bar
+FORK_Y_T = 111
+ax.plot([138, 237], [FORK_Y_T, FORK_Y_T], color="#0f172a", linewidth=3.5, zorder=4)
+flow((187.5, 117.8), (187.5, FORK_Y_T))
 
-for lf in [la0, la1, la2, la3, la4]:
-    ln((lf[0], lf[1] - 3.5), (lf[0], JOIN_Y))
-ln((COLS_A[0], JOIN_Y), (COLS_A[-1], JOIN_Y))
-aw((A_CX, JOIN_Y), (A_CX, LOGOUT_Y + 5))
-dm(A_CX, LOGOUT_Y, "Logout?", w=15, h=9, fs=6.2)
-d.node(ax, A_CX, END_Y, end=True)
-aw((A_CX, LOGOUT_Y - 5), (A_CX, END_Y + 3.5), "Yes")
-ax.text(A_CX + 4, END_Y, "End", va="center", fontsize=8)
-# "No" loop → right rail
-ln((A_CX + 7.5, LOGOUT_Y), (357, LOGOUT_Y))
-ln((357, LOGOUT_Y), (357, 201))
-aw((357, 201), (311, 201), "No")
+# B1: Dashboard
+flow((148, FORK_Y_T), (148, 103))
+act(148, 99, "Live Teaching\nCountdown", w=20, h=7.5)
+act(148, 87, "Today's Teaching\nRoster", w=20, h=7.5)
+flow((148, 95.2), (148, 90.8))
 
-d.save(fig, "docs/diagrams/activity-diagram.png")
+# B2: Routine
+flow((172, FORK_Y_T), (172, 103))
+act(172, 99, "Load Routine\nby Acronym", w=20, h=7.5)
+act(172, 87, "View Weekly\nSchedule Grid", w=20, h=7.5)
+flow((172, 95.2), (172, 90.8))
+
+# B3: Manage Classes (Signature Feature)
+flow((198, FORK_Y_T), (198, 103))
+act(198, 99, "Select Class Slot\n& Date", w=22, h=7.5)
+act(198, 87, "Cancel Class /\nNotice / Undo", w=22, h=7.5)
+act(198, 75, "Write DB Event →\nAuto Push to FCM", w=22, h=7.5, fc="#fff7ed", ec="#c2410c")
+flow((198, 95.2), (198, 90.8))
+flow((198, 83.2), (198, 78.8))
+
+# B4: Campus Explore & Alerts
+flow((226, FORK_Y_T), (226, 103))
+act(226, 99, "Find Teacher &\nRoom Vacancy", w=20, h=7.5)
+act(226, 87, "Dismiss Alerts &\nUpdate Profile", w=20, h=7.5)
+flow((226, 95.2), (226, 90.8))
+
+# Join Bar
+JOIN_Y_T = 64
+ax.plot([138, 237], [JOIN_Y_T, JOIN_Y_T], color="#0f172a", linewidth=3.5, zorder=4)
+flow((148, 83.2), (148, JOIN_Y_T))
+flow((172, 83.2), (172, JOIN_Y_T))
+flow((198, 71.2), (198, JOIN_Y_T))
+flow((226, 83.2), (226, JOIN_Y_T))
+
+dec(187.5, 52, "Sign Out?", w=20, h=8.5)
+flow((187.5, JOIN_Y_T), (187.5, 56.2))
+end_node(187.5, 36)
+flow((187.5, 47.8), (187.5, 40), "Yes", off=(3, 0))
+# No loopback
+flow((197.5, 52), (240, 52))
+ax.plot([240, 240], [52, 122], color="#1e293b", linewidth=1.2)
+flow((240, 122), (198.5, 122), "No", off=(0, 2))
+
+# ══════════════════════════════════════════════════════════════
+# SWIMLANE 3: ADMIN
+# ══════════════════════════════════════════════════════════════
+start_node(310, 192)
+act(310, 181, "Admin Login\n(Google / Email)", w=32, h=8)
+flow((310, 188.8), (310, 185))
+
+dec(310, 166, "Admin Whitelist\nVerified?", w=26, h=9)
+flow((310, 177), (310, 170.5))
+
+# Deny loop
+act(265, 166, "Access Denied", w=18, h=6.5, dashed=True)
+flow((297, 166), (274, 166), "No", off=(0, 2))
+
+act(310, 150, "Admin Dashboard", w=28, h=7.5, fc="#faf5ff", ec="#6d28d9")
+flow((310, 161.5), (310, 153.8), "Yes", off=(3, 0))
+
+dec(310, 137, "Select\nConsole", w=22, h=8.5)
+flow((310, 146.2), (310, 141.2))
+
+# Fork Bar
+FORK_Y_A = 126
+ax.plot([258, 362], [FORK_Y_A, FORK_Y_A], color="#0f172a", linewidth=3.5, zorder=4)
+flow((310, 132.8), (310, FORK_Y_A))
+
+# B1: Routine Hub (Triple Modal)
+flow((270, FORK_Y_A), (270, 118))
+act(270, 114, "Upload Distribution\n/ Workbook", w=22, h=7.5)
+act(270, 102, "Run CP-SAT Engine\n/ Parse Sheets", w=22, h=7.5)
+act(270, 90, "Atomic Routine\nPublish RPC", w=22, h=7.5, fc="#f0fdf4", ec="#166534")
+flow((270, 110.2), (270, 105.8))
+flow((270, 98.2), (270, 93.8))
+
+# B2: Academic Config
+flow((296, FORK_Y_A), (296, 118))
+act(296, 114, "Manage Rooms &\nFaculty Directory", w=22, h=7.5)
+act(296, 102, "Manage Course\nEligibility Matrix", w=22, h=7.5)
+act(296, 90, "Configure Rules:\nWeeks & Limits", w=22, h=7.5)
+flow((296, 110.2), (296, 105.8))
+flow((296, 98.2), (296, 93.8))
+
+# B3: Broadcasts
+flow((322, FORK_Y_A), (322, 118))
+act(322, 114, "Compose Campus\nBroadcast Alert", w=20, h=7.5)
+act(322, 102, "Select Target &\nPush to FCM", w=20, h=7.5, fc="#fff7ed", ec="#c2410c")
+flow((322, 110.2), (322, 105.8))
+
+# B4: Staff Registration & Governance
+flow((348, FORK_Y_A), (348, 118))
+act(348, 114, "Add Teacher to WL\n/ Invite Admin", w=22, h=7.5)
+act(348, 102, "Manage Users &\nLearning Resources", w=22, h=7.5)
+flow((348, 110.2), (348, 105.8))
+
+# Join Bar
+JOIN_Y_A = 78
+ax.plot([258, 362], [JOIN_Y_A, JOIN_Y_A], color="#0f172a", linewidth=3.5, zorder=4)
+flow((270, 86.2), (270, JOIN_Y_A))
+flow((296, 86.2), (296, JOIN_Y_A))
+flow((322, 98.2), (322, JOIN_Y_A))
+flow((348, 98.2), (348, JOIN_Y_A))
+
+dec(310, 64, "Sign Out?", w=20, h=8.5)
+flow((310, JOIN_Y_A), (310, 68.2))
+end_node(310, 48)
+flow((310, 59.8), (310, 52), "Yes", off=(3, 0))
+# No loopback
+flow((320, 64), (365, 64))
+ax.plot([365, 365], [64, 137], color="#1e293b", linewidth=1.2)
+flow((365, 137), (321, 137), "No", off=(0, 2))
+
+out = "docs/diagrams/activity-diagram.png"
+fig.savefig(out, dpi=140, facecolor="#ffffff", bbox_inches="tight", pad_inches=0.3)
+print("wrote", out)

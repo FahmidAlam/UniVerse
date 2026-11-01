@@ -119,6 +119,14 @@ def render_bytes(rows: list[dict], cohorts: list[str], config: dict,
 
     row_of = {c: DATA_FIRST_ROW + i for i, c in enumerate(cohorts)}
 
+    has_tba = any(
+        not r.get('teacher_code') or str(r.get('teacher_code')).strip().upper() in ('FACULTY-PENDING', 'PENDING', 'NONE', 'NULL')
+        for r in rows
+    )
+    first_day = (config.get("days") or ["Sunday"])[0]
+    if first_day not in wb.sheetnames:
+        first_day = "Sunday"
+
     by_cohort: dict[str, list[dict]] = {}
     for r in rows:
         key = f"{r['batch']}-{r['section']}" if r["section"] else str(r["batch"])
@@ -173,13 +181,27 @@ def render_bytes(rows: list[dict], cohorts: list[str], config: dict,
                 col = pcol.get(int(s["period"]))
                 if col is None or col == break_col:
                     continue
-                text = f"{s['subject_code']} {s.get('teacher_code') or 'FACULTY-PENDING'} {s['room']}"
+                teacher_label = s.get('teacher_code')
+                if not teacher_label or str(teacher_label).strip().upper() in ('FACULTY-PENDING', 'PENDING', 'NONE', 'NULL'):
+                    teacher_label = 'TBA'
+                text = f"{s['subject_code']} {teacher_label} {s['room']}"
                 ws.cell(row=rr, column=col, value=text)
 
         if last_data >= DATA_FIRST_ROW:
             _rebuild_break_column(ws, day, last_data, last_data, config)
 
         _clear_below_routine(ws, last_data)
+
+        # Place TBA explanatory legend below routine on the first day sheet (Sunday)
+        if day == first_day and has_tba and last_data >= DATA_FIRST_ROW:
+            from openpyxl.styles import Alignment, Font
+            legend_row = last_data + 2
+            ws.row_dimensions[legend_row].hidden = False
+            ws.row_dimensions[legend_row].height = 20
+            cell = ws.cell(row=legend_row, column=2,
+                           value="TBA = To Be Announced (Faculty not yet assigned).")
+            cell.font = Font(name="Times New Roman", size=11, bold=True, color="FF000000")
+            cell.alignment = Alignment(vertical="center", horizontal="left")
 
     _strip_legacy_scaffolding(wb)
 

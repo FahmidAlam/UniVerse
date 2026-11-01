@@ -1,115 +1,75 @@
-# UniVerse — Defense Diagrams (build guide)
+# UniVerse — System Defense Diagrams (Master Guide)
 
-> One folder, four diagrams. Each file is **self-contained**: it explains what to draw,
-> lists every element so nothing is skipped, gives ready-to-render code, and tells you which
-> tool to use. You do **not** need to read the app's source code to build these — everything
-> needed is written out here.
-
-This pack was produced by reading the actual Flutter `services/` layer (the only code that
-talks to the database) so the diagrams match what the app **really does**, not just what the
-schema allows.
+> **Status:** Fully updated & reconciled with production codebase & live database (October 2026).  
+> **Target Audience:** Project defense committee, examiners, and software engineering team.  
+> **Source of Truth:** Verified against Supabase PostgreSQL schema (Migrations 001–016), live Supabase Edge Functions (`send-push`, `invite-admin`), live Render FastAPI solver engine (v2.0.0), and Flutter production client.
 
 ---
 
-## The four diagrams
+## 1. Directory Overview
 
-| # | File | Diagram | Best tool to draw it in |
-|---|---|---|---|
-| 1 | [01-er-diagram.md](01-er-diagram.md) | Entity-Relationship (database) | **dbdiagram.io** (DBML) or Mermaid |
-| 2 | [02-use-case-diagram.md](02-use-case-diagram.md) | Use Case (actors + features) | **PlantUML** |
-| 3 | [03-dfd-level-0.md](03-dfd-level-0.md) | Data Flow Diagram — Level 0 (Context) | **draw.io / diagrams.net** |
-| 4 | [04-dfd-level-1.md](04-dfd-level-1.md) | Data Flow Diagram — Level 1 | **draw.io / diagrams.net** |
-| 5 | [05-activity-diagram.md](05-activity-diagram.md) | Activity Diagram (Student · Teacher · Admin) | **draw.io / diagrams.net** (UML Activity shapes) |
+This directory contains the complete set of five architectural and design diagrams for the **UniVerse — A Campus Companion** system. Each document provides ready-to-render code (Mermaid, PlantUML, DBML), structured layout blueprints, and corresponding high-resolution rendered diagrams.
 
----
-
-## CRITICAL RULE — which database tables to include
-
-The database has **15 tables**, but **3 of them are "future scope"** — they exist in the DB
-but **no part of the app ever reads or writes them** (verified by searching every database
-call in the code). They must **NOT** appear in the ER diagram or DFDs.
-
-### ✅ INCLUDE these 12 tables (actually used)
-
-`whitelists`, `profiles`, `routines`, `cancellations`, `notifications`,
-`notification_reads`, `resources`, `device_tokens`, `timetable_rooms`,
-`timetable_faculty`, `timetable_settings`, `timetable_runs`
-
-### ❌ EXCLUDE these 3 tables (future scope — never used by the app)
-
-| Table | Why it's excluded |
-|---|---|
-| `documents` | Belonged to the AI assistant feature, which was **descoped**. |
-| `assignments` | Assignment-submission feature was never built; no code touches it. |
-| `submissions` | Same — future scope only. |
-
-> If an examiner asks "why aren't assignments in your ER diagram?" the honest answer is:
-> *"Those tables are reserved for a future assignment/AI feature; the current defense build
-> never queries them, so we kept the diagram faithful to the implemented system."*
+| # | File | Diagram Type | Best Rendering Tool | Primary Purpose |
+|---|---|---|---|---|
+| 1 | [01-er-diagram.md](01-er-diagram.md) | **Entity-Relationship Diagram (ERD)** | dbdiagram.io / Mermaid / draw.io | Database design, 14 active entities, primary/foreign keys, and cardinalities |
+| 2 | [02-use-case-diagram.md](02-use-case-diagram.md) | **Use Case Diagram** | PlantUML / Mermaid | System actors (Student, Teacher, Admin, External Systems) and capabilities |
+| 3 | [03-dfd-level-0.md](03-dfd-level-0.md) | **Data Flow Diagram — Level 0 (Context)** | draw.io (Gane-Sarson) / Mermaid | Boundary context: inputs, outputs, and external entities |
+| 4 | [04-dfd-level-1.md](04-dfd-level-1.md) | **Data Flow Diagram — Level 1** | draw.io (Gane-Sarson) / Mermaid | Sub-processes (1.1–1.10), data stores (D1–D12), and internal data pipelines |
+| 5 | [05-activity-diagram.md](05-activity-diagram.md) | **Activity Diagram** | draw.io (UML Activity) / Mermaid | End-to-end user journeys across 3 vertical swimlanes (Student, Teacher, Admin) |
 
 ---
 
-## How to render each format
+## 2. Core Architectural Facts & Production Rules
 
-**Mermaid** (ER diagram quick version, and the flow sketches):
-1. Open <https://mermaid.live>
-2. Paste the ```mermaid``` code block content (without the ```` ```mermaid ```` fence).
-3. Export PNG/SVG from the top menu.
-- Also renders automatically inside GitHub `.md` files and VS Code (with the Mermaid extension).
+Every diagram in this suite is strictly grounded in the following verified system facts:
 
-**DBML** (the polished ER diagram):
-1. Open <https://dbdiagram.io>
-2. Paste the DBML code into the left editor.
-3. Auto-laid-out diagram appears on the right → Export → PDF/PNG.
+### A. Database Inventory: 14 Active Tables vs. 4 Future/Legacy Tables
+The database contains **18 total tables** in PostgreSQL. To ensure precision and avoid defense confusion:
+* **Include the 14 Active Tables:**
+  1. `profiles` — Central user identity linked 1:1 with `auth.users`
+  2. `whitelists` — Authorization gate for **both Teachers and Admins** (stores department, designation, teacher code)
+  3. `routines` — Active weekly schedule entries (stores room, slot, course, teacher code, and version link)
+  4. `routine_versions` — Atomic version manager (`is_active` partial unique index, swap metadata)
+  5. `cancellations` — Class cancellation occurrences (`routine_id` with `ON DELETE SET NULL`)
+  6. `notifications` — Broadcast and class alert records
+  7. `notification_reads` — Composite PK (`user_id`, `notification_id`) read tracking
+  8. `resources` — Academic files and Google Drive links categorized by semester
+  9. `device_tokens` — FCM push registration tokens per user device
+  10. `timetable_rooms` — Room inventory with lab/gallery flags and capacities
+  11. `timetable_faculty` — Teacher directory, departmental affiliations, and weekly off-days
+  12. `timetable_settings` — Solver configuration (14 columns including working days, term weeks, blocked periods, online slots, fixed sessions)
+  13. `timetable_runs` — Audit history of timetable generation attempts and results
+  14. `timetable_course_eligibility` — Faculty course qualification matrix (`acronym`, `course_code`, `is_eligible`)
+* **Exclude the 4 Inactive Tables:**
+  * `assignments` & `submissions`: Reserved for future student coursework submission.
+  * `documents`: Reserved for future AI Assistant RAG vector store.
+  * `timetable_courses`: Legacy prototype table superseded by `timetable_course_eligibility`.
 
-**PlantUML** (use case diagram):
-1. Open <https://www.plantuml.com/plantuml/uml> (or the VS Code "PlantUML" extension).
-2. Paste the code starting at `@startuml` through `@enduml`.
-3. It renders instantly → download PNG/SVG.
+### B. Security & Whitelist Gating (Migration 016)
+* **Students:** May self-register freely via Google OAuth or Email/Password.
+* **Teachers & Admins:** **Must be pre-whitelisted by an admin** in the `whitelists` table. Database trigger `profiles_guard_role` prevents self-assignment of teacher or admin roles; unauthorized users are redirected to `NotWhitelistedScreen`.
 
-**draw.io / diagrams.net** (the two DFDs — recommended for the final report):
-1. Open <https://app.diagrams.net> → "Create New Diagram" → blank.
-2. Search the shape panel for the **Gane-Sarson** / **DFD** shape set (Process, Data Store,
-   External Entity). If not visible: "More Shapes…" → enable **Software → Data Flow**.
-3. Lay out the elements exactly as listed in each DFD file, then connect with labelled arrows.
-4. File → Export As → PDF (for the report).
+### C. Automated Push Notification Pipeline
+* In-app alerts and push notifications originate from a unified backend event:
+  $$\text{Table INSERT into } \texttt{notifications} \longrightarrow \text{Database Webhook} \longrightarrow \text{Edge Function } \texttt{send-push} \longrightarrow \text{Firebase FCM (HTTP v1)} \longrightarrow \text{User Phones}$$
 
-> The two DFD files now give a **numbered flow list** (every arrow as *From → data → To*) and a
-> **placement plan** instead of a Mermaid sketch — draw straight from those tables in draw.io with
-> proper Gane-Sarson symbols. The ER file still includes Mermaid + DBML code you can auto-render.
+### D. Multi-Modal Timetable Ingest & Publication
+The system provides two distinct publication pipelines managed by the atomic `publish_routine` RPC:
+1. **AI / Solver Route:** Admin uploads `.xlsx` distribution $\rightarrow$ Python FastAPI solver (CP-SAT) generates optimal schedule $\rightarrow$ Admin reviews grid $\rightarrow$ Atomic publish.
+2. **Direct Workbook Route:** Admin uploads pre-rendered department `.xlsx` workbook $\rightarrow$ Client-side parser extracts day sheets $\rightarrow$ Atomic publish.
 
-> **Ready-made PNGs (rough reference only):** this folder has `er-diagram.png`,
-> `use-case-diagram.png`, `dfd-level-0.png`, `dfd-level-1.png`, and `activity-diagram.png`
-> generated by the `tool/*.py` scripts. The activity diagram now includes all three swimlanes
-> (Student, Teacher/Faculty, Admin) side-by-side. PNGs are correct in content but the auto-layout
-> is dense (especially DFD-1). **Treat the `.md` specs as the source of truth and redraw by hand**
-> — the placement plans produce a much cleaner result than the PNGs.
-
----
-
-## Recommended order to build them
-
-1. **ER diagram** first — it defines your data stores, which the DFDs reuse.
-2. **Use case** — quick, sets up the actors the DFDs reuse as external entities.
-3. **DFD Level 0** — one big bubble; easiest once actors are known.
-4. **DFD Level 1** — explode Level 0 into processes; reuse the data stores from the ER diagram.
-5. **Activity diagram** — three swimlanes (Student · Teacher · Admin); draw last since it
-   references the features established in the use case diagram.
+### E. Campus Exploration Suite
+Every user role has access to the **Campus Exploration** drawer tools:
+* **Find Teacher:** Search instructors to view their weekly schedule and identify their real-time classroom location.
+* **Room Availability:** Live room occupancy status and full day schedule per room.
 
 ---
 
-## App facts every diagram relies on (cheat sheet)
+## 3. Recommended Reading & Presentation Order for Defense
 
-- **App:** UniVerse — A Campus Companion (Android, Flutter). University: Leading University, Sylhet.
-- **Three human actors:** Student, Teacher, Admin.
-- **Backend:** Supabase (PostgreSQL + Auth + Storage + Realtime).
-- **Three external systems the app calls:**
-  - **Google OAuth** (sign-in, via Supabase Auth).
-  - **Timetable Engine** — a separate Python (FastAPI + Google OR-Tools) server that generates
-    the class timetable from an Excel file.
-  - **Firebase Cloud Messaging (FCM)** — delivers push notifications to phones.
-- **Signature rule of the system:** *every* time a notification row is created in the database,
-  a push notification is automatically sent to the right audience. (In-app alert **and** phone
-  push come from the same single action.)
-- **Admin gate:** anyone can sign up as student/teacher, but an **admin** must already be on the
-  `whitelists` table to be allowed in.
+1. **Start with Use Case Diagram (`02-use-case-diagram.md`)** to establish actors, roles, and feature boundaries.
+2. **Present Context DFD (`03-dfd-level-0.md`)** to show external system boundaries (Supabase, FastAPI Engine, Firebase FCM).
+3. **Present ER Diagram (`01-er-diagram.md`)** to explain data structures, atomic versioning, and relational integrity.
+4. **Present Level-1 DFD (`04-dfd-level-1.md`)** to trace data movement between the processes and data stores.
+5. **Conclude with Activity Diagram (`05-activity-diagram.md`)** to demonstrate the complete user operational workflows.

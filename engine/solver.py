@@ -20,7 +20,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from ortools.sat.python import cp_model
-from room_policy import room_key
+from room_policy import is_cse_course, is_ecl_room, is_eee_course, room_key
 
 CONFIG_PATH = Path(__file__).parent / "config.json"
 
@@ -147,6 +147,9 @@ def _normalize_config(cfg: dict) -> dict:
         if {room_key(r,aliases) for r in lab_rooms} & {room_key(r,aliases) for r in theory_rooms}:
             raise ValueError('Conflicting room kinds for physical aliases')
 
+    ecl_lab_rooms = [r for r in lab_rooms if is_ecl_room(r, aliases)]
+    cse_lab_rooms = [r for r in lab_rooms if not is_ecl_room(r, aliases)]
+
     teachers = cfg.get("teachers", {})
     off_days: dict[str, set[str]] = {}
     names: dict[str, str] = {}
@@ -172,6 +175,8 @@ def _normalize_config(cfg: dict) -> dict:
         "weeks_in_term": weeks,
         "weights": weights,
         "lab_rooms": lab_rooms,
+        "ecl_lab_rooms": ecl_lab_rooms,
+        "cse_lab_rooms": cse_lab_rooms,
         "theory_rooms": theory_rooms,
         "room_metadata": {r['name']: r for r in rooms},
         "room_aliases": aliases,
@@ -322,7 +327,13 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
     pmeta = {int(p["idx"]): p for p in periods}
     blocked = cfg["blocked_periods"]
     off_days = cfg["off_days"]
-    n_lab = len(cfg["lab_rooms"])
+    aliases = cfg.get("room_aliases") or {}
+    lab_rooms = cfg.get("lab_rooms", [])
+    ecl_lab_rooms = cfg.get("ecl_lab_rooms") or [r for r in lab_rooms if is_ecl_room(r, aliases)]
+    cse_lab_rooms = cfg.get("cse_lab_rooms") or [r for r in lab_rooms if not is_ecl_room(r, aliases)]
+    n_lab = len(lab_rooms)
+    n_ecl_lab = len(ecl_lab_rooms)
+    n_cse_lab = len(cse_lab_rooms)
     n_theory = len(cfg["theory_rooms"])
     w = cfg["weights"]
 
@@ -405,6 +416,16 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
                 model.Add(sum(lab_terms) <= n_lab)
             if th_terms:
                 model.Add(sum(th_terms) <= n_theory)
+            eee_lab_terms = [x[(s["sid"], di, p)] for s in sessions
+                             if s["is_lab"] and is_eee_course(s["code"], (offering_of.get(s["oid"]) or {}).get("course_dept"))
+                             and (s["sid"], di, p) in x]
+            cse_lab_terms = [x[(s["sid"], di, p)] for s in sessions
+                             if s["is_lab"] and is_cse_course(s["code"], (offering_of.get(s["oid"]) or {}).get("course_dept"))
+                             and (s["sid"], di, p) in x]
+            if eee_lab_terms:
+                model.Add(sum(eee_lab_terms) <= n_ecl_lab)
+            if cse_lab_terms:
+                model.Add(sum(cse_lab_terms) <= n_cse_lab)
 
     penalties = []
 
@@ -521,7 +542,7 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         raise RuntimeError(_infeasible_message(
             solver.StatusName(status), sessions, teachers_of, slots_for,
-            offering_of, days, pidx))
+            offering_of, days, pidx, cfg=cfg))
 
     placed = []
     for s in sessions:
@@ -587,7 +608,7 @@ def _no_slot_message(s, cfg, days, pidx, teachers) -> str:
 
 
 def _infeasible_message(status_name, sessions, teachers_of, slots_for,
-                        offering_of, days, pidx) -> str:
+                        offering_of, days, pidx, cfg=None) -> str:
     """Explain WHY the model has no solution instead of returning a bare
     INFEASIBLE. The usual cause is a teacher whose demand exceeds the slots
     their day-offs leave them, so name the worst offenders."""
@@ -608,6 +629,16 @@ def _infeasible_message(status_name, sessions, teachers_of, slots_for,
                   for t, n, cap in over]
         lines.append("Reduce their load, remove a day-off, or add periods.")
     else:
+        aliases = (cfg or {}).get("room_aliases") or {}
+        lab_rooms = (cfg or {}).get("lab_rooms") or []
+        ecl_labs = [r for r in lab_rooms if is_ecl_room(r, aliases)]
+        cse_labs = [r for r in lab_rooms if not is_ecl_room(r, aliases)]
+        has_eee_lab = any(s.get("is_lab") and is_eee_course(s.get("code", ""), (offering_of.get(s.get("oid")) or {}).get("course_dept")) for s in sessions)
+        has_cse_lab = any(s.get("is_lab") and is_cse_course(s.get("code", ""), (offering_of.get(s.get("oid")) or {}).get("course_dept")) for s in sessions)
+        if has_eee_lab and not ecl_labs:
+            lines.append("No ECL laboratory rooms are configured or available, but EEE laboratory courses require ECL rooms.")
+        if has_cse_lab and not cse_labs:
+            lines.append("No CSE laboratory rooms are configured or available, but CSE laboratory courses require CSE rooms.")
         lines.append(
             "No single teacher is over-committed, so the clash is structural: "
             "room capacity, lab/theory adjacency, or cohort load. Try relaxing "
@@ -619,6 +650,9 @@ def _assign_rooms(dataset, cfg, placed, days, pmeta):
     busy: dict[tuple[int, int], set[str]] = {}
     lab_pool = cfg["lab_rooms"]
     theory_pool = cfg["theory_rooms"]
+    aliases = cfg.get("room_aliases") or {}
+    ecl_lab_pool = cfg.get("ecl_lab_rooms") or [r for r in lab_pool if is_ecl_room(r, aliases)]
+    cse_lab_pool = cfg.get("cse_lab_rooms") or [r for r in lab_pool if not is_ecl_room(r, aliases)]
     names = cfg["names"]
     semester_map = cfg.get("semester_map") or {}
 
@@ -659,22 +693,47 @@ def _assign_rooms(dataset, cfg, placed, days, pmeta):
                 return r
         return None
 
-    # CP-SAT caps simultaneous room-kind demand. Known capacity further limits
-    # eligibility here; first-fit is not a proof that every feasible matching
-    # will be found. Any failure remains visible as TBA and blocks publication.
-    # Unknown capacities are retained as unknown, never invented.
-    placed.sort(key=lambda q: (not q["s"]["is_lab"],
-        -(offering_of.get(q['s']['oid'], {}).get('students') or 0)))
+    def _placement_priority(q):
+        s = q["s"]
+        code = s["code"]
+        dept = (offering_of.get(s["oid"]) or {}).get("course_dept")
+        students = (offering_of.get(s["oid"]) or {}).get("students") or 0
+        if s["is_lab"]:
+            if is_eee_course(code, dept):
+                category_rank = 0
+            elif is_cse_course(code, dept):
+                category_rank = 1
+            else:
+                category_rank = 2
+        else:
+            category_rank = 3
+        return (category_rank, -students)
+
+    placed.sort(key=_placement_priority)
     room_failures: list[dict] = []
 
     rows, service_rows = [], []
     for i, q in enumerate(placed):
         s, d, p = q["s"], q["day"], q["period"]
-        pool = lab_pool if s["is_lab"] else theory_pool
+        code = s["code"]
+        dept = (offering_of.get(s["oid"]) or {}).get("course_dept")
+        if s["is_lab"]:
+            if is_eee_course(code, dept):
+                pool = ecl_lab_pool
+                kind = "ECL lab"
+            elif is_cse_course(code, dept):
+                pool = cse_lab_pool
+                kind = "CSE lab"
+            else:
+                pool = lab_pool
+                kind = "lab"
+        else:
+            pool = theory_pool
+            kind = "theory"
+
         room = pick(pool, d, p, s)
         if room is None:
             room = "TBA"
-            kind = "lab" if s["is_lab"] else "theory"
             room_failures.append({
                 "cohort": s["cohort"], "code": s["code"],
                 "teacher": s["teacher"], "day": days[d], "period": p,
@@ -822,8 +881,17 @@ def _validate(dataset, cfg, all_rows, days, pmeta) -> dict:
             tba_d.append(_who(r))
         if r["period"] in blocked.get(r["day"], set()):
             blocked_d.append(_who(r))
-        if r["is_lab"] and physical_room not in lab_set and r["room"] != "TBA":
-            lab_bad_d.append(_who(r))
+        if r["is_lab"] and r["room"] != "TBA":
+            dept = (offering or {}).get("course_dept")
+            is_eee = is_eee_course(r["subject_code"], dept)
+            is_cse = is_cse_course(r["subject_code"], dept)
+            is_ecl = is_ecl_room(physical_room, aliases)
+            if physical_room not in lab_set:
+                lab_bad_d.append({**_who(r), "reason": f"Lab {r['subject_code']} in non-lab room {r['room']}"})
+            elif is_eee and not is_ecl:
+                lab_bad_d.append({**_who(r), "reason": f"EEE lab {r['subject_code']} in non-ECL room {r['room']}"})
+            elif is_cse and is_ecl:
+                lab_bad_d.append({**_who(r), "reason": f"CSE lab {r['subject_code']} in ECL room {r['room']}"})
         if (str(r["time_start"]), str(r["time_end"])) not in valid_slots:
             bad_slot_d.append({**_who(r), "time_start": str(r["time_start"]),
                                "time_end": str(r["time_end"])})

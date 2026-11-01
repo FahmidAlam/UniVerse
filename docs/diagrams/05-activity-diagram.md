@@ -1,215 +1,168 @@
 # Diagram 5 — Activity Diagram
 
-> **What this shows:** the step-by-step flow of actions each type of user takes — from
-> opening the app through to logging out — including decisions, branching paths (fork / join),
-> and the "No" loop back when they stay in the app.
->
-> **Tool to use:** draw.io / diagrams.net — use the UML Activity shape set (filled circle =
-> start, circled filled circle = end, diamond = decision, rounded rectangle = action,
-> horizontal bar = fork / join).
+> **What this shows:** The end-to-end operational workflows for each user role across three vertical swimlanes (**Student**, **Teacher**, and **Admin**), including decision points, parallel branches (fork/join), and loopbacks.  
+> **Source of Truth:** Reconciled against Flutter navigation flows, role-based drawer destinations (`app_drawer.dart`), authentication triggers (Migration 016), and administrative workflows.  
+> **Tool to render:** [draw.io / diagrams.net](https://app.diagrams.net) (UML Activity shapes) or Mermaid.
 
 ---
 
-## 1. Three swimlanes (one per actor)
+## 1. Swimlane Architecture
 
-Draw the diagram in **landscape** orientation with **three side-by-side vertical swimlanes**,
-each running top-to-bottom.
+The diagram is organized into three side-by-side vertical swimlanes:
 
-| Swimlane | Actor | Colour suggestion |
+| Swimlane | Actor | Scope & Primary Workflow |
 |---|---|---|
-| Left | **Student / User** | Light blue |
-| Centre | **Teacher / Faculty** | Light green |
-| Right | **Admin** | Light orange |
-
-Add a dashed vertical line between each swimlane.
+| **Left** | **Student / User** | Authentication $\rightarrow$ Dashboard $\rightarrow$ Routine viewing, Campus exploration (Find Teacher, Room Availability), Resource browsing, and Alert management. |
+| **Center** | **Teacher / Faculty** | Authentication $\rightarrow$ **Whitelist verification gate** $\rightarrow$ Dashboard $\rightarrow$ Routine viewing, **Manage Classes** (cancellations, room change notices), and Campus exploration. |
+| **Right** | **Admin** | Authentication $\rightarrow$ Whitelist gate $\rightarrow$ Dashboard $\rightarrow$ **Routine Hub** (Solver generation, direct upload, manual CRUD), **Academic Configuration**, Broadcasts, and Staff registration. |
 
 ---
 
-## 2. Notation key
+## 2. Activity Workflow per Swimlane
 
-| Shape | Meaning |
-|---|---|
-| Filled black circle | **Start** node |
-| Circled filled circle | **End** node |
-| Rounded rectangle | **Action** (activity) |
-| Diamond | **Decision** (Yes/No branch) |
-| Dashed rounded rectangle | Error / exceptional action |
-| Horizontal solid line spanning multiple columns | **Fork** (parallel) or **Join** (sync) |
-| Arrow | Control flow — label "Yes" / "No" on decision branches |
-
----
-
-## 3. Swimlane 1 — Student / User
-
-**Entry path (linear, left to right at the top):**
-
-```
-● Start
-  ↓
-[Create Account / Login]  ← sign up or sign in (email or Google)
-  ↓
-◇ Verify Credentials
-  ├── No ──→ [Show Error]  ──(loop)──→ [Create Account / Login]
-  └── Yes ──→ [Home / Dashboard]
-                ↓
-              ◇ Select Option
-```
-
-**Fork (6 parallel branches from Select Option):**
-
-```
-          ┌──────────┬──────────┬──────────────┬────────────────┬──────────┐
-       Dashboard  Routine   Resources    Notifications  ManageClasses  Profile
-          │          │          │             │               │           │
-   [Live/Next    [Load      [Load         [Load Alerts]  [Select      [Load
-   Class Count]  Routine]   Resources]                   Class]       Profile]
-          │          │          │                              │           │
-   [Today's      [View       [Browse by    [Mark/Dismiss   [Cancel/     [Edit
-   Classes]      Weekly       Semester]    Alert]          Post Notice  Profile]
-          │       Grid]          │                          / Undo]
-   [Recent       │          [Open File /                       │
-   Alerts]    [Cancelled     Link]                        [Alert Sent
-               Classes]                                   to Students]
-```
-
-**Join → logout:**
-
-```
-          └──────────┴──────────┴──────────────┴────────────────┴──────────┘
-                                       ↓  (join)
-                                   ◇ Logout?
-                         ┌── Yes ──→ ⊙ End
-                         └── No  ──────────────────────→ ◇ Select Option (loop back)
-```
+### Swimlane 1: Student / User
+1. **Entry Path:**
+   - `● Start` $\longrightarrow$ `[Create Account / Login]` (Google OAuth or Email).
+   - `◇ Verify Credentials` $\longrightarrow$ **No** $\longrightarrow$ `[Show Error]` $\longrightarrow$ Loop back to login.
+   - `◇ Verify Credentials` $\longrightarrow$ **Yes** $\longrightarrow$ `[Student Dashboard]`.
+   - `[Student Dashboard]` $\longrightarrow$ `◇ Select Option`.
+2. **Parallel Workflows (Fork):**
+   - **Dashboard Branch:** `[Live / Next Class Countdown]` $\longrightarrow$ `[View Today's Classes]` $\longrightarrow$ `[Review Recent Alerts]`.
+   - **Routine Branch:** `[Load Weekly Routine]` $\longrightarrow$ `[View Routine Grid]` $\longrightarrow$ `[Inspect Cancelled Class Markers]`.
+   - **Campus Exploration Branch:** `[Find Teacher: Search Instructor & Locate Active Classroom]` OR `[Room Availability: Check Live Room Vacancy & Day Schedule]`.
+   - **Resources Branch:** `[Load Resources]` $\longrightarrow$ `[Browse by Semester Folder]` $\longrightarrow$ `[Open Download / Drive Link]`.
+   - **Notifications Branch:** `[Load Notifications Feed]` $\longrightarrow$ `[Mark / Dismiss Alert]`.
+   - **Profile Branch:** `[Load Profile]` $\longrightarrow$ `[Edit Profile Details]`.
+3. **Exit Path:**
+   - All branches synchronize at the horizontal **Join Bar** $\longrightarrow$ `◇ Logout?`
+   - **Yes** $\longrightarrow$ `⊙ End`
+   - **No** $\longrightarrow$ Loop back to `◇ Select Option`.
 
 ---
 
-## 4. Swimlane 2 — Teacher / Faculty
-
-**Entry path:**
-
-```
-● Start
-  ↓
-[Teacher Login]
-  ↓
-◇ Verify Credentials
-  ├── No ──→ [Show Error] ──(loop)──→ [Teacher Login]
-  └── Yes ──→ [Teacher Dashboard]
-                    ↓
-                ◇ Select Option
-```
-
-**Fork (5 parallel branches from Select Option):**
-
-```
-        ┌──────────┬──────────┬─────────────────┬────────────────┬──────────┐
-     Dashboard  Routine   Manage Classes     Notifications     Profile
-        │          │          │                   │               │
- [Live/Next    [Load      [Select Day         [Load Alerts]  [Load
- Class Count]  Routine]    & Class]                           Profile]
-        │          │          │               [Mark/Dismiss
- [Today's      [View      [Cancel / Post      Alert]          [Edit
- Classes]      Weekly      Notice / Undo]                     Profile]
-        │       Grid]          │
- [Recent       │          [Confirm &
- Alerts]    [Cancelled     Send Alert]
-             Classes]
-```
-
-> **Manage Classes** is the Teacher's signature feature — the 3-step chain (Select →
-> Action → Confirm+Alert) is the defence talking point for this swimlane.
-
-**Join → logout:**
-
-```
-        └──────────┴──────────┴─────────────────┴────────────────┴──────────┘
-                                      ↓  (join)
-                                  ◇ Logout?
-                        ┌── Yes ──→ ⊙ End
-                        └── No  ─────────────────────→ ◇ Select Option (loop back)
-```
+### Swimlane 2: Teacher / Faculty
+1. **Entry Path:**
+   - `● Start` $\longrightarrow$ `[Teacher Login]` (Google OAuth or Email).
+   - `◇ Verify Credentials` $\longrightarrow$ **No** $\longrightarrow$ `[Show Error]` $\longrightarrow$ Loop back to login.
+   - `◇ Verify Credentials` $\longrightarrow$ **Yes** $\longrightarrow$ `◇ Check Whitelist Gate (Migration 016)`.
+   - `◇ Check Whitelist Gate` $\longrightarrow$ **Not Whitelisted** $\longrightarrow$ `[Show Not Whitelisted Screen]` $\longrightarrow$ `[Switch Account / Contact Admin]`.
+   - `◇ Check Whitelist Gate` $\longrightarrow$ **Whitelisted** $\longrightarrow$ `[Teacher Dashboard]`.
+   - `[Teacher Dashboard]` $\longrightarrow$ `◇ Select Option`.
+2. **Parallel Workflows (Fork):**
+   - **Dashboard Branch:** `[Live Teaching Slot Countdown]` $\longrightarrow$ `[View Today's Teaching Schedule]`.
+   - **Routine Branch:** `[Load Teacher Routine]` $\longrightarrow$ `[View Weekly Schedule Grid]`.
+   - **Manage Classes Branch (Signature Faculty Feature):**
+     - `[Select Day & Class Slot]` $\longrightarrow$ `[Choose Action: Cancel Class / Post Notice / Undo]` $\longrightarrow$ `[Submit Reason & Details]` $\longrightarrow$ `[Write to Database]` $\longrightarrow$ `[Automated Push Alert Sent to Students]`.
+   - **Campus Exploration Branch:** `[Find Teacher / Room Availability]`.
+   - **Notifications Branch:** `[View Notifications Feed]` $\longrightarrow$ `[Dismiss Alert]`.
+   - **Profile Branch:** `[Load Teacher Profile]` $\longrightarrow$ `[Edit Details]`.
+3. **Exit Path:**
+   - Synchronize at **Join Bar** $\longrightarrow$ `◇ Logout?` (Yes $\rightarrow$ `⊙ End`, No $\rightarrow$ Loop back).
 
 ---
 
-## 5. Swimlane 3 — Admin
-
-**Entry path:**
-
-```
-● Start
-  ↓
-[Admin Login]   ← admin must be on the whitelist
-  ↓
-◇ Verify Credentials
-  ├── No ──→ [Show Error] ──(loop)──→ [Admin Login]
-  └── Yes ──→ [Admin Dashboard]
-                    ↓
-                ◇ Select Option
-```
-
-**Fork (5 parallel branches from Select Option):**
-
-```
-       ┌───────────────┬────────────────┬───────────────┬──────────────┬────────────────┐
-   Manage Routine  Generate Timetable  Broadcast     Manage Users  Manage Resources
-       │               │                   │               │               │
- [Add / Edit /    [Upload Excel]       [Compose &     [View Users /  [Upload /
- Delete Routine]       │                Send Broadcast] Change Role]  Delete Resource]
-                  [Run Engine                              │
-                   & Review]                          [Invite Admin]
-                       │
-                  [Publish Routine]
-```
-
-> **Generate Timetable** has a 3-step chain — this is the system's differentiator.
-> Mention it explicitly in the defence.
-
-**Join → logout:**
-
-```
-       └───────────────┴────────────────┴───────────────┴──────────────┴────────────────┘
-                                             ↓  (join)
-                                         ◇ Logout?
-                               ┌── Yes ──→ ⊙ End
-                               └── No  ────────────────────→ ◇ Select Option (loop back)
-```
+### Swimlane 3: Admin
+1. **Entry Path:**
+   - `● Start` $\longrightarrow$ `[Admin Login]` $\longrightarrow$ `◇ Verify Credentials & Whitelist`.
+   - **No** $\longrightarrow$ `[Show Access Denied]` $\longrightarrow$ Loop back.
+   - **Yes** $\longrightarrow$ `[Admin Dashboard]` $\longrightarrow$ `◇ Select Option`.
+2. **Parallel Workflows (Fork):**
+   - **Routine Hub Branch (Triple-Modal Pipeline):**
+     - *Path A (Solver):* `[Upload Course Distribution .xlsx]` $\longrightarrow$ `[Trigger CP-SAT Solver]` $\longrightarrow$ `[Review Interactive Grid & Diagnostics]` $\longrightarrow$ `[Atomic Routine Publish RPC]`.
+     - *Path B (Direct Upload):* `[Upload Pre-Rendered .xlsx Workbook]` $\longrightarrow$ `[Parse Sheets Client-Side]` $\longrightarrow$ `[Atomic Routine Publish RPC]`.
+     - *Path C (Manual):* `[Open Routine Editor]` $\longrightarrow$ `[Add / Edit / Delete Class Slot]`.
+   - **Academic Configuration Branch:**
+     - `[Manage Rooms & Faculty Directory]`
+     - `[Manage Course Eligibility (Teacher-Course Matrix)]`
+     - `[Configure Timetable Settings (Term Weeks, Blocked Periods, Online Slots, Fixed Sessions)]`
+   - **Campus Broadcast Branch:** `[Compose Broadcast Message]` $\longrightarrow$ `[Select Target Audience]` $\longrightarrow$ `[Dispatch Notification & Push]`.
+   - **Admin Registration Branch:** `[Add Teacher to Whitelist (Code, Dept, Designation)]` OR `[Invite Admin via Edge Function]`.
+   - **Governance Branch:** `[Manage Users & Roles]` AND `[Manage Resource Repository]`.
+   - **Campus Exploration Branch:** `[Find Teacher / Room Availability]`.
+3. **Exit Path:**
+   - Synchronize at **Join Bar** $\longrightarrow$ `◇ Logout?` (Yes $\rightarrow$ `⊙ End`, No $\rightarrow$ Loop back).
 
 ---
 
-## 6. Complete element count
+## 3. Mermaid Activity Diagram Specification
 
-| Swimlane | Start | End | Actions | Decisions | Forks/Joins |
-|---|---|---|---|---|---|
-| Student | 1 | 1 | 16 | 3 (verify, select, logout) | 1 fork, 1 join |
-| Teacher | 1 | 1 | 14 | 3 | 1 fork, 1 join |
-| Admin | 1 | 1 | 11 | 3 | 1 fork, 1 join |
-| **Total** | **3** | **3** | **~41** | **9** | **3 + 3** |
+```mermaid
+flowchart TD
+    subgraph Student_Swimlane["Student / User"]
+        S_Start([Start]) --> S_Login[Create Account / Login]
+        S_Login --> S_VAuth{Credentials Valid?}
+        S_VAuth -- No --> S_Err[Show Error] --> S_Login
+        S_VAuth -- Yes --> S_Dash[Student Dashboard]
+        S_Dash --> S_Sel{Select Feature}
 
----
+        S_Sel --> S_F1[Dashboard: Countdown & Schedule]
+        S_Sel --> S_F2[Routine: View Weekly Grid]
+        S_Sel --> S_F3[Campus Explore: Find Teacher / Rooms]
+        S_Sel --> S_F4[Resources: Browse & Download]
+        S_Sel --> S_F5[Alerts: View & Dismiss]
+        S_Sel --> S_F6[Profile: View & Edit]
 
-## 7. Key paths to highlight in the defence
+        S_F1 --> S_Join[Join]
+        S_F2 --> S_Join
+        S_F3 --> S_Join
+        S_F4 --> S_Join
+        S_F5 --> S_Join
+        S_F6 --> S_Join
 
-1. **Cancel class (Teacher):** Select Day & Class → Cancel / Post Notice / Undo →
-   Confirm & Send Alert. Shows the real-time notification pipeline.
+        S_Join --> S_Logout{Logout?}
+        S_Logout -- Yes --> S_End([End])
+        S_Logout -- No --> S_Sel
+    end
 
-2. **Generate Timetable (Admin):** Upload Excel → Run Engine & Review → Publish Routine.
-   Shows the OR-Tools CP-SAT engine integration — the system's differentiator.
+    subgraph Teacher_Swimlane["Teacher / Faculty"]
+        T_Start([Start]) --> T_Login[Teacher Login]
+        T_Login --> T_VAuth{Credentials Valid?}
+        T_VAuth -- No --> T_Err[Show Error] --> T_Login
+        T_VAuth -- Yes --> T_VWL{Whitelisted as Teacher?}
+        T_VWL -- No --> T_Deny[Show Not Whitelisted Screen]
+        T_VWL -- Yes --> T_Dash[Teacher Dashboard]
+        T_Dash --> T_Sel{Select Feature}
 
-3. **"No" logout loops** (all swimlanes): the user stays in the app and returns to
-   "Select Option" — shows the app is session-based (not one-shot).
+        T_Sel --> T_F1[Dashboard: Teaching Countdown]
+        T_Sel --> T_F2[Routine: View Teaching Schedule]
+        T_Sel --> T_F3[Manage Classes: Cancel / Notice / Undo]
+        T_Sel --> T_F4[Campus Explore: Find Teacher / Rooms]
+        T_Sel --> T_F5[Alerts & Profile]
 
----
+        T_F3 --> T_Alert[Push Alert Sent to Students]
+        T_Alert --> T_Join[Join]
+        T_F1 --> T_Join
+        T_F2 --> T_Join
+        T_F4 --> T_Join
+        T_F5 --> T_Join
 
-## 8. Don't-skip checklist
+        T_Join --> T_Logout{Logout?}
+        T_Logout -- Yes --> T_End([End])
+        T_Logout -- No --> T_Sel
+    end
 
-- [ ] **3 swimlanes** clearly labelled (Student, Teacher, Admin).
-- [ ] Each swimlane has exactly **1 Start** (filled circle) and **1 End** (circled circle).
-- [ ] Each swimlane has a **Verify Credentials** decision with Yes/No and an error dashed box.
-- [ ] **Student**: 6-way fork (Dashboard, Routine, Resources, Notifications, Manage Classes, Profile).
-- [ ] **Teacher**: 5-way fork (Dashboard, Routine, Manage Classes, Notifications, Profile).
-  - Manage Classes has the 3-step chain: Select → Action → Alert.
-- [ ] **Admin**: 5-way fork (Manage Routine, Generate Timetable, Broadcast, Manage Users, Manage Resources).
-  - Generate Timetable has 3-step chain: Upload → Run & Review → Publish.
-- [ ] Each swimlane has a **Logout decision** (Yes → End, No → loop back to Select Option).
-- [ ] All branches meet at a **join bar** before the Logout decision.
+    subgraph Admin_Swimlane["Admin"]
+        A_Start([Start]) --> A_Login[Admin Login]
+        A_Login --> A_VAuth{Admin Whitelisted?}
+        A_VAuth -- No --> A_Deny[Show Access Denied]
+        A_VAuth -- Yes --> A_Dash[Admin Dashboard]
+        A_Dash --> A_Sel{Select Feature}
+
+        A_Sel --> A_F1[Routine Hub: Solver / Upload / CRUD]
+        A_Sel --> A_F2[Academic Config: Rooms / Faculty / Eligibility / Settings]
+        A_Sel --> A_F3[Campus Broadcast: Compose & Push]
+        A_Sel --> A_F4[Admin Registration: Add Teacher / Invite Admin]
+        A_Sel --> A_F5[User & Resource Governance]
+
+        A_F1 --> A_Pub[Atomic Routine Publish RPC]
+        A_Pub --> A_Join[Join]
+        A_F2 --> A_Join
+        A_F3 --> A_Join
+        A_F4 --> A_Join
+        A_F5 --> A_Join
+
+        A_Join --> A_Logout{Logout?}
+        A_Logout -- Yes --> A_End([End])
+        A_Logout -- No --> A_Sel
+    end
+```

@@ -1,73 +1,108 @@
 # ============================================================
 # tool/dfd0.py  ->  docs/diagrams/dfd-level-0.png
-# UniVerse Level-0 (context) Data Flow Diagram.
-# One process (0 UniVerse), 5 external entities, 10 labelled flows.
+# Modern, high-clarity Level-0 (Context) Data Flow Diagram for UniVerse
+# Includes all 5 boundary entities, clear balanced flows (F1-F10),
+# multi-modal ingest, campus exploration queries, and push pipeline.
+# Run: python tool/dfd0.py
 # ============================================================
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from matplotlib.patches import Circle, FancyBboxPatch
 import diagram_helpers as d
 
-fig, ax = d.canvas((0, 162), (0, 118), figsize=(16.2, 11.8), dpi=140)
+fig, ax = d.canvas((0, 260), (0, 180), figsize=(26, 18), dpi=140)
 
-ax.text(81, 114, "UniVerse — Level 0  Data Flow Diagram (Context)",
-        ha="center", fontsize=15, fontweight="bold")
+# ── Title ─────────────────────────────────────────────────────
+ax.text(130, 174, "UniVerse — Level 0 Data Flow Diagram (Context Model)",
+        ha="center", va="center", fontsize=20, fontweight="bold", color="#0f172a")
+ax.text(130, 168, "System Boundary, External Entities, Multi-Modal Ingest, and Push Subsystem",
+        ha="center", va="center", fontsize=11.5, color="#475569")
 
-# ── Central process ───────────────────────────────────────────
-P = d.process(ax, 81, 56, 14, "0", "UniVerse\nA Campus Companion", fs=10)
+# ── Central Process (0 UniVerse) ──────────────────────────────
+cx, cy, cr = 130, 92, 22
+ax.add_patch(Circle((cx, cy), cr, facecolor="#f8fafc", edgecolor="#1e3a8a",
+                    linewidth=2.8, zorder=3))
+# Process number banner
+ax.plot([cx - 21.2, cx + 21.2], [cy + 7.5, cy + 7.5], color="#1e3a8a",
+        linewidth=1.8, zorder=4)
+ax.text(cx, cy + 13.5, "0", ha="center", va="center", fontsize=16,
+        fontweight="bold", color="#1e3a8a", zorder=5)
+ax.text(cx, cy - 2.5, "UniVerse\nA Campus Companion", ha="center", va="center",
+        fontsize=12, fontweight="bold", color="#0f172a", zorder=5)
 
-# ── External entities ─────────────────────────────────────────
-student = d.box(ax, 16,  85, 26, 12, "Student",                 bold=True, fs=11)
-teacher = d.box(ax, 16,  32, 26, 12, "Teacher",                 bold=True, fs=11)
-admin   = d.box(ax, 146, 85, 26, 12, "Admin",                   bold=True, fs=11)
-engine  = d.box(ax, 146, 32, 32, 13, "Timetable Engine\n(OR-Tools)", bold=True, fs=9.5)
-fcm     = d.box(ax, 81,   9, 30, 11, "Firebase FCM",            bold=True, fs=11)
+# ── External Entities ─────────────────────────────────────────
+def draw_entity(x, y, w, h, text, color="#1e293b", bg="#ffffff"):
+    box = FancyBboxPatch((x - w / 2, y - h / 2), w, h,
+                         boxstyle="round,pad=0.2,rounding_size=1.2",
+                         facecolor=bg, edgecolor=color, linewidth=2.0, zorder=4)
+    ax.add_patch(box)
+    ax.text(x, y, text, ha="center", va="center", fontsize=11,
+            fontweight="bold", color="#0f172a", zorder=5)
+    return (x, y, w, h)
 
-# ── F1 / F2 — Student ─────────────────────────────────────────
-d.arrow(ax, (29, 88), (68, 65),
-        "login · sign-up · profile edits\ndismiss alerts", fs=7.8,
-        rad=0.05, tpos=0.42, off=(0, 2))
-d.arrow(ax, (67, 60), (29, 82),
-        "routine · dashboard\nresources · notifications", fs=7.8,
-        rad=0.05, tpos=0.58, off=(0, -2))
+e_student = draw_entity(30, 138, 42, 18, "Student\n(E1)", color="#0284c7", bg="#f0f9ff")
+e_teacher = draw_entity(30, 46, 42, 18, "Teacher\n(Faculty) (E2)", color="#059669", bg="#f0fdf4")
+e_admin   = draw_entity(230, 138, 42, 18, "Admin\n(Department) (E3)", color="#7c3aed", bg="#f5f3ff")
+e_engine  = draw_entity(230, 46, 46, 20, "Timetable Solver Engine\n(FastAPI / OR-Tools) (E4)", color="#166534", bg="#f0fdf4")
+e_fcm     = draw_entity(130, 16, 48, 18, "Firebase FCM &\nMobile Push (E5)", color="#c2410c", bg="#fff7ed")
 
-# ── F3 / F4 — Teacher ─────────────────────────────────────────
-d.arrow(ax, (29, 34), (68, 48),
-        "login · cancel class\nnotice / room change", fs=7.8,
-        rad=-0.05, tpos=0.36, off=(0, -3))
-d.arrow(ax, (67, 53), (29, 38),
-        "routine · class list\ncancellation alerts", fs=7.8,
-        rad=-0.05, tpos=0.60, off=(0, 3))
+# ── Data Flow Helper ──────────────────────────────────────────
+def flow(p1, p2, label, fid="", rad=0.0, off=(0, 0), fs=8.6):
+    d.arrow(ax, p1, p2, text=label, fs=fs, rad=rad, off=off,
+            color="#334155", lw=1.4)
+    if fid:
+        mx = (p1[0] + p2[0]) / 2 + off[0]
+        my = (p1[1] + p2[1]) / 2 + off[1]
+        ax.text(mx, my, fid, fontsize=8.0, fontweight="bold", color="#b91c1c",
+                ha="center", va="center", zorder=8,
+                bbox=dict(boxstyle="circle,pad=0.15", fc="#ffffff", ec="#b91c1c", lw=0.8))
 
-# ── F5 / F6 — Admin ───────────────────────────────────────────
-d.arrow(ax, (133, 88), (94, 65),
-        "Excel file · routine edits\nconfig · broadcast · resources", fs=7.8,
-        rad=-0.05, tpos=0.44, off=(0, 3))
-d.arrow(ax, (94, 60), (133, 82),
-        "reports · validation\nuser lists · dashboard counts", fs=7.8,
-        rad=-0.05, tpos=0.58, off=(0, -3))
+# ── F1 & F2: Student Flows ────────────────────────────────────
+flow((51, 144), (108, 104),
+     "Credentials · profile edits · dismiss alerts\nFind Teacher & Room Availability queries",
+     fid="F1", rad=0.06, off=(0, 4.5))
 
-# ── F7 / F8 — Timetable Engine ────────────────────────────────
-d.arrow(ax, (94, 52), (131, 38),
-        "distribution .xlsx\n+ config JSON", fs=7.8,
-        rad=0.06, tpos=0.56, off=(0, -3))
-d.arrow(ax, (132, 32), (95, 51),
-        "generated rows · stats\nvalidation · workbook", fs=7.8,
-        rad=0.06, tpos=0.36, off=(0, 3))
+flow((110, 96), (51, 134),
+     "Weekly routine · countdown · resources · alerts\nTeacher location & Room vacancy status",
+     fid="F2", rad=0.06, off=(0, -4.5))
 
-# ── F9 / F10 — Firebase FCM ───────────────────────────────────
-d.arrow(ax, (75, 40), (75, 15),
-        "notification payload\n+ device tokens", fs=7.8,
-        off=(-10, 0), tpos=0.5)
-d.arrow(ax, (87, 15), (87, 40),
-        "push notification\n→ phones", fs=7.8,
-        off=(10, 0), tpos=0.5)
+# ── F3 & F4: Teacher Flows ────────────────────────────────────
+flow((51, 48), (110, 84),
+     "Credentials (whitelist gated) · cancel class (date/reason)\nNotice/room change · Find Teacher & Room queries",
+     fid="F3", rad=-0.06, off=(0, -4.5))
 
-# ── Flow labels ───────────────────────────────────────────────
-# small flow identifiers at arrow midpoints (subtle reference for the MD file)
-for label, pos in [("F1", (44, 76)), ("F2", (45, 71)),
-                   ("F3", (42, 43)), ("F4", (42, 48)),
-                   ("F5", (115, 77)), ("F6", (116, 71)),
-                   ("F7", (116, 44)), ("F8", (114, 40)),
-                   ("F9", (60, 27)), ("F10", (98, 27))]:
-    ax.text(*pos, label, ha="center", va="center", fontsize=6.5,
-            color="#888", style="italic")
+flow((108, 90), (51, 56),
+     "Assigned routine · today's classes · cancellation status\nAlerts · Room vacancy status",
+     fid="F4", rad=-0.06, off=(0, 4.5))
 
-d.save(fig, "docs/diagrams/dfd-level-0.png")
+# ── F5 & F6: Admin Flows ──────────────────────────────────────
+flow((209, 144), (152, 104),
+     "Credentials · distribution .xlsx · pre-rendered .xlsx\nManual routine edits · config · broadcasts · staff whitelist",
+     fid="F5", rad=-0.06, off=(0, 4.5))
+
+flow((150, 96), (209, 134),
+     "Solver diagnostics · active routine status\nUser directory · broadcast history · analytics",
+     fid="F6", rad=-0.06, off=(0, -4.5))
+
+# ── F7 & F8: Timetable Engine Flows ───────────────────────────
+flow((151, 86), (207, 52),
+     "Course distribution .xlsx\n+ solver parameters (time_limit, label)",
+     fid="F7", rad=0.06, off=(0, -4.5))
+
+flow((207, 44), (151, 78),
+     "Generated timetable rows · service rows\nSolver stats · validation report · workbook bytes",
+     fid="F8", rad=0.06, off=(0, 4.5))
+
+# ── F9 & F10: Push Notification Subsystem ─────────────────────
+flow((123, 70), (123, 25),
+     "Notification payload + device tokens\n(via DB Webhook → Edge Function)",
+     fid="F9", off=(-18, 0))
+
+flow((137, 25), (137, 70),
+     "Native OS push notifications\n(delivered to student & teacher phones)",
+     fid="F10", off=(18, 0))
+
+out = "docs/diagrams/dfd-level-0.png"
+fig.savefig(out, dpi=140, facecolor="#ffffff", bbox_inches="tight", pad_inches=0.3)
+print("wrote", out)

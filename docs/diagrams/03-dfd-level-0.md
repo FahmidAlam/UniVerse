@@ -1,117 +1,88 @@
 # Diagram 3 — Data Flow Diagram, Level 0 (Context Diagram)
 
-> **Goal of this file:** give you everything to draw the context diagram **by hand** in draw.io,
-> with every arrow's exact *from → data → to* spelled out. Do not copy the PNG's layout — follow
-> the placement plan in §5; it is cleaner.
->
-> **What a Level-0 DFD shows:** the whole app as **one process** in the middle, the outside
-> world (people + external systems) around it, and the **named data** moving in and out.
-> No data stores at this level (those are Level-1 only).
+> **What this shows:** The system boundary of **UniVerse — A Campus Companion** represented as a single central process (**0**), surrounded by external human entities and external backend systems, detailing every named data flow passing across the boundary.  
+> **Source of Truth:** Live application inputs/outputs, Flutter services, Supabase database interfaces, Render solver API, and Firebase FCM.  
+> **Tool to render:** [draw.io / diagrams.net](https://app.diagrams.net) (using Gane-Sarson or Yourdon/DeMarco shapes).
 
 ---
 
-## 1. The one process (centre)
-
-A single bubble in the middle:
+## 1. Central Process
 
 ```
-        ┌──────────────────┐
-        │        0         │
-        │     UniVerse     │
-        │ A Campus Companion│
-        └──────────────────┘
+         ┌───────────────────────────────────┐
+         │                 0                 │
+         │              UniVerse             │
+         │        A Campus Companion         │
+         └───────────────────────────────────┘
 ```
-
-Number it **0**. It is the only process on this page.
+Process **0** encapsulates the entire client-server software application (Flutter mobile app, Supabase PostgreSQL, Authentication, and Storage).
 
 ---
 
-## 2. External entities (5 boxes around the centre)
+## 2. External Entities (5 Boundary Entities)
 
-| # | Entity | Type | Role in the system |
+| Entity ID | Entity Name | Type | Description & Boundary Responsibility |
 |---|---|---|---|
-| E1 | **Student** | person | Views routine, dashboard, resources; reads/dismisses alerts. |
-| E2 | **Teacher** | person | Views classes; cancels a class; posts notice / room change. |
-| E3 | **Admin** | person | Manages routine, generates timetable, broadcasts, users, resources. |
-| E4 | **Timetable Engine (OR-Tools)** | external system | Separate Python server that solves the timetable. |
-| E5 | **Firebase FCM** | external system | Delivers push notifications to phones. |
-
-> **Why no "Supabase" box?** Supabase (Postgres + Auth + Storage) **is** the system's own
-> backend — it lives *inside* process 0, so it is not an external entity. Google OAuth is the only
-> third-party used at login; it is minor, so we fold it into the system. (If your examiner insists,
-> you may add a 6th box "Google OAuth" connected only to the login flow F1.)
+| **E1** | **Student** | Human User | Interacts with personalized schedules, class countdowns, learning materials, and campus exploration tools. |
+| **E2** | **Teacher** | Human User | Accesses teaching rosters, manages class cancellations, issues room changes, and queries campus availability (whitelist gated). |
+| **E3** | **Admin** | Human User | Directs timetable operations (solver & direct ingest), configures faculty/courses/rooms, issues broadcasts, and registers staff. |
+| **E4** | **Timetable Solver Engine** | External System | Python FastAPI service on Render running Google OR-Tools CP-SAT constraint optimization. |
+| **E5** | **Firebase FCM & Mobile Push** | External System | Cloud delivery service receiving dispatch payloads from Supabase Edge Functions and delivering native OS notifications to user phones. |
 
 ---
 
-## 3. Data flows — the exact arrows (from → data → to)
+## 3. Data Flow Inventory (Numbered F1 – F10)
 
-Each numbered row = **one arrow**. Draw the arrowhead pointing at the **To** column.
-"⇄" entities get two arrows (one each way) — never a single double-headed line in a DFD.
-
-| # | From | Data carried (label the arrow with this) | To |
+| Flow # | Source (From) | Data Transferred (Label) | Destination (To) |
 |---|---|---|---|
-| **F1** | Student | login / sign-up credentials · profile edits · "dismiss alert" action | **0 UniVerse** |
-| **F2** | **0 UniVerse** | weekly routine · dashboard (live/next class) · resource files & links · notifications | Student |
-| **F3** | Teacher | login credentials · cancel-class (date + reason) · notice / room-change text | **0 UniVerse** |
-| **F4** | **0 UniVerse** | weekly routine · today's class list · cancellation alerts | Teacher |
-| **F5** | Admin | login · Excel distribution file · manual routine edits · generator config · broadcast text · new-admin email · role changes · resource files / links | **0 UniVerse** |
-| **F6** | **0 UniVerse** | dashboard counts · generation report + validation · user lists · broadcast history | Admin |
-| **F7** | **0 UniVerse** | distribution **.xlsx** + config **JSON** (rooms, faculty, settings) | Timetable Engine |
-| **F8** | Timetable Engine | generated timetable rows · solver stats · validation result · rendered workbook | **0 UniVerse** |
-| **F9** | **0 UniVerse** | notification payload + target device tokens | Firebase FCM |
-| **F10** | Firebase FCM | push notification (delivered to phones) | Student / Teacher |
-
-That is **10 arrows total** (2 each for Student, Teacher, Admin, Engine; 2 for FCM). Nothing else.
+| **F1** | **Student** | Login credentials · profile updates · alert dismissals · Find Teacher search query · Room Availability query | **0 UniVerse** |
+| **F2** | **0 UniVerse** | Personalized routine · live/next class countdown · study resources · notifications · teacher location · room vacancy status | **Student** |
+| **F3** | **Teacher** | Login credentials (whitelist verified) · class cancellation (date + reason) · notice/room change text · Find Teacher/Room queries | **0 UniVerse** |
+| **F4** | **0 UniVerse** | Teaching routine · today's assigned classes · cancellation status · notifications · room vacancy status | **Teacher** |
+| **F5** | **Admin** | Login credentials · distribution `.xlsx` · pre-rendered `.xlsx` workbook · manual routine edits · room/faculty/eligibility/settings config · broadcast announcements · teacher whitelist data · resource uploads | **0 UniVerse** |
+| **F6** | **0 UniVerse** | Solver report & validation · active routine status · user lists · broadcast history · dashboard analytics | **Admin** |
+| **F7** | **0 UniVerse** | Course distribution `.xlsx` + solver configuration parameters (`time_limit`, `semester_label`, rules) | **Timetable Solver Engine** |
+| **F8** | **Timetable Solver Engine** | Generated timetable rows · service rows · solver statistics · validation diagnostics · rendered workbook bytes | **0 UniVerse** |
+| **F9** | **0 UniVerse** | Notification payload + target device tokens (via Supabase Webhook $\rightarrow$ Edge Function) | **Firebase FCM** |
+| **F10** | **Firebase FCM** | Native OS push notification alerts (heads-up notifications on mobile devices) | **Student / Teacher** |
 
 ---
 
-## 4. Reading order (so you understand the story)
+## 4. Architectural Data Pipeline Summary
 
-1. A user **logs in** → F1 / F3 / F5 in, F2 / F4 / F6 back out (what they see).
-2. Admin sends the **Excel file** → F7 to the Engine; the Engine returns the **solved timetable**
-   → F8; the app shows the report → F6 and the routine ends up visible to users → F2 / F4.
-3. Any alert created in the app → F9 to FCM → F10 push lands on the phone.
+1. **Authentication & Gating:** All users authenticate via F1, F3, or F5. For Teachers and Admins, credentials are automatically validated against the database whitelist before access is granted.
+2. **Dual-Path Routine Pipeline:**
+   - **Solver Path:** Admin uploads course distribution file $\rightarrow$ F7 to Timetable Engine $\rightarrow$ Engine returns solved schedule via F8 $\rightarrow$ Admin verifies and publishes.
+   - **Direct Upload Path:** Admin uploads pre-rendered Excel workbook via F5 $\rightarrow$ UniVerse parses sheets client-side and publishes directly to routines.
+3. **Campus Exploration Querying:** Real-time queries for teacher location and room vacancy arrive through F1/F3 and return current active slot calculations via F2/F4.
+4. **Automated Notification Pipeline:** When any alert is created (cancellation, broadcast, resource upload, routine publication), UniVerse triggers F9 to Firebase FCM, which delivers F10 push notifications to mobile devices.
 
 ---
 
-## 5. Placement plan (draw it like this — avoids crossings)
+## 5. Placement & Layout Blueprint (draw.io)
 
 ```
-   Student ┐                                   ┌ Admin
-           │  F1↘        ┌─────────┐       F5↘ │
-           │      ╲      │    0    │      ╱     │
-           │  F2↖  ╲────►│ UniVerse│◄────╱  ↖F6 │
-           │             └────┬────┘            │
-   Teacher ┘  F3↘  ╱─────►  ▲ │ ▼  ◄─────╲ ↘F7  ┌ Timetable Engine
-           │  F4↖ ╱       F9 │ │ F8        ╲ ↖F8│
-           └             ┌───┴─┴───┐            └
-                         │ Firebase │  (F9 down, F10 back up to Student/Teacher)
-                         │  (FCM)   │
-                         └──────────┘
+        Student [E1]                                      Admin [E3]
+         │       ▲                                         │       ▲
+      F1 │       │ F2                                   F5 │       │ F6
+         ▼       │                                         ▼       │
+      ┌───────────────────────────────────────────────────────────────┐
+      │                                                               │
+      │                               0                               │
+      │                           UniVerse                            │
+      │                      A Campus Companion                       │
+      │                                                               │
+      └───────────────────────────────────────────────────────────────┘
+         ▲       │                    ▲                 ▲          │
+      F3 │       │ F4                 │ F8              │ F10      │ F7
+         │       ▼                    │                 │          ▼
+        Teacher [E2]         Timetable Solver Engine   Firebase   Timetable Solver
+                                    [E4]                 FCM        Engine [E4]
+                                                         [E5]
 ```
 
-- **Students/Teachers on the LEFT**, **Admin + Engine on the RIGHT**, **Firebase at the BOTTOM**.
-- Keep the two arrows of each pair **parallel** and **clearly separated** (offset the labels so
-  the "in" and "out" text never touch — that was the only flaw in the auto-generated PNG).
-
----
-
-## 6. Build steps (draw.io)
-
-1. Drop one **process** (circle or rounded rectangle) in the centre → label `0  UniVerse`.
-2. Drop the **5 entity squares** per §5.
-3. Add the **10 arrows** from §3, one at a time, **typing the data label on each as you go**.
-4. Check every entity has the right number of arrows: Student 2, Teacher 2, Admin 2, Engine 2,
-   FCM 2.
-5. Export → PDF/PNG.
-
----
-
-## 7. Don't-skip checklist
-
-- [ ] Exactly **one** process, numbered **0**. No data stores.
-- [ ] **5 entities**: Student, Teacher, Admin, Timetable Engine, Firebase FCM.
-- [ ] All **10 arrows (F1–F10)** present and **each one labelled** with its data.
-- [ ] Student / Teacher / Admin / Engine each have **one in + one out** arrow.
-- [ ] FCM: one arrow in (F9 payload+tokens), one out (F10 push).
-- [ ] Every flow here will reappear inside a process in Level-1 (balancing).
+### Visual Layout Recommendations:
+- Place human users (**Student**, **Teacher**) on the left.
+- Place administrative and computational external systems (**Admin**, **Timetable Engine**) on the right.
+- Place **Firebase FCM** at the bottom center to illustrate the outbound dispatch pipeline.
+- Separate inbound and outbound arrow pairs with generous margins so text labels never overlap.
