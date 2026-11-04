@@ -1,287 +1,186 @@
-<div align="center">
-
+﻿<div align="center">
 <img src="assets/icon/app_icon.png" width="96" alt="UniVerse app icon" />
 
 # UniVerse — A Campus Companion
 
-**A role-aware campus app for students, teachers, and admins — with an automatic department timetable generator at its core.**
-
-[![Flutter](https://img.shields.io/badge/Flutter-3.35-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
-[![Dart](https://img.shields.io/badge/Dart-3.9-0175C2?logo=dart&logoColor=white)](https://dart.dev)
-[![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%C2%B7%20Auth%20%C2%B7%20Realtime-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com)
-[![Firebase](https://img.shields.io/badge/Firebase-Cloud%20Messaging-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com)
-[![OR-Tools](https://img.shields.io/badge/OR--Tools-CP--SAT-4285F4?logo=google&logoColor=white)](https://developers.google.com/optimization)
-[![Platform](https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white)](#)
-
+A Flutter campus application for students, teachers and administrators, with a Python timetable generator.
 </div>
 
----
+UniVerse began as a CSE application for Leading University, Sylhet. University-wide scheduling and reliable offline access are planned extensions, not completed capabilities.
 
-## Overview
+**Immediate priority:** a browser-based admin extension and complete CSE routine generation, extending this application. Preserve the long-term multi-department academic-management direction; other actors on web and offline expansion follow later.
 
-**UniVerse** is an Android app built for the CSE department of **Leading University, Sylhet,
-Bangladesh**. It gives every actor on campus a single place to see their day: students and
-teachers get a live dashboard of their classes; admins manage routines, resources, users, and
-campus-wide broadcasts.
+**Current audit (4 November 2026):** [Admin web assessment and roadmap](docs/timetable-audit-2026-10-20/15-admin-web-preimplementation-2026-11-04.md), [all 16 committee requirements](docs/timetable-audit-2026-10-20/16-committee-traceability-2026-11-04.md), and [documentation/PDF inventory](docs/timetable-audit-2026-10-20/17-documentation-inventory-2026-11-04.md). Audit/documentation only; implementation requires a separate instruction. [Earlier checkpoints](docs/timetable-audit-2026-10-20/README.md) retain dated evidence.
 
-The headline feature is an **automatic timetable generator**. An admin uploads the semester's
-course distribution workbook, and a Python **OR-Tools CP-SAT** engine solves a conflict-free
-weekly schedule — respecting teacher day-offs, room pools, lab blocks, and department lab
-reservations — then publishes it straight into the app for everyone to see.
+## Implemented features
 
-> Course **CSE-3240 (Project I)** · Team **Sherlocked** · Advisor: **Jaminur Rahman**
+**Committee policy update:** [Confirmed decisions and editable Course Distribution baseline](docs/timetable-audit-2026-10-20/18-committee-decisions-and-policy-baseline-2026-11-04.md) supersede the initial audit's open questions. Independent section weekends, faculty attendance distinct from teaching, distinct-course adjunct workloads, low-credit theory blocks and explicit sessional break permission are approved requirements, not implemented features. The editable distribution page is also future work: retain original files and use one validated versioned correction draft throughout generation and publication.
 
----
+After separate implementation instruction, start with browser admin compatibility. [Five specialist roles and coordination](docs/timetable-audit-2026-10-20/19-specialist-coordination-workflow-2026-11-04.md) assign platform, UI/distribution, scheduling, backend and independent testing work; the [repository skill](.agents/skills/universe-implementation/SKILL.md) provides portable handoffs. Preparation does not authorize source changes.
 
-## Feature highlights
+- Student/teacher dashboards and weekly routines, selected by batch/section or teacher code.
+- Resources organized by semester/category, with uploaded files and links.
+- Notification feed, read receipts and local dismiss preferences.
+- Teacher cancellation of dated class occurrences, notices and cancellation undo.
+- Admin user/whitelist management, broadcasts, resources, rooms, faculty and scheduling settings.
+- Admin routine hub with manual management, distribution generation and rendered-workbook upload.
+- Room and teacher lookup derived from scheduled classes.
+- Firebase messaging client integration and local notification display.
 
-### 🎓 Student
-- **Dashboard** — greeting, a live/next-class hero card with a countdown, quick stats, and today's class list.
-- **Routine** — the full weekly schedule, filtered to the student's batch and section.
-- **Resources hub** — browse course material by **semester folder** and category; open files or Drive links.
-- **Notifications** — a realtime feed with per-user multi-select dismiss.
+Room/teacher lookup represents scheduled activity, not physical tracking. It currently ignores cancellations and has freshness/lifecycle limitations. Schedule data is not persistently cached for offline use.
 
-### 👩‍🏫 Teacher
-- **Dashboard** — same live hero + today's classes, from the teacher's perspective.
-- **Manage Classes** — **cancel** a class occurrence (auto-alerts + pushes affected students), **post** a room change / notice / test reminder, or **undo** a cancellation.
-- **Routine** — weekly schedule filtered by teacher code.
+The intended push path is notification insert to Supabase webhook, send-push and FCM. Executable recovered Edge Function sources now exist, including a test-only webhook gate. See [backend baseline evidence](docs/backend-setup.md). Their presence does not establish production rollout or end-to-end delivery; no deployment is authorized by these docs.
 
-### 🛠️ Admin
-- **Routine hub** — a segmented **Manage** + **Generate** view over the timetable engine.
-- **Timetable generator** — upload a distribution workbook → review report, validation, and grid → download the `.xlsx` or publish to everyone.
-- **Config** — Manage Rooms, Manage Faculty (with day-offs + course eligibility + course assignments), and Timetable Settings.
-- **Broadcast** — send campus-wide notifications (with history), plus admin registration and user management.
-- **Manage Resources** — upload any file or Drive link into semester folders (auto-notifies students).
+## Timetable engine
 
-### 🧭 Campus Explore *(all roles, via the "Explore Campus" FAB)*
-- **Find Teacher** — real-time teacher locator: current room, remaining time, and next class.
-- **Room Availability** — real-time room occupancy: current class, status, and countdown to free.
-
-### 🔔 Push notifications
-Any insert into the `notifications` table fires a deployed Supabase Edge Function
-(`send-push`) via a DB webhook, delivering an OS push over **Firebase Cloud Messaging** to the
-correct audience — no separate push path to maintain.
-
----
-
-## The differentiator — Timetable Engine
-
-The engine is a stateless **FastAPI + Google OR-Tools (CP-SAT)** service (in `engine/`),
-deployed on Render. It turns an Excel course distribution into a conflict-free weekly workbook.
-
-```
-Excel distribution + DB config
-   → ingest.py   parse the "Course Distribution" sheet, detect labs / service courses,
-                 apply admin teacher overrides, validate invariants
-   → solver.py   PHASE 1 (CP-SAT): assign every session a (day, period)
-                 PHASE 2 (greedy):  assign a concrete room
-   → render.py   write the canonical cohort grid into the routine template
-   → app polls   → report + validation + grid → Download .xlsx / Publish to routines
+```text
+Distribution .xlsx + configuration from Supabase
+  → ingest.py: group source rows into offerings and weekly sessions
+  → solver.py: CP-SAT day/period placement, greedy concrete-room assignment
+  → validation: reconcile normalized requirements and scheduling checks
+  → render.py: generate a workbook using the CSE template
+  → Flutter: report, grid, download and publication
 ```
 
-**Hard constraints:** no teacher/section/room double-booking · teacher day-offs · Friday has no
-period 4 · room count never exceeds the pool · department-tagged lab rooms reserved for that
-department. **Soft goals:** spread a course's two weekly sessions across different days, keep
-each cohort's day compact, and avoid the last period.
+The engine models teacher/cohort slot conflicts, day-offs, blocked periods, room-pool counts, same-day restrictions and inferred theory/lab adjacency. Faculty-course eligibility is validated after solving. Known room capacity and source-backed combined-section collisions are now checked; usable periods must not overlap. Equipment, per-slot faculty/room availability and independent cross-department reservations remain gaps. Pool capacity alone does not guarantee a usable concrete-room allocation.
 
-Published rows are shaped **exactly** like the Supabase `routines` table, so the existing
-student/teacher routine screens display them with zero extra code.
+Weekly counts normally derive from term class totals and teaching weeks. A fixed count can override them; migration 015 sets the existing settings row to two/week. Under-delivery currently produces warnings rather than blocking errors.
 
-> Real-data sanity check (Summer 2025): 358 offerings → 654 CSE + 32 service sessions across
-> 55 cohorts and 76 teachers, solved clash-free.
+The older Summer 2025 audit counted 325 assigned offerings/656 derived meetings. Later pending-preserving ingestion retains **338 offerings and 682 meetings** under the explicit 14-week source-derived policy, or 676 at fixed two/week; see [dated showcase evidence](docs/timetable-audit-2026-10-20/11-advisor-showcase-2026-11-02.md). Fixture results are not current committee-policy approval.
 
-See [engine/README.md](engine/README.md) for the full HTTP contract and local-run instructions.
+Generated/uploaded routines use `publish_routine` (012, replaced by 014), which atomically replaces **all** current rows. Manual management still changes individual rows directly. Shared backend validation, scoped publication, full historical snapshots and committee approval remain necessary before university-wide use.
 
----
+## Stack and layout
 
-## Tech stack
-
-| Layer | Choice |
+| Layer | Implementation |
 |---|---|
-| **App** | Flutter ~3.35 · Dart `^3.9.2` |
-| **State** | `ChangeNotifier` + `ListenableBuilder` (no Riverpod/Bloc/Provider) |
-| **Routing** | `go_router` ^17 with a `ShellRoute` + role-aware bottom nav |
-| **Backend** | Supabase — Postgres · Auth · Storage · Realtime |
-| **Auth** | Google OAuth (PKCE) + email/password; whitelist gate for admins |
-| **Push** | Firebase Cloud Messaging + a `send-push` Supabase Edge Function |
-| **Engine** | Python 3.12 · FastAPI · Google OR-Tools (CP-SAT) · openpyxl |
-| **UI** | Google Fonts (Inter) · Phosphor icons · a custom dark design system |
+| App | Flutter/Dart; pubspec SDK range `>=3.0.0 <4.0.0` |
+| State/routing | ChangeNotifier, ListenableBuilder, SafeChangeNotifier in several features; GoRouter |
+| Backend | Supabase Auth, PostgreSQL/RLS, Storage and selected Realtime streams |
+| Sign-in | Native Google ID-token exchange off-web; browser OAuth on web; email/password |
+| Permissions | Student/teacher/admin; migration 016 gates new teacher/admin roles through whitelists |
+| Messaging | Firebase Core/Cloud Messaging and flutter_local_notifications; no Firestore/Firebase Auth |
+| Scheduling | FastAPI, OR-Tools CP-SAT, openpyxl |
+| Local state | SharedPreferences/temporary files; Hive declared but no timetable cache |
+| UI | Inter, dark theme tokens, Material icon shim exposing Phosphor names |
 
----
+The feature-first convention is screen → controller → service → backend, with a few existing exceptions.
 
-## Architecture
-
-Layered, feature-first, and strictly enforced:
-
-```
-Screen  →  Controller (ChangeNotifier)  →  Service  →  Supabase / Engine
-```
-
-- **Screens and controllers never touch Supabase** — only the `services/` layer does.
-- Each feature owns its own `screens/ controllers/ services/`.
-- Shared design tokens live in `lib/core/theme/` — no hardcoded hex, spacing, or text styles in widgets.
-- One `AppShell` owns the single Scaffold + bottom nav; secondary screens are pushed.
-
-### Project layout
-
-```
-lib/
-  main.dart                 Firebase + push init, Supabase init, router, deep links
-  core/
-    theme/  router/  constants/  models/  utils/  services/
-  shared/widgets/           u_* primitives, composite cards, explore FAB menu
-  features/
-    auth/  routine/  resources/  notifications/  profile/  admin/
-    dashboard/              student home
-    teacher/               teacher home + Manage Classes
-    find_teacher/          real-time teacher locator
-    rooms/                 real-time room availability
-
-engine/                     FastAPI + CP-SAT timetable service
-supabase/
-  migrations/               schema + RLS (001–010)
-  functions/               invite-admin · send-push (Edge Functions)
-  seed/                    demo accounts, routine, resources, timetable config
-docs/                       diagrams + defense material
+```text
+lib/main.dart
+lib/core/                   constants, models, router, theme, utilities, push
+lib/shared/                 widgets and utilities
+lib/features/               auth, admin, routine, resources, notifications,
+                            profile, dashboard, teacher, find_teacher, rooms
+engine/                     API, ingestion, solver, renderer, tests, templates
+supabase/migrations/        historical incremental SQL + local additive catalog
+supabase/reconciliation/    reconstructed baseline and verification artifacts
+supabase/functions/         recovered executable source; rollout unverified
+supabase/seed/              sample/historical data; not production setup
 ```
 
-### Diagrams
+[Defense diagrams](docs/archive/diagrams/README.md) contain historical schema/behavior claims; use the current audit for architecture.
 
-| ER Diagram | Use Case | DFD (Level 0) | DFD (Level 1) |
-|---|---|---|---|
-| [![ER](docs/diagrams/er-diagram.png)](docs/diagrams/er-diagram.png) | [![Use Case](docs/diagrams/use-case-diagram.png)](docs/diagrams/use-case-diagram.png) | [![DFD0](docs/diagrams/dfd-level-0.png)](docs/diagrams/dfd-level-0.png) | [![DFD1](docs/diagrams/dfd-level-1.png)](docs/diagrams/dfd-level-1.png) |
+## Local setup
 
-Sources (Mermaid): [docs/diagrams/](docs/diagrams/).
+Use an Android-capable Flutter installation and configured Android SDK/JDK. The audit's SDK cache reported Flutter **3.47.0 / Dart 3.13.0**; this is a tested local environment, not the minimum supported version. `pubspec.lock` records resolved dependencies.
 
----
+Android files use Gradle **8.14**, AGP **8.11.1**, Kotlin **2.2.20**. Keep the established wrapper unless deliberately coordinating toolchain changes. Release currently uses debug signing and a development package identity; production release setup is incomplete.
 
-## Getting started
+From repository root in PowerShell:
 
-### Prerequisites
-
-- **Flutter** ~3.35 (Dart `^3.9.2`) — `flutter doctor` should pass for Android.
-- **Android** SDK; **Gradle 8.14** wrapper (required for JDK 24 dev machines — do not downgrade).
-- **Python 3.12** (only if you want to run the timetable engine locally).
-- A **Supabase** project and a **Firebase** Android app (for push).
-
-### 1. Clone and install
-
-```bash
-git clone <this-repo>
-cd universe_v1
+```powershell
 flutter pub get
-```
-
-### 2. Configure environment
-
-The app reads its backend config from dart-defines. Copy the example and fill in your values:
-
-```bash
-cp dart_defines.example.json dart_defines.json
-```
-
-```jsonc
-{
-  "SUPABASE_URL": "https://YOUR_PROJECT.supabase.co",
-  "SUPABASE_ANON_KEY": "YOUR_SUPABASE_ANON_KEY",
-  "TIMETABLE_BASE_URL": "http://10.0.2.2:8000"   // emulator → host machine
-}
-```
-
-> `dart_defines.json` is gitignored. The Supabase anon key is safe to ship; the **service-role
-> key never leaves the `invite-admin` Edge Function**.
-
-Firebase config (`google-services.json`, `firebase_options.dart`) is committed as Android client
-config — it is not secret.
-
-### 3. Run
-
-```bash
+Copy-Item dart_defines.example.json dart_defines.json
 flutter run --dart-define-from-file=dart_defines.json
+flutter build apk --release --dart-define-from-file=dart_defines.json
 ```
 
-### 4. Build a release APK
+Fill the copied example before running. AppConstants supports `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `TIMETABLE_BASE_URL` and `GOOGLE_WEB_CLIENT_ID`. Select a test environment deliberately; code defaults point to a project/service. Never put privileged server credentials in Dart defines.
 
-```bash
-flutter build apk --release
-# → build/app/outputs/flutter-apk/app-release.apk
+APK output: `build/app/outputs/flutter-apk/app-release.apk`. Building release does not establish production signing readiness.
+
+Firebase setup is Android-focused. Native Google sign-in depends on the web client ID, package identity and registered signing certificate. Coordinate package/signing changes with Firebase/OAuth and these links:
+
+```text
+com.example.universe://login-callback/
+com.example.universe://reset-callback/
 ```
 
-The release APK uses debug signing so it is sideloadable for demos; the live engine URL is
-baked in as a default in `app_constants.dart`.
+Other platform folders exist but are not evidence of tested support.
 
----
+## Backend setup limitations
 
-## Backend setup (Supabase)
+The historical 15 migrations (001-009 and 011-016, no 010) alter an existing schema and do not bootstrap a complete backend. A reconstructed baseline, local config, isolated verifier and additive catalog migration now exist; see [backend setup](docs/backend-setup.md). Automatic replay of the historical chain is disabled. Local artifacts do not prove hosted catalog deployment.
 
-1. Apply the migrations in [supabase/migrations/](supabase/migrations/) (001 → 010) in order.
-   They create the schema, enable RLS on every table, and add the timetable-config tables.
-2. Seed demo data from [supabase/seed/](supabase/seed/) (accounts, routine, resources,
-   notifications, whitelist, timetable config).
-3. Deploy the Edge Functions in [supabase/functions/](supabase/functions/):
-   - `invite-admin` — admin provisioning (holds the service-role key).
-   - `send-push` — FCM v1 delivery, triggered by a DB webhook on `notifications` INSERT.
-4. Create the storage buckets: `avatars`, `resources`, `assignments`, `timetables`.
+Before backend rollout, review existing reconciliation/local verification evidence and reconcile current deployment drift, grants/RLS, Storage, Realtime and migration history. Recovered function sources and a limited backup exist; full production recovery remains unverified. Do not run demo seeds or destructive migrations against production. [Migration proposal](docs/timetable-audit-2026-10-20/05-database-migration.md)
 
-**RLS pattern** on every table: `read_all` (SELECT) + `admin_write` (INSERT/UPDATE/DELETE with a
-check that the caller is an admin in `profiles`).
+`supabase/diagnostics.sql` offers read-only introspection. Review its output for sensitive configuration before sharing.
 
----
+## Running the engine
 
-## Running the timetable engine locally
+Deployment files request Python **3.12.7**. Audit tests used the existing Python **3.11.4** environment; validate the deployment interpreter separately.
 
-```bash
-cd engine
+```powershell
+Set-Location engine
 python -m venv .venv
-# Windows:  .venv\Scripts\activate
-# macOS/Linux:  source .venv/bin/activate
-pip install -r requirements.txt
-
-# Quick standalone solve (prints stats + validation, no server):
-python solver.py
-
-# Start the API:
-uvicorn main:app --reload --port 8000
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m uvicorn main:app --reload --port 8000
 ```
 
-Point the app at it with `TIMETABLE_BASE_URL=http://10.0.2.2:8000` (Android emulator → host).
-Deployment is automatic: pushing to `main` triggers a Render rebuild via [render.yaml](render.yaml).
+For Android emulator development, use `TIMETABLE_BASE_URL=http://10.0.2.2:8000`. Android cleartext exceptions cover local development hosts.
 
----
+| Method/path | Current contract |
+|---|---|
+| `GET /` | Health JSON |
+| `POST /api/timetable/generate` | Multipart required file, optional config JSON string and time_limit_s (default 60) → job ID |
+| `GET /api/timetable/status/{job_id}` | queued/ingesting/solving/rendering/done/failed, progress and metadata/error |
+| `GET /api/timetable/result/{job_id}` | rows, service_rows, stats, validation, report, has_workbook |
+| `GET /api/timetable/download/{job_id}` | Rendered .xlsx |
 
-## Design system
+Jobs are currently in memory without authenticated ownership/resource bounds. `.xls` passes filename checks but the reader requires `.xlsx`. See [engine guide](engine/README.md) for current constraints and limits.
 
-A single dark theme (`AppTheme.dark`) built from tokens in `lib/core/theme/`:
+`render.yaml`, Procfile and runtime files describe hosting. Actual account linkage, deploy branch, uptime and automatic rebuild behavior were not verified.
 
-- **Colors** — deep charcoal surfaces with an orange (`#FF7A00`) primary accent.
-- **Type** — Inter via Google Fonts; a fixed scale (`h1`…`caption`, `button`, `countdown`, …).
-- **Spacing / radius / icons** — named tokens only; never raw numbers in widgets.
-- **Icons** — Phosphor (`PhosphorIconsRegular.*`).
+## Verification
 
----
+From repository root:
 
-## Team — Sherlocked
+```powershell
+flutter analyze
+flutter test
+```
 
-Feature-based vertical ownership (screen + controller + service):
+From engine:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests -q
+```
+
+Optional private-workbook full solve, from engine:
+
+```powershell
+$env:UNIVERSE_SOLVE = '1'
+$env:SOLVER_WORKERS = '2'
+.\.venv\Scripts\python.exe -m pytest tests/test_real_distribution.py -q
+Remove-Item Env:UNIVERSE_SOLVE
+Remove-Item Env:SOLVER_WORKERS
+```
+
+On 4 November 2026: **115 Flutter tests passed; 210 engine tests passed and 1 optional full solve skipped**. October analysis/results remain dated evidence; no browser build or live DB/push/device certification was performed here. [Acceptance strategy](docs/timetable-audit-2026-10-20/06-testing-and-acceptance.md)
+
+Private workbooks in `engine/routine generation files/` contain personal data and must remain gitignored. Use sanitized CI fixtures. `engine/tools/seed_config.py` rewrites config and seed files; it is not an inspection command.
+
+## Team and conventions
+
+Team Sherlocked, CSE-3240 (Project I), Leading University.
 
 | Member | Ownership |
 |---|---|
-| **Fahmid Alam** | Architecture, shared infra, auth, admin + **timetable engine**, `core/`, build/deploy |
-| **Swadheen Islam Robi** | Student/teacher features — routine, resources, dashboards, teacher screens, Find Teacher, Room Availability |
-| **Shahriar Rashid Ratul** | Notifications, profile, push, QA, seeding, docs |
+| Fahmid Alam | Architecture, shared infrastructure, auth, admin, timetable engine, build/deploy |
+| Swadheen Islam Robi | Routine, resources, dashboards, teacher features, room/teacher lookup |
+| Shahriar Rashid Ratul | Notifications, profile, push, QA, seeding and docs |
 
----
+Use theme tokens, package imports and existing navigation/service patterns. [CLAUDE.md](CLAUDE.md) records engineering guardrails. AI assistance remains outside current scope.
 
-## Project status
-
-Feature-complete and defense-ready. The app runs end-to-end: auth · dashboards · routine ·
-resources · notifications with live push · profile · admin · teacher Manage Classes ·
-**automatic timetable generator (deployed live)** · Find Teacher + Room Availability.
-
-An in-app AI assistant is intentionally **descoped** (kept as future scope).
-
----
-
-## License
-
-Academic project for CSE-3240 (Project I) at Leading University. Not licensed for redistribution.
+Academic project; no redistribution license is specified.

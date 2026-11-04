@@ -1,5 +1,15 @@
 # University timetable architecture audit
 
+**Current priority - 4 November 2026:** browser-based admin extension first, then complete CSE configuration/generation. Preserve long-term multi-department academic management. This task is audit/documentation only; do not resume earlier implementation handoffs.
+
+**Later November 4 authority:** [Committee decisions D1-D6 and editable Course Distribution CD1](18-committee-decisions-and-policy-baseline-2026-11-04.md) resolve the corresponding initial questions. Read [specialist coordination and ownership](19-specialist-coordination-workflow-2026-11-04.md) before assigning work. Source implementation is still not authorized; ask remaining questions only at the point of dependent implementation.
+
+- [Current architecture, web assessment, workflow and roadmap](15-admin-web-preimplementation-2026-11-04.md)
+- [All 16 committee requirements](16-committee-traceability-2026-11-04.md)
+- [Markdown cleanup and all 16 PDF recommendations](17-documentation-inventory-2026-11-04.md)
+
+Remaining sections preserve earlier dated assessments. Current facts/priority order come from report 15.
+
 Audit date: 20 October 2026 (Asia/Dhaka). Repository baseline: `47e2291`, including the working tree present at the start of the audit. **Status: proposal for review; implementation is not authorized by this document.**
 
 ## Executive decision
@@ -31,7 +41,7 @@ for repeated generation, fixes and current limits.
 | 7. Testing and acceptance strategy | [06-testing-and-acceptance.md](06-testing-and-acceptance.md) |
 | 8. Corrected project documentation | [README](../../README.md), [CLAUDE](../../CLAUDE.md), [correction register](07-documentation-corrections.md) |
 
-## Priorities
+## Historical priorities (20 October; November 4 order supersedes)
 
 1. **Critical before expansion:** enforce validated publication and department/source-revision isolation before a second department publishes. Formal term/calendar rollout is deferred; see the clarification override in the plan.
 2. **High:** preserve student-group membership and all teacher assignments; reject unknown resources, unapproved exclusions, overlapping clock intervals, and academic under-delivery.

@@ -35,7 +35,7 @@ The root README and CLAUDE guide were corrected only after code, SQL, workbook a
 - `docs/diagrams/README.md` says four diagrams while listing five, omits current version/eligibility objects, allows teacher self-registration, and treats push as verified. The root docs now identify these diagrams as historical. Redraw them after the new schema is approved; do not mistake their table count for a production introspection.
 - `OFFLINE_ARCHITECTURE_AUDIT.md` proposes caching but overstates “100% offline” behavior, sub-5-ms performance and immediate reconnection guarantees. Its cached-profile fallback must distinguish explicit denial from network failure and cannot confer admin authority. The new target replaces those guarantees with measurable targets and read-only semantics.
 - `docs/CAMPUS_READINESS_AUDIT_2026-10-20.md` contains useful prior evidence, including a full real-data solve. Current tests/probes were independently rerun; this report does not claim to have repeated that full solve.
-- `POLISH_HANDOFF.md` is historical handoff context, not evidence that its branch, counts or priorities still apply. The user's audit-only boundary takes precedence.
+- [`POLISH_HANDOFF.md` (archived 4 November)](../archive/2026-11-04/POLISH_HANDOFF.md) is historical handoff context, not evidence that its branch, counts or priorities still apply. The current audit-only boundary takes precedence.
 - `frontend_ux_audit.md` is a separate existing work item. No unrelated visual redesign was undertaken.
 
 ## Verification policy

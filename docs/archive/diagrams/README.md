@@ -1,5 +1,7 @@
 # UniVerse — System Defense Diagrams (Master Guide)
 
+> **Context notice - 4 November 2026:** retained October defense snapshot. Production-reconciliation statements below describe earlier assessments, not fresh hosted verification. The 14-table active view excludes the local additive catalog and proposed admin-web workflow. It does not prove browser support, recoverable historical schedules, equivalent validation across write paths, or end-to-end push delivery. Use the [current audit](../../timetable-audit-2026-10-20/15-admin-web-preimplementation-2026-11-04.md) for current limits and web-first priorities. Preserve actor/feature context; redraw only under later approved scope.
+
 > **Status:** Fully updated & reconciled with production codebase & live database (October 2026).  
 > **Target Audience:** Project defense committee, examiners, and software engineering team.  
 > **Source of Truth:** Verified against Supabase PostgreSQL schema (Migrations 001–016), live Supabase Edge Functions (`send-push`, `invite-admin`), live Render FastAPI solver engine (v2.0.0), and Flutter production client.

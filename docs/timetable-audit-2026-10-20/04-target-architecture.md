@@ -1,5 +1,7 @@
 # Target architecture proposal
 
+**Later November 4 update:** [confirmed policy and Course Distribution CD1](18-committee-decisions-and-policy-baseline-2026-11-04.md) and the [revised browser-first roadmap](15-admin-web-preimplementation-2026-11-04.md) supersede conflicting earlier design assumptions. Preserve initial design history. Faculty attendance is not teaching activity; source-derived assignments may receive explicit validated draft corrections; credit/count/duration remain distinct. Do not wait for formal calendars to establish browser admin or invent a term to wire canonical carriers. Current task is documentation/agent preparation only.
+
 This is a reviewable design, not an implemented feature description. Proposed numeric limits and service targets need confirmation against campus scale.
 
 
@@ -91,7 +93,7 @@ Start with discrete valid start candidates and eligible room variables; reserve 
 
 Mandatory: valid scoped relationships, active resources, approved requirements/durations, dates within term, no overlap for any shared teacher/group/room, teacher availability, room eligibility/capacity when mandatory, valid modes, approved hard breaks/adjacency, and pinned assignments. Unknown required inputs block generation. A cancellation frees a specific dated occurrence; it does not redefine the weekly requirement silently.
 
-Soft preferences: preferred hours, workload balance, gaps, compact days, late-slot avoidance and optional adjacency. Use named bounded weights and report preference violations separately. Do not present minimized teaching days as proof of gap minimization: the current compactness objective counts used days.
+Soft preferences: preferred hours, clarified workload preferences, compactness beyond mandatory gap limits, late-slot avoidance and optional adjacency. Section no-two-slot-gap and SUST maximum-gap limits remain mandatory as specified; they are not all soft. Exact committee class counts/low-credit theory blocks are mandatory; the two-credit sessional same-lab pair is preferred, with crossing the scheduled break permitted only by explicit relevant admin permission. Adjunct band hardness remains unresolved. Use named bounded preference weights and report misses separately. Minimized teaching days prove neither attendance policy nor gap minimization.
 
 The independent validator rechecks generated or edited results from approved input, not from solver “success” status. It uses interval arithmetic and all group/teacher links. Completeness includes approved exclusions and contact time, not only retained parser offerings.
 

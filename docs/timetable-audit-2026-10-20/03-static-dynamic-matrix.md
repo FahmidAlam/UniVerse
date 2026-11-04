@@ -1,5 +1,7 @@
 # Static-versus-dynamic decision matrix
 
+**Later November 4 policy update:** [record 18](18-committee-decisions-and-policy-baseline-2026-11-04.md) governs confirmed section weekends/batch fairness, faculty attendance/off-days, distinct-course workloads, theory/sessionals patterns and explicit break permission. The new Course Distribution requirement uses immutable source plus one validated correction revision. Source-backed assignment/group corrections are allowed with provenance; unreviewed inventions remain prohibited. Historic current-support cells below are not claims that the new policy or accepted-draft pipeline is implemented. Attendance and teaching-day counts are separate configurable/derived concepts.
+
 **A = stable invariant**, **B = configurable academic policy/master data**, **C = operational record**. All recommended implementations are proposals. “DB” means Supabase Postgres with RLS and server-side validation; it does not mean a client can freely edit the value.
 
 Configuration belongs in typed tables when identity, relationships, authorization or cross-row constraints matter. Versioned JSON is suitable for validated weights and adapter mappings. Environment configuration is reserved for deployment endpoints, credentials and operational resource limits.

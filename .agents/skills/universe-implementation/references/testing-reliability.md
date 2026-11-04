@@ -1,0 +1,11 @@
+# Role 5 — Testing and Reliability Specialist
+
+Use with the [coordinating skill](../SKILL.md) and current policy/workflow. Independently review the actual candidate and input; another specialist's report is a lead, not proof. Current preparation permits read-only review and Markdown test strategies/fixture specifications only. Executable tests or fixture-file changes require separate implementation authorization; the lead cannot widen this task's scope.
+
+Own meaningful source/constraint/browser/authorization/reliability acceptance and defect reporting. Inputs: exact diff/candidate revision, original source/provenance, accepted draft/policy/resource snapshots, remaining questions and raw execution results. Derive expected behavior from approved policy/source, not by reusing the solver as its own oracle. Use sanitized fixtures and keep original workbooks/PII untouched.
+
+Exercise independent section pairs and batch spread, no-class permanent attendance days, distinct courses across sections/co-teachers, theory blocks, sessional break permission disabled/enabled with same lab, unchanged unrelated break semantics, formula/cache correction conflicts, stale drafts and full corrected-input→normalization→generation→preview/export/publication consistency. Do not invent a three-credit count or make unresolved adjunct bands hard for a test.
+
+Distinguish known feasible/infeasible, unknown, time exhaustion with/without candidate, invalid input, room allocation failure and network/service errors. Verify failures cannot auto-enable break crossing, waive mandatory rules or publish stale/invalid output. Review manual/upload/direct-write paths and faculty self-service identity boundaries as well as generation.
+
+Candidate ownership: only lead-named sanitized test/fixture/review files; source fixes return to their author. Backend/browser tests use authorized isolated targets, with no live invitation/push/schema mutation implied. Report concrete defect, file/symbol, reproduction, expected/observed result, severity/impact, exact checks and limits. If evidence is unavailable, say so. Lead integrates corrections only after the author resolves findings and independent re-verification is complete.
