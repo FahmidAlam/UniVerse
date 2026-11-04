@@ -195,9 +195,14 @@ class TimetableGenController extends SafeChangeNotifier {
           status = await _service.pollStatus(jobId);
           consecutivePollErrors = 0;
         } catch (e) {
-          consecutivePollErrors++;
-          // Tolerates up to 5 consecutive transient network errors (~10s) before failing.
-          if (consecutivePollErrors >= 5) rethrow;
+          if (e.toString().contains('429')) {
+            // Rate-limited by edge proxy: back off and retry without burning disconnect retries
+            await Future.delayed(const Duration(seconds: 4));
+          } else {
+            consecutivePollErrors++;
+            // Tolerates up to 5 consecutive transient network errors (~10s) before failing.
+            if (consecutivePollErrors >= 5) rethrow;
+          }
         }
 
         if (status != null) {
