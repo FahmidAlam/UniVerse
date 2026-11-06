@@ -3,6 +3,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/services/push_service.dart';
+import 'auth_callback_policy.dart';
 
 class AuthResult {
   final bool success;
@@ -34,7 +35,6 @@ class AuthService {
 
   Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
 
-
   late final GoogleSignIn _googleSignIn = GoogleSignIn(
     serverClientId: AppConstants.googleWebClientId.isNotEmpty
         ? AppConstants.googleWebClientId
@@ -50,7 +50,7 @@ class AuthService {
     if (kIsWeb) {
       await _supabase.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: 'com.example.universe://login-callback/',
+        redirectTo: AuthCallbackPolicy.current.loginCallback,
         authScreenLaunchMode: LaunchMode.externalApplication,
       );
       return false;
@@ -80,7 +80,6 @@ class AuthService {
     return true;
   }
 
-
   Future<AuthResult> signUpWithEmail({
     required String email,
     required String password,
@@ -89,7 +88,7 @@ class AuthService {
       final response = await _supabase.auth.signUp(
         email: email.trim().toLowerCase(),
         password: password,
-        emailRedirectTo: 'com.example.universe://login-callback/',
+        emailRedirectTo: AuthCallbackPolicy.current.loginCallback,
       );
 
       if (response.user == null) {
@@ -105,6 +104,9 @@ class AuthService {
     } on AuthException catch (e) {
       return AuthResult.failure(_friendlyAuthError(e.message));
     } on PostgrestException catch (e) {
+      if (isNotWhitelistedError(e)) {
+        return AuthResult.failure('not_whitelisted');
+      }
       return AuthResult.failure('Database error: ${e.message}');
     } catch (e) {
       return AuthResult.failure('Unexpected error: $e');
@@ -143,7 +145,7 @@ class AuthService {
     try {
       await _supabase.auth.resetPasswordForEmail(
         email.trim().toLowerCase(),
-        redirectTo: 'com.example.universe://reset-callback/',
+        redirectTo: AuthCallbackPolicy.current.recoveryCallback,
       );
       return const AuthResult(success: true);
     } on AuthException catch (e) {
@@ -158,7 +160,7 @@ class AuthService {
       await _supabase.auth.resend(
         type: OtpType.signup,
         email: email.trim().toLowerCase(),
-        emailRedirectTo: 'com.example.universe://login-callback/',
+        emailRedirectTo: AuthCallbackPolicy.current.loginCallback,
       );
       return const AuthResult(success: true);
     } on AuthException catch (e) {
@@ -200,7 +202,6 @@ class AuthService {
       return AuthResult.failure('$e');
     }
   }
-
 
   Future<AuthResult> handlePostLogin() async {
     try {
@@ -252,12 +253,14 @@ class AuthService {
 
       return AuthResult(success: true, role: role, profile: newProfile);
     } on PostgrestException catch (e) {
+      if (isNotWhitelistedError(e)) {
+        return AuthResult.failure('not_whitelisted');
+      }
       return AuthResult.failure('Database error: ${e.message}');
     } catch (e) {
       return AuthResult.failure('Unexpected error: $e');
     }
   }
-
 
   Future<AuthResult> completeStudentRegistration({
     required String name,
@@ -346,15 +349,11 @@ class AuthService {
   }
 
   Future<Map<String, dynamic>?> fetchProfile(String userId) async {
-    try {
-      return await _supabase
-          .from(AppConstants.tableProfiles)
-          .select()
-          .eq('id', userId)
-          .maybeSingle();
-    } catch (_) {
-      return null;
-    }
+    return await _supabase
+        .from(AppConstants.tableProfiles)
+        .select()
+        .eq('id', userId)
+        .maybeSingle();
   }
 
   Future<void> signOut() async {

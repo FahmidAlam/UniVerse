@@ -1,40 +1,23 @@
 # UniVerse Timetable Engine
 
-FastAPI + OR-Tools CP-SAT + openpyxl. Current contract reviewed 4 November 2026.
-Immediate product priority: browser-based admin extension of the existing Flutter
-application, then complete CSE committee configuration/generation. This guide
-and the [audit roadmap](../docs/timetable-audit-2026-10-20/15-admin-web-preimplementation-2026-11-04.md)
-do not authorize implementation or deployment.
+FastAPI + OR-Tools CP-SAT + openpyxl.
+**Authoritative Roadmap:** [`../docs/implementation/UniVerse_Implementation_Master_Plan_v1_1.md`](../docs/implementation/UniVerse_Implementation_Master_Plan_v1_1.md)
 
-## Pipeline and inputs
+## Pipeline and Inputs
 
-The [later committee decisions](../docs/timetable-audit-2026-10-20/18-committee-decisions-and-policy-baseline-2026-11-04.md) now confirm independent section weekend defaults/overrides and batch off-day spread <=1, permanent attendance distinct from teaching, adjunct distinct-course counting, exactly two same-day consecutive same-room meetings for 1/1.5/2-credit CSE theory, and explicit permission for the relevant sessional pair across break. They are not yet implemented. Three-credit counts/spread and adjunct band strictness remain unresolved until dependent implementation. Existing `off_days` is reusable faculty configuration, not a section-weekend model.
+1. **Phase 2a Course Distribution Contract (`distribution.py`):**
+   - `SourceWorkbook` and `DistributionDraft.create(raw)` store the uploaded `.xlsx` bytes and SHA-256 digest immutably and extract cell values, formulas (`data_only=False`), and cached values (`data_only=True`) across columns `A`–`L` from row 6 onward on the `Course Distribution` sheet.
+   - `DistributionDraft.correct(...)` applies audited cell-level corrections (`CellCorrection`, `CorrectionRevision`) with optimistic concurrency (`expected_revision`, raising `StaleRevisionError` on stale writes) and preserves invalidated artifact markers (`invalidated_artifacts`).
+   - `distribution.normalize(draft, ...)` verifies that any uncorrected formula cell in columns `J` or `L` has a cached value, renders an in-memory effective workbook without mutating original source bytes, delegates to `ingest.ingest_bytes(...)`, and attaches `source_contract` metadata (`source_sha256`, `revision`, `invalidated_artifacts`).
+2. **Ingestion (`ingest.py`):**
+   - Reads `Course Distribution`, headers at row 5 and data from row 6.
+   - Groups cohort + course rows into offerings while preserving split/co-teacher arrays (`teachers`) and `B+C` joint sections. Blank faculty remains pending instead of being dropped.
+   - Meeting counts use a positive fixed override, otherwise `ceil(term class total / teaching weeks)`, then per-week hint, then two.
+3. **Solving, Validation & Rendering (`solver.py`, `room_policy.py`, `render.py`):**
+   - `main.py:_run_job` normalizes config, ingests grouped offerings, solves day/period placement in CP-SAT, assigns concrete rooms, validates, and renders `templates/CSE_Routine_TEMPLATE.xlsx`.
+   - Returns main and service rows separately; service rows reserve real faculty/rooms without drawing on the main CSE cohort grid.
 
-CD1 adds an editable distribution draft: preserve original bytes/formulas/cached values; accept traceable validated source corrections; normalize one pinned effective revision for generation, validation, preview, export and publication. The current multipart file/config endpoint and generated-routine draft JSON do not supply this contract. Agree the normalization/revision boundary before adding consumers; no second UI-only truth or silent original workbook edits.
-
-The Flutter client submits a required distribution `.xlsx` plus optional engine
-configuration. `main.py:_run_job` normalizes config, ingests grouped offerings,
-solves day/period placement, assigns concrete rooms greedily, validates, and
-renders the template workbook. It returns main and service rows separately;
-service rows reserve real faculty/rooms but are not drawn on the main grid.
-
-`ingest.py` reads `Course Distribution`, headers at row 5 and data from row 6.
-Header names determine columns. One cohort/course is an offering; split-teacher
-rows preserve attached teachers. Blank faculty remains pending instead of being
-dropped. No-code/no-batch exclusions and source warnings remain explicit.
-Optional `Is Service` accepts true/false, yes/no or 1/0; contradictory values
-within an offering fail. Without it, legacy CSE classification applies.
-
-Meeting counts use a positive fixed override, otherwise ceil(term class total /
-teaching weeks), then per-week hint, then two. Fixed-rate source under-delivery
-is warned about; matching that fixed count is not proof of approved contact-hour
-compliance. Credit-based committee policies are not yet implemented.
-
-Normal config shape is `rooms[]`, `teachers[]`, `days[]`, `eligibility[]`,
-`settings{periods, weeks_in_term, ...}`. `GenerationProfile` in Flutter can supply
-a source-matched complete run configuration, always as private preview. Local
-canonical records in `domain.py` are additive contracts; legacy solving does not
-yet consume `NormalizedInput.external_reservations` or all canonical identities.
+For approved committee scheduling rules (`R1`–`R16` and `D1`–`D6`) targeted for Phase 4 CP-SAT integration, see [`../docs/timetable-audit-2026-10-20/18-committee-decisions-and-policy-baseline-2026-11-04.md`](../docs/timetable-audit-2026-10-20/18-committee-decisions-and-policy-baseline-2026-11-04.md) and [`../docs/timetable-audit-2026-10-20/16-committee-traceability-2026-11-04.md`](../docs/timetable-audit-2026-10-20/16-committee-traceability-2026-11-04.md).
 
 ## Existing mandatory checks and preferences
 

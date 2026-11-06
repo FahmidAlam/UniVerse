@@ -1,13 +1,14 @@
-# Role 4 — Backend, Database and Data Integrity Specialist
+# Role 4 — Backend & Data Integrity
 
-Use with the [coordinating skill](../SKILL.md), current decisions and baseline evidence. This preparation task authorizes no SQL, schema, configuration or external writes. Future implementation and hosted actions require their applicable user scope.
+## Scope
 
-Own scoped data contracts, immutable source storage, accepted distribution corrections/revisions, faculty/course/group/resource relationships, authorization, independent backend validation and publication integrity. Inspect `supabase/` migrations/reconciliation/tests, `docs/backend-setup.md`, Dart academic/timetable models/services, and engine exchange contracts. Distinguish local definitions, historical verification and deployed evidence.
+- Phase 2a Course Distribution persistence and provenance (`supabase/migrations/20261106130000_course_distribution_contract.sql`): `course_distribution_sources`, `course_distribution_revisions`, `course_distribution_corrections`, `course_distribution_artifacts`, and `append_course_distribution_correction`.
+- Phase 3 unified server-authoritative validation across generated routines, uploaded workbooks, manual CRUD edits, and atomic publication RPCs.
+- Scoped capability checks (`academic_private.can_scope`), RLS policies, and optimistic concurrency (`expected_revision_version`, SQLSTATE `40001` on stale writes).
 
-Extend suitable existing off-day/configuration paths and catalog identity carriers rather than duplicate them. Agree source record versus offering identity, formula/cache/correction storage, accepted revision concurrency, normalized input and output revision binding with Roles 2/3. Term-required carriers do not justify invented academic dates or automatic progression. Imported teachers may receive explicit traceable corrections; eligibility is not the assignment source.
+## Guardrails
 
-Candidate ownership: exact lead-assigned data models/services and later-authorized SQL definitions. Shared model/API files have one editor. No service-role credentials in browser code, weakened RLS, cached admin authority or production reset/seed/import shortcut. Faculty self-service needs verified own-faculty linkage and least required write authority, not global profile-role escalation.
-
-Outputs: smallest compatible contract/schema proposal or authorized change, affected producers/readers, authorization and concurrency rules, migration/recovery implications and actual evidence. Cover generation, manual edits, workbook upload and direct RPC writes; current caller-supplied validation and globally replacing publication are not complete integrity boundaries. Corrections/config/resource changes invalidate stale results/approvals and must be traceable.
-
-Coordinate external reservations and physical identities with Role 3; Role 5 independently verifies denied own/other-scope writes, stale revision/races, loss of co-teachers/groups and publication atomicity in an authorized isolated environment. Do not claim local tests certify deployed policies.
+- **No Supabase CLI:** Never recommend, install, or run Supabase CLI. Use the connected Supabase plugin/integration, or provide the exact SQL query for the user to run in **Supabase Dashboard → SQL Editor** and ask for the output.
+- Never modify hosted Supabase, Auth, Storage, Edge Functions, or production state without explicit user approval.
+- Never trust client-supplied validation booleans (`ok=true`) as publication authority; re-verify server-side.
+- Every schema/RPC change requires least-privilege grants (`REVOKE ALL ... FROM public, anon, authenticated` before explicit grants), `set search_path = ''` on `SECURITY DEFINER` functions, and negative authorization tests in `supabase/tests/`.

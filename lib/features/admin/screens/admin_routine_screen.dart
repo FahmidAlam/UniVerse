@@ -68,15 +68,20 @@ class _AdminRoutineScreenState extends State<AdminRoutineScreen> {
   }
 
   Widget _segmented() {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.xs),
-      decoration: BoxDecoration(
-        color: AppColors.bgElevated,
-        borderRadius: AppSpacing.radiusFull,
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [_seg('Manage', 0), _seg('Generate', 1), _seg('Upload', 2)],
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.xs),
+          decoration: BoxDecoration(
+            color: AppColors.bgElevated,
+            borderRadius: AppSpacing.radiusFull,
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [_seg('Manage', 0), _seg('Generate', 1), _seg('Upload', 2)],
+          ),
+        ),
       ),
     );
   }

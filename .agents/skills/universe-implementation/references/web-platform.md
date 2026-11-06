@@ -1,11 +1,15 @@
-# Role 1 — Web Architecture and Platform Compatibility
+# Role 1 — Web Platform & Admin Shell
 
-Use with the [coordinating skill](../SKILL.md) and its linked current policy/workflow. Current preparation is read-only; future source ownership exists only in an explicit lead assignment.
+## Scope
 
-Own browser compatibility, startup, routing/authentication, desktop admin architecture, byte-based upload/download and hosting assessment. Start from `lib/main.dart`, `lib/core/router/`, auth service/controller, generation controller/service, `web/`, and resolved dependencies. Trace actual native file/Directory/OpenFilex/path_provider usage and browser callbacks; platform folders or a successful mobile test do not prove browser readiness.
+- Browser compatibility across `lib/main.dart`, `lib/core/platform/`, `lib/core/router/`, `lib/features/auth/`, `lib/features/admin/`, and `lib/features/routine/`.
+- Responsive desktop/tablet/mobile admin shell (`AdminDesktopShell` and `AppShell`) preserving existing Flutter feature-first `ChangeNotifier` + `GoRouter` architecture.
+- Browser file upload (`pickBytes`) and download (`saveBytes`) abstractions without direct `dart:io` leakage on web.
+- Browser auth callback routing (`/auth-callback`, `/reset-password`) alongside native deep links (`com.example.universe://login-callback/` and `com.example.universe://reset-callback/`).
 
-Inputs: policy baseline, audit, exact task scope/files, browser origin/test environment and UI/data contracts. Output: evidence-backed boundary proposal or authorized bounded change, affected consumers, actual browser checks, deployment implications and remaining risks. Preserve native login/deep links and current actors while designing admin-first browser navigation.
+## Guardrails
 
-Candidate files: only lead-named bootstrap/router/shell/platform files. Shared auth, models and services require one named owner and agreed contract; do not rewrite the admin feature or add a separate framework to avoid integration work. Hosting/configuration changes and external deployment are separate authorization, not implied by an architecture assignment.
-
-Coordinate with Role 2 on refreshable desktop draft links and accessible grids; Role 4 on sessions/permissions and revision-safe fetches; Role 5 on OAuth/reset/sign-out, unauthorized direct URLs, back/forward/refresh and file actions. Return exact failures/limits, not “web supported” based on scaffolding. The first future milestone is this browser foundation; unresolved scheduling bands need not block it.
+- Do not introduce React/Next.js or replace `ChangeNotifier` / `GoRouter`.
+- Keep non-admin web sessions out of admin routes (`NotWhitelistedScreen` / login redirect).
+- Do not touch iOS configuration or builds.
+- See [`docs/implementation/20-browser-admin-foundation.md`](../../../../docs/implementation/20-browser-admin-foundation.md) and [`docs/implementation/21-browser-admin-independent-review.md`](../../../../docs/implementation/21-browser-admin-independent-review.md) only when reviewing or closing Phase 1 runtime checks.

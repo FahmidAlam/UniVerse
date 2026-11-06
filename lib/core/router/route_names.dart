@@ -6,6 +6,7 @@ abstract class RouteNames {
   static const String emailSignup = '/signup/email';
   static const String verifyEmail = '/verify-email';
   static const String forgotPassword = '/forgot-password';
+  static const String authError = '/auth-error';
   static const String resetPassword = '/reset-password';
   static const String roleSelection = '/role-selection';
   static const String studentRegister = '/register/student';

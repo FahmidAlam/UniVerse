@@ -1,3 +1,4 @@
+import 'package:universe/features/admin/widgets/admin_card_grid.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
@@ -50,17 +51,22 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
     final body = ListenableBuilder(
       listenable: _controller,
       builder: (context, _) {
-        return ListView(
-          padding: AppSpacing.screenPadding,
-          children: [
-            _introCard(),
-            AppSpacing.mdGap,
-            if (widget.showConfigurationLinks) _configRow(),
-            AppSpacing.mdGap,
-            _profileCard(),
-            AppSpacing.sectionGap,
-            ..._phaseContent(),
-          ],
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1000),
+            child: ListView(
+              padding: AppSpacing.screenPadding,
+              children: [
+                _introCard(),
+                AppSpacing.mdGap,
+                if (widget.showConfigurationLinks) _configRow(),
+                AppSpacing.mdGap,
+                _profileCard(),
+                AppSpacing.sectionGap,
+                ..._phaseContent(),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -537,13 +543,7 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
         color: AppColors.primary,
       ),
     ];
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: AppSpacing.md,
-      crossAxisSpacing: AppSpacing.md,
-      childAspectRatio: 1.7,
+    return AdminCardGrid(
       children: cards,
     );
   }

@@ -1,0 +1,1 @@
+﻿void clearInvitationLocation(Uri uri) {}

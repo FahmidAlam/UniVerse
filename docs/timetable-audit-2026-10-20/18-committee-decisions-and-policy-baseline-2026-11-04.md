@@ -1,8 +1,9 @@
 # Committee decisions and policy baseline — 4 November 2026
 
-Status: authoritative user/committee clarification received **after** the initial November 4 audit. Documentation, architecture planning and agent preparation only. No application, database, migration, dependency, configuration, deployment, commit or push work is authorized. Implementation needs a separate instruction.
-
-This record is the single source for the newly confirmed policy. The [matrix](16-committee-traceability-2026-11-04.md) applies it to all 16 original requirements; the [audit/roadmap](15-admin-web-preimplementation-2026-11-04.md) retains the initial findings and now links this update. The [specialist workflow](19-specialist-coordination-workflow-2026-11-04.md) assigns implementation responsibilities without granting implementation permission.
+> **Role in Documentation Hierarchy (Tier 2 — Loaded When Relevant):**
+> This document is the detailed reference for confirmed committee policy decisions **D1–D6** and editable Course Distribution field rules **CD1**.
+> The single authoritative roadmap and active execution checkpoint is [`../implementation/UniVerse_Implementation_Master_Plan_v1_1.md`](../implementation/UniVerse_Implementation_Master_Plan_v1_1.md) (currently in **Phase 2a: Course Distribution data contract**). Specialist role coordination lives in [`../../.agents/skills/universe-implementation/SKILL.md`](../../.agents/skills/universe-implementation/SKILL.md) and Master Plan §10.
+> Companion traceability matrix: [`16-committee-traceability-2026-11-04.md`](16-committee-traceability-2026-11-04.md). Historical November 4 pre-implementation audit: [`15-admin-web-preimplementation-2026-11-04.md`](15-admin-web-preimplementation-2026-11-04.md).
 
 ## Confirmed decisions and historical corrections
 
@@ -100,19 +101,4 @@ No new schema names, SQL, API implementation, additional packages or frontend fr
 
 When a decision actually blocks authorized implementation: explain the concrete situation, alternatives and consequences, recommend where evidence supports it, and ask one clear question. Continue independent approved work. No confirmed decision above needs reconfirmation.
 
-## Synchronization and verification record
-
-The [inventory](17-documentation-inventory-2026-11-04.md) records the current change manifest and starting user changes. Initial November 4 source findings and test counts remain historical; this update does not rerun application tests or claim policy implementation. Matrix support ratings remain unchanged unless source evidence warrants otherwise. Initial audit statements about missing roles/skills are historical; a coordinating skill and portable role instructions are now prepared.
-
-Baseline for this update: branch `main`, HEAD `4d17ecf`, with prior audit changes, pre-existing controller backoff edit, untracked backend/workbook files, an untracked `is.java`, and an already-deleted `docs/defense/10_Admin_and_Timetable_Engine.pdf`. No restoration/deletion of those user changes is performed. The Excel lock file `workbook/new/~$CSE_Routine_Fall_2026_Generated.xlsx` is unreadable while locked; it is excluded from content-hash checks and never modified. Read-only workbook investigation does not certify all formulas or academic data.
-
-### Completed preparation checks
-
-- Compared the 459 readable starting source-owned file hashes with the resulting tree: ten existing Markdown files changed, eight Markdown files were created, and no baseline file was removed or moved. All readable non-Markdown files match the baseline, including existing source/config/backend/workbook/user artifacts. The locked Excel temporary file remains explicitly unverified. The already-missing PDF and previous polish archive remain unchanged.
-- Validated all **94 local Markdown targets across the 18 changed/created documents**; none is missing. Matrix has all **16** numbered original requirements with **11** analysis fields each; CD1 is separately documented. Five role references exist and are linked from the single coordinating skill.
-- Ran bundled `skill-creator/scripts/quick_validate.py` against `.agents/skills/universe-implementation` with the existing engine virtual environment: **Skill is valid**, exit 0. The system interpreter lacked YAML; using the existing environment resolved that without installing or changing dependencies.
-- Ran independent read-only policy, distribution and runtime-format investigations, plus independent packaged-skill/consistency review. The reviewer identified the missing explicit editable-distribution roadmap slice and two scope/approval wordings; these were corrected and rechecked, with no material issue remaining in those clauses. This verifies preparation, not application implementation or full runtime discovery across tools.
-- Reviewed Git branch/status and complete tracked diff inventory, distinguished all pre-existing user changes, and ran `git diff --check` successfully. This task made no source/SQL/configuration/dependency/deployment changes, external writes, commits or pushes. No files were staged or reset.
-- Application tests were not rerun for this Markdown-only synchronization. The earlier 115 Flutter / 210 engine + one skipped results remain historical evidence in report 15; they do not certify new rules, browser behavior or accepted-draft functionality.
-
-Prepared roles can now be invoked through native tools with their portable instructions; no five-agent persistent registration or Antigravity native loading is claimed. After a separate implementation instruction, start with Role 1's browser admin foundation. Remaining academic questions above are raised only when the dependent slice requires them.
+*(Historical November 4 documentation manifest and 16-PDF inventory are archived in [`../archive/2026-11-04/17-documentation-inventory-2026-11-04.md`](../archive/2026-11-04/17-documentation-inventory-2026-11-04.md)).*

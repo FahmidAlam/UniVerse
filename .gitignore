@@ -67,6 +67,6 @@ google-services*.json
 # Local CLI rehearsal files and generated CLI state (never deployment inputs).
 .task1-local/
 # User-supplied originals contain faculty data; keep sanitized fixtures in test/.
-workbook/*.xlsx
+workbook/
 supabase/.temp/
 supabase/.branches/

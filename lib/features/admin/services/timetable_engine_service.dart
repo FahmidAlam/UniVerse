@@ -38,12 +38,14 @@ class TimetableJobStatus {
 class TimetableReport {
   final List<String> cohorts;
   final Map<String, dynamic> meta;
+  final Map<String, dynamic> sourceContract;
   final List<Map<String, dynamic>> excluded;
   final List<String> warnings;
 
   const TimetableReport({
     this.cohorts = const [],
     this.meta = const {},
+    this.sourceContract = const {},
     this.excluded = const [],
     this.warnings = const [],
   });
@@ -53,6 +55,8 @@ class TimetableReport {
             .map((e) => e.toString())
             .toList(),
         meta: (m['meta'] as Map?)?.cast<String, dynamic>() ?? const {},
+        sourceContract:
+            (m['source_contract'] as Map?)?.cast<String, dynamic>() ?? const {},
         excluded: ((m['excluded'] as List?) ?? const [])
             .map((e) => (e as Map).cast<String, dynamic>())
             .toList(),
@@ -60,6 +64,42 @@ class TimetableReport {
             .map((e) => e.toString())
             .toList(),
       );
+}
+
+/// A read-only accepted Course Distribution revision fetched through the
+/// capability-checked database RPC. The raw bytes are deliberately separate
+/// from the provenance map sent to the scheduling engine.
+class PersistedDistributionRevision {
+  final Uint8List sourceBytes;
+  final Map<String, dynamic> sourceContract;
+
+  const PersistedDistributionRevision({
+    required this.sourceBytes,
+    required this.sourceContract,
+  });
+
+  factory PersistedDistributionRevision.fromMap(Map<String, dynamic> value) {
+    final encoded = value['source_bytes_base64'];
+    if (encoded is! String || encoded.isEmpty) {
+      throw FormatException('Accepted source revision has no workbook bytes.');
+    }
+    const contractKeys = [
+      'source_id',
+      'revision_id',
+      'revision_number',
+      'revision_version',
+      'status',
+      'source_sha256',
+      'corrections',
+    ];
+    final contract = <String, dynamic>{
+      for (final key in contractKeys) key: value[key],
+    };
+    return PersistedDistributionRevision(
+      sourceBytes: Uint8List.fromList(base64Decode(encoded)),
+      sourceContract: contract,
+    );
+  }
 }
 
 /// Outcome of an atomic routine publish.
@@ -107,6 +147,7 @@ class TimetableEngineService {
     required Uint8List fileBytes,
     required String filename,
     Map<String, dynamic>? config,
+    Map<String, dynamic>? sourceContract,
     double timeLimitS = 60,
   }) async {
     final req = http.MultipartRequest(
@@ -117,6 +158,9 @@ class TimetableEngineService {
       http.MultipartFile.fromBytes('file', fileBytes, filename: filename),
     );
     if (config != null) req.fields['config'] = jsonEncode(config);
+    if (sourceContract != null) {
+      req.fields['source_contract'] = jsonEncode(sourceContract);
+    }
     req.fields['time_limit_s'] = timeLimitS.toString();
 
     final res = await http.Response.fromStream(
@@ -131,6 +175,38 @@ class TimetableEngineService {
     final jobId = body['job_id'] as String?;
     if (jobId == null) throw Exception('Engine did not return a job id.');
     return jobId;
+  }
+
+  Future<PersistedDistributionRevision> fetchAcceptedDistributionRevision(
+    String revisionId,
+  ) async {
+    final data = await _supabase.rpc(
+      'read_course_distribution_revision',
+      params: {'target_revision': revisionId},
+    );
+    if (data is! Map) {
+      throw FormatException('Accepted source revision response is invalid.');
+    }
+    return PersistedDistributionRevision.fromMap(
+      data.cast<String, dynamic>(),
+    );
+  }
+
+  /// Generates only from the immutable bytes and audited overlays returned by
+  /// the database's capability-checked accepted-revision RPC.
+  Future<String> generateAcceptedDistributionRevision({
+    required String revisionId,
+    Map<String, dynamic>? config,
+    double timeLimitS = 60,
+  }) async {
+    final revision = await fetchAcceptedDistributionRevision(revisionId);
+    return generate(
+      fileBytes: revision.sourceBytes,
+      filename: 'course_distribution_$revisionId.xlsx',
+      config: config,
+      sourceContract: revision.sourceContract,
+      timeLimitS: timeLimitS,
+    );
   }
 
   Future<TimetableJobStatus> pollStatus(String jobId) async {

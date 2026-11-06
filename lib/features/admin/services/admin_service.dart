@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/profile_model.dart';
 import 'package:universe/core/models/whitelist_model.dart';
+import 'package:universe/features/auth/services/auth_callback_policy.dart';
 
 class AdminCounts {
   final int students;
@@ -81,6 +82,7 @@ class AdminService {
       await _supabase.functions.invoke('invite-admin', body: {
         'email': email,
         'name': name,
+        'redirect_to': AuthCallbackPolicy.current.invitationCallback,
       });
     } on FunctionException catch (e) {
       final details = e.details;

@@ -1,8 +1,8 @@
-# Documentation inventory and maintenance decisions
+# Documentation inventory and maintenance decisions (Archived — 4 November 2026)
 
-**Later November 4 synchronization:** [record 18](18-committee-decisions-and-policy-baseline-2026-11-04.md) now governs confirmed policy and editable Course Distribution; [workflow 19](19-specialist-coordination-workflow-2026-11-04.md) and its repository skill prepare five roles. The inventory and PDF extraction results below preserve the initial audit history. At the start of this update `docs/defense/10_Admin_and_Timetable_Engine.pdf` was already deleted in the user's working tree; this task does not delete, restore or re-inspect that missing PDF. Current change manifest appears at the end.
+> **Archived Reference:** Preserved in `docs/archive/2026-11-04/`primarily for its 16-PDF content inventory table below. For active documentation hierarchy and project status, see [`../../implementation/UniVerse_Implementation_Master_Plan_v1_1.md`](../../implementation/UniVerse_Implementation_Master_Plan_v1_1.md) and [`../../../CLAUDE.md`](../../../CLAUDE.md).
 
-4 November 2026. Companion to the [current audit](15-admin-web-preimplementation-2026-11-04.md) and [committee matrix](16-committee-traceability-2026-11-04.md). Paths below are relative to repository root unless a directory prefix is stated.
+Companion to the historical [4 November audit](../../timetable-audit-2026-10-20/15-admin-web-preimplementation-2026-11-04.md), [committee matrix](../../timetable-audit-2026-10-20/16-committee-traceability-2026-11-04.md), and [decision record 18](../../timetable-audit-2026-10-20/18-committee-decisions-and-policy-baseline-2026-11-04.md). Paths in the tables below are relative to repository root unless stated otherwise.
 
 ## Initial audit authority and inspection scope
 
@@ -27,15 +27,15 @@ The active entrypoints are root README → audit index → report 15/matrix 16/i
 | `engine/README.md` | Update | Active engine guide incorrectly describes optional JSON fixture generation, guaranteed room success and sessional adjacency. Replace inaccurate sections with actual multipart pipeline, constraints, limits and current audit link. Keep local setup commands as documentation only. |
 | `docs/backend-setup.md` | Keep | Baseline reconstruction/local catalog guidance explicitly distinguishes test evidence, deployment and backfill. Useful reproducibility/security context; no mutation tools run in this audit. |
 | `docs/CAMPUS_READINESS_AUDIT_2026-10-20.md` | Keep (historical) | Dated readiness checkpoint; source of earlier prototype findings, not a new implementation order or current test count. |
-| `docs/diagrams/README.md` | Update | Keep all five diagrams; add a dated limitation/authority notice to qualify “fully reconciled production” language and distinguish local catalog/new web scope. No diagram rewrite or artwork change. |
-| `docs/diagrams/01-er-diagram.md` | Keep (historical) | Legacy 14-active-table schema view, not full additive catalog/current hosted inventory. Read with master-guide notice and catalog SQL; no new schema claim. |
-| `docs/diagrams/02-use-case-diagram.md` | Keep (historical) | Role/feature presentation useful for existing actors. Does not specify the new committee workbench or prove backend access control. |
-| `docs/diagrams/03-dfd-level-0.md` | Keep (historical) | System-boundary context remains useful. Production status must be independently verified; diagram does not authorize integration changes. |
-| `docs/diagrams/04-dfd-level-1.md` | Keep (historical) | Legacy data-flow/store inventory; no claim all new canonical/draft/policy stores exist. |
-| `docs/diagrams/05-activity-diagram.md` | Keep (historical) | Existing mobile journeys; preserve teacher/student scope for long-term product. New admin workflow is in report 15. |
-| `docs/superpowers/plans/2026-10-20-university-timetable.md` | Update | Valuable design decisions and chronological checkpoints. Add top-level November 4 priority override, preserving prior academic-calendar deferral, no invented progression and no automatic implementation. Older “next task” text is historical. |
-| `docs/superpowers/plans/2026-10-22-antigravity-parser-handoff.md` | Keep (historical) | Its resume protocol already stops when completed and records later parser fixes. Tests/current source confirm those regressions exist; do not execute handoff again. |
-| `docs/superpowers/plans/2026-11-02-advisor-showcase.md` | Keep (historical) | Completed checked-off showcase work; distinct from production and committee acceptance. No need to archive useful source-profile/co-teacher decisions. |
+| `docs/archive/diagrams/README.md` | Update | Keep all five diagrams; add a dated limitation/authority notice to qualify “fully reconciled production” language and distinguish local catalog/new web scope. No diagram rewrite or artwork change. |
+| `docs/archive/diagrams/01-er-diagram.md` | Keep (historical) | Legacy 14-active-table schema view, not full additive catalog/current hosted inventory. Read with master-guide notice and catalog SQL; no new schema claim. |
+| `docs/archive/diagrams/02-use-case-diagram.md` | Keep (historical) | Role/feature presentation useful for existing actors. Does not specify the new committee workbench or prove backend access control. |
+| `docs/archive/diagrams/03-dfd-level-0.md` | Keep (historical) | System-boundary context remains useful. Production status must be independently verified; diagram does not authorize integration changes. |
+| `docs/archive/diagrams/04-dfd-level-1.md` | Keep (historical) | Legacy data-flow/store inventory; no claim all new canonical/draft/policy stores exist. |
+| `docs/archive/diagrams/05-activity-diagram.md` | Keep (historical) | Existing mobile journeys; preserve teacher/student scope for long-term product. New admin workflow is in report 15. |
+| `docs/archive/plans/2026-10-20-university-timetable.md` | Update | Valuable design decisions and chronological checkpoints. Add top-level November 4 priority override, preserving prior academic-calendar deferral, no invented progression and no automatic implementation. Older “next task” text is historical. |
+| `docs/archive/plans/2026-10-22-antigravity-parser-handoff.md` | Keep (historical) | Its resume protocol already stops when completed and records later parser fixes. Tests/current source confirm those regressions exist; do not execute handoff again. |
+| `docs/archive/plans/2026-11-02-advisor-showcase.md` | Keep (historical) | Completed checked-off showcase work; distinct from production and committee acceptance. No need to archive useful source-profile/co-teacher decisions. |
 | `docs/timetable-audit-2026-10-20/README.md` | Update | Central index. Make report 15 current, add matrix/inventory links and web-first priority; label earlier priorities/evidence as historical. |
 | `docs/timetable-audit-2026-10-20/01-current-architecture.md` | Keep (historical) | October architecture snapshot plus clarification delta. Some listed defects are fixed in November; use report 15 for current state. Preserve dated evidence. |
 | `docs/timetable-audit-2026-10-20/02-workbook-and-rules.md` | Keep | Detailed source/provenance and clarification history; indispensable for counts, joint attendance and seasonal timing. Earlier measured counts are not current pending-inclusive totals. |

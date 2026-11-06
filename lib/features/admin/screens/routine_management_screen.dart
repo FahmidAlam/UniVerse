@@ -180,16 +180,41 @@ class _RoutineManagementScreenState extends State<RoutineManagementScreen> {
       );
     }
 
-    return ListView.separated(
-      padding: AppSpacing.screenPadding,
-      itemCount: items.length,
-      separatorBuilder: (_, __) => AppSpacing.cardGap,
-      itemBuilder: (context, i) {
-        final e = items[i];
-        return _RoutineTile(
-          entry: e,
-          onEdit: () => _openForm(existing: e),
-          onDelete: () => _confirmDelete(e),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth >= 700;
+        if (isDesktop) {
+          return GridView.builder(
+            padding: AppSpacing.screenPadding,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: AppSpacing.md,
+              mainAxisExtent: 96,
+            ),
+            itemCount: items.length,
+            itemBuilder: (context, i) {
+              final e = items[i];
+              return _RoutineTile(
+                entry: e,
+                onEdit: () => _openForm(existing: e),
+                onDelete: () => _confirmDelete(e),
+              );
+            },
+          );
+        }
+        return ListView.separated(
+          padding: AppSpacing.screenPadding,
+          itemCount: items.length,
+          separatorBuilder: (_, __) => AppSpacing.cardGap,
+          itemBuilder: (context, i) {
+            final e = items[i];
+            return _RoutineTile(
+              entry: e,
+              onEdit: () => _openForm(existing: e),
+              onDelete: () => _confirmDelete(e),
+            );
+          },
         );
       },
     );

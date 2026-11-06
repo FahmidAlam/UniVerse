@@ -1,18 +1,20 @@
-# Backend baseline and local verification
+# Backend Baseline and Verification Reference
 
+> **Important Permanent Constraint — No Supabase CLI:**
+> Never recommend, install, or use **Supabase CLI** in this project. All active database inspection and verification must use the **connected Supabase plugin/integration**. When a database check or SQL verification cannot be executed through the plugin, provide the exact SQL query for the user to run in **Supabase Dashboard → SQL Editor** and ask them to return the output.
+> *(References to `Supabase CLI 2.121.0` and `tool/task1_local_checks.py` below are preserved strictly as historical evidence of the October/November 2026 baseline and Task 1/2 local test harness).*
 
+## Active Schema & Migration Chain
 
-Task 1 status (22 October 2026): isolated baseline acceptance passed. Two fresh
+- **Historical Incremental Chain (`supabase/migrations/001`–`016`, no `010`):** Alters the legacy schema; reconstructed baseline lives in `supabase/reconciliation/20261021214512_reconstructed_baseline.sql`.
+- **Additive Academic Catalog (`supabase/migrations/20261022140809_academic_catalog.sql`):** Introduces `departments`, `academic_calendars`, `academic_years`, `programs`, `academic_terms`, `scheduling_scopes`, `department_memberships`, and `academic_private.can_scope(...)` capability helpers.
+- **Phase 2a Course Distribution Contract (`supabase/migrations/20261106130000_course_distribution_contract.sql`):** Introduces `course_distribution_sources`, `course_distribution_revisions`, `course_distribution_corrections`, `course_distribution_artifacts`, immutability/invalidation triggers, and the capability-checked `public.append_course_distribution_correction(...)` RPC. Accompanied by `supabase/tests/course_distribution_contract.test.sql` (9 assertions) and `supabase/tests/course_distribution_authorization.test.sql` (13 assertions) — currently **implemented and SQL-reviewed** in the working tree, pending database execution/verification via the connected Supabase integration or **Supabase Dashboard → SQL Editor**.
 
-local public-namespace rebuilds passed role/catalog checks, 44 pgTAP assertions
+---
 
-per pass, and exact limited schedule restoration. Python safety tests: 18 passed.
+## Historical Task 1 / Task 2 Baseline Evidence (22 October 2026)
 
-Deno: two suites passed (11 authorization and 13 audience cases). The CI workflow
-
-is prepared and its commands were tested locally; GitHub Actions has not run here.
-
-Production deployment and full disaster recovery remain separate.
+Task 1 status (22 October 2026): isolated baseline acceptance passed. Two fresh local public-namespace rebuilds passed role/catalog checks, 44 pgTAP assertions per pass, and exact limited schedule restoration. Python safety tests: 18 passed. Deno: two suites passed (11 authorization and 13 audience cases). Production deployment and full disaster recovery remain separate.
 
 
 

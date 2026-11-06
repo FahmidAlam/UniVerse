@@ -96,7 +96,27 @@ class _ManageRoomsScreenState extends State<ManageRoomsScreen> {
         if (rooms.isEmpty)
           Text('None', style: AppTextStyles.bodySm)
         else
-          ...rooms.map((r) => _roomTile(r, color, icon)),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isDesktop = constraints.maxWidth >= 700;
+              if (isDesktop) {
+                return Wrap(
+                  spacing: AppSpacing.md,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    for (final r in rooms)
+                      SizedBox(
+                        width: (constraints.maxWidth - AppSpacing.md) / 2,
+                        child: _roomTile(r, color, icon),
+                      ),
+                  ],
+                );
+              }
+              return Column(
+                children: rooms.map((r) => _roomTile(r, color, icon)).toList(),
+              );
+            },
+          ),
       ],
     );
   }

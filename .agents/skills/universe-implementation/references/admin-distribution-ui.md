@@ -1,13 +1,15 @@
-# Role 2 — Admin UI/UX and Course Distribution Management
+# Role 2 — Course Distribution & Configuration UI
 
-Use with the [coordinating skill](../SKILL.md) and current policy/workflow. Preparation permits inspection/design only; implementation requires a lead-assigned source scope.
+## Scope
 
-Own desktop committee workflow, editable Course Distribution tables, validated configuration dependencies, routine grid usability and accessibility. Inspect existing admin screens/controllers and design tokens before extending them. Course eligibility and a generated-routine JSON snapshot are not an editable distribution page.
+- Phase 2b editable Course Distribution workspace (`CD1`) built atop the Phase 2a data contract (`engine/distribution.py` and `supabase/migrations/20261106130000_course_distribution_contract.sql`).
+- Source vs. effective value inspection across columns `A`–`L`, including formula + cached-value visibility for `J` (`No. of Classes`) and `L` (`Class/Week`), merged-row conflict highlighting, split/co-teacher visibility, and `B+C` joint-section grouping.
+- Typed committee configuration workspace covering section weekends (`R1`/`D1`), batch fairness (`R2`), faculty attendance vs. off-days (`R6`/`R7`, `D3`/`D4`), external commitments (`R4`/`R5`), lab windows (`R10`/`R11`), room allocations (`R14`), and 6/7-slot period grids (`R12`/`R13`/`R15`, `D2`).
 
-Use record 18's actual workbook-field analysis. Show original formula/value/cache beside accepted correction where useful. Expose derived offering/session/count impacts read-only and recompute through the agreed normalization service. Never maintain UI-only corrections that generation ignores or silently rewrite an uploaded workbook. Identity changes need regrouping/teacher/room/policy impact preview; unresolved metadata stays visibly unresolved.
+## Guardrails
 
-Inputs: accepted source-record/draft/revision contract, approved policy, platform file/navigation contract, exact task paths. Outputs: form/table design or authorized implementation, interaction/validation evidence, empty/error/permission states, configuration summary and dependencies. Show section weekends separately from faculty off-days, attendance separately from teaching, and explicit sessional break permission. Three off-days is not an automatic permanent-faculty default.
-
-Candidate ownership: assigned `lib/features/admin/screens/`, controllers and task-specific widgets. Shared models/services are lead-allocated after Roles 3/4 agree; no direct SQL/backend access in UI widgets, independent policy invention or new state-management framework. Coordinate faculty self-service with backend authorization and platform routing; do not grant users admin-wide editing merely to expose their own off-days.
-
-Role 5 reviews keyboard/focus/zoom/accessibility and corrected-input round trips independently. Report actual data consumption and revision invalidation; a local editable table alone is not CD1 acceptance.
+- **Mandatory UI/UX Approval Gate:** Do **not** write Phase 2b or Phase 5 UI code until a grounded design brief with layout/interaction alternatives and trade-offs has been presented to the user and explicitly approved (Master Plan §0.2).
+- **UI/UX Skills Reference:** Before designing or implementing Phase 2b screens, load the relevant UI/UX skills per [`AGENTS.md`](../../../../AGENTS.md) / [`CLAUDE.md`](../../../../CLAUDE.md): [`flutter-web-responsive-ui`](../../flutter-web-responsive-ui/SKILL.md) + [`universe-visual-design-system`](../../universe-visual-design-system/SKILL.md) for web screens/tables, [`universe-ux-principles`](../../universe-ux-principles/SKILL.md) for workflow/journey design, and [`accessibility-performance`](../../accessibility-performance/SKILL.md) for keyboard navigation/dense grid performance. Follow the 11-step UI/UX workflow.
+- Never mutate original workbook bytes; edits create versioned corrections with author, timestamp, and reason against an expected revision version.
+- Derived fields (offering IDs, normalized session counts, grouped teacher lists) are computed deterministically from the accepted revision, never hand-edited as competing truth.
+- Consult [`18-committee-decisions-and-policy-baseline-2026-11-04.md`](../../../../docs/timetable-audit-2026-10-20/18-committee-decisions-and-policy-baseline-2026-11-04.md) for detailed `CD1` column semantics.

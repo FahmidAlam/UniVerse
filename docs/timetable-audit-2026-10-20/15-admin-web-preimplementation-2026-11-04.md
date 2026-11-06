@@ -1,10 +1,8 @@
-# Admin web extension and CSE routine generation: pre-implementation audit
+# Admin web extension and CSE routine generation: pre-implementation audit (Historical — 4 November 2026)
 
-Date: 4 November 2026, Asia/Dhaka. Scope: source inspection, local verification, documentation maintenance and a proposed roadmap only. No implementation, deployment, database operation, commit or push is authorized by this report.
-
-Read with the [16-requirement matrix](16-committee-traceability-2026-11-04.md) and [documentation/PDF inventory](17-documentation-inventory-2026-11-04.md). This is the current priority assessment; earlier reports retain their dated evidence, not authority to resume their implementation instructions.
-
-**Later November 4 policy synchronization:** [decision record 18](18-committee-decisions-and-policy-baseline-2026-11-04.md) is authoritative for D1-D6 and the new editable Course Distribution requirement CD1. [Workflow 19](19-specialist-coordination-workflow-2026-11-04.md) defines specialist ownership. Initial source findings and original verification below remain dated history; policy proposals/clarification entries are updated explicitly, not retroactively claimed implemented.
+> **Historical Baseline Notice:**
+> This November 4, 2026 pre-implementation audit is preserved for historical evidence only. Its roadmap and phase checkpoints are superseded by the authoritative [`../implementation/UniVerse_Implementation_Master_Plan_v1_1.md`](../implementation/UniVerse_Implementation_Master_Plan_v1_1.md) (Phase 1 implemented; **Phase 2a Course Distribution data contract** active).
+> See [`18-committee-decisions-and-policy-baseline-2026-11-04.md`](18-committee-decisions-and-policy-baseline-2026-11-04.md) for confirmed decisions `D1`–`D6`/`CD1`, [`16-committee-traceability-2026-11-04.md`](16-committee-traceability-2026-11-04.md) for the `R1`–`R16` traceability matrix, [`../archive/2026-11-04/17-documentation-inventory-2026-11-04.md`](../archive/2026-11-04/17-documentation-inventory-2026-11-04.md) for the archived November 4 doc/PDF inventory, and [`../../.agents/skills/universe-implementation/SKILL.md`](../../.agents/skills/universe-implementation/SKILL.md) for specialist coordination.
 
 ## Executive assessment
 

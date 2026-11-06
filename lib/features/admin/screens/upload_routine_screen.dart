@@ -1,3 +1,4 @@
+import 'package:universe/features/admin/widgets/admin_card_grid.dart';
 // ============================================================
 // FILE: lib/features/admin/screens/upload_routine_screen.dart
 // PURPOSE: Admin-only workbook import for already generated UniVerse
@@ -49,9 +50,18 @@ class _UploadRoutineScreenState extends State<UploadRoutineScreen> {
     final body = ListenableBuilder(
       listenable: _controller,
       builder: (context, _) {
-        return ListView(
-          padding: AppSpacing.screenPadding,
-          children: [_introCard(), AppSpacing.sectionGap, ..._phaseContent()],
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1000),
+            child: ListView(
+              padding: AppSpacing.screenPadding,
+              children: [
+                _introCard(),
+                AppSpacing.sectionGap,
+                ..._phaseContent()
+              ],
+            ),
+          ),
         );
       },
     );
@@ -280,13 +290,7 @@ class _UploadRoutineScreenState extends State<UploadRoutineScreen> {
         ((v['cohort_clashes'] as num?) ?? 0) +
         ((v['room_clashes'] as num?) ?? 0);
 
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: AppSpacing.md,
-      crossAxisSpacing: AppSpacing.md,
-      childAspectRatio: 1.7,
+    return AdminCardGrid(
       children: [
         StatCard(
           number: f('meetings'),

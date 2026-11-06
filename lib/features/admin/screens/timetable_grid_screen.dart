@@ -6,7 +6,10 @@ import 'package:universe/core/utils/room_identity.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
+import 'package:go_router/go_router.dart';
+import 'package:universe/core/router/route_names.dart';
 import 'package:universe/shared/widgets/u_app_bar.dart';
+import 'package:universe/shared/widgets/u_button.dart';
 import 'package:universe/shared/widgets/u_chip.dart';
 import 'package:universe/shared/widgets/u_empty_state.dart';
 
@@ -78,10 +81,17 @@ class _TimetableGridScreenState extends State<TimetableGridScreen> {
       appBar:
           const UAppBar(title: 'Timetable Grid', subtitle: 'Generated preview'),
       body: widget.rows.isEmpty
-          ? const UEmptyState(
+          ? UEmptyState(
               icon: PhosphorIconsRegular.gridFour,
-              title: 'Nothing to show',
-              message: 'Generate a timetable first.',
+              title: 'No Timetable Preview Available',
+              message: 'Generate a routine or open routine management to view scheduled classes.',
+              action: UButton(
+                label: 'Open Routine Generator',
+                icon: PhosphorIconsRegular.magicWand,
+                fullWidth: false,
+                onPressed: () =>
+                    context.go('${RouteNames.routineManagement}?tab=generate'),
+              ),
             )
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -156,8 +166,11 @@ class _TimetableGridScreenState extends State<TimetableGridScreen> {
           .add(r);
     }
 
-    const cohortW = 64.0;
-    const slotW = 118.0;
+    final width = MediaQuery.sizeOf(context).width;
+    final isDesktop = width >= 800;
+    final cohortW = isDesktop ? 80.0 : 64.0;
+    final slotW = isDesktop ? 160.0 : 118.0;
+    final cellH = isDesktop ? 84.0 : AppSpacing.heroCardHeight * 0.45;
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -172,8 +185,8 @@ class _TimetableGridScreenState extends State<TimetableGridScreen> {
             ]),
             for (final c in cohorts)
               Row(children: [
-                _cohortCell(c, cohortW),
-                for (final s in slots) _bodyCell(cell['$c@$s'], slotW),
+                _cohortCell(c, cohortW, cellH),
+                for (final s in slots) _bodyCell(cell['$c@$s'], slotW, cellH),
               ]),
           ],
         ),
@@ -200,11 +213,11 @@ class _TimetableGridScreenState extends State<TimetableGridScreen> {
             textAlign: TextAlign.center),
       );
 
-  Widget _cohortCell(String cohort, double w) {
+  Widget _cohortCell(String cohort, double w, double h) {
     final parts = cohort.split('|');
     return Container(
       width: w,
-      height: AppSpacing.heroCardHeight * 0.45,
+      height: h,
       padding: const EdgeInsets.all(AppSpacing.sm),
       alignment: Alignment.center,
       decoration: BoxDecoration(
@@ -217,10 +230,10 @@ class _TimetableGridScreenState extends State<TimetableGridScreen> {
     );
   }
 
-  Widget _bodyCell(List<RoutineEntry>? entries, double w) {
+  Widget _bodyCell(List<RoutineEntry>? entries, double w, double h) {
     return Container(
       width: w,
-      height: AppSpacing.heroCardHeight * 0.45,
+      height: h,
       padding: const EdgeInsets.all(AppSpacing.xs),
       decoration: BoxDecoration(
         color: entries == null ? AppColors.bgPrimary : AppColors.bgCard,

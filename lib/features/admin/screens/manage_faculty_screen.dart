@@ -62,7 +62,7 @@ class _ManageFacultyScreenState extends State<ManageFacultyScreen> {
                       onChanged: _controller.setQuery,
                     ),
                     AppSpacing.smGap,
-                    Row(children: [
+                    Wrap(children: [
                       Text('${_controller.total} teachers · ',
                           style: AppTextStyles.caption),
                       Text('${_controller.withOffDays} with day-offs',
@@ -79,10 +79,33 @@ class _ManageFacultyScreenState extends State<ManageFacultyScreen> {
                         title: 'No teachers found',
                         message: 'Try a different search.',
                       )
-                    : ListView.builder(
-                        padding: AppSpacing.screenPaddingH,
-                        itemCount: list.length,
-                        itemBuilder: (_, i) => _facultyTile(list[i]),
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isDesktop = constraints.maxWidth >= 700;
+                          if (isDesktop) {
+                            return GridView.builder(
+                              padding: AppSpacing.screenPaddingH,
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: AppSpacing.sm,
+                                crossAxisSpacing: AppSpacing.md,
+                                mainAxisExtent: 130 *
+                                    (MediaQuery.textScalerOf(context)
+                                                .scale(16) /
+                                            16)
+                                        .clamp(1, 3),
+                              ),
+                              itemCount: list.length,
+                              itemBuilder: (_, i) => _facultyTile(list[i]),
+                            );
+                          }
+                          return ListView.builder(
+                            padding: AppSpacing.screenPaddingH,
+                            itemCount: list.length,
+                            itemBuilder: (_, i) => _facultyTile(list[i]),
+                          );
+                        },
                       ),
               ),
             ],
@@ -114,12 +137,17 @@ class _ManageFacultyScreenState extends State<ManageFacultyScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(f.displayName, style: AppTextStyles.bodyMedium),
+                Text(f.displayName,
+                    style: AppTextStyles.bodyMedium,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
                 if (f.offDays.isEmpty)
                   Text('No day-offs', style: AppTextStyles.caption)
                 else
                   Text(
                     'Off: ${f.offDays.map(_short).join(', ')}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.caption
                         .copyWith(color: AppColors.roleTeacher),
                   ),

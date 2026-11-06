@@ -1,3 +1,4 @@
+import 'package:universe/features/admin/widgets/admin_card_grid.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
@@ -119,13 +120,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ),
     ];
 
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: AppSpacing.md,
-      crossAxisSpacing: AppSpacing.md,
-      childAspectRatio: 1.7,
+    return AdminCardGrid(
       children: cards,
     );
   }
@@ -145,22 +140,40 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         onTap: () => context.go('${RouteNames.routineManagement}?tab=upload'),
       ),
       QuickActionCard(
-        label: 'Campus Broadcast',
-        icon: PhosphorIconsRegular.bellRinging,
-        color: AppColors.primary,
-        onTap: () => context.go(RouteNames.campusBroadcast),
-      ),
-      QuickActionCard(
         label: 'Routine Management',
         icon: PhosphorIconsRegular.calendarCheck,
         color: AppColors.info,
         onTap: () => context.go(RouteNames.routineManagement),
       ),
       QuickActionCard(
-        label: 'Admin Registration',
-        icon: PhosphorIconsRegular.identificationBadge,
-        color: AppColors.success,
-        onTap: () => context.push(RouteNames.adminRegistration),
+        label: 'Manage Faculty',
+        icon: PhosphorIconsRegular.usersThree,
+        color: AppColors.roleTeacher,
+        onTap: () => context.go(RouteNames.manageFaculty),
+      ),
+      QuickActionCard(
+        label: 'Manage Rooms',
+        icon: PhosphorIconsRegular.door,
+        color: AppColors.info,
+        onTap: () => context.go(RouteNames.manageRooms),
+      ),
+      QuickActionCard(
+        label: 'Timetable Settings',
+        icon: PhosphorIconsRegular.gear,
+        color: AppColors.warning,
+        onTap: () => context.go(RouteNames.timetableSettings),
+      ),
+      QuickActionCard(
+        label: 'Course Eligibility',
+        icon: PhosphorIconsRegular.chalkboardTeacher,
+        color: AppColors.primary,
+        onTap: () => context.go(RouteNames.manageCourseEligibility),
+      ),
+      QuickActionCard(
+        label: 'Campus Broadcast',
+        icon: PhosphorIconsRegular.bellRinging,
+        color: AppColors.primary,
+        onTap: () => context.go(RouteNames.campusBroadcast),
       ),
       QuickActionCard(
         label: 'Manage Users',
@@ -172,17 +185,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         label: 'Manage Resources',
         icon: PhosphorIconsRegular.folderOpen,
         color: AppColors.info,
-        onTap: () => context.push(RouteNames.manageResources),
+        onTap: () => context.go(RouteNames.manageResources),
+      ),
+      QuickActionCard(
+        label: 'Admin Registration',
+        icon: PhosphorIconsRegular.identificationBadge,
+        color: AppColors.success,
+        onTap: () => context.go(RouteNames.adminRegistration),
       ),
     ];
 
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: AppSpacing.md,
-      crossAxisSpacing: AppSpacing.md,
-      childAspectRatio: 1.4,
+    return AdminCardGrid(
       children: actions,
     );
   }

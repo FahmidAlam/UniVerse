@@ -6,7 +6,6 @@ import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
 import 'package:universe/features/auth/controllers/auth_controller.dart';
-import 'package:universe/features/auth/services/auth_service.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   final AuthController authController;
@@ -17,13 +16,13 @@ class ResetPasswordScreen extends StatefulWidget {
 }
 
 class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
-  final _formKey        = GlobalKey<FormState>();
-  final _passwordCtrl   = TextEditingController();
-  final _confirmCtrl    = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _passwordCtrl = TextEditingController();
+  final _confirmCtrl = TextEditingController();
   bool _obscurePassword = true;
-  bool _obscureConfirm  = true;
-  bool _isUpdating      = false;
-  bool _resetSuccess    = false;
+  bool _obscureConfirm = true;
+  bool _isUpdating = false;
+  bool _resetSuccess = false;
 
   @override
   void dispose() {
@@ -43,7 +42,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   }
 
   Future<void> _signOutAndLogin() async {
-    await widget.authController.signOut();
+    try {
+      await widget.authController.signOut();
+    } catch (_) {
+      // Local recovery state is cleared even if remote sign-out is unavailable.
+    }
     if (!mounted) return;
     context.go(RouteNames.emailLogin);
   }
@@ -55,7 +58,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     setState(() => _isUpdating = true);
 
     final result =
-        await AuthService().updatePassword(_passwordCtrl.text);
+        await widget.authController.updateRecoveryPassword(_passwordCtrl.text);
 
     if (!mounted) return;
     setState(() => _isUpdating = false);
@@ -114,7 +117,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Spacer(flex: 2),
-
           Container(
             width: 72,
             height: 72,
@@ -131,20 +133,14 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               size: 32,
             ),
           ),
-
           const SizedBox(height: AppSpacing.x3l),
-
           Text('Set a new password', style: AppTextStyles.h1),
-
           AppSpacing.lgGap,
-
           Text(
             'Choose a strong password for your UniVerse account.',
             style: AppTextStyles.bodySm,
           ),
-
           const SizedBox(height: AppSpacing.x3l),
-
           Text('New password', style: AppTextStyles.label),
           AppSpacing.smGap,
           TextFormField(
@@ -174,14 +170,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               return null;
             },
           ),
-
           if (_passwordCtrl.text.isNotEmpty) ...[
             AppSpacing.smGap,
             _PasswordStrengthBar(strength: passwordStrength),
           ],
-
           AppSpacing.lgGap,
-
           Text('Confirm password', style: AppTextStyles.label),
           AppSpacing.smGap,
           TextFormField(
@@ -211,9 +204,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               return null;
             },
           ),
-
           const Spacer(flex: 3),
-
           SizedBox(
             width: double.infinity,
             height: AppSpacing.buttonHeight,
@@ -240,7 +231,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   : Text('Update password', style: AppTextStyles.button),
             ),
           ),
-
           AppSpacing.lgGap,
         ],
       ),
@@ -251,7 +241,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     return Column(
       children: [
         const Spacer(flex: 2),
-
         Container(
           width: 96,
           height: 96,
@@ -268,26 +257,20 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             size: 44,
           ),
         ),
-
         const SizedBox(height: AppSpacing.x3l),
-
         Text(
           'Password updated!',
           style: AppTextStyles.h1,
           textAlign: TextAlign.center,
         ),
-
         AppSpacing.lgGap,
-
         Text(
           'Your password has been changed successfully. '
           'Sign in with your new password.',
           style: AppTextStyles.bodySm,
           textAlign: TextAlign.center,
         ),
-
         const Spacer(flex: 2),
-
         SizedBox(
           width: double.infinity,
           height: AppSpacing.buttonHeight,
@@ -303,7 +286,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             child: Text('Sign in now', style: AppTextStyles.button),
           ),
         ),
-
         AppSpacing.lgGap,
       ],
     );
