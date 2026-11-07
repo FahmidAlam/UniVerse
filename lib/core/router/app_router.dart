@@ -15,6 +15,7 @@ import 'package:universe/features/admin/screens/manage_resources_screen.dart';
 import 'package:universe/features/admin/screens/manage_rooms_screen.dart';
 import 'package:universe/features/admin/screens/manage_users_screen.dart';
 import 'package:universe/features/admin/screens/resource_library_screen.dart';
+import 'package:universe/features/admin/screens/scheduling_workspace_screen.dart';
 import 'package:universe/features/admin/screens/timetable_grid_screen.dart';
 import 'package:universe/features/admin/screens/timetable_settings_screen.dart';
 import 'package:universe/features/auth/controllers/auth_controller.dart';
@@ -114,6 +115,24 @@ class AppRouter {
         path: RouteNames.notWhitelisted,
         builder: (c, s) => NotWhitelistedScreen(authController: authController),
       ),
+      GoRoute(
+        path: RouteNames.schedulingWorkspacePreview,
+        builder: (c, s) {
+          final tabParam = s.uri.queryParameters['tab'];
+          final rowParam = s.uri.queryParameters['row'];
+          final initialRow = rowParam != null ? int.tryParse(rowParam) : null;
+          int tabIndex = 0;
+          if (tabParam == 'configuration') tabIndex = 1;
+          if (tabParam == 'readiness') tabIndex = 2;
+          if (tabParam == 'generate') tabIndex = 3;
+          if (tabParam == 'review') tabIndex = 4;
+          return SchedulingWorkspaceScreen(
+            initialPreviewMode: true,
+            initialTabIndex: tabIndex,
+            initialSelectedRow: initialRow,
+          );
+        },
+      ),
       ShellRoute(
         builder: (c, s, child) => AppShell(
           authController: authController,
@@ -171,6 +190,10 @@ class AppRouter {
           GoRoute(
             path: RouteNames.routineManagement,
             builder: (c, s) => const AdminRoutineScreen(),
+          ),
+          GoRoute(
+            path: RouteNames.schedulingWorkspace,
+            builder: (c, s) => const SchedulingWorkspaceScreen(),
           ),
           GoRoute(
             path: RouteNames.campusBroadcast,
@@ -269,6 +292,7 @@ class AppRouter {
       RouteNames.facultyRegister,
       RouteNames.notWhitelisted,
       RouteNames.authError,
+      RouteNames.schedulingWorkspacePreview,
     ];
 
     // Signed in with no profile yet: only these screens can finish the
@@ -281,6 +305,10 @@ class AppRouter {
       RouteNames.emailSignup,
       RouteNames.verifyEmail,
     ];
+
+    if (location == RouteNames.schedulingWorkspacePreview) {
+      return null;
+    }
 
     if (status == AuthStatus.passwordRecovery) {
       return location == RouteNames.resetPassword

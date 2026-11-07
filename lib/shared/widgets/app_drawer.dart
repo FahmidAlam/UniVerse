@@ -233,6 +233,8 @@ class AppDrawer extends StatelessWidget {
       case AppConstants.roleAdmin:
         return [
           ...common,
+          const _DrawerEntry(PhosphorIconsRegular.stack, 'Scheduling Workspace',
+              RouteNames.schedulingWorkspace, push: true),
           const _DrawerEntry(PhosphorIconsRegular.calendarCheck, 'Routine Hub',
               RouteNames.routineManagement),
           const _DrawerEntry(PhosphorIconsRegular.folder, 'Manage Resources',

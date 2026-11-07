@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:universe/core/router/route_names.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/models/timetable_config_model.dart';
 import 'package:universe/core/theme/app_colors.dart';
@@ -69,6 +71,69 @@ class _ManageRoomsScreenState extends State<ManageRoomsScreen> {
           return ListView(
             padding: AppSpacing.screenPadding,
             children: [
+              Container(
+                margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.bgElevated,
+                  borderRadius: AppSpacing.radiusMd,
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.xs),
+                      decoration: BoxDecoration(
+                        color: AppColors.primarySoft,
+                        borderRadius: AppSpacing.radiusSm,
+                      ),
+                      child: const Icon(
+                        PhosphorIconsRegular.stack,
+                        color: AppColors.primary,
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Policy Baseline: Room Pools & Facilities',
+                            style: AppTextStyles.bodySmMedium.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Physical room capacity and lab assignments feed Pillar 3 of the Phase 2B Scheduling Workspace.',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    FilledButton.tonal(
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                      ),
+                      onPressed: () =>
+                          context.go(RouteNames.schedulingWorkspace),
+                      child: const Text(
+                        'Open Workspace',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               _group('LAB ROOMS', _controller.labRooms,
                   AppColors.roleTeacher, PhosphorIconsRegular.flask),
               AppSpacing.sectionGap,

@@ -71,6 +71,9 @@ class _AdminDesktopShellState extends State<AdminDesktopShell> {
     if (location.startsWith(RouteNames.routineManagement)) {
       return 'Routine Management';
     }
+    if (location.startsWith(RouteNames.schedulingWorkspace)) {
+      return 'Scheduling Workspace';
+    }
     if (location.startsWith(RouteNames.manageFaculty)) {
       return 'Faculty Management';
     }
@@ -266,6 +269,11 @@ class _AdminDesktopShellState extends State<AdminDesktopShell> {
                   icon: PhosphorIconsRegular.calendarCheck,
                   label: 'Routine Workbench',
                   route: RouteNames.routineManagement,
+                ),
+                _navItem(
+                  icon: PhosphorIconsRegular.stack,
+                  label: 'Scheduling Workspace',
+                  route: RouteNames.schedulingWorkspace,
                 ),
                 _subNavItem(
                   label: '• Generate Timetable',

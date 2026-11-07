@@ -128,6 +128,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget _buildActions() {
     final actions = <Widget>[
       QuickActionCard(
+        label: 'Scheduling Workspace',
+        icon: PhosphorIconsRegular.stack,
+        color: AppColors.primary,
+        onTap: () => context.go(RouteNames.schedulingWorkspace),
+      ),
+      QuickActionCard(
         label: 'Generate Timetable',
         icon: PhosphorIconsRegular.magicWand,
         color: AppColors.warning,
