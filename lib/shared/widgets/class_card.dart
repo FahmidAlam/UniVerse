@@ -35,6 +35,7 @@ class ClassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return UCard(
+      isTopLit: true,
       onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,17 +62,14 @@ class ClassCard extends StatelessWidget {
               UBadge(status: status),
             ],
           ),
-
           AppSpacing.smGap,
-
           Row(
             children: [
               Icon(
                 PhosphorIconsRegular.userCircle,
                 size: AppSpacing.iconSm,
-                color: _isCancelled
-                    ? AppColors.textDisabled
-                    : AppColors.textMuted,
+                color:
+                    _isCancelled ? AppColors.textDisabled : AppColors.textMuted,
               ),
               const SizedBox(width: AppSpacing.xs),
               Expanded(
@@ -92,9 +90,8 @@ class ClassCard extends StatelessWidget {
               Icon(
                 PhosphorIconsRegular.mapPin,
                 size: AppSpacing.iconSm,
-                color: _isCancelled
-                    ? AppColors.textDisabled
-                    : AppColors.textMuted,
+                color:
+                    _isCancelled ? AppColors.textDisabled : AppColors.textMuted,
               ),
               const SizedBox(width: AppSpacing.xs),
               Text(
@@ -107,9 +104,7 @@ class ClassCard extends StatelessWidget {
               ),
             ],
           ),
-
           AppSpacing.smGap,
-
           Row(
             children: [
               Icon(

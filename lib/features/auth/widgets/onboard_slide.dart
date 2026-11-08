@@ -1,9 +1,12 @@
+import 'routine_convergence_showcase.dart';
 import 'package:flutter/material.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
 
 class OnboardSlide extends StatelessWidget {
+  final int stage;
+  final bool showVisual;
   final IconData icon;
   final String title;
   final String description;
@@ -11,6 +14,8 @@ class OnboardSlide extends StatelessWidget {
 
   const OnboardSlide({
     super.key,
+    this.stage = 0,
+    this.showVisual = true,
     required this.icon,
     required this.title,
     required this.description,
@@ -20,30 +25,16 @@ class OnboardSlide extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: AppSpacing.screenPadding,
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              color: AppColors.primarySoft,
-              borderRadius: AppSpacing.radiusXl,
-              border: Border.all(
-                color: iconColor.withValues(alpha: 0.2),
-                width: AppSpacing.borderNormal,
-              ),
-            ),
-            child: Icon(
-              icon,
-              size: 44,
-              color: iconColor,
-            ),
-          ),
-
-          const SizedBox(height: AppSpacing.x3l),
-
+          // PHASE 3: Bounded mobile illustration; desktop art lives in the shell.
+          if (showVisual) ...[
+            RoutineConvergenceShowcase(
+                stage: stage, compact: true, interactive: false),
+            AppSpacing.lgGap,
+          ],
           Text(
             title,
             style: AppTextStyles.onboardTitle,

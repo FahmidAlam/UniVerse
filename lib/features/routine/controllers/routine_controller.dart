@@ -46,6 +46,9 @@ class RoutineController extends SafeChangeNotifier {
     return _entries.where((e) => e.day == full).toList();
   }
 
+  // PHASE 1 RECONCILE: The matrix consumes the same already role-filtered entries as Day List.
+  List<RoutineEntry> get entries => List.unmodifiable(_entries);
+
   int countForDay(String shortDay) {
     final i = AppConstants.weekDaysShort.indexOf(shortDay);
     if (i < 0) return 0;

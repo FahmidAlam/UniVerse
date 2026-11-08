@@ -1,3 +1,4 @@
+import 'package:universe/features/auth/widgets/auth_responsive_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
@@ -7,6 +8,7 @@ import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
 import 'package:universe/features/auth/controllers/auth_controller.dart';
 import 'package:universe/shared/utils/nav_utils.dart';
+import 'package:universe/shared/widgets/u_adaptive_overlay.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
   final AuthController authController;
@@ -20,25 +22,27 @@ class RoleSelectionScreen extends StatefulWidget {
 class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
   String? _selectedRole;
 
+  // PHASE 0: Role copy reflects implemented capabilities, without AI or assignments.
   static const _roles = [
     (
       id: 'student',
       label: 'Student',
-      subtitle: 'View routine, submit assignments, use AI assistant',
+      subtitle: 'View routines, find rooms and faculty, receive cohort alerts',
       icon: PhosphorIconsRegular.graduationCap,
       color: AppColors.roleStudent,
     ),
     (
       id: 'teacher',
       label: 'Teacher',
-      subtitle: 'Manage your classes and send notifications',
+      subtitle:
+          'View teaching routines, post class cancellations and broadcasts',
       icon: PhosphorIconsRegular.chalkboardTeacher,
       color: AppColors.roleTeacher,
     ),
     (
       id: 'admin',
       label: 'Admin',
-      subtitle: 'Manage users, resources, and timetables',
+      subtitle: 'Generate departmental timetables, manage users and resources',
       icon: PhosphorIconsRegular.star,
       color: AppColors.roleAdmin,
     ),
@@ -63,9 +67,13 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
       await _proceedAsTeacher();
     } else {
       _showAccessInfo(
-        title: 'Admin Access',
-        message: 'Admin accounts are created directly by the department head. '
-            'Contact your department admin to get access.',
+        title: 'Admin Access Required',
+        badge: 'GOVERNANCE & ENGINE',
+        accent: AppColors.roleAdmin,
+        icon: PhosphorIconsRegular.shieldCheck,
+        message: 'Administrative accounts are provisioned directly by your '
+            'department head. Contact your department administrator to have '
+            'your university email added to the admin whitelist.',
       );
     }
   }
@@ -83,67 +91,82 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
     await auth.handleOAuthCallback();
     if (!mounted || auth.status != AuthStatus.registering) return;
     _showAccessInfo(
-      title: 'Teacher Access',
-      message: 'Teacher accounts are added by the department admin. Ask them '
-          'to add the email you signed in with, then choose Teacher again.',
+      title: 'Faculty Whitelist Required',
+      badge: 'TEACHING & CLASS TOOLS',
+      accent: AppColors.roleTeacher,
+      icon: PhosphorIconsRegular.chalkboardTeacher,
+      message: 'Teacher accounts must be pre-registered by the department '
+          'administrator. Ask them to add the email you signed in with, '
+          'then select Teacher again.',
     );
   }
 
-  void _showAccessInfo({required String title, required String message}) {
-    showModalBottomSheet(
+  void _showAccessInfo({
+    required String title,
+    required String badge,
+    required Color accent,
+    required IconData icon,
+    required String message,
+  }) {
+    showUAdaptiveModal<void>(
       context: context,
-      backgroundColor: AppColors.bgCard,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppSpacing.radiusXlD),
-        ),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: AppSpacing.radiusFull,
-              ),
+      title: title,
+      badge: badge,
+      accentColor: accent,
+      icon: icon,
+      maxDesktopWidth: 460,
+      builder: (overlayContext) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.bgSubtle,
+              borderRadius: AppSpacing.radiusMd,
+              border: Border.all(color: AppColors.border),
             ),
-            const SizedBox(height: AppSpacing.xl),
-            const Icon(
-              PhosphorIconsRegular.info,
-              color: AppColors.primary,
-              size: 36,
-            ),
-            AppSpacing.lgGap,
-            Text(title, style: AppTextStyles.h3),
-            AppSpacing.smGap,
-            Text(
-              message,
-              style: AppTextStyles.bodySm,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacing.x3l),
-            SizedBox(
-              width: double.infinity,
-              height: AppSpacing.buttonHeight,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: AppSpacing.radiusMd,
-                  ),
-                  elevation: 0,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  PhosphorIconsRegular.info,
+                  color: accent,
+                  size: AppSpacing.iconMd,
                 ),
-                child: Text('Got it', style: AppTextStyles.button),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: AppTextStyles.bodySm.copyWith(height: 1.45),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          SizedBox(
+            width: double.infinity,
+            height: AppSpacing.buttonHeight,
+            child: ElevatedButton(
+              onPressed: () => Navigator.of(overlayContext).pop(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.textOnPrimary,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: AppSpacing.radiusMd,
+                ),
+                elevation: 0,
+              ),
+              child: Text(
+                'Understood',
+                style: AppTextStyles.button.copyWith(
+                  color: AppColors.textOnPrimary,
+                ),
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -152,77 +175,70 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
-      appBar: AppBar(
-        backgroundColor: AppColors.bgPrimary,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(PhosphorIconsRegular.arrowLeft),
-          onPressed: _back,
-        ),
-        title: Text('Create account', style: AppTextStyles.h2),
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: AppSpacing.screenPadding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AppSpacing.lgGap,
+      body: // PHASE 3: Adaptive auth presentation preserves existing form and callback ownership.
+          AuthResponsiveShell(
+              title: 'Create account',
+              onBack: _back,
+              stage: _selectedRole == 'admin'
+                  ? 0
+                  : _selectedRole != null
+                      ? 1
+                      : 2,
+              child: SafeArea(
+                child: Padding(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AppSpacing.lgGap,
+                      Text('I am a', style: AppTextStyles.label),
+                      AppSpacing.smGap,
+                      Text(
+                        'Choose your role intent. Faculty and Admin access is governed by the department whitelist.',
+                        style: AppTextStyles.bodySm,
+                      ),
+                      const SizedBox(height: AppSpacing.x3l),
+                      ...List.generate(_roles.length, (i) {
+                        final role = _roles[i];
+                        final isSelected = _selectedRole == role.id;
 
-              Text('I am a', style: AppTextStyles.label),
-
-              AppSpacing.smGap,
-
-              Text(
-                'Select your role to continue',
-                style: AppTextStyles.bodySm,
-              ),
-
-              const SizedBox(height: AppSpacing.x3l),
-
-              ...List.generate(_roles.length, (i) {
-                final role = _roles[i];
-                final isSelected = _selectedRole == role.id;
-
-                return Padding(
-                  padding: EdgeInsets.only(
-                    bottom: i < _roles.length - 1 ? AppSpacing.md : 0,
+                        return Padding(
+                          padding: EdgeInsets.only(
+                            bottom: i < _roles.length - 1 ? AppSpacing.md : 0,
+                          ),
+                          child: _RoleCard(
+                            label: role.label,
+                            subtitle: role.subtitle,
+                            icon: role.icon,
+                            color: role.color,
+                            isSelected: isSelected,
+                            onTap: () =>
+                                setState(() => _selectedRole = role.id),
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: AppSpacing.xxl),
+                      SizedBox(
+                        width: double.infinity,
+                        height: AppSpacing.buttonHeight,
+                        child: ElevatedButton(
+                          onPressed: _selectedRole != null ? _proceed : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            disabledBackgroundColor: AppColors.bgElevated,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: AppSpacing.radiusMd,
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Text('Continue', style: AppTextStyles.button),
+                        ),
+                      ),
+                      AppSpacing.lgGap,
+                    ],
                   ),
-                  child: _RoleCard(
-                    label: role.label,
-                    subtitle: role.subtitle,
-                    icon: role.icon,
-                    color: role.color,
-                    isSelected: isSelected,
-                    onTap: () => setState(() => _selectedRole = role.id),
-                  ),
-                );
-              }),
-
-              const Spacer(),
-
-              SizedBox(
-                width: double.infinity,
-                height: AppSpacing.buttonHeight,
-                child: ElevatedButton(
-                  onPressed: _selectedRole != null ? _proceed : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    disabledBackgroundColor: AppColors.bgElevated,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: AppSpacing.radiusMd,
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Text('Continue', style: AppTextStyles.button),
                 ),
-              ),
-
-              AppSpacing.lgGap,
-            ],
-          ),
-        ),
-      ),
+              )),
     );
   }
 }
@@ -246,29 +262,33 @@ class _RoleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+    // PHASE 3: Role intent selection remains available with motion disabled.
+    return RepaintBoundary(
+        child: AnimatedContainer(
+      duration: (MediaQuery.maybeOf(context)?.disableAnimations ?? false)
+          ? Duration.zero
+          : const Duration(milliseconds: 200),
       decoration: BoxDecoration(
-        color: isSelected
-            ? color.withValues(alpha: 0.08)
-            : AppColors.bgCard,
+        color: isSelected ? color.withValues(alpha: 0.08) : AppColors.bgCard,
         borderRadius: AppSpacing.radiusLg,
         border: Border.all(
           color: isSelected ? color : AppColors.border,
-          width: isSelected
-              ? AppSpacing.borderThick
-              : AppSpacing.borderNormal,
+          width: isSelected ? AppSpacing.borderThick : AppSpacing.borderNormal,
         ),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
+          hoverColor: color.withValues(alpha: .08),
+          focusColor: color.withValues(alpha: .14),
           borderRadius: AppSpacing.radiusLg,
           child: Padding(
             padding: AppSpacing.cardPadding,
             child: Row(
               children: [
+                Container(width: 3, height: 56, color: color),
+                const SizedBox(width: 12),
                 Container(
                   width: 48,
                   height: 48,
@@ -278,14 +298,20 @@ class _RoleCard extends StatelessWidget {
                   ),
                   child: Icon(icon, color: color, size: AppSpacing.iconLg),
                 ),
-
                 const SizedBox(width: AppSpacing.md),
-
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(label, style: AppTextStyles.h4),
+                      const SizedBox(height: 6),
+                      Text(
+                          label == 'Student'
+                              ? 'COHORT ROUTINE'
+                              : label == 'Teacher'
+                                  ? 'TEACHING & CLASS TOOLS'
+                                  : 'ENGINE & GOVERNANCE',
+                          style: AppTextStyles.caption.copyWith(color: color)),
                       const SizedBox(height: 2),
                       Text(
                         subtitle,
@@ -296,10 +322,12 @@ class _RoleCard extends StatelessWidget {
                     ],
                   ),
                 ),
-
                 AnimatedOpacity(
                   opacity: isSelected ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 200),
+                  duration:
+                      (MediaQuery.maybeOf(context)?.disableAnimations ?? false)
+                          ? Duration.zero
+                          : const Duration(milliseconds: 200),
                   child: Container(
                     width: 22,
                     height: 22,
@@ -319,6 +347,6 @@ class _RoleCard extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ));
   }
 }

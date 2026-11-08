@@ -107,9 +107,11 @@ class SchedulingWorkspaceController extends ChangeNotifier {
   bool get isPublishing => _isPublishing;
   String? get publishedConfirmationId => _publishedConfirmationId;
 
-  /// Returns true if the live backend is ready to display real distribution data.
-  bool get isLiveBackendReady =>
+  // PHASE 0: An accepted row is evidence of existence, not operational wiring.
+  bool get hasAcceptedRevisionInDb =>
       _backendAvailability == DistributionAvailability.available;
+  bool get isLiveWorkspaceOperational => false;
+  bool get isLiveBackendReady => isLiveWorkspaceOperational;
 
   /// Returns distinct batches available in the dataset for filtering.
   List<String> get availableBatches =>
@@ -225,6 +227,11 @@ class SchedulingWorkspaceController extends ChangeNotifier {
 
   /// Toggles between live backend checking and isolated design preview.
   void togglePreviewMode(bool value) {
+    // PHASE 0: Cancel in-flight simulations before returning to live mode.
+    if (!value) {
+      _isSolving = false;
+      _isPublishing = false;
+    }
     _isPreviewMode = value;
     notifyListeners();
   }
@@ -321,7 +328,7 @@ class SchedulingWorkspaceController extends ChangeNotifier {
   /// Saves an audited correction on a specific cell of an immutable source row.
   ///
   /// In Preview Mode, this updates the local in-memory fixture with full provenance.
-  /// In Live Mode, it connects to the authoritative Supabase RPC boundary.
+  /// Live corrections remain locked until the authoritative RPC is wired.
   Future<bool> saveAuditedCorrection({
     required int row,
     required String column,
@@ -329,6 +336,8 @@ class SchedulingWorkspaceController extends ChangeNotifier {
     required String reason,
     required String author,
   }) async {
+    // PHASE 0: Local corrections are simulations, never live RPC writes.
+    if (!_isPreviewMode) return false;
     if (reason.trim().isEmpty) return false;
 
     final targetIndex = _records.indexWhere((r) => r.row == row);
@@ -350,18 +359,23 @@ class SchedulingWorkspaceController extends ChangeNotifier {
     );
 
     // Update corrections list
-    final updatedCorrections = List<DistributionCorrection>.from(existing.corrections)
-      ..removeWhere((c) => c.column.toUpperCase() == column.toUpperCase())
-      ..add(correction);
+    final updatedCorrections =
+        List<DistributionCorrection>.from(existing.corrections)
+          ..removeWhere((c) => c.column.toUpperCase() == column.toUpperCase())
+          ..add(correction);
 
     // Re-evaluate conflicts if pending teacher was resolved
     final updatedConflicts = List<String>.from(existing.conflicts);
-    if (column.toUpperCase() == 'I' && !effectiveValue.toLowerCase().contains('pending')) {
-      updatedConflicts.removeWhere((c) => c.toLowerCase().contains('missing teacher'));
+    if (column.toUpperCase() == 'I' &&
+        !effectiveValue.toLowerCase().contains('pending')) {
+      updatedConflicts
+          .removeWhere((c) => c.toLowerCase().contains('missing teacher'));
     }
 
     // Re-evaluate readiness checklist if critical items were resolved
-    if (row == 19 && column.toUpperCase() == 'I' && !effectiveValue.toLowerCase().contains('pending')) {
+    if (row == 19 &&
+        column.toUpperCase() == 'I' &&
+        !effectiveValue.toLowerCase().contains('pending')) {
       _readinessItems = _readinessItems.map((item) {
         if (item.id == 'chk-teacher-pending') {
           return item.copyWith(isResolved: true);
@@ -415,6 +429,8 @@ class SchedulingWorkspaceController extends ChangeNotifier {
     required String reason,
     required String author,
   }) {
+    // PHASE 0: Refuse fixture mutations outside explicit Design Preview.
+    if (!_isPreviewMode) return;
     final nextNumber = _revision.revisionNumber + 1;
     _revision = RevisionContext(
       scopeId: _revision.scopeId,
@@ -426,7 +442,8 @@ class SchedulingWorkspaceController extends ChangeNotifier {
       sourceHash: 'sha256:d9b2e817${DateTime.now().millisecondsSinceEpoch}',
       sourceFileName: _revision.sourceFileName,
       acceptedAt: DateTime.now(),
-      acceptedBy: author.trim().isEmpty ? 'Admin (Timetable Lead)' : author.trim(),
+      acceptedBy:
+          author.trim().isEmpty ? 'Admin (Timetable Lead)' : author.trim(),
       isFresh: true,
       totalRows: _records.length,
       correctionCount: correctionsCount,
@@ -437,12 +454,16 @@ class SchedulingWorkspaceController extends ChangeNotifier {
 
   /// Discards local working corrections and restores baseline fixtures.
   void resetToBaseline() {
+    // PHASE 0: Refuse fixture mutations outside explicit Design Preview.
+    if (!_isPreviewMode) return;
     _initData();
     notifyListeners();
   }
 
   // Solver Configuration & Simulation
   void updateSolverConfig(SolverParameterConfig newConfig) {
+    // PHASE 0: Refuse fixture mutations outside explicit Design Preview.
+    if (!_isPreviewMode) return;
     _solverConfig = newConfig;
     notifyListeners();
   }
@@ -453,6 +474,8 @@ class SchedulingWorkspaceController extends ChangeNotifier {
     required String newOverride,
     required String newEffective,
   }) {
+    // PHASE 0: Refuse fixture mutations outside explicit Design Preview.
+    if (!_isPreviewMode) return;
     final idx = _policyItems.indexWhere((p) => p.ruleId == ruleId);
     if (idx >= 0) {
       final existing = _policyItems[idx];
@@ -472,35 +495,45 @@ class SchedulingWorkspaceController extends ChangeNotifier {
   }
 
   Future<void> runSolverPreview() async {
-    if (_isSolving) return;
+    // PHASE 0: Solver results are local simulations, never live generation.
+    if (!_isPreviewMode || _isSolving) return;
 
     _isSolving = true;
     _solvingProgress = 0.0;
-    _solvingStepMessage = 'Initializing CP-SAT model and indexing decision variables…';
+    _solvingStepMessage =
+        'Initializing CP-SAT model and indexing decision variables…';
     notifyListeners();
 
     await Future.delayed(const Duration(milliseconds: 350));
-    if (_disposed) return;
+    // PHASE 0: A delayed preview result must not mutate live-mode state.
+    if (_disposed || !_isPreviewMode) return;
     _solvingProgress = 0.25;
-    _solvingStepMessage = 'Enforcing 18,400 hard constraints: room non-overlap & faculty off-days…';
+    _solvingStepMessage =
+        'Enforcing 18,400 hard constraints: room non-overlap & faculty off-days…';
     notifyListeners();
 
     await Future.delayed(const Duration(milliseconds: 400));
-    if (_disposed) return;
+    // PHASE 0: A delayed preview result must not mutate live-mode state.
+    if (_disposed || !_isPreviewMode) return;
     _solvingProgress = 0.60;
-    _solvingStepMessage = 'Optimizing multi-objective soft penalties: minimizing teacher idle gaps…';
+    _solvingStepMessage =
+        'Optimizing multi-objective soft penalties: minimizing teacher idle gaps…';
     notifyListeners();
 
     await Future.delayed(const Duration(milliseconds: 400));
-    if (_disposed) return;
+    // PHASE 0: A delayed preview result must not mutate live-mode state.
+    if (_disposed || !_isPreviewMode) return;
     _solvingProgress = 0.88;
-    _solvingStepMessage = 'Verifying campus room travel and period continuity constraints…';
+    _solvingStepMessage =
+        'Verifying campus room travel and period continuity constraints…';
     notifyListeners();
 
     await Future.delayed(const Duration(milliseconds: 350));
-    if (_disposed) return;
+    // PHASE 0: A delayed preview result must not mutate live-mode state.
+    if (_disposed || !_isPreviewMode) return;
     _solvingProgress = 1.0;
-    _solvingStepMessage = 'OPTIMAL routine achieved! 0 hard violations, 96.4% preference score.';
+    _solvingStepMessage =
+        'OPTIMAL routine achieved! 0 hard violations, 96.4% preference score.';
     _solverResult = SchedulingPreviewFixtures.solvedResult;
     _isSolving = false;
     notifyListeners();
@@ -508,11 +541,14 @@ class SchedulingWorkspaceController extends ChangeNotifier {
 
   // Publication Simulation
   Future<void> simulatePublishRoutine() async {
+    // PHASE 0: Refuse fixture mutations outside explicit Design Preview.
+    if (!_isPreviewMode) return;
     _isPublishing = true;
     notifyListeners();
 
     await Future.delayed(const Duration(milliseconds: 600));
-    if (_disposed) return;
+    // PHASE 0: A delayed preview result must not mutate live-mode state.
+    if (_disposed || !_isPreviewMode) return;
 
     _publishedConfirmationId =
         'pub-rev4-v${_revision.revisionVersion}-${DateTime.now().millisecondsSinceEpoch}';

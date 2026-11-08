@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+// PHASE 0: Availability is owned by the controller; no duplicate screen query.
+import 'package:go_router/go_router.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
@@ -53,7 +54,8 @@ class _SchedulingWorkspaceScreenState extends State<SchedulingWorkspaceScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
   late final SchedulingWorkspaceController _controller;
-  late final Future<DistributionAvailability> _distributionAvailability;
+  // PHASE 0: Adjacent preview panes must not share a primary scroll position.
+  final _paneScrollControllers = List.generate(5, (_) => ScrollController());
 
   @override
   void initState() {
@@ -63,22 +65,22 @@ class _SchedulingWorkspaceScreenState extends State<SchedulingWorkspaceScreen>
       vsync: this,
       initialIndex: widget.initialTabIndex.clamp(0, 4),
     );
-    _distributionAvailability =
-        widget.availabilityLoader?.call() ?? _inspectDistributionAvailability();
+    // PHASE 0: One controller owns availability and refresh state.
     _controller = SchedulingWorkspaceController(
       availabilityLoader: widget.availabilityLoader,
       initialPreviewMode: widget.initialPreviewMode,
     );
     _controller.setTabIndex(widget.initialTabIndex.clamp(0, 4));
     if (widget.initialSelectedRow != null) {
-      final matches = _controller.records
-          .where((r) => r.row == widget.initialSelectedRow);
+      final matches =
+          _controller.records.where((r) => r.row == widget.initialSelectedRow);
       if (matches.isNotEmpty) {
         _controller.selectRecord(matches.first);
       }
     }
     _tabs.addListener(() {
-      if (!_tabs.indexIsChanging && _controller.currentTabIndex != _tabs.index) {
+      if (!_tabs.indexIsChanging &&
+          _controller.currentTabIndex != _tabs.index) {
         _controller.setTabIndex(_tabs.index);
       }
     });
@@ -89,23 +91,12 @@ class _SchedulingWorkspaceScreenState extends State<SchedulingWorkspaceScreen>
     });
   }
 
-  Future<DistributionAvailability> _inspectDistributionAvailability() async {
-    try {
-      final rows = await Supabase.instance.client
-          .from('course_distribution_revisions')
-          .select('id')
-          .eq('status', 'accepted')
-          .limit(1);
-      return (rows as List).isEmpty
-          ? DistributionAvailability.noAcceptedRevision
-          : DistributionAvailability.available;
-    } on Object {
-      return DistributionAvailability.unavailable;
-    }
-  }
-
   @override
   void dispose() {
+    // PHASE 0: Release the independently owned preview scroll controllers.
+    for (final controller in _paneScrollControllers) {
+      controller.dispose();
+    }
     _tabs.dispose();
     _controller.dispose();
     super.dispose();
@@ -178,9 +169,8 @@ class _SchedulingWorkspaceScreenState extends State<SchedulingWorkspaceScreen>
   }
 
   Widget _buildTabContent(bool isDesktop, bool isMobile) {
-    // If not in preview mode and backend contract is unavailable or checking,
-    // preserve the truthful live capability boundary
-    if (!_controller.isPreviewMode && !_controller.isLiveBackendReady) {
+    // PHASE 0: Live mode must never fall through to fixture-backed panes.
+    if (!_controller.isPreviewMode) {
       return TabBarView(
         controller: _tabs,
         children: [
@@ -209,7 +199,7 @@ class _SchedulingWorkspaceScreenState extends State<SchedulingWorkspaceScreen>
       );
     }
 
-    // Fully populated interactive Phase 2B Experience
+    // PHASE 0: Isolate scroll positions while preview tabs coexist in transitions.
     return TabBarView(
       controller: _tabs,
       children: [
@@ -218,7 +208,14 @@ class _SchedulingWorkspaceScreenState extends State<SchedulingWorkspaceScreen>
         SchedulingReadinessPane(controller: _controller),
         SchedulingGeneratePane(controller: _controller),
         SchedulingReviewPane(controller: _controller),
-      ],
+      ]
+          .asMap()
+          .entries
+          .map((entry) => PrimaryScrollController(
+                controller: _paneScrollControllers[entry.key],
+                child: entry.value,
+              ))
+          .toList(),
     );
   }
 
@@ -257,10 +254,10 @@ class _SchedulingWorkspaceScreenState extends State<SchedulingWorkspaceScreen>
   }
 
   Widget _buildLiveDistributionBoundary() {
-    return FutureBuilder<DistributionAvailability>(
-      future: _distributionAvailability,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
+    // PHASE 0: Read the same controller state as the header and refresh action.
+    return Builder(builder: (context) {
+      switch (_controller.backendAvailability) {
+        case DistributionAvailability.checking:
           return const Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -271,44 +268,39 @@ class _SchedulingWorkspaceScreenState extends State<SchedulingWorkspaceScreen>
               ],
             ),
           );
-        }
-
-        switch (snapshot.data) {
-          case DistributionAvailability.checking:
-            return const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: AppSpacing.lg),
-                  Text('Checking Course Distribution availability…'),
-                ],
-              ),
-            );
-          case DistributionAvailability.available:
-            return const _CapabilityUnavailable(
-              title: 'Course Distribution reader is pending',
-              detail:
-                  'An accepted revision is available, but the source-record reader requires the reviewed client parsing boundary before its A–L evidence can be displayed.',
-            );
-          case DistributionAvailability.noAcceptedRevision:
-            return _CapabilityUnavailable(
-              title: 'No accepted Course Distribution revision is available',
-              detail:
-                  'A scoped accepted revision is required before source evidence can be read. The workspace will not use a local workbook or legacy timetable settings instead.',
-              actionButton: _buildExplorePreviewButton(),
-            );
-          case DistributionAvailability.unavailable:
-          case null:
-            return _CapabilityUnavailable(
-              title: 'Course Distribution is not available yet',
-              detail:
-                  'This connected environment requires the Phase 2a backend contract before a source revision can be read. No local workbook copy, sample records, or simulated correction flow is shown here.',
-              actionButton: _buildExplorePreviewButton(),
-            );
-        }
-      },
-    );
+        case DistributionAvailability.available:
+          // PHASE 0: Row existence proves neither live parsing nor mutation readiness.
+          return _CapabilityUnavailable(
+            title: 'Course Distribution reader is pending',
+            detail:
+                'An accepted revision exists in the database. Live source-reading, correction RPCs, policy binding, and solver/publication wiring are pending Phase 2B/3 integration. Use /admin/routine?tab=generate for operational timetable generation or switch to Design Preview.',
+            actionButton: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextButton(
+                  onPressed: () => context.go('/admin/routine?tab=generate'),
+                  child: const Text('Open operational timetable generation'),
+                ),
+                _buildExplorePreviewButton(),
+              ],
+            ),
+          );
+        case DistributionAvailability.noAcceptedRevision:
+          return _CapabilityUnavailable(
+            title: 'No accepted Course Distribution revision is available',
+            detail:
+                'A scoped accepted revision is required before source evidence can be read. The workspace will not use a local workbook or legacy timetable settings instead.',
+            actionButton: _buildExplorePreviewButton(),
+          );
+        case DistributionAvailability.unavailable:
+          return _CapabilityUnavailable(
+            title: 'Course Distribution is not available yet',
+            detail:
+                'This connected environment requires the Phase 2a backend contract before a source revision can be read. No local workbook copy, sample records, or simulated correction flow is shown here.',
+            actionButton: _buildExplorePreviewButton(),
+          );
+      }
+    });
   }
 
   Widget _buildExplorePreviewButton() {

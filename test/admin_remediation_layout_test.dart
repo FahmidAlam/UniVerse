@@ -82,8 +82,7 @@ class _MockNotificationController extends ChangeNotifier
 }
 
 void main() {
-  testWidgets(
-      'query navigation and back select routine subitems and retain parent',
+  testWidgets('query navigation selects only the exact live routine subitem',
       (tester) async {
     tester.view.physicalSize = const Size(800, 1000);
     tester.view.devicePixelRatio = 1;
@@ -116,11 +115,25 @@ void main() {
     }
 
     expectSelected('\u2022 Generate Timetable');
-    expectSelected('Routine Workbench');
+    // PHASE 1: The Manage link must not remain selected on Generate or Upload.
+    expect(
+        tester
+            .widget<Semantics>(
+                find.byKey(const ValueKey('admin-nav:/admin/routine')))
+            .properties
+            .selected,
+        isFalse);
     await tester.tap(find.text('\u2022 Upload Routine'));
     await tester.pumpAndSettle();
     expectSelected('\u2022 Upload Routine');
-    expectSelected('Routine Workbench');
+    // PHASE 1: The Manage link must not remain selected on Generate or Upload.
+    expect(
+        tester
+            .widget<Semantics>(
+                find.byKey(const ValueKey('admin-nav:/admin/routine')))
+            .properties
+            .selected,
+        isFalse);
     router.go('${RouteNames.routineManagement}?tab=generate');
     await tester.pumpAndSettle();
     expectSelected('\u2022 Generate Timetable');

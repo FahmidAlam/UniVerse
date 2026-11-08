@@ -53,8 +53,14 @@ class UAvatar extends StatelessWidget {
       avatar = _buildInitials(color, initials);
     }
 
+    avatar = OrbitalAvatarBezel(size: size, child: avatar);
     if (onTap != null) {
-      return GestureDetector(onTap: onTap, child: avatar);
+      return Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        child: InkWell(
+            customBorder: const CircleBorder(), onTap: onTap, child: avatar),
+      );
     }
     return avatar;
   }
@@ -80,4 +86,25 @@ class UAvatar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Shared orbital double ring. The bezel stays inside the requested diameter.
+class OrbitalAvatarBezel extends StatelessWidget {
+  final double size;
+  final Widget child;
+  const OrbitalAvatarBezel(
+      {super.key, required this.size, required this.child});
+  @override
+  Widget build(BuildContext context) => Container(
+        width: size,
+        height: size,
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppColors.bgPrimary,
+          border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.45), width: 1.5),
+        ),
+        child: ClipOval(child: child),
+      );
 }

@@ -8,6 +8,9 @@
 // room name in `extra`.
 // ============================================================
 
+// PHASE 1: Missing detail identifiers recover to the Campus directory.
+import 'package:go_router/go_router.dart';
+import 'package:universe/core/router/route_names.dart';
 import 'package:flutter/material.dart';
 import 'package:universe/core/models/routine_model.dart';
 import 'package:universe/core/utils/room_identity.dart';
@@ -23,30 +26,53 @@ import 'package:universe/shared/widgets/weekly_schedule_view.dart';
 
 class RoomDetailScreen extends StatefulWidget {
   final String room;
+  // PHASE 1: An injectable reader keeps identity/reload behavior independent of transport.
+  final Future<List<RoutineEntry>> Function()? routineLoader;
 
-  const RoomDetailScreen({super.key, required this.room});
+  const RoomDetailScreen({super.key, required this.room, this.routineLoader});
 
   @override
   State<RoomDetailScreen> createState() => _RoomDetailScreenState();
 }
 
 class _RoomDetailScreenState extends State<RoomDetailScreen> {
-  final RoomStatusService _service = RoomStatusService();
-
+  // PHASE 1: Older asynchronous reads cannot overwrite a newer URL identity.
+  int _loadEpoch = 0;
   List<RoutineEntry>? _entries;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    // PHASE 1: Empty deep links must not query all published routines.
+    if (widget.room.trim().isNotEmpty) _load();
+  }
+
+  // PHASE 1: GoRouter reuses detail state when only the query identifier changes.
+  @override
+  void didUpdateWidget(covariant RoomDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.room != widget.room) {
+      _loadEpoch++;
+      _entries = null;
+      _error = null;
+      if (widget.room.trim().isNotEmpty) _load();
+    }
   }
 
   Future<void> _load() async {
-    setState(() => _error = null);
+    // PHASE 1: Each identity change or retry supersedes every prior read.
+    final epoch = ++_loadEpoch;
+    setState(() {
+      _error = null;
+      _entries = null;
+    });
     try {
-      final all = await _service.fetchAllRoutines();
-      if (!mounted) return;
+      // PHASE 1: Service creation stays inside the recoverable load boundary.
+      final all = await (widget.routineLoader?.call() ??
+          RoomStatusService().fetchAllRoutines());
+      // PHASE 1: Ignore a response for an identity the user has already left.
+      if (!mounted || epoch != _loadEpoch) return;
       setState(() {
         _entries = all
             .where((e) =>
@@ -55,7 +81,8 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
             .toList();
       });
     } catch (e) {
-      if (!mounted) return;
+      // PHASE 1: Ignore a response for an identity the user has already left.
+      if (!mounted || epoch != _loadEpoch) return;
       setState(() => _error = e.toString());
     }
   }
@@ -73,6 +100,18 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
   }
 
   Widget _buildBody() {
+    // PHASE 1: A refresh with no identifier is an explicit recoverable empty state.
+    if (widget.room.trim().isEmpty) {
+      return UEmptyState(
+        icon: PhosphorIconsRegular.magnifyingGlass,
+        title: 'No room selected',
+        message: 'Choose a room from Campus Lookup.',
+        action: UButton(
+            label: 'Back to Rooms',
+            fullWidth: false,
+            onPressed: () => context.go(RouteNames.rooms)),
+      );
+    }
     if (_error != null) {
       return UEmptyState(
         icon: PhosphorIconsRegular.warningCircle,

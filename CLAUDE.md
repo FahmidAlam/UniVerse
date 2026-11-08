@@ -43,7 +43,7 @@ Do **not** read the entire master plan or all specialist references before every
 - **Course Distribution & Timetable Pipeline:**
   - **Phase 2a Source Contract:** `engine/distribution.py` (`SourceWorkbook`, `DistributionDraft`, `CellCorrection`, `CorrectionRevision`, `normalize`) and `supabase/migrations/20261106130000_course_distribution_contract.sql` (`course_distribution_sources`, `course_distribution_revisions`, `course_distribution_corrections`, `course_distribution_artifacts`, `append_course_distribution_correction`).
   - Original `.xlsx` bytes and SHA-256 hash are immutable. Columns `J` and `L` retain both formula text and cached value (missing cached value on an uncorrected formula fails validation). Corrections require revision concurrency match (`expected_revision`), author, and reason, and automatically mark derived artifacts `stale`.
-  - **Ingestion & Solver:** `engine/ingest.py` binds headers on row 5 of `Course Distribution`, preserves `B+C` joint sections and split/co-teacher arrays, and feeds `engine/solver.py` (CP-SAT) → `engine/validator.py` → `engine/renderer.py`.
+  - **Ingestion & Solver:** `engine/ingest.py` binds headers on row 5 of `Course Distribution`, preserves `B+C` joint sections and split/co-teacher arrays, and feeds `engine/solver.py` (CP-SAT) → validation in `engine/solver.py` → `engine/render.py`.
   - **Clock & Publication:** Clock normalization uses `ClockTime` (`HH:MM:SS` in DB, `HH:MM` in engine). `publish_routine()` atomically replaces global active routine rows (refusing empty payloads); manual CRUD via `RoutineAdminController` still writes directly until Phase 3 unifies server-authoritative validation across generation, upload, manual edits, and publication.
 - **Supabase Security & Schema:**
   - Historical chain `001`–`016` (no `010`), `20261022140809_academic_catalog.sql`, and `20261106130000_course_distribution_contract.sql`.
@@ -125,3 +125,10 @@ For all UI/UX-related work, agents must follow this 11-step process:
   - Preserve functionality and architectural boundaries.
   - **Never rewrite the application in React or replace Flutter just to achieve better visual results.**
   - Retain the mandatory UI/UX approval gate from project instructions.
+
+## Phase 0 redesign baseline
+
+Scheduling Workspace fixtures and simulated mutations are Design Preview only. An accepted database revision does not establish operational reader, correction, policy, generation, or publication wiring. `/admin/routine` remains the operational generator/uploader. See [Phase 0 baseline and decisions](docs/implementation/phase_0_redesign_baseline_and_decisions.md).
+
+## Phase 3.5 approved visual direction
+The Product Owner explicitly approved the specified full-bleed auth/onboarding overhaul and Step 0 skill alignment. Repository-local `.agents/skills/` governs Level-4 depth, semantic accents and dual-mode continuous/reduced motion. This approval is scoped to Phase 3.5; all permanent auth/backend, hosted-service, Git and scheduling gates remain enforced.

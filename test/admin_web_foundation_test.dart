@@ -100,7 +100,8 @@ void main() {
     expect(report.sourceContract['revision'], 0);
   });
 
-  test('persisted distribution bundle separates source bytes from provenance', () {
+  test('persisted distribution bundle separates source bytes from provenance',
+      () {
     final bundle = PersistedDistributionRevision.fromMap({
       'source_id': '10000000-0000-4000-8000-000000000001',
       'revision_id': '20000000-0000-4000-8000-000000000001',
@@ -176,7 +177,8 @@ void main() {
       notifController = _MockNotificationController();
     });
 
-    Widget createRouterApp(Widget child, {String location = RouteNames.adminDashboard}) {
+    Widget createRouterApp(Widget child,
+        {String location = RouteNames.adminDashboard}) {
       final router = GoRouter(
         initialLocation: location,
         routes: [
@@ -218,7 +220,8 @@ void main() {
         expect(find.byType(AdminDesktopShell), findsOneWidget);
         expect(find.text('ADMIN PORTAL'), findsOneWidget);
         expect(find.text('TIMETABLE ENGINE'), findsOneWidget);
-        expect(find.text('Routine Workbench'), findsOneWidget);
+        // PHASE 1: Live routine tools and preview workbench have distinct labels.
+        expect(find.text('Manage Routine (Live)'), findsOneWidget);
         expect(find.text('Engine Connected'), findsNothing);
         expect(find.text('Engine Unavailable'), findsOneWidget);
         expect(find.text('Admin Dashboard Body'), findsOneWidget);
@@ -245,7 +248,7 @@ void main() {
     );
 
     testWidgets(
-      'renders standard shell for student even on desktop screen',
+      'renders student desktop sidebar instead of mobile navigation',
       (tester) async {
         authController.role = AppConstants.roleStudent;
         tester.view.physicalSize = const Size(1280, 800);
@@ -261,7 +264,10 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.byType(AdminDesktopShell), findsNothing);
-        expect(find.byType(AppBottomNav), findsOneWidget);
+        // PHASE 1: Student desktop keeps its own persistent sidebar.
+        expect(find.byType(AppBottomNav), findsNothing);
+        expect(
+            find.byKey(const ValueKey('role-desktop-sidebar')), findsOneWidget);
         expect(find.text('Student Home Body'), findsOneWidget);
       },
     );

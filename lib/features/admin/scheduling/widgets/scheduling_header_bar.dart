@@ -1,3 +1,6 @@
+import 'package:universe/shared/widgets/u_segmented_control.dart';
+// PHASE 1: Custom mobile headers retain shell account access too.
+import 'package:universe/shared/widgets/desktop_shell_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
@@ -63,6 +66,7 @@ class SchedulingHeaderBar extends StatelessWidget {
                           runSpacing: 2,
                           children: [
                             Text(
+                              // PHASE 1 RECONCILE: Preserve workspace heading for regressions while repeating preview boundary.
                               'Scheduling Workspace',
                               style: AppTextStyles.h2.copyWith(
                                 fontWeight: FontWeight.bold,
@@ -125,6 +129,9 @@ class SchedulingHeaderBar extends StatelessWidget {
                       ],
                     ),
                   ),
+                  // PHASE 1: The custom workbench header also exposes mobile account access.
+                  if (DesktopShellScope.maybeOf(context)?.isDesktop == false)
+                    const ProfileAccountAction(),
                   if (!isMobile) ...[
                     _buildModeToggle(context, isPreview, isCompact: false),
                     const SizedBox(width: AppSpacing.sm),
@@ -154,67 +161,22 @@ class SchedulingHeaderBar extends StatelessWidget {
     bool isPreview, {
     required bool isCompact,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.bgPrimary,
-        borderRadius: AppSpacing.radiusFull,
-        border: Border.all(color: AppColors.border),
-      ),
-      padding: const EdgeInsets.all(3),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _modeButton(
-            title: isCompact ? 'Live' : 'Live Backend',
-            icon: PhosphorIconsRegular.database,
-            isActive: !isPreview,
-            onTap: () => controller.togglePreviewMode(false),
-          ),
-          _modeButton(
-            title: isCompact ? 'Preview' : 'Design Preview',
-            icon: PhosphorIconsRegular.sparkle,
-            isActive: isPreview,
-            onTap: () => controller.togglePreviewMode(true),
-          ),
+    return SizedBox(
+      width: isCompact ? 220 : 310,
+      child: USegmentedControl<bool>(
+        compact: true,
+        selected: isPreview,
+        onChanged: controller.togglePreviewMode,
+        segments: [
+          USegment(
+              value: false,
+              label: isCompact ? 'Live' : 'Live Backend',
+              icon: PhosphorIconsRegular.database),
+          USegment(
+              value: true,
+              label: isCompact ? 'Preview' : 'Design Preview',
+              icon: PhosphorIconsRegular.sparkle),
         ],
-      ),
-    );
-  }
-
-  Widget _modeButton({
-    required String title,
-    required IconData icon,
-    required bool isActive,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: AppSpacing.radiusFull,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isActive ? AppColors.primary : Colors.transparent,
-          borderRadius: AppSpacing.radiusFull,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 13,
-              color: isActive ? AppColors.textPrimary : AppColors.textMuted,
-            ),
-            const SizedBox(width: 5),
-            Text(
-              title,
-              style: AppTextStyles.captionMedium.copyWith(
-                color: isActive ? AppColors.textPrimary : AppColors.textMuted,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

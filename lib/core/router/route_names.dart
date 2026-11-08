@@ -47,4 +47,25 @@ abstract class RouteNames {
       '/admin/timetable/course-eligibility';
   static const String timetableSettings = '/admin/timetable/settings';
   static const String timetableGrid = '/admin/timetable/grid';
+  // PHASE 1: URI encoding preserves identifiers containing spaces, ampersands or slashes.
+  static String roomDetailLocation(String room) =>
+      Uri(path: roomDetail, queryParameters: {'room': room}).toString();
+  static String teacherDetailLocation(
+          {required String code,
+          required String name,
+          String dept = '',
+          String desig = ''}) =>
+      Uri(path: teacherDetail, queryParameters: {
+        'code': code,
+        'name': name,
+        'dept': dept,
+        'desig': desig
+      }).toString();
+
+  // PHASE 1: The routine screen and sidebar share the same query/default contract.
+  static String routineTab(Uri uri) => switch (uri.queryParameters['tab']) {
+        'generate' => 'generate',
+        'upload' => 'upload',
+        _ => 'manage',
+      };
 }

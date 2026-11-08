@@ -1,58 +1,104 @@
+
+
+
 ---
 name: flutter-interaction-motion
 description: Design and implement purposeful Flutter interaction states, transitions, feedback, gestures, and motion for UniVerse without sacrificing speed, clarity, or accessibility.
 ---
 
-# UniVerse Interaction and Motion
+# UniVerse Interaction and Motion Specification
 
-## Principle
+## 1. Core Principles & Design Intent
 
-Motion should explain a state change, preserve spatial context, provide feedback, or make an interaction feel responsive. It must never be required to understand content or complete a task.
+- **Purposeful Communication:** Motion in UniVerse must strictly serve to explain state changes, preserve spatial context during page transitions, or provide instantaneous tactile feedback. It must never be purely theatrical.
+- **Accessibility & Utility First:** Content readability, keyboard navigation, and operational execution speed always take precedence over animation. Every screen and workflow must remain 100% functional with motion disabled.
+- **Obsidian Orbit Aesthetic Integration:** Interaction states must align with the cool dark surface range (`#0B0C0E` to `#1F2229`) and primary brand accent (`#FF7A00`), using subtle top-lit surface highlights instead of heavy glow or intrusive bounce effects.
 
-## Interaction contract
+## 2. Standard Motion Tokens, Durations & Curves
 
-For every interactive component, define:
-- Idle/default state.
-- Hover (web), focus, pressed, selected, disabled, loading, success, and error states as applicable.
-- Keyboard and pointer behavior.
-- Whether the action is immediate, reversible, destructive, or asynchronous.
-- Feedback and recovery behavior.
+Coding agents and developers MUST use standardized Flutter duration and curve tokens rather than inline magic numbers:
 
-Use familiar affordances. A visual control must behave as users expect; avoid clickable-looking decoration and invisible hit areas.
+| Motion Category | Duration Token | Curve Token (`Curves`) | Primary Use Cases |
+| :--- | :--- | :--- | :--- |
+| **Micro / State** | `kDurationFast` (150ms) | `Curves.easeOutCubic` | Button hover, focus ring outline, toggle switches, icon state changes. |
+| **Panel / Sheet** | `kDurationMedium` (220ms) | `Curves.easeInOutCubic` | Modal bottom sheet entrance/exit, sidebar collapse, dropdown popovers. |
+| **Page / Route** | `kDurationPage` (280ms) | `Curves.fastOutSlowIn` | Tab switching, screen transitions, view layout shifts. |
+| **Stage 01 Storyboard** | `kDurationBeat1` (450ms)<br>`kDurationBeat2` (650ms)<br>`kDurationBeat3` (700ms) | `Curves.easeOutQuad` | Multi-beat Pre-Auth Onboarding Convergence Animation (Inputs -> Core -> Matrix). |
 
-## Motion rules
+- **Exit Speed Rule:** Exits must be 15–20% faster than entrances (e.g., 180ms dismiss vs 220ms slide-in) to enhance perceived system responsiveness.
+- **No Gratuitous Elasticity:** Never use `Curves.bounceIn`, `Curves.elasticOut`, or spring simulations for standard academic timetable operations.
 
-- Prefer short, restrained transitions. Typical starting ranges: 120–200 ms for small state changes and dropdowns; 180–280 ms for larger panel/page transitions. Tune to context and platform; these are not laws.
-- Use ease-out for entrances, ease-in for exits, and ease-in-out for state movement where it feels natural.
-- Avoid bounce/elastic motion for routine academic workflows unless it communicates a meaningful physical interaction.
-- Keep exits slightly faster than entrances when that improves perceived responsiveness.
-- Use stagger sparingly and only for meaningful grouped content; do not delay access to controls while rows animate in.
-- Avoid animating layout properties across large, dense tables when it causes expensive relayout or visual instability.
-- Respect reduced-motion preferences when available and provide an equivalent non-motion state transition.
-- Never use pulsing, shaking, flashing, or continuous motion as the only signal of status or urgency.
+## 3. Interactive Component State Matrix
 
-## Feedback and micro-interactions
+Every interactive component (Buttons, Class Cards, Room Tiles, Form Fields) MUST implement an explicit state matrix:
 
-- Buttons: clear hover/focus/pressed/disabled/loading feedback; prevent duplicate submission while pending.
-- Forms: show validation close to the field and preserve entered values after recoverable errors.
-- Async tasks: show honest progress or indeterminate loading; expose cancellation/retry when supported.
-- Success: concise confirmation tied to the completed action; a subtle transition is optional, not mandatory.
-- Menus/dialogs: open from a clear trigger, maintain focus, close predictably, and return focus to the trigger.
-- Sticky actions: ensure they do not cover fields, table rows, browser controls, or keyboard focus.
+1. **Idle / Default State:** Base surface layer (`#14161C`) with standard border contrast (`#2A2E39`).
+2. **Hover State (Web/Desktop):** Elevated surface fill (`#1F2229`) with top-lit border highlight.
+3. **Focus State (Keyboard):** Prominent 2px `#FF7A00` outline with a 2px offset ring; high-contrast focus indicator.
+4. **Pressed State (Active Tap):** Scaled down slightly (`Transform.scale(scale: 0.98)` over 100ms) or darker fill (`#0B0C0E`).
+5. **Disabled State:** Opacity reduced to `0.38`, hit testing disabled (`IgnorePointer`), cursor set to `SystemMouseCursors.forbidden`.
+6. **Async Loading State:** Button dimensions locked (prevent layout shift), text replaced by an inline 18px `CircularProgressIndicator(strokeWidth: 2, color: #FF7A00)` or skeletal shimmer. Action disabled to prevent double submission.
+7. **Clash / Warning State:** Surface fill set to dark amber/red tint (`#2C1215`), accompanied by `Icons.warning_amber_rounded` and non-color semantic text.
 
-## Flutter implementation
+## 4. Onboarding Convergence Animation & Motion Safeguards
 
-- Reuse existing animation utilities, duration tokens, and shared components where available.
-- Prefer AnimatedSwitcher, AnimatedContainer, implicit animations, or explicit AnimationController only when appropriate to the interaction and performance profile.
-- Dispose controllers/listeners correctly; avoid creating controllers repeatedly during build.
-- Keep animation state separate from business state where possible.
-- Do not animate authoritative data values in a way that could imply false intermediate values.
-- Avoid adding packages for simple transitions already supported by Flutter.
+- **3-Beat Pre-Auth Storyboard Execution:**
+  - **Beat 1 (0–450ms):** Course Distribution, Faculty, and Room input pills slide inward along staggered orbital paths (`Curves.easeOutCubic`).
+  - **Beat 2 (400–1050ms):** Connector line pulse converges into the central UniVerse Orbit Engine Core with a 180° rotation.
+  - **Beat 3 (950–1650ms):** Structured 4x3 timetable grid populates class blocks with a 50ms row stagger.
+- **Truthful Motion Rule:** Never animate synthetic progress numbers or fake solver metrics before verified backend execution.
+- **Reduced Motion Guard (Mandatory):**
+  ```dart
+  final reduceMotion = MediaQuery.of(context).disableAnimations;
+  if (reduceMotion) {
+    // Instantly display final static timetable matrix state
+    return StaticTimetableMatrixView();
+  }
+  ```
 
-## Review questions
+## 5. Mobile Gestures & Touch Feedback
 
-- What information does this motion communicate?
-- Would the interaction remain clear with animation disabled?
-- Does it make the task faster or merely more theatrical?
-- Does it delay input, create layout shift, distract, or increase CPU/GPU work?
-- Does it work with keyboard, screen readers, and reduced-motion settings?
+- **Touch Target Dimensions:** Minimum 48x48 dp touch target on Mobile (`Compact <768px`) and 40x40 dp on Web (`Medium` / `Expanded`).
+- **Modal Sheet Gestures:** Drag-to-dismiss modal sheets on mobile must monitor drag velocity (`velocity.pixelsPerSecond.dy > 300`) or drag threshold (>50% container height) to trigger predictable dismissal.
+- **Swipe Actions:** Class cancellation and schedule adjustment sheets must provide clear haptic feedback (`HapticFeedback.lightImpact()`) upon threshold crossing.
+
+## 6. Flutter Implementation Discipline & Performance Rules
+
+- **Repaint Boundary Isolation:** Always wrap animated subtrees (`AnimatedSwitcher`, `AnimationController`, `Shimmer`) in a `RepaintBoundary` widget to avoid repainting the parent dashboard or timetable canvas.
+- **AnimationController Lifecycle Rules:**
+  - Initialize controllers with `vsync: this` using `SingleTickerProviderStateMixin`.
+  - ALWAYS call `controller.dispose()` inside the `StatefulWidget` `dispose()` method to prevent memory leaks.
+  - Store static `Tween` objects as `final` members outside `build()` methods to prevent object allocations during frames.
+- **Layout Shift Prevention:** Never animate layout height/width of parent containers during list loading. Use fixed-height containers or `Sliver` layouts.
+
+## 7. Concrete Operational Verification Solutions
+
+Based on UniVerse's Flutter architecture and UI/UX design video standards, Section 7 requirements are explicitly defined as follows:
+
+1. **Operational Communication:**
+   - **Spatial Hierarchy:** Sliding drawers (`220ms Curves.easeInOutCubic`) communicate context preservation during class/room detail drill-down.
+   - **Async Execution:** Inline progress rings (`#FF7A00`) signal engine solver processing or backend authentication verification without blocking layout stability.
+   - **Clash Awareness:** Visual surface transitions (`#2C1215` fill + `Icons.warning_amber_rounded`) signal room/faculty double-booking conflicts.
+   - **Pre-Auth Engine Story:** Stage 01 3-beat Convergence Animation visually communicates how raw course workbooks, rooms, and faculty inputs merge into an organized routine.
+
+2. **Zero-Motion Readability & Utility Guarantee:**
+   - When `MediaQuery.of(context).disableAnimations` is `true`, all components immediately jump to rest states (0ms duration).
+   - Pre-Auth Onboarding instantly displays the static 4x3 timetable grid without playing entrance frames.
+   - Typography, contrast ratios, and touch targets maintain 100% WCAG AA accessibility standards regardless of animation state.
+
+3. **Layout Stability & Repaint Performance Protection:**
+   - **Repaint Boundaries:** Every dynamic component (`AnimatedSwitcher`, loading shimmer, onboarding core) is enclosed in a `RepaintBoundary` to isolate repaints from parent canvases.
+   - **Fixed Spatial Containers:** Control buttons, tab bars, and timetable slot cards maintain locked dimensions to eliminate layout shifts (`0px` height/width recalculation).
+   - **Controller Lifecycle Discipline:** All `AnimationController` instances are bound to `SingleTickerProviderStateMixin` and disposed cleanly in `dispose()` to prevent memory leaks and GPU drops.
+
+4. **Keyboard Focus & Assistive Technology Integration:**
+   - **Visual Focus Rings:** All interactive state changes are paired with a prominent 2px `#FF7A00` focus ring outline for keyboard users (`FocusNode` + `FocusTraversalGroup`).
+   - **Screen Reader Announcements:** Asynchronous state changes (e.g., class cancellations, filter updates) trigger explicit `SemanticsService.announce()` messages.
+   - **Overlay Focus Trapping:** Modal sheets, popovers, and drawers restrict focus to their scope (`FocusScope`) and cleanly restore focus to the trigger element upon pressing `Escape`.
+
+## Phase 3.5 dual-mode kinetic storytelling
+Normal runtime (MediaQuery.disableAnimations == false): hero showcases, splash orbit and verification radar MUST use continuous CustomPainter/ticker ambient orbital rings, Bezier energy pulses, staggered entrance and hover/focus elevation. Isolate repaints and dispose controllers; never delay initialization or fabricate backend progress.
+Reduced motion/test mode (disableAnimations == true): immediately controller.stop() on every repeating controller and pin a rich fully assembled rest state, with transientCallbackCount == 0. Also respect accessibleNavigation and TickerMode. No flashing.
+
+## Cohesive Phase 0-3 implementation standard
+AppMotion in lib/core/theme/app_motion.dart supersedes the baseline duration table above: micro 140ms, fast 220ms, medium 340ms, slow 520ms; snappy, magnetic and fluid curves. Use UAnimatedSwap for keyed route-adjacent content, UPressableScale for pointer feedback, and USegmentedControl for custom sliding selection. AppMotion.reduced also respects accessibleNavigation and TickerMode; remove outgoing animated content immediately in reduced mode.

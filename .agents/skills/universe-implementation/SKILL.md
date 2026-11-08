@@ -28,3 +28,9 @@ Coordinate UniVerse work across the CSE routine committee workbench, Course Dist
 - [Scheduling & CP-SAT Engine](references/scheduling-cp-sat.md) — Phase 2a/4 Python normalization (`engine/distribution.py`, `engine/ingest.py`), `R1`–`R16` CP-SAT modeling, solver diagnostics.
 - [Backend & Data Integrity](references/backend-data-integrity.md) — Phase 2a/3 Supabase schema, revision/provenance tables, capability-checked RPCs, RLS, server-authoritative validation.
 - [Testing & Independent Reliability](references/testing-reliability.md) — Targeted verification across Python, Flutter, browser, and Supabase SQL.
+
+## Phase 3.5 governance
+The Product Owner approved the specified auth visual overhaul. Apply repository-local Level-4 skills; preserve AuthController, backend contracts, Gates A-D and single-writer discipline.
+
+## Cohesive Phase 0-3 implementation standard
+For the approved cohesive Phase 0-3 UX extension, reuse AppMotion, UAnimatedSwap, UPressableScale, USegmentedControl, UCard and shared avatar/account chrome. Preserve route guards, AuthController, ShellBackRegistry and scheduling fail-closed gates. Visual client-side implementation and synthetic captures do not verify hosted backend capabilities.

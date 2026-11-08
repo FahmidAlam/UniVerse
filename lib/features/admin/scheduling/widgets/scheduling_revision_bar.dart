@@ -24,7 +24,8 @@ class SchedulingRevisionBar extends StatelessWidget {
         final rev = controller.revision;
         final isMobile = MediaQuery.of(context).size.width < 768;
 
-        if (!isPreview && !controller.isLiveBackendReady) {
+        // PHASE 0: Never display fixture revision provenance in live mode.
+        if (!isPreview) {
           return _buildLiveUnavailableContext(context);
         }
 
@@ -79,8 +80,9 @@ class SchedulingRevisionBar extends StatelessWidget {
                                 color: AppColors.primary,
                               ),
                             ),
+                            // PHASE 0: Source warnings differ from solved-schedule collisions.
                             Text(
-                              '${controller.totalRecordsCount} rows · ${controller.correctionsCount} corr · ${controller.conflictsCount} clashes',
+                              '${controller.totalRecordsCount} rows · ${controller.correctionsCount} corr · ${controller.conflictsCount} source warnings',
                               style: AppTextStyles.caption.copyWith(
                                 color: AppColors.textMuted,
                               ),
@@ -140,7 +142,8 @@ class SchedulingRevisionBar extends StatelessWidget {
                                   Flexible(
                                     child: Text(
                                       'Scope: ${rev.department}',
-                                      style: AppTextStyles.bodySmMedium.copyWith(
+                                      style:
+                                          AppTextStyles.bodySmMedium.copyWith(
                                         color: AppColors.textPrimary,
                                       ),
                                       overflow: TextOverflow.ellipsis,
@@ -196,7 +199,9 @@ class SchedulingRevisionBar extends StatelessWidget {
                             ),
                             _buildMetricChip(
                               icon: PhosphorIconsRegular.warningCircle,
-                              label: '${controller.conflictsCount} clashes',
+                              // PHASE 0: These are source warnings, not candidate schedule collisions.
+                              label:
+                                  '${controller.conflictsCount} source warnings',
                               color: controller.conflictsCount > 0
                                   ? AppColors.error
                                   : AppColors.success,
@@ -217,7 +222,8 @@ class SchedulingRevisionBar extends StatelessWidget {
                                   tapTargetSize:
                                       MaterialTapTargetSize.shrinkWrap,
                                 ),
-                                onPressed: () => _showSealRevisionDialog(context),
+                                onPressed: () =>
+                                    _showSealRevisionDialog(context),
                                 icon: const Icon(
                                   PhosphorIconsRegular.shieldCheck,
                                   size: 13,

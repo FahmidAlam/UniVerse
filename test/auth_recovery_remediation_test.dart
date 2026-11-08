@@ -65,8 +65,10 @@ void main() {
     final service = FakeAuth();
     final auth = controller(service);
     auth.handleAuthEvent(AuthChangeEvent.passwordRecovery, service.user!.id);
-    await tester.pumpWidget(
-        MaterialApp(home: ResetPasswordScreen(authController: auth)));
+    await tester.pumpWidget(MaterialApp(
+        home: MediaQuery(
+            data: const MediaQueryData(disableAnimations: true),
+            child: ResetPasswordScreen(authController: auth))));
     await tester.enterText(find.byType(TextFormField).at(0), 'Safe-password8!');
     await tester.enterText(find.byType(TextFormField).at(1), 'Safe-password8!');
     await tester.tap(find.text('Update password'));

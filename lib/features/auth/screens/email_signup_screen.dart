@@ -1,3 +1,5 @@
+import 'package:universe/features/auth/widgets/password_requirements.dart';
+import 'package:universe/features/auth/widgets/auth_responsive_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
@@ -17,12 +19,12 @@ class EmailSignupScreen extends StatefulWidget {
 }
 
 class _EmailSignupScreenState extends State<EmailSignupScreen> {
-  final _formKey         = GlobalKey<FormState>();
-  final _emailCtrl       = TextEditingController();
-  final _passwordCtrl    = TextEditingController();
-  final _confirmCtrl     = TextEditingController();
-  bool _obscurePassword  = true;
-  bool _obscureConfirm   = true;
+  final _formKey = GlobalKey<FormState>();
+  final _emailCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+  final _confirmCtrl = TextEditingController();
+  bool _obscurePassword = true;
+  bool _obscureConfirm = true;
 
   @override
   void initState() {
@@ -76,20 +78,8 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
     ));
   }
 
-  int _passwordStrength(String password) {
-    if (password.isEmpty) return 0;
-    int score = 0;
-    if (password.length >= 8) score++;
-    if (password.contains(RegExp(r'[A-Z]'))) score++;
-    if (password.contains(RegExp(r'[0-9]'))) score++;
-    if (password.contains(RegExp(r'[!@#\$%^&*]'))) score++;
-    return score;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final passwordStrength = _passwordStrength(_passwordCtrl.text);
-
     return ListenableBuilder(
       listenable: widget.authController,
       builder: (context, _) {
@@ -97,184 +87,174 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
 
         return Scaffold(
           backgroundColor: AppColors.bgPrimary,
-          appBar: AppBar(
-            backgroundColor: AppColors.bgPrimary,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(PhosphorIconsRegular.arrowLeft),
-              onPressed: () => context.backOr(RouteNames.login),
-            ),
-            title: Text('Create account', style: AppTextStyles.h2),
-          ),
-          body: SafeArea(
-            child: SingleChildScrollView(
-              padding: AppSpacing.screenPaddingScrollable,
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    AppSpacing.lgGap,
-
-                    Text('Sign up', style: AppTextStyles.h1),
-                    AppSpacing.smGap,
-                    Text(
-                      'Your email must be pre-registered by your department admin.',
-                      style: AppTextStyles.bodySm,
-                    ),
-
-                    const SizedBox(height: AppSpacing.x3l),
-
-                    _buildLabel('Email address'),
-                    AppSpacing.smGap,
-                    TextFormField(
-                      controller: _emailCtrl,
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.next,
-                      style: AppTextStyles.input,
-                      autocorrect: false,
-                      decoration: _fieldDecoration(
-                        hint: 'you@university.edu',
-                        icon: PhosphorIconsRegular.envelope,
-                      ),
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) {
-                          return 'Email is required';
-                        }
-                        if (!v.contains('@') || !v.contains('.')) {
-                          return 'Enter a valid email address';
-                        }
-                        return null;
-                      },
-                    ),
-
-                    AppSpacing.lgGap,
-
-                    _buildLabel('Password'),
-                    AppSpacing.smGap,
-                    TextFormField(
-                      controller: _passwordCtrl,
-                      obscureText: _obscurePassword,
-                      textInputAction: TextInputAction.next,
-                      style: AppTextStyles.input,
-                      onChanged: (_) => setState(() {}),
-                      decoration: _fieldDecoration(
-                        hint: 'Min. 8 characters',
-                        icon: PhosphorIconsRegular.lock,
-                        suffix: IconButton(
-                          icon: Icon(
-                            _obscurePassword
-                                ? PhosphorIconsRegular.eye
-                                : PhosphorIconsRegular.eyeSlash,
-                            size: AppSpacing.iconMd,
-                            color: AppColors.textMuted,
-                          ),
-                          onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword),
-                        ),
-                      ),
-                      validator: (v) {
-                        if (v == null || v.isEmpty) return 'Password is required';
-                        if (v.length < 6) return 'Minimum 6 characters';
-                        return null;
-                      },
-                    ),
-
-                    if (_passwordCtrl.text.isNotEmpty) ...[
-                      AppSpacing.smGap,
-                      _PasswordStrengthBar(strength: passwordStrength),
-                    ],
-
-                    AppSpacing.lgGap,
-
-                    _buildLabel('Confirm password'),
-                    AppSpacing.smGap,
-                    TextFormField(
-                      controller: _confirmCtrl,
-                      obscureText: _obscureConfirm,
-                      textInputAction: TextInputAction.done,
-                      style: AppTextStyles.input,
-                      onFieldSubmitted: (_) => _signUp(),
-                      decoration: _fieldDecoration(
-                        hint: 'Repeat your password',
-                        icon: PhosphorIconsRegular.lockKey,
-                        suffix: IconButton(
-                          icon: Icon(
-                            _obscureConfirm
-                                ? PhosphorIconsRegular.eye
-                                : PhosphorIconsRegular.eyeSlash,
-                            size: AppSpacing.iconMd,
-                            color: AppColors.textMuted,
-                          ),
-                          onPressed: () => setState(
-                              () => _obscureConfirm = !_obscureConfirm),
-                        ),
-                      ),
-                      validator: (v) {
-                        if (v == null || v.isEmpty) {
-                          return 'Please confirm your password';
-                        }
-                        if (v != _passwordCtrl.text) {
-                          return 'Passwords do not match';
-                        }
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: AppSpacing.x3l),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: AppSpacing.buttonHeight,
-                      child: ElevatedButton(
-                        onPressed: isLoading ? null : _signUp,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          disabledBackgroundColor: AppColors.bgElevated,
-                          shape: const RoundedRectangleBorder(
-                              borderRadius: AppSpacing.radiusMd),
-                          elevation: 0,
-                        ),
-                        child: isLoading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation(
-                                      AppColors.textPrimary),
+          body: // PHASE 3: Adaptive auth presentation preserves existing form and callback ownership.
+              AuthResponsiveShell(
+                  title: 'Create account',
+                  onBack: () => context.backOr(RouteNames.login),
+                  child: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            AppSpacing.lgGap,
+                            Text('Sign up', style: AppTextStyles.h1),
+                            AppSpacing.smGap,
+                            Text(
+                              'Your email must be pre-registered by your department admin.',
+                              style: AppTextStyles.bodySm,
+                            ),
+                            const SizedBox(height: AppSpacing.x3l),
+                            _buildLabel('Email address'),
+                            AppSpacing.smGap,
+                            TextFormField(
+                              controller: _emailCtrl,
+                              keyboardType: TextInputType.emailAddress,
+                              textInputAction: TextInputAction.next,
+                              style: AppTextStyles.input,
+                              autocorrect: false,
+                              decoration: _fieldDecoration(
+                                hint: 'you@university.edu',
+                                icon: PhosphorIconsRegular.envelope,
+                              ),
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) {
+                                  return 'Email is required';
+                                }
+                                if (!v.contains('@') || !v.contains('.')) {
+                                  return 'Enter a valid email address';
+                                }
+                                return null;
+                              },
+                            ),
+                            AppSpacing.lgGap,
+                            _buildLabel('Password'),
+                            AppSpacing.smGap,
+                            TextFormField(
+                              controller: _passwordCtrl,
+                              obscureText: _obscurePassword,
+                              textInputAction: TextInputAction.next,
+                              style: AppTextStyles.input,
+                              onChanged: (_) => setState(() {}),
+                              decoration: _fieldDecoration(
+                                hint: 'Min. 6 characters',
+                                icon: PhosphorIconsRegular.lock,
+                                suffix: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? PhosphorIconsRegular.eye
+                                        : PhosphorIconsRegular.eyeSlash,
+                                    size: AppSpacing.iconMd,
+                                    color: AppColors.textMuted,
+                                  ),
+                                  onPressed: () => setState(() =>
+                                      _obscurePassword = !_obscurePassword),
                                 ),
-                              )
-                            : Text('Create account',
-                                style: AppTextStyles.button),
+                              ),
+                              validator: (v) {
+                                if (v == null || v.isEmpty) {
+                                  return 'Password is required';
+                                }
+                                if (v.length < 6) return 'Minimum 6 characters';
+                                return null;
+                              },
+                            ),
+                            AppSpacing.lgGap,
+                            _buildLabel('Confirm password'),
+                            AppSpacing.smGap,
+                            TextFormField(
+                              controller: _confirmCtrl,
+                              onChanged: (_) => setState(() {}),
+                              obscureText: _obscureConfirm,
+                              textInputAction: TextInputAction.done,
+                              style: AppTextStyles.input,
+                              onFieldSubmitted: (_) => _signUp(),
+                              decoration: _fieldDecoration(
+                                hint: 'Repeat your password',
+                                icon: PhosphorIconsRegular.lockKey,
+                                suffix: IconButton(
+                                  icon: Icon(
+                                    _obscureConfirm
+                                        ? PhosphorIconsRegular.eye
+                                        : PhosphorIconsRegular.eyeSlash,
+                                    size: AppSpacing.iconMd,
+                                    color: AppColors.textMuted,
+                                  ),
+                                  onPressed: () => setState(
+                                      () => _obscureConfirm = !_obscureConfirm),
+                                ),
+                              ),
+                              validator: (v) {
+                                if (v == null || v.isEmpty) {
+                                  return 'Please confirm your password';
+                                }
+                                if (v != _passwordCtrl.text) {
+                                  return 'Passwords do not match';
+                                }
+                                return null;
+                              },
+                            ),
+                            AppSpacing.smGap,
+                            PasswordRequirements(
+                                password: _passwordCtrl.text,
+                                confirmation: _confirmCtrl.text),
+                            const SizedBox(height: AppSpacing.x3l),
+                            SizedBox(
+                              width: double.infinity,
+                              height: AppSpacing.buttonHeight,
+                              child: ElevatedButton(
+                                onPressed: isLoading ? null : _signUp,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  disabledBackgroundColor: AppColors.bgElevated,
+                                  shape: const RoundedRectangleBorder(
+                                      borderRadius: AppSpacing.radiusMd),
+                                  elevation: 0,
+                                ),
+                                child: isLoading
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation(
+                                              AppColors.textPrimary),
+                                        ),
+                                      )
+                                    : Text('Create account',
+                                        style: AppTextStyles.button),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.x3l),
+                            Center(
+                              child: Wrap(
+                                alignment: WrapAlignment.center,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text('Already have an account? ',
+                                      style: AppTextStyles.bodySm),
+                                  TextButton(
+                                    onPressed: () =>
+                                        context.backOr(RouteNames.emailLogin),
+                                    style: TextButton.styleFrom(
+                                      padding: EdgeInsets.zero,
+                                      minimumSize: Size.zero,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    child: Text('Sign in',
+                                        style: AppTextStyles.link),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-
-                    const SizedBox(height: AppSpacing.x3l),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text('Already have an account? ',
-                            style: AppTextStyles.bodySm),
-                        TextButton(
-                          onPressed: () =>
-                              context.backOr(RouteNames.emailLogin),
-                          style: TextButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child:
-                              Text('Sign in', style: AppTextStyles.link),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+                  )),
         );
       },
     );
@@ -311,52 +291,6 @@ class _EmailSignupScreenState extends State<EmailSignupScreen> {
       focusedErrorBorder: OutlineInputBorder(
           borderRadius: AppSpacing.radiusMd,
           borderSide: const BorderSide(color: AppColors.error, width: 1.5)),
-    );
-  }
-}
-
-class _PasswordStrengthBar extends StatelessWidget {
-  final int strength;
-  const _PasswordStrengthBar({required this.strength});
-
-  @override
-  Widget build(BuildContext context) {
-    final labels = ['Weak', 'Fair', 'Good', 'Strong'];
-    final colors = [
-      AppColors.error,
-      AppColors.warning,
-      AppColors.info,
-      AppColors.success,
-    ];
-
-    final index = (strength - 1).clamp(0, 3);
-    final color = strength == 0 ? AppColors.border : colors[index];
-    final label = strength == 0 ? '' : labels[index];
-
-    return Row(
-      children: [
-        Expanded(
-          child: Row(
-            children: List.generate(4, (i) {
-              return Expanded(
-                child: Container(
-                  height: 3,
-                  margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
-                  decoration: BoxDecoration(
-                    color: i < strength ? color : AppColors.bgElevated,
-                    borderRadius: AppSpacing.radiusFull,
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Text(
-          label,
-          style: AppTextStyles.caption.copyWith(color: color),
-        ),
-      ],
     );
   }
 }

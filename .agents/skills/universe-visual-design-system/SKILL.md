@@ -3,76 +3,103 @@ name: universe-visual-design-system
 description: Design and refine UniVerse's visual language, hierarchy, spacing, typography, color, iconography, and component consistency while safely governing the existing Flutter theme system.
 ---
 
-# UniVerse Visual Design System
+# UniVerse Visual Design System Specification
 
-## Objective
+## 1. Objective & Obsidian Orbit Design Identity
 
-Create a recognizable, polished, calm, high-quality academic product. UniVerse's established dark foundation and orange accent are the current identity; refine them where evidence supports it, but do not casually replace or fork the theme.
+- **Product Target:** Create a recognizable, calm, high-contrast, professional academic operations system. UniVerse's visual identity is anchored in the **Obsidian Orbit** dark-mode visual system, combining a perceptual dark surface ramp with a signature primary accent.
+- **Surface Lightness Ramp:**
+  - Base Background (`background` / `bgDark`): `#0B0C0E`
+  - Navigation Rail / Sidebar / Subtle Surface (`bgSubtle`): `#121417`
+  - Standard Card Surface (`cardBg`): `#17191E`
+  - Elevated Modal / Sheet / Hover Surface (`elevatedCard`): `#1F2229`
+  - Interactive Hover / Selected Surface (`surfaceInteractive`): `#272B33`
+- **Selective Top-Lit Specular Highlight:**
+  - Standard Border: 1px solid `#262932`
+  - Top-Edge Specular Highlight (`borderHighlight`): `Color(0x12FFFFFF)` (subtle ~7% white top border to establish dark-mode tactile depth without heavy drop shadows or glassmorphic blur).
+- **Brand & Semantic Color Palette:**
+  - Signature Accent (`primary`): `#FF7A00` (Hover: `#FF8F26`, Pressed: `#E66A00`, Focus Ring: `#FF7A00` 2px solid).
+  - Primary Text (`textPrimary`): `#F3F4F6` (crisp off-white to prevent halation on `#0B0C0E`).
+  - Secondary Text (`textSecondary`): `#B8BCC6`.
+  - Muted / Caption Text (`textMuted`): `#8A909E` (boosted from `#6E7278` to guarantee >= 4.5:1 text contrast for WCAG AA compliance).
+  - Status Indicators (Bright foreground + dimmed dark container fill):
+    - Success: `#10B981` + Container `#062E22`
+    - Warning: `#F59E0B` + Container `#302007`
+    - Error: `#EF4444` + Container `#331014`
+    - Info / Analytical Accent: `#38BDF8` + Container `#0F2342`
 
-## Inspect before styling
+## 2. Theme Governance & Safety Protocols
 
-- Find the actual ThemeData/ColorScheme, semantic color tokens, typography, spacing conventions, component themes, and shared widgets in the repository.
-- Identify light/dark support, theme modes, responsive variants, and any existing exceptions.
-- Inspect real screens before proposing global changes. Do not infer exact token values from screenshots when source values can be inspected.
-- Reuse existing components and semantic tokens. Do not introduce hard-coded one-off colors, font sizes, radii, or shadows when a suitable token exists.
+- **Centralization Rule:** All design tokens MUST be defined in `lib/core/theme/` (`app_colors.dart`, `app_text_styles.dart`, `app_spacing.dart`, `app_theme.dart`). Never inline raw hex values, magic font sizes, or ad-hoc padding constants in screen files.
+- **Provisional Token Tagging:** All updated design tokens must include inline comments: `// PHASE 2 (PROVISIONAL): Obsidian Orbit token pending representative-screen review`.
+- **Backward Compatibility:** Preserving public getters in `AppColors` and existing component parameters is mandatory. New semantic tokens must map cleanly alongside existing theme getters so all screens compile with zero warnings or broken references.
+- **No Forking or Parallel Palettes:** Do not create conflicting local themes or inline custom color definitions for single screens. Fix visual hierarchy by refining central semantic tokens or updating shared `U*` widgets.
 
-## Visual hierarchy and composition
+## 3. Typography, Layout Geometry & 4px Grid
 
-- Establish a clear primary, secondary, and tertiary level for content and actions.
-- Align content to a consistent grid; use consistent page gutters, section spacing, and baselines.
-- Group related information by proximity and meaningful whitespace before adding borders or cards.
-- Use typography to communicate hierarchy: readable body size, restrained weights, consistent line height, and appropriate line lengths.
-- Make important headings and primary actions distinct without making every element compete for attention.
-- Keep icon size, stroke/weight, alignment, and visual semantics consistent. Ensure icon contrast on every surface.
-- Use imagery only when it communicates useful context; use consistent crop, aspect ratio, and quality.
+- **Strict 4px Spatial Grid:**
+  - Base spacing scale: `xs: 4`, `sm: 8`, `md: 12`, `lg: 16`, `xl: 20`, `xxl: 24`, `xxxl: 32`.
+  - Spatial Hierarchy: Intra-element gap (8px) < Card inner padding (16px) < Section gap (24px).
+- **Control Heights & Touch Targets:**
+  - Standard Control Height: **48dp** (default buttons, form inputs).
+  - Primary Onboarding / Auth Inputs: **52dp**.
+  - Compact Filter Bar Controls: **36dp–40dp** (with matched row heights and minimum 40x40 dp touch target on web/desktop, 48x48 dp on mobile).
+- **Optical Padding & Corner Radii:**
+  - Button Padding: Horizontal padding MUST be 2x–3x vertical padding (e.g., 16px horizontal / 8px vertical for compact; 24px horizontal / 12px vertical for standard).
+  - Radii Scale: **8px** (inner tags, chips, input fields), **12px** (standard cards, popovers), **16px** (hero panels, modal bottom sheets).
+- **Typography & Tracking Discipline:**
+  - Display / Onboarding Headings (28px–36px): Tighten letter-spacing by **-2% to -3%** (-0.6px to -0.9px), line height **1.15**.
+  - Dashboard & Operational Page Titles: Cap cleanly at **22px–24px** (`fontWeight: w700`, -0.4px tracking) so dense workspaces are not overwhelmed.
+  - Body Text: 14px–16px (`lineHeight: 1.4–1.5`).
+  - Tabular & Numeric Data: Monospace or aligned numeric font features for time slots, room numbers, and capacity counts.
 
-## Theme modification safety protocol
+## 4. Shared Component Discipline (`lib/shared/widgets/`)
 
-A theme is a shared contract, not a collection of local decoration.
+- **`UButton` Alignment:** Unified flat Obsidian Orbit surface (`#FF7A00` solid fill for primary), top-lit border highlights for secondary, optical horizontal padding >= 2x vertical padding, explicit hover/focus/pressed/disabled/loading states, and support for `MediaQuery.disableAnimations`.
+- **`UCard` Alignment:** Surface `#17191E`, 1px border `#262932`, optional top-lit specular highlight `borderHighlight` (`Color(0x12FFFFFF)`).
+- **`UTextField` Alignment:** Dark input fill (`#121417`), crisp border (`#262932`), explicit focus ring (`#FF7A00` 1.5px–2px), clear error state (`#EF4444`), disabled state opacity `0.38`.
+- **`UChip` & `UBadge` Alignment:** Dimmed status container fills with bright foreground text/icons; minimum 36px touch height for interactive filter chips.
+- **State Presenters (`UEmptyState`, `ULoading`, Error & Capability Lock Presenters):**
+  - **First-Use Empty State:** Calm guidance.
+  - **Filter Zero-Match State (`UEmptyState.noMatches`):** Shows active query and 1-tap `Clear filters` button.
+  - **Recoverable Error State (`UEmptyState.error`):** Human-readable details + actionable `Retry` button (`Icons.refresh`).
+  - **Truthful Capability Lock State (`UEmptyState.lockedCapability`):** Explicit fail-closed status badges for unintegrated backend contracts (Gates A–D).
 
-Before changing it:
-1. Map where theme tokens and component themes are defined and consumed.
-2. Identify the exact problem and representative screens affected.
-3. Prefer a small semantic-token correction over broad palette replacement.
-4. Check foreground/background pairs, interaction states, disabled states, surfaces, borders, and charts/status colors.
-5. Assess impact on existing student, teacher, and admin flows and both web/mobile layouts.
-6. Present material global changes for user approval before implementation.
+## 5. Anti-Slop Discipline & Aesthetic Restraint
 
-When implementing an approved theme change:
-- Centralize values in the existing theme/token layer.
-- Preserve public interfaces and existing theme extension contracts unless a separately approved refactor is necessary.
-- Avoid parallel palettes and scattered constants.
-- Update component themes consistently; do not fix one screen by creating a conflicting local theme.
-- Capture before/after screenshots of representative screens and run relevant tests/analyzer.
-- Report changed tokens, impacted components, verified screens, and any unverified surfaces.
+To eliminate telltale "vibe code" flaws and maintain professional quality, coding agents MUST strictly enforce these anti-slop rules:
 
-## Anti-slop: avoid patterns, not categories
+- **Banned Visual Gimmicks:**
+  - NO gratuitous glassmorphism, heavy background blurs, neon glow dropshadows, or rainbow gradients.
+  - NO casual emojis as interface icons (use clean `Lucide` / `Icons` vector icons).
+  - NO all-caps mechanical titles or mechanical punctuation (e.g., trailing periods on headers).
+  - NO nested container-in-container cards (cards inside cards inside cards).
+- **Restraint Rules:**
+  - Accent color (`#FF7A00`) is kept scarce—reserved for primary call-to-action buttons, active navigation indicators, and keyboard focus outlines.
+  - Rely on subtle surface lightness differences (`#0B0C0E` to `#1F2229`) and whitespace grouping before adding extra borders or containers.
+  - Never communicate status by color alone—always pair color badges with explicit text and distinct icons (`Icons.warning_amber_rounded`).
 
-Do not add a visual trend because it is popular or AI tools generate it easily. In particular, scrutinize:
+## 6. Responsive & Role-Aware Integration
 
-- Gratuitous gradients, glass effects, glow, blur, noise, dithering, ASCII art, sparkle icons, pixel loaders, liquid effects, marquees, decorative flowcharts, or animated logos.
-- Repeated pill/tag/badge treatments, excessive italics, all-caps eyebrow labels, tiny metadata, overly tight letter spacing, and gratuitous serif/display fonts.
-- Cards nested inside cards, border around every container, excessive dividers, too many shades/opacities, unnecessary shadows, and repetitive three-card feature sections.
-- Overly detailed UI, verbose helper text, redundant headings, decorative numbering, code-like breadcrumbs, and periods or punctuation conventions applied mechanically to titles.
-- Inconsistent icon packs, arbitrary corner radii, one-off font families, unexplained gradients, and visually noisy status colors.
+- **Layout Tiers (`LayoutBuilder` Evaluation):**
+  - **Compact (`<768px` Usable Width):** 5-item thumb-friendly bottom nav bar (`Today | Routine | Campus | Resources | Alerts` for students; `Today | Teaching | Campus | Class Tools | Alerts` for teachers).
+  - **Medium (`768–1099px` Usable Width):** Compact rail (`220px`) + single-column bounded workspace.
+  - **Expanded (`>=1100px` Usable Width):** Persistent left sidebar (`250px`) + multi-column workspace (including 58/42 web auth split screen).
 
-These are warning signs, not absolute bans. A pill can be the clearest status indicator; a divider can clarify a dense table; a gradient can establish meaningful brand depth. Keep a pattern only when it has a specific purpose and survives a simpler alternative comparison.
+## 7. Visual System Quality Verification Checklist
 
-## Use restraint deliberately
+Before marking any visual design task complete, verify:
 
-- Prefer a small number of strong surfaces over layers of containers.
-- Use color to encode meaning and action, not as decoration on every element.
-- Keep accent color scarce enough to retain importance.
-- Use status colors consistently and never rely on color alone.
-- Prefer clear typography and whitespace over visual tricks.
-- Use distinctive brand moments selectively; product-wide consistency matters more than novelty per screen.
+1. [x] **WCAG AA Contrast Compliance:** Text pairs (`textPrimary`, `textSecondary`, `textMuted`) against `#0B0C0E`–`#1F2229` surfaces meet >= 4.5:1 ratio (>= 3:1 for non-text icons/borders).
+2. [x] **Obsidian Orbit Token Centralization:** All visual styles map to `AppColors`, `AppTextStyles`, `AppSpacing`, and `AppTheme` with `// PHASE 2 (PROVISIONAL):` comments.
+3. [x] **4px Spatial Grid & Control Heights:** Padding and margins adhere strictly to 4px multiples; control heights match 48dp (standard), 52dp (auth), and 36–40dp (filter bar).
+4. [x] **Shared Widget Consistency:** `UButton`, `UCard`, `UTextField`, `UChip`, and `UBadge` use flat Obsidian Orbit tokens with top-lit specular highlights.
+5. [x] **State Presenters Verified:** Loading shimmers, first-use empty, filter zero-match, recoverable error, and capability lock states are verified visually and functionally.
+6. [x] **Zero "Vibe Code" Tells:** No glassmorphism, heavy neon glows, clashing emojis, or nested container clutter.
 
-## Review checklist
+## Phase 3.5 approved Level-4 art direction
+Repository-local skills are authoritative for UniVerse. The Product Owner approved this auth/onboarding design; implement it without reopening approval. Preserve every auth, RLS/RPC, no-CLI, Gates A-D and single-writer safeguard.
+Require perceptual depth #0B0C0E -> #121417 -> #17191E -> #1F2229, crisp 1px #262932 borders and selective rgba(255,255,255,0.08-0.14) top-edge highlights. Require subtle top-down #1C1F26 -> #15171C surfaces and radial #FF7A00 spotlights at 6-10% alpha behind hero instruments. Semantic preview accents: Orange #FF7A00 theory, Cyan #38BDF8 analytical/faculty, Emerald #10B981 labs/rooms, Amber #F59E0B date updates. These intentional gradients, particle glows, compact telemetry capitals and layered academic mockups override generic restraint rules above. Random rainbow gradients and heavy BackdropFilter blur remain prohibited. Centralize tokens.
 
-- Is the most important content visible and scannable first?
-- Is the visual hierarchy understandable in a quick glance?
-- Are alignments, gutters, spacing, typography, and icons consistent?
-- Does every decoration have a purpose?
-- Are contrast and states sufficient?
-- Does the screen still look like UniVerse?
-- Is the theme change centralized and safe across roles, platforms, and components?
+## Cohesive Phase 0-3 implementation standard
+Use centralized AppColors.cardIdleGradient/cardHoverGradient, dualElevationShadow and specular/specularHover on meaningful elevated surfaces. Passive cards stay passive. UAvatar/ULocalAvatar and ProfileAccountAction own account chrome; preserve the dark/orange identity.

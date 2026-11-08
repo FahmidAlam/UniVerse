@@ -9,6 +9,51 @@ void main() {
   setUpAll(() => GoogleFonts.config.allowRuntimeFetching = false);
 
   group('SchedulingWorkspaceController unit tests', () {
+    // PHASE 0: A database row must never authorize fixture mutations in live mode.
+    test('live mode refuses all preview mutations with an accepted row',
+        () async {
+      final controller = SchedulingWorkspaceController(
+        availabilityLoader: () async => DistributionAvailability.available,
+      );
+      addTearDown(controller.dispose);
+      await controller.checkBackendAvailability();
+      // PHASE 0: Existence and operational readiness are independent capabilities.
+      expect(controller.hasAcceptedRevisionInDb, isTrue);
+      expect(controller.isLiveWorkspaceOperational, isFalse);
+      final revision = controller.revision;
+      final policies = List.of(controller.policyItems);
+      expect(
+          await controller.saveAuditedCorrection(
+            row: 19,
+            column: 'I',
+            effectiveValue: 'Faculty',
+            reason: 'Assigned',
+            author: 'Admin',
+          ),
+          isFalse);
+      controller.sealDraftRevision(reason: 'Seal', author: 'Admin');
+      controller.updatePolicyOverride(
+          ruleId: 'R1 / D1', newOverride: 'Changed', newEffective: 'Changed');
+      await controller.runSolverPreview();
+      await controller.simulatePublishRoutine();
+      expect(controller.revision, same(revision));
+      expect(controller.policyItems, orderedEquals(policies));
+      expect(controller.solverResult.state, SolverRunState.ready);
+      expect(controller.publishedConfirmationId, isNull);
+    });
+
+    // PHASE 0: Revision and readiness summaries must count the same fixture list.
+    test('preview summaries agree with source record count', () {
+      final controller = SchedulingWorkspaceController(
+        availabilityLoader: () async => DistributionAvailability.unavailable,
+        initialPreviewMode: true,
+      );
+      addTearDown(controller.dispose);
+      expect(controller.revision.totalRows, controller.records.length);
+      expect(controller.readinessItems.first.description,
+          contains('${controller.records.length} rows'));
+    });
+
     test('initializes with preview fixtures and default CSE scope', () {
       final controller = SchedulingWorkspaceController(
         availabilityLoader: () async => DistributionAvailability.unavailable,
@@ -18,7 +63,8 @@ void main() {
       expect(controller.isPreviewMode, isTrue);
       expect(controller.revision.department, contains('CSE'));
       expect(controller.revision.semester, 'Fall 2026');
-      expect(controller.totalRecordsCount, greaterThan(20));
+      // PHASE 0: All preview metadata must count the same 23 source records.
+      expect(controller.totalRecordsCount, 23);
       expect(controller.conflictsCount, 2);
       expect(controller.correctionsCount, 2);
       controller.dispose();
@@ -110,7 +156,8 @@ void main() {
         newOverride: 'Thursday, Friday weekend for Batch 2024',
         newEffective: 'Saturday - Wednesday active',
       );
-      final r1 = controller.policyItems.firstWhere((p) => p.ruleId == 'R1 / D1');
+      final r1 =
+          controller.policyItems.firstWhere((p) => p.ruleId == 'R1 / D1');
       expect(r1.overrideValue, 'Thursday, Friday weekend for Batch 2024');
       expect(r1.effectiveValue, 'Saturday - Wednesday active');
 
@@ -220,9 +267,14 @@ void main() {
       expect(find.text('R1 / D1'), findsOneWidget);
       expect(find.text('R7 / D3'), findsOneWidget);
 
+      // PHASE 0: Persistent warnings describe source records, not solved collisions.
+      expect(find.textContaining('2 source warnings'), findsOneWidget);
+
       // Navigate to Readiness Tab
       await tester.tap(find.text('Readiness'));
       await tester.pumpAndSettle();
+      // PHASE 0: Readiness copy agrees with the distribution table count.
+      expect(find.textContaining('hash-verified (23 rows'), findsOneWidget);
       expect(find.text('PREFLIGHT BLOCKED (NO-GO)'), findsOneWidget);
       expect(find.text('PREFLIGHT CHECKPOINTS & BLOCKERS'), findsOneWidget);
       expect(find.text('Unassigned Lab Instructor in Row 19'), findsOneWidget);

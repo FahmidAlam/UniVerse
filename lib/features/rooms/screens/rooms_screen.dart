@@ -1,3 +1,7 @@
+// PHASE 1: Campus shares navigation and shell-aware account/page chrome.
+import 'package:universe/shared/widgets/campus_lookup_switcher.dart';
+import 'package:universe/shared/widgets/u_app_bar.dart';
+import 'package:universe/shared/widgets/u_responsive_workspace.dart';
 import 'package:flutter/material.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/theme/app_colors.dart';
@@ -8,7 +12,9 @@ import 'package:universe/features/rooms/services/room_status_service.dart';
 import 'package:universe/features/rooms/widgets/room_status_card.dart';
 
 class RoomsScreen extends StatefulWidget {
-  const RoomsScreen({super.key});
+  final RoomsController? controller;
+
+  const RoomsScreen({super.key, this.controller});
 
   @override
   State<RoomsScreen> createState() => _RoomsScreenState();
@@ -16,13 +22,18 @@ class RoomsScreen extends StatefulWidget {
 
 class _RoomsScreenState extends State<RoomsScreen> {
   late final RoomsController _controller;
+  late final bool _ownsController;
 
   @override
   void initState() {
     super.initState();
-    _controller = RoomsController(service: RoomStatusService());
-    _controller.fetchRoomStatuses();
-    _controller.subscribeToRealTimeUpdates();
+    _ownsController = widget.controller == null;
+    _controller =
+        widget.controller ?? RoomsController(service: RoomStatusService());
+    if (_ownsController) {
+      _controller.fetchRoomStatuses();
+      _controller.subscribeToRealTimeUpdates();
+    }
     _controller.addListener(_onControllerChange);
   }
 
@@ -33,7 +44,9 @@ class _RoomsScreenState extends State<RoomsScreen> {
   @override
   void dispose() {
     _controller.removeListener(_onControllerChange);
-    _controller.dispose();
+    if (_ownsController) {
+      _controller.dispose();
+    }
     super.dispose();
   }
 
@@ -41,15 +54,13 @@ class _RoomsScreenState extends State<RoomsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
-      appBar: AppBar(
-        backgroundColor: AppColors.bgPrimary,
-        elevation: 0,
-        title: Text(
-          'Rooms',
-          style: AppTextStyles.h2.copyWith(color: AppColors.textPrimary),
-        ),
+      // PHASE 1: UAppBar removes implicit drawer chrome and exposes account access.
+      appBar: UAppBar(
+        title: 'Rooms',
+        showBackButton: false,
         actions: [
           IconButton(
+            tooltip: 'Refresh',
             icon: Icon(
               PhosphorIconsRegular.arrowClockwise,
               color: AppColors.primary,
@@ -61,7 +72,11 @@ class _RoomsScreenState extends State<RoomsScreen> {
           ),
         ],
       ),
-      body: _buildContent(),
+      // PHASE 1: Keep the Campus switcher available in all asynchronous states.
+      body: Column(children: [
+        const CampusLookupSwitcher(faculty: false),
+        Expanded(child: _buildContent())
+      ]),
     );
   }
 
@@ -132,12 +147,60 @@ class _RoomsScreenState extends State<RoomsScreen> {
       onRefresh: () => _controller.refresh(),
       color: AppColors.primary,
       backgroundColor: AppColors.bgCard,
-      child: ListView.builder(
-        padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-        itemCount: _controller.roomStatuses.length,
-        itemBuilder: (context, index) {
-          final roomStatus = _controller.roomStatuses[index];
-          return RoomStatusCard(roomStatus: roomStatus);
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktopGrid = constraints.maxWidth >= 700;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.sm,
+                  AppSpacing.lg,
+                  0,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.xs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.bgSubtle,
+                        borderRadius: AppSpacing.radiusFull,
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Text(
+                        'Showing ${_controller.roomStatuses.length} rooms',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: UAdaptiveCardGrid(
+                  singleColumnBreakpoint: 700,
+                  mainAxisExtent: 332,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isDesktopGrid ? AppSpacing.sm : 0,
+                    vertical: AppSpacing.md,
+                  ),
+                  itemCount: _controller.roomStatuses.length,
+                  itemBuilder: (context, index) {
+                    final roomStatus = _controller.roomStatuses[index];
+                    return RoomStatusCard(roomStatus: roomStatus);
+                  },
+                ),
+              ),
+            ],
+          );
         },
       ),
     );

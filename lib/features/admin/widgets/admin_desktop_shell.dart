@@ -1,3 +1,6 @@
+import 'package:universe/shared/widgets/u_avatar.dart';
+// PHASE 1: Admin shell owns account chrome; embedded pages use compact action strips.
+import 'package:universe/shared/widgets/desktop_shell_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:universe/features/admin/services/engine_connectivity_service.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +20,7 @@ class AdminDesktopShell extends StatefulWidget {
   final String currentLocation;
   final Widget child;
   final EngineConnectivityService? connectivityService;
+  final bool compactNavigation;
 
   const AdminDesktopShell({
     super.key,
@@ -25,6 +29,7 @@ class AdminDesktopShell extends StatefulWidget {
     required this.currentLocation,
     required this.child,
     this.connectivityService,
+    this.compactNavigation = false,
   });
 
   @override
@@ -57,7 +62,8 @@ class _AdminDesktopShellState extends State<AdminDesktopShell> {
   Uri get _uri => Uri.parse(widget.currentLocation);
   bool _tabActive(String tab) =>
       _uri.path == RouteNames.routineManagement &&
-      (_uri.queryParameters['tab'] ?? 'generate') == tab;
+      // PHASE 1: Match the routine screen's Manage default, including unknown tabs.
+      RouteNames.routineTab(_uri) == tab;
 
   Profile? get _me {
     final map = widget.authController.profile;
@@ -69,10 +75,12 @@ class _AdminDesktopShellState extends State<AdminDesktopShell> {
       return 'Admin Dashboard';
     }
     if (location.startsWith(RouteNames.routineManagement)) {
-      return 'Routine Management';
+      // PHASE 1 RECONCILE: This remains the live operational workflow.
+      return 'Routine Operations';
     }
     if (location.startsWith(RouteNames.schedulingWorkspace)) {
-      return 'Scheduling Workspace';
+      // PHASE 1 RECONCILE: The preview label is persistent, not a mode implied by styling.
+      return 'Scheduling Workbench · Preview';
     }
     if (location.startsWith(RouteNames.manageFaculty)) {
       return 'Faculty Management';
@@ -164,7 +172,13 @@ class _AdminDesktopShellState extends State<AdminDesktopShell> {
                 Expanded(
                   child: Container(
                     color: AppColors.bgPrimary,
-                    child: widget.child,
+                    // PHASE 1: Embedded UAppBars suppress duplicate desktop chrome.
+                    child: DesktopShellScope(
+                        isDesktop: true,
+                        tier: widget.compactNavigation
+                            ? ShellLayoutTier.medium
+                            : ShellLayoutTier.expanded,
+                        child: widget.child),
                   ),
                 ),
               ],
@@ -177,7 +191,8 @@ class _AdminDesktopShellState extends State<AdminDesktopShell> {
 
   Widget _buildSidebar(BuildContext context, Profile? me) {
     return Container(
-      width: 250,
+      // PHASE 1 RECONCILE: Admin medium widths reserve 220px, leaving the remainder for workspace content.
+      width: widget.compactNavigation ? 220 : 250,
       decoration: BoxDecoration(
         color: AppColors.bgCard,
         border: Border(
@@ -267,12 +282,14 @@ class _AdminDesktopShellState extends State<AdminDesktopShell> {
                 ),
                 _navItem(
                   icon: PhosphorIconsRegular.calendarCheck,
-                  label: 'Routine Workbench',
+                  // PHASE 1: The live generator/uploader is distinct from the preview workbench.
+                  label: 'Routine Operations',
                   route: RouteNames.routineManagement,
                 ),
                 _navItem(
                   icon: PhosphorIconsRegular.stack,
-                  label: 'Scheduling Workspace',
+                  // PHASE 1: Do not imply the revision-bound workbench is operational.
+                  label: 'Scheduling Workbench · Preview',
                   route: RouteNames.schedulingWorkspace,
                 ),
                 _subNavItem(
@@ -344,18 +361,10 @@ class _AdminDesktopShellState extends State<AdminDesktopShell> {
             color: AppColors.bgElevated,
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: AppColors.primarySoft,
-                  child: Text(
-                    me?.displayName.isNotEmpty == true
-                        ? me!.displayName[0].toUpperCase()
-                        : 'A',
-                    style: AppTextStyles.bodySmMedium.copyWith(
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
+                UAvatar(
+                    name: me?.displayName ?? 'Administrator',
+                    imageUrl: me?.avatarUrl,
+                    size: 36),
                 AppSpacing.smHGap,
                 Expanded(
                   child: Column(
@@ -418,46 +427,57 @@ class _AdminDesktopShellState extends State<AdminDesktopShell> {
     required String label,
     required String route,
   }) {
-    final active = _uri.path == route || _uri.path.startsWith('$route/');
+    // PHASE 1: Manage is selected only for its exact query/default, not every routine tab.
+    final active = route == RouteNames.routineManagement
+        ? _tabActive('manage')
+        : _uri.path == route || _uri.path.startsWith('$route/');
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Material(
-        color: active ? AppColors.primarySoft : Colors.transparent,
-        borderRadius: AppSpacing.radiusMd,
-        child: InkWell(
-          borderRadius: AppSpacing.radiusMd,
-          onTap: () {
-            if (widget.currentLocation == route) return;
-            context.go(route);
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: 10,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  size: AppSpacing.iconSm,
-                  color: active ? AppColors.primary : AppColors.textSecondary,
+      // PHASE 1: Selection is semantic as well as visual.
+      child: Semantics(
+          key: ValueKey('admin-nav:$route'),
+          selected: active,
+          child: Material(
+            color: active ? AppColors.primarySoft : Colors.transparent,
+            borderRadius: AppSpacing.radiusMd,
+            child: InkWell(
+              borderRadius: AppSpacing.radiusMd,
+              onTap: () {
+                if (widget.currentLocation == route) return;
+                context.go(route);
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: 10,
                 ),
-                AppSpacing.smHGap,
-                Expanded(
-                  child: Text(
-                    label,
-                    style: AppTextStyles.bodySmMedium.copyWith(
-                      color: active ? AppColors.primary : AppColors.textPrimary,
-                      fontWeight: active ? FontWeight.w600 : FontWeight.normal,
+                child: Row(
+                  children: [
+                    Icon(
+                      icon,
+                      size: AppSpacing.iconSm,
+                      color:
+                          active ? AppColors.primary : AppColors.textSecondary,
                     ),
-                  ),
+                    AppSpacing.smHGap,
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: AppTextStyles.bodySmMedium.copyWith(
+                          color: active
+                              ? AppColors.primary
+                              : AppColors.textPrimary,
+                          fontWeight:
+                              active ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
-      ),
+          )),
     );
   }
 
@@ -468,27 +488,32 @@ class _AdminDesktopShellState extends State<AdminDesktopShell> {
   }) {
     return Padding(
       padding: const EdgeInsets.only(left: AppSpacing.lg, top: 1, bottom: 1),
-      child: Material(
-        color: isActive ? AppColors.primarySoft : Colors.transparent,
-        borderRadius: AppSpacing.radiusSm,
-        child: InkWell(
-          borderRadius: AppSpacing.radiusSm,
-          onTap: () => context.go(route),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
-              vertical: 6,
-            ),
-            child: Text(
-              label,
-              style: AppTextStyles.caption.copyWith(
-                color: isActive ? AppColors.primary : AppColors.textSecondary,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+      // PHASE 1: Query-tab links expose their own exact selected state.
+      child: Semantics(
+          key: ValueKey('admin-nav:$route'),
+          selected: isActive,
+          child: Material(
+            color: isActive ? AppColors.primarySoft : Colors.transparent,
+            borderRadius: AppSpacing.radiusSm,
+            child: InkWell(
+              borderRadius: AppSpacing.radiusSm,
+              onTap: () => context.go(route),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: 6,
+                ),
+                child: Text(
+                  label,
+                  style: AppTextStyles.caption.copyWith(
+                    color:
+                        isActive ? AppColors.primary : AppColors.textSecondary,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-      ),
+          )),
     );
   }
 
@@ -509,14 +534,21 @@ class _AdminDesktopShellState extends State<AdminDesktopShell> {
           color: AppColors.bgElevated,
           border: Border(bottom: BorderSide(color: AppColors.border))),
       child: LayoutBuilder(builder: (context, constraints) {
-        final titleWidget = Text('Admin / $title',
-            style: AppTextStyles.h4,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis);
+        final titleWidget = // PHASE 1: The shell heading is global; the embedded page owns its title.
+            Text('Administrative console',
+                style: AppTextStyles.h4,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis);
         final actions = Wrap(
             spacing: AppSpacing.sm,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
+              // PHASE 1: Account remains reachable without a duplicate page avatar.
+              ProfileAccountAction(
+                  accountName: me?.displayName ?? 'Administrator',
+                  imageUrl: me?.avatarUrl,
+                  role: 'admin',
+                  onSignOut: () => _confirmSignOut(context)),
               Tooltip(
                   message:
                       'HTTP health only; does not guarantee solver availability. Tap to check again.',
@@ -533,7 +565,8 @@ class _AdminDesktopShellState extends State<AdminDesktopShell> {
                   onPressed: () => context
                       .go('${RouteNames.routineManagement}?tab=generate')),
             ]);
-        if (constraints.maxWidth < 800 ||
+        // PHASE 1 RECONCILE: Header composition follows post-sidebar usable width.
+        if (constraints.maxWidth < 860 ||
             MediaQuery.textScalerOf(context).scale(1) > 1.3) {
           return Column(
               crossAxisAlignment: CrossAxisAlignment.start,

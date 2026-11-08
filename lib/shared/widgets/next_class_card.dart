@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:universe/shared/widgets/u_card.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
@@ -57,103 +58,110 @@ class _NextClassCardState extends State<NextClassCard> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       height: AppSpacing.heroCardHeight,
-      padding: AppSpacing.cardPaddingLg,
-      decoration: BoxDecoration(
-        color: AppColors.bgCard,
-        borderRadius: AppSpacing.radiusLg,
-        border: Border.all(
-          color: AppColors.info.withValues(alpha: 0.35),
-          width: AppSpacing.borderNormal,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              _UpNextPill(),
-              const Spacer(),
-              Icon(
-                PhosphorIconsRegular.mapPin,
-                size: AppSpacing.iconSm,
-                color: AppColors.textMuted,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Text(widget.room, style: AppTextStyles.bodySm),
-            ],
-          ),
-          const Spacer(),
-          Text(
-            widget.subject,
-            style: AppTextStyles.h2,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          AppSpacing.smGap,
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          PhosphorIconsRegular.userCircle,
-                          size: AppSpacing.iconSm,
-                          color: AppColors.textMuted,
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        Expanded(
-                          child: Text(
-                            widget.subtitle,
-                            style: AppTextStyles.bodySm,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Row(
-                      children: [
-                        Icon(
-                          PhosphorIconsRegular.clock,
-                          size: AppSpacing.iconSm,
-                          color: AppColors.textMuted,
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        Text(widget.timeLabel, style: AppTextStyles.caption),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisSize: MainAxisSize.min,
+      child: UCard(
+          isTopLit: true,
+          padding: EdgeInsets.zero,
+          borderRadius: AppSpacing.radiusLg,
+          child: Stack(children: [
+            const Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 3,
+                child: ColoredBox(color: AppColors.info)),
+            Padding(
+              padding: AppSpacing.cardPaddingLg,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'starts in',
-                    style: AppTextStyles.caption,
+                  Row(
+                    children: [
+                      _UpNextPill(),
+                      const Spacer(),
+                      Icon(
+                        PhosphorIconsRegular.mapPin,
+                        size: AppSpacing.iconSm,
+                        color: AppColors.textMuted,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Text(widget.room, style: AppTextStyles.bodySm),
+                    ],
                   ),
+                  const Spacer(),
                   Text(
-                    AppDateUtils.formatCountdown(_remaining),
-                    style: AppTextStyles.countdown.copyWith(
-                      color: AppColors.info,
-                      fontSize: 26,
-                    ),
+                    widget.subject,
+                    style: AppTextStyles.h2,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  AppSpacing.smGap,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  PhosphorIconsRegular.userCircle,
+                                  size: AppSpacing.iconSm,
+                                  color: AppColors.textMuted,
+                                ),
+                                const SizedBox(width: AppSpacing.xs),
+                                Expanded(
+                                  child: Text(
+                                    widget.subtitle,
+                                    style: AppTextStyles.bodySm,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            Row(
+                              children: [
+                                Icon(
+                                  PhosphorIconsRegular.clock,
+                                  size: AppSpacing.iconSm,
+                                  color: AppColors.textMuted,
+                                ),
+                                const SizedBox(width: AppSpacing.xs),
+                                Text(widget.timeLabel,
+                                    style: AppTextStyles.caption),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'starts in',
+                            style: AppTextStyles.caption,
+                          ),
+                          Text(
+                            AppDateUtils.formatCountdown(_remaining),
+                            style: AppTextStyles.countdown.copyWith(
+                              color: AppColors.info,
+                              fontSize: 26,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
-        ],
-      ),
+            ),
+          ])),
     );
   }
 }

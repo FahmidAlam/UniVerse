@@ -1,3 +1,4 @@
+import 'package:universe/features/auth/widgets/orbit_status.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/core/constants/app_constants.dart';
@@ -28,7 +29,9 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
     _setupAnimations();
-    _initializeApp();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _initializeApp();
+    });
   }
 
   void _setupAnimations() {
@@ -52,7 +55,7 @@ class _SplashScreenState extends State<SplashScreen>
     _logoScale = Tween<double>(begin: 0.75, end: 1.0).animate(
       CurvedAnimation(
         parent: _logoController,
-        curve: const Interval(0.0, 0.7, curve: Curves.easeOutBack),
+        curve: const Interval(0.0, 0.7, curve: Curves.easeOutCubic),
       ),
     );
 
@@ -62,11 +65,21 @@ class _SplashScreenState extends State<SplashScreen>
         curve: const Interval(0.5, 1.0, curve: Curves.easeOut),
       ),
     );
+  }
 
-    _logoController.forward();
-    Future.delayed(const Duration(milliseconds: 600), () {
-      if (mounted) _dotsController.repeat();
-    });
+  // PHASE 3: Presentation tickers follow accessibility; startup never waits for art.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.maybeOf(context)?.disableAnimations ?? false) {
+      _logoController.stop();
+      _logoController.value = 1;
+      _dotsController.stop();
+      _dotsController.value = 1;
+    } else {
+      _logoController.forward();
+      _dotsController.repeat();
+    }
   }
 
   Future<void> _initializeApp() async {
@@ -140,7 +153,7 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                     ),
                     child: const Center(
-                      child: _OrbitIcon(),
+                      child: OrbitStatus(size: 76, child: _OrbitIcon()),
                     ),
                   ),
                   AppSpacing.lgGap,

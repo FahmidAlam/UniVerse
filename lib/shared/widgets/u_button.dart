@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:universe/core/theme/app_motion.dart';
+import 'package:universe/shared/widgets/u_pressable_scale.dart';
+import 'package:universe/shared/widgets/u_animated_swap.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
 
+// PHASE 2: Shared button variants aligned to Obsidian Orbit design tokens.
 enum UButtonVariant { primary, secondary, danger }
 
-class UButton extends StatelessWidget {
+// PHASE 2: Unified UButton with high-contrast Obsidian Orbit surface treatment,
+// explicit hover/focus/pressed/disabled states, top specular highlight, and reduced motion respect.
+class UButton extends StatefulWidget {
   final String label;
   final VoidCallback? onPressed;
   final UButtonVariant variant;
@@ -25,78 +31,179 @@ class UButton extends StatelessWidget {
     this.height,
   });
 
-  bool get _isDisabled => onPressed == null || isLoading;
+  @override
+  State<UButton> createState() => _UButtonState();
+}
 
-  Decoration _buildDecoration() {
-    switch (variant) {
+class _UButtonState extends State<UButton> {
+  bool _isHovered = false;
+  bool _isPressed = false;
+  bool _isFocused = false;
+
+  bool get _isDisabled => widget.onPressed == null || widget.isLoading;
+
+  Color get _backgroundColor {
+    if (_isDisabled) return AppColors.surfaceElevated;
+
+    switch (widget.variant) {
       case UButtonVariant.primary:
-        return BoxDecoration(
-          gradient: _isDisabled ? null : AppColors.primaryGradient,
-          color: _isDisabled ? AppColors.bgElevated : null,
-          borderRadius: AppSpacing.radiusMd,
-        );
+        if (_isPressed) return AppColors.primaryPressed;
+        if (_isHovered) return AppColors.primaryHover;
+        return AppColors.primary;
       case UButtonVariant.secondary:
-        return BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: AppSpacing.radiusMd,
-          border: Border.all(
-            color: _isDisabled ? AppColors.textDisabled : AppColors.border,
-          ),
-        );
+        if (_isPressed) return AppColors.surfaceInteractive;
+        if (_isHovered) return AppColors.surfaceElevated;
+        return Colors.transparent;
       case UButtonVariant.danger:
-        return BoxDecoration(
-          color: _isDisabled ? AppColors.bgElevated : AppColors.error,
-          borderRadius: AppSpacing.radiusMd,
-        );
+        if (_isPressed) return const Color(0xFFDC2626);
+        if (_isHovered) return const Color(0xFFF87171);
+        return AppColors.error;
     }
   }
 
   Color get _contentColor {
     if (_isDisabled) return AppColors.textDisabled;
-    return AppColors.textPrimary;
+
+    switch (widget.variant) {
+      case UButtonVariant.primary:
+        // PHASE 2 (PROVISIONAL): High contrast dark foreground on primary orange (7.5:1 contrast).
+        return AppColors.textOnPrimary;
+      case UButtonVariant.secondary:
+        return AppColors.textPrimary;
+      case UButtonVariant.danger:
+        return AppColors.textPrimary;
+    }
+  }
+
+  Border? get _border {
+    if (_isFocused) {
+      return Border.all(color: AppColors.borderFocus, width: 2.0);
+    }
+    if (widget.variant == UButtonVariant.secondary) {
+      return Border.all(
+        color: _isDisabled ? AppColors.textDisabled : AppColors.border,
+        width: AppSpacing.borderThin,
+      );
+    }
+    if (_isDisabled) {
+      return Border.all(
+        color: AppColors.border,
+        width: AppSpacing.borderThin,
+      );
+    }
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
-    final double btnHeight = height ?? AppSpacing.buttonHeight;
+    final double btnHeight = widget.height ?? AppSpacing.buttonHeight;
+    final bool isCompact = btnHeight <= 40;
+    // Optical horizontal padding >= 2x vertical padding
+    final double hPadding = isCompact ? AppSpacing.lg : AppSpacing.xxl;
+    final double vPadding = isCompact ? AppSpacing.sm : AppSpacing.md;
 
-    final Widget content = isLoading
+    final Widget labelWidget = Text(
+      widget.label,
+      style: AppTextStyles.button.copyWith(
+        color: _contentColor,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+
+    final Widget content = widget.isLoading
         ? SizedBox(
             width: 20,
             height: 20,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation(_contentColor),
+              valueColor: AlwaysStoppedAnimation<Color>(_contentColor),
+              value: AppMotion.reduced(context) ? 0.75 : null,
             ),
           )
         : Row(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (icon != null) ...[
-                Icon(icon, size: AppSpacing.iconMd, color: _contentColor),
+              if (widget.icon != null) ...[
+                Icon(widget.icon,
+                    size: AppSpacing.iconMd, color: _contentColor),
                 const SizedBox(width: AppSpacing.sm),
               ],
-              Text(
-                label,
-                style: AppTextStyles.button.copyWith(color: _contentColor),
-              ),
+              labelWidget,
             ],
           );
 
-    return SizedBox(
-      width: fullWidth ? double.infinity : null,
-      height: btnHeight,
-      child: DecoratedBox(
-        decoration: _buildDecoration(),
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: AppSpacing.radiusMd,
-          child: InkWell(
-            onTap: _isDisabled ? null : onPressed,
+    final bool showTopHighlight =
+        widget.variant != UButtonVariant.danger && !_isDisabled;
+
+    return FocusableActionDetector(
+      onShowFocusHighlight: (v) => setState(() => _isFocused = v),
+      onShowHoverHighlight: (v) => setState(() => _isHovered = v),
+      child: UPressableScale(
+        enabled: !_isDisabled,
+        child: AnimatedContainer(
+          duration: AppMotion.duration(context, AppMotion.micro),
+          curve: AppMotion.snappy,
+          width: widget.fullWidth ? double.infinity : null,
+          height: btnHeight,
+          decoration: BoxDecoration(
+            color: _backgroundColor,
             borderRadius: AppSpacing.radiusMd,
-            splashColor: AppColors.withOpacity(AppColors.textPrimary, 0.08),
-            highlightColor: AppColors.withOpacity(AppColors.textPrimary, 0.04),
-            child: Center(child: content),
+            border: _border,
+          ),
+          child: ClipRRect(
+            borderRadius: AppSpacing.radiusMd,
+            child: Stack(
+              children: [
+                // PHASE 2 (PROVISIONAL): Subtle top-edge specular highlight on primary buttons
+                if (showTopHighlight)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 1,
+                    child: Container(
+                      color: AppColors.specular,
+                    ),
+                  ),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _isDisabled ? null : widget.onPressed,
+                    onHighlightChanged: (v) => setState(() => _isPressed = v),
+                    borderRadius: AppSpacing.radiusMd,
+                    splashColor: AppColors.withOpacity(
+                      widget.variant == UButtonVariant.primary
+                          ? AppColors.textOnPrimary
+                          : AppColors.textPrimary,
+                      0.08,
+                    ),
+                    highlightColor: AppColors.withOpacity(
+                      widget.variant == UButtonVariant.primary
+                          ? AppColors.textOnPrimary
+                          : AppColors.textPrimary,
+                      0.04,
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: hPadding,
+                        vertical: vPadding,
+                      ),
+                      child: Center(
+                          child: UAnimatedSwap(
+                              duration: AppMotion.fast,
+                              child: KeyedSubtree(
+                                  key: ValueKey((
+                                    widget.isLoading,
+                                    widget.label,
+                                    widget.icon
+                                  )),
+                                  child: content))),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

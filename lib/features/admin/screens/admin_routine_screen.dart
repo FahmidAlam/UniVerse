@@ -27,13 +27,12 @@ class _AdminRoutineScreenState extends State<AdminRoutineScreen> {
     final tab = GoRouterState.of(context).uri.queryParameters['tab'];
     if (tab != _lastTabQuery) {
       _lastTabQuery = tab;
-      if (tab == 'generate') {
-        _index = 1;
-      } else if (tab == 'upload') {
-        _index = 2;
-      } else if (tab == 'manage') {
-        _index = 0;
-      }
+      // PHASE 1: The URL is the selected-tab authority while IndexedStack retains forms.
+      _index = switch (RouteNames.routineTab(GoRouterState.of(context).uri)) {
+        'generate' => 1,
+        'upload' => 2,
+        _ => 0,
+      };
     }
   }
 
@@ -111,14 +110,16 @@ class _AdminRoutineScreenState extends State<AdminRoutineScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Phase 2B Scheduling Workspace',
+                  // PHASE 1: Keep live routine tools distinct from the preview workbench.
+                  // PHASE 1 RECONCILE: Keep the separate workbench visibly preview-only.
+                  'Scheduling Workbench · Preview',
                   style: AppTextStyles.bodySmMedium.copyWith(
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
                   ),
                 ),
                 Text(
-                  'Manage revision-bound Course Distribution, academic policy configuration, and CP-SAT generation.',
+                  'Explore the proposed revision-bound workbench in Design Preview. Live generation and uploads remain here.',
                   style: AppTextStyles.caption.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -165,7 +166,11 @@ class _AdminRoutineScreenState extends State<AdminRoutineScreen> {
             border: Border.all(color: AppColors.border),
           ),
           child: Row(
-            children: [_seg('Manage', 0), _seg('Generate', 1), _seg('Upload', 2)],
+            children: [
+              _seg('Manage', 0),
+              _seg('Generate', 1),
+              _seg('Upload', 2)
+            ],
           ),
         ),
       ),
@@ -176,7 +181,12 @@ class _AdminRoutineScreenState extends State<AdminRoutineScreen> {
     final active = _index == idx;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _index = idx),
+        // PHASE 1: Local tab changes update the URL and desktop sidebar together.
+        onTap: () => context.go('${RouteNames.routineManagement}?tab=${[
+          'manage',
+          'generate',
+          'upload'
+        ][idx]}'),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           height: AppSpacing.chipHeight,

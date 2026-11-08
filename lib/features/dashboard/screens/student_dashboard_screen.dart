@@ -11,6 +11,7 @@ import 'package:universe/features/auth/controllers/auth_controller.dart';
 import 'package:universe/features/dashboard/controllers/student_dashboard_controller.dart';
 import 'package:universe/features/notifications/controllers/notification_controller.dart';
 import 'package:universe/shared/widgets/class_card.dart';
+import 'package:universe/shared/widgets/app_drawer.dart';
 import 'package:universe/shared/widgets/live_class_card.dart';
 import 'package:universe/shared/widgets/message_hero_card.dart';
 import 'package:universe/shared/widgets/next_class_card.dart';
@@ -19,7 +20,6 @@ import 'package:universe/shared/widgets/quick_action_card.dart';
 import 'package:universe/shared/widgets/scrollable_empty.dart';
 import 'package:universe/shared/widgets/stat_card.dart';
 import 'package:universe/shared/widgets/u_app_bar.dart';
-import 'package:universe/shared/widgets/app_drawer.dart';
 import 'package:universe/shared/widgets/u_button.dart';
 import 'package:universe/shared/widgets/u_card.dart';
 import 'package:universe/shared/widgets/u_empty_state.dart';
@@ -80,10 +80,11 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         title: '${AppDateUtils.greeting()}, $firstName',
         subtitle: subtitle,
         showBackButton: false,
+        // PHASE 1 RECONCILE: Keep the approved temporary drawer alongside account access.
         actions: const [UDrawerButton()],
       ),
-      // Tells AppShell to hide the Explore FAB while the drawer is open.
-      onEndDrawerChanged: (isOpen) => drawerOpenNotifier.value = isOpen,
+      // PHASE 1 RECONCILE: AppShell coordinates the retained Explore FAB while this dashboard owns its drawer.
+      onEndDrawerChanged: (open) => drawerOpenNotifier.value = open,
       endDrawer: AppDrawer(
         profile: me,
         userId: widget.authController.profile?['id'] as String?,
@@ -143,11 +144,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         AppSpacing.smGap,
         _buildHero(),
         AppSpacing.sectionGap,
-
         Text('AT A GLANCE', style: AppTextStyles.labelCaps),
         AppSpacing.smGap,
         _buildStats(),
-
         if (todays.isNotEmpty) ...[
           AppSpacing.sectionGap,
           USectionHeader(
@@ -167,12 +166,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             ),
           ),
         ],
-
         AppSpacing.sectionGap,
         Text('QUICK ACTIONS', style: AppTextStyles.labelCaps),
         AppSpacing.smGap,
         _buildQuickActions(),
-
         AppSpacing.sectionGap,
         USectionHeader(
           title: 'Recent Alerts',
@@ -191,6 +188,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         subject: live.subject,
         teacher: live.teacherDisplay,
         room: live.room,
+        startTime: live.startOn(DateTime.now()),
         endTime: live.endOn(DateTime.now()),
       );
     }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:universe/core/theme/app_motion.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/shared/widgets/u_chip.dart';
@@ -38,14 +39,18 @@ class _DaySelectorState extends State<DaySelector> {
 
   void _scrollToSelected() {
     final index = widget.days.indexOf(widget.selectedDay);
-    if (index < 0 || !_scrollController.hasClients) return;
-    const itemWidth = AppSpacing.chipHeight + AppSpacing.sm + AppSpacing.chipPaddingH * 2;
+    if (!mounted || index < 0 || !_scrollController.hasClients) return;
+    const itemWidth =
+        AppSpacing.chipHeight + AppSpacing.sm + AppSpacing.chipPaddingH * 2;
     final offset = index * itemWidth;
-    _scrollController.animateTo(
-      offset.clamp(0.0, _scrollController.position.maxScrollExtent),
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
-    );
+    final target =
+        offset.clamp(0.0, _scrollController.position.maxScrollExtent);
+    if (AppMotion.reduced(context)) {
+      _scrollController.jumpTo(target);
+    } else {
+      _scrollController.animateTo(target,
+          duration: AppMotion.fast, curve: AppMotion.snappy);
+    }
   }
 
   @override
@@ -56,21 +61,36 @@ class _DaySelectorState extends State<DaySelector> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: AppSpacing.chipHeight,
-      child: ListView.separated(
-        controller: _scrollController,
-        scrollDirection: Axis.horizontal,
-        itemCount: widget.days.length,
-        separatorBuilder: (_, __) => AppSpacing.smHGap,
-        itemBuilder: (_, i) {
-          final day = widget.days[i];
-          return UChip(
-            label: day,
-            isActive: widget.selectedDay == day,
-            onTap: () => widget.onSelect(day),
-          );
-        },
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onHorizontalDragEnd: (details) {
+        final velocity = details.primaryVelocity ?? 0;
+        if (velocity.abs() < 220) return;
+        final currentIndex = widget.days.indexOf(widget.selectedDay);
+        if (currentIndex < 0) return;
+        // Swipe left -> next day; swipe right -> previous day
+        final nextIndex = velocity < 0 ? currentIndex + 1 : currentIndex - 1;
+        if (nextIndex >= 0 && nextIndex < widget.days.length) {
+          AppMotion.selectionHaptic(context);
+          widget.onSelect(widget.days[nextIndex]);
+        }
+      },
+      child: SizedBox(
+        height: AppSpacing.chipHeight,
+        child: ListView.separated(
+          controller: _scrollController,
+          scrollDirection: Axis.horizontal,
+          itemCount: widget.days.length,
+          separatorBuilder: (_, __) => AppSpacing.smHGap,
+          itemBuilder: (_, i) {
+            final day = widget.days[i];
+            return UChip(
+              label: day,
+              isActive: widget.selectedDay == day,
+              onTap: () => widget.onSelect(day),
+            );
+          },
+        ),
       ),
     );
   }

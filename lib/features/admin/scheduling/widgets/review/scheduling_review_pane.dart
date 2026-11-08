@@ -1,3 +1,5 @@
+import 'package:universe/shared/widgets/u_animated_swap.dart';
+import 'package:universe/core/theme/app_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:universe/core/models/routine_model.dart';
 import 'package:universe/core/theme/app_colors.dart';
@@ -20,7 +22,8 @@ class SchedulingReviewPane extends StatefulWidget {
 }
 
 class _SchedulingReviewPaneState extends State<SchedulingReviewPane> {
-  int _viewModeIndex = 0; // 0=Section Grid, 1=Faculty Schedule, 2=Room Occupancy
+  int _viewModeIndex =
+      0; // 0=Section Grid, 1=Faculty Schedule, 2=Room Occupancy
   String _selectedDay = 'Sunday';
   String _selectedBatch = '2024';
   String _selectedTeacher = 'MSA';
@@ -118,7 +121,8 @@ class _SchedulingReviewPaneState extends State<SchedulingReviewPane> {
                       : _viewModeIndex == 1
                           ? 'Faculty: '
                           : 'Room: ',
-                  style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                  style:
+                      const TextStyle(fontSize: 11, color: AppColors.textMuted),
                 ),
                 DropdownButtonHideUnderline(
                   child: _viewModeIndex == 0
@@ -140,7 +144,9 @@ class _SchedulingReviewPaneState extends State<SchedulingReviewPane> {
                             );
                           }).toList(),
                           onChanged: (val) {
-                            if (val != null) setState(() => _selectedBatch = val);
+                            if (val != null) {
+                              setState(() => _selectedBatch = val);
+                            }
                           },
                         )
                       : _viewModeIndex == 1
@@ -162,7 +168,9 @@ class _SchedulingReviewPaneState extends State<SchedulingReviewPane> {
                                 );
                               }).toList(),
                               onChanged: (val) {
-                                if (val != null) setState(() => _selectedTeacher = val);
+                                if (val != null) {
+                                  setState(() => _selectedTeacher = val);
+                                }
                               },
                             )
                           : DropdownButton<String>(
@@ -183,7 +191,9 @@ class _SchedulingReviewPaneState extends State<SchedulingReviewPane> {
                                 );
                               }).toList(),
                               onChanged: (val) {
-                                if (val != null) setState(() => _selectedRoom = val);
+                                if (val != null) {
+                                  setState(() => _selectedRoom = val);
+                                }
                               },
                             ),
                 ),
@@ -201,7 +211,8 @@ class _SchedulingReviewPaneState extends State<SchedulingReviewPane> {
       onTap: () => setState(() => _viewModeIndex = index),
       borderRadius: AppSpacing.radiusSm,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: AppMotion.duration(context, AppMotion.fast),
+        curve: AppMotion.snappy,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: active ? AppColors.primary : Colors.transparent,
@@ -304,7 +315,13 @@ class _SchedulingReviewPaneState extends State<SchedulingReviewPane> {
           ),
           const Divider(color: AppColors.border, height: 1),
           // Day's schedule timeline
-          _buildDayScheduleView(allRows),
+          UAnimatedSwap(
+            child: KeyedSubtree(
+              key: ValueKey(
+                  '$_viewModeIndex-$_selectedDay-$_selectedBatch-$_selectedTeacher-$_selectedRoom'),
+              child: _buildDayScheduleView(allRows),
+            ),
+          ),
         ],
       ),
     );
@@ -520,7 +537,8 @@ class _SchedulingReviewPaneState extends State<SchedulingReviewPane> {
                 SizedBox(height: 2),
                 Text(
                   '0 room double-bookings · 0 faculty time overlaps · 0 cohort section collisions · 0 sessional break-crossings.',
-                  style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                  style:
+                      TextStyle(fontSize: 11, color: AppColors.textSecondary),
                 ),
               ],
             ),
@@ -677,8 +695,9 @@ class _SchedulingReviewPaneState extends State<SchedulingReviewPane> {
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.6,
-                        color:
-                            isPublished ? AppColors.success : AppColors.textPrimary,
+                        color: isPublished
+                            ? AppColors.success
+                            : AppColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),

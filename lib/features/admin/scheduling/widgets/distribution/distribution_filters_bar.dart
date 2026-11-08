@@ -1,3 +1,5 @@
+import 'package:universe/core/theme/app_motion.dart';
+import 'package:universe/shared/widgets/u_pressable_scale.dart';
 import 'package:flutter/material.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
@@ -106,6 +108,7 @@ class DistributionFiltersBar extends StatelessWidget {
                     child: Row(
                       children: [
                         _filterChip(
+                          context,
                           label: 'Conflicts (${controller.conflictsCount})',
                           icon: PhosphorIconsRegular.warningCircle,
                           isActive: controller.onlyConflicts,
@@ -115,6 +118,7 @@ class DistributionFiltersBar extends StatelessWidget {
                         ),
                         const SizedBox(width: AppSpacing.xs),
                         _filterChip(
+                          context,
                           label: 'Corrected (${controller.correctionsCount})',
                           icon: PhosphorIconsRegular.pencilSimple,
                           isActive: controller.onlyCorrected,
@@ -124,6 +128,7 @@ class DistributionFiltersBar extends StatelessWidget {
                         ),
                         const SizedBox(width: AppSpacing.xs),
                         _filterChip(
+                          context,
                           label:
                               'Pending Teacher (${controller.pendingTeacherCount})',
                           icon: PhosphorIconsRegular.userCircleDashed,
@@ -274,48 +279,56 @@ class DistributionFiltersBar extends StatelessWidget {
     );
   }
 
-  Widget _filterChip({
+  Widget _filterChip(
+    BuildContext context, {
     required String label,
     required IconData icon,
     required bool isActive,
     required Color activeColor,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: AppSpacing.radiusSm,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: isActive
-              ? activeColor.withValues(alpha: 0.15)
-              : AppColors.bgPrimary,
-          border: Border.all(
-            color: isActive ? activeColor : AppColors.border,
-            width: isActive ? 1.5 : 1.0,
+    return Semantics(
+      selected: isActive,
+      child: UPressableScale(
+          child: InkWell(
+        onTap: onTap,
+        borderRadius: AppSpacing.radiusSm,
+        child: AnimatedContainer(
+          duration: AppMotion.duration(context, AppMotion.fast),
+          curve: AppMotion.snappy,
+          constraints: BoxConstraints(
+              minHeight: MediaQuery.sizeOf(context).width < 768 ? 48 : 40),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: isActive
+                ? activeColor.withValues(alpha: 0.15)
+                : AppColors.bgPrimary,
+            border: Border.all(
+              color: isActive ? activeColor : AppColors.border,
+              width: isActive ? 1.5 : 1.0,
+            ),
+            borderRadius: AppSpacing.radiusSm,
           ),
-          borderRadius: AppSpacing.radiusSm,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 13,
-              color: isActive ? activeColor : AppColors.textMuted,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: AppTextStyles.captionMedium.copyWith(
-                color: isActive ? activeColor : AppColors.textSecondary,
-                fontSize: 11,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 13,
+                color: isActive ? activeColor : AppColors.textMuted,
               ),
-            ),
-          ],
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: AppTextStyles.captionMedium.copyWith(
+                  color: isActive ? activeColor : AppColors.textSecondary,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
+      )),
     );
   }
 

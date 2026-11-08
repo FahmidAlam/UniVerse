@@ -13,6 +13,10 @@ class LiveClassCard extends StatefulWidget {
   final String teacher;
   final String room;
   final DateTime endTime;
+  final DateTime? startTime;
+
+  /// Optional clock for deterministic previews/tests; defaults to wall time.
+  final DateTime Function()? clock;
 
   const LiveClassCard({
     super.key,
@@ -20,6 +24,8 @@ class LiveClassCard extends StatefulWidget {
     required this.teacher,
     required this.room,
     required this.endTime,
+    this.startTime,
+    this.clock,
   });
 
   @override
@@ -30,18 +36,35 @@ class _LiveClassCardState extends State<LiveClassCard> {
   late Duration _remaining;
   Timer? _timer;
 
+  DateTime get _now => widget.clock?.call() ?? DateTime.now();
+
   @override
   void initState() {
     super.initState();
-    _updateRemaining();
+    _remaining = _remainingAt(_now);
     _timer = Timer.periodic(
       const Duration(seconds: 1),
       (_) => _updateRemaining(),
     );
   }
 
+  Duration _remainingAt(DateTime now) {
+    final remaining = widget.endTime.difference(now);
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
+
+  bool get _active =>
+      _remaining > Duration.zero &&
+      (widget.startTime == null || !_now.isBefore(widget.startTime!));
+
+  @override
+  void didUpdateWidget(covariant LiveClassCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _remaining = _remainingAt(_now);
+  }
+
   void _updateRemaining() {
-    final remaining = widget.endTime.difference(DateTime.now());
+    final remaining = widget.endTime.difference(_now);
     if (mounted) {
       setState(() {
         _remaining = remaining.isNegative ? Duration.zero : remaining;
@@ -60,13 +83,21 @@ class _LiveClassCardState extends State<LiveClassCard> {
     return Container(
       height: AppSpacing.heroCardHeight,
       decoration: BoxDecoration(
-        gradient: AppColors.primaryGradient,
+        gradient: AppColors.cardIdleGradient,
+        boxShadow: AppColors.dualElevationShadow,
+        border: Border.all(color: AppColors.border),
         borderRadius: AppSpacing.radiusLg,
       ),
       child: ClipRRect(
         borderRadius: AppSpacing.radiusLg,
         child: Stack(
           children: [
+            const Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 1,
+                child: ColoredBox(color: AppColors.specular)),
             Container(
               decoration: const BoxDecoration(
                 gradient: AppColors.cardOverlay,
@@ -79,7 +110,7 @@ class _LiveClassCardState extends State<LiveClassCard> {
                 children: [
                   Row(
                     children: [
-                      const UBadge(status: ClassStatus.live),
+                      UBadge(status: ClassStatus.live, animate: _active),
                       const Spacer(),
                       Icon(
                         PhosphorIconsRegular.mapPin,
@@ -117,8 +148,7 @@ class _LiveClassCardState extends State<LiveClassCard> {
                         child: Text(
                           widget.teacher,
                           style: AppTextStyles.bodySm.copyWith(
-                            color:
-                                AppColors.textPrimary.withValues(alpha: 0.8),
+                            color: AppColors.textPrimary.withValues(alpha: 0.8),
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -148,6 +178,24 @@ class _LiveClassCardState extends State<LiveClassCard> {
                 ],
               ),
             ),
+            if (widget.startTime != null &&
+                widget.endTime.isAfter(widget.startTime!))
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: LinearProgressIndicator(
+                  minHeight: 3,
+                  value: (_now.difference(widget.startTime!).inMilliseconds /
+                          widget.endTime
+                              .difference(widget.startTime!)
+                              .inMilliseconds)
+                      .clamp(0.0, 1.0),
+                  color: AppColors.primary,
+                  backgroundColor: AppColors.bgElevated,
+                  semanticsLabel: 'Class elapsed',
+                ),
+              ),
           ],
         ),
       ),

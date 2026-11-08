@@ -33,6 +33,7 @@ class ResourceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return UCard(
+      isTopLit: true,
       padding: AppSpacing.cardPaddingH,
       onTap: onTap,
       child: SizedBox(

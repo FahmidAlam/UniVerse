@@ -24,7 +24,8 @@ abstract class SchedulingPreviewFixtures {
     acceptedAt: DateTime.now().subtract(const Duration(days: 3, hours: 4)),
     acceptedBy: 'Academic Timetable Committee (Dr. A. Rahman)',
     isFresh: true,
-    totalRows: 24,
+    // PHASE 0: Revision metadata counts the actual immutable fixture rows.
+    totalRows: records.length,
     correctionCount: 3,
     conflictCount: 2,
   );
@@ -705,12 +706,13 @@ abstract class SchedulingPreviewFixtures {
   ];
 
   static final List<ReadinessItem> readinessItems = [
-    const ReadinessItem(
+    // PHASE 0: Readiness and distribution summaries share the fixture count.
+    ReadinessItem(
       id: 'chk-dist-accepted',
       category: 'Accepted Distribution',
       title: 'Accepted Course Distribution Revision',
       description:
-          'Distribution revision #4 is accepted and hash-verified (24 rows, 0 corrupted cells).',
+          'Distribution revision #4 is accepted and hash-verified (${records.length} rows, 0 corrupted cells).',
       severity: ReadinessSeverity.info,
       affectedEntities: ['CSE Fall 2026 Distribution'],
       targetTab: 0,

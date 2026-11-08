@@ -1,3 +1,7 @@
+// PHASE 1: Campus shares navigation and shell-aware account/page chrome.
+import 'package:universe/shared/widgets/campus_lookup_switcher.dart';
+import 'package:universe/shared/widgets/u_app_bar.dart';
+import 'package:universe/shared/widgets/u_responsive_workspace.dart';
 import 'package:flutter/material.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/theme/app_colors.dart';
@@ -6,10 +10,11 @@ import 'package:universe/core/theme/app_text_styles.dart';
 import 'package:universe/features/find_teacher/controllers/find_teacher_controller.dart';
 import 'package:universe/features/find_teacher/services/teacher_location_service.dart';
 import 'package:universe/features/find_teacher/widgets/teacher_location_card.dart';
-import 'package:universe/shared/widgets/u_text_field.dart';
 
 class FindTeacherScreen extends StatefulWidget {
-  const FindTeacherScreen({super.key});
+  final FindTeacherController? controller;
+
+  const FindTeacherScreen({super.key, this.controller});
 
   @override
   State<FindTeacherScreen> createState() => _FindTeacherScreenState();
@@ -17,15 +22,20 @@ class FindTeacherScreen extends StatefulWidget {
 
 class _FindTeacherScreenState extends State<FindTeacherScreen> {
   late final FindTeacherController _controller;
+  late final bool _ownsController;
   late final TextEditingController _searchController;
 
   @override
   void initState() {
     super.initState();
     _searchController = TextEditingController();
-    _controller = FindTeacherController(service: TeacherLocationService());
-    _controller.initialize();
-    _controller.subscribeToRealTimeUpdates();
+    _ownsController = widget.controller == null;
+    _controller = widget.controller ??
+        FindTeacherController(service: TeacherLocationService());
+    if (_ownsController) {
+      _controller.initialize();
+      _controller.subscribeToRealTimeUpdates();
+    }
     _controller.addListener(_onControllerChange);
   }
 
@@ -37,7 +47,9 @@ class _FindTeacherScreenState extends State<FindTeacherScreen> {
   void dispose() {
     _controller.removeListener(_onControllerChange);
     _searchController.dispose();
-    _controller.dispose();
+    if (_ownsController) {
+      _controller.dispose();
+    }
     super.dispose();
   }
 
@@ -45,15 +57,13 @@ class _FindTeacherScreenState extends State<FindTeacherScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
-      appBar: AppBar(
-        backgroundColor: AppColors.bgPrimary,
-        elevation: 0,
-        title: Text(
-          'Find Teacher',
-          style: AppTextStyles.h2.copyWith(color: AppColors.textPrimary),
-        ),
+      // PHASE 1: UAppBar removes implicit drawer chrome and exposes account access.
+      appBar: UAppBar(
+        title: 'Faculty',
+        showBackButton: false,
         actions: [
           IconButton(
+            tooltip: 'Refresh',
             icon: Icon(
               PhosphorIconsRegular.arrowClockwise,
               color: AppColors.primary,
@@ -65,7 +75,11 @@ class _FindTeacherScreenState extends State<FindTeacherScreen> {
           ),
         ],
       ),
-      body: _buildContent(),
+      // PHASE 1: Keep the Campus switcher available in all asynchronous states.
+      body: Column(children: [
+        const CampusLookupSwitcher(faculty: true),
+        Expanded(child: _buildContent())
+      ]),
     );
   }
 
@@ -116,57 +130,66 @@ class _FindTeacherScreenState extends State<FindTeacherScreen> {
       onRefresh: () => _controller.refresh(),
       color: AppColors.primary,
       backgroundColor: AppColors.bgCard,
-      child: Column(
-        children: [
-          Padding(
-            padding: EdgeInsets.all(AppSpacing.lg),
-            child: UTextField(
-              label: '',
-              hint: 'Search by name or code...',
-              controller: _searchController,
-              prefixIcon: PhosphorIconsRegular.magnifyingGlass,
-              onChanged: (value) {
-                _controller.search(value);
-              },
-            ),
-          ),
-
-          if (_controller.filteredTeachers.isEmpty)
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      PhosphorIconsRegular.person,
-                      color: AppColors.textMuted,
-                      size: AppSpacing.iconXl,
-                    ),
-                    SizedBox(height: AppSpacing.md),
-                    Text(
-                      _controller.searchQuery.isEmpty
-                          ? 'No teachers found'
-                          : 'No matching teachers',
-                      style: AppTextStyles.body.copyWith(
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktopGrid = constraints.maxWidth >= 700;
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: USearchFilterBar(
+                  controller: _searchController,
+                  hint: 'Search by name or code...',
+                  statusPillLabel:
+                      'Showing ${_controller.filteredTeachers.length} faculty',
+                  onChanged: (value) {
+                    _controller.search(value);
+                  },
                 ),
               ),
-            )
-          else
-            Expanded(
-              child: ListView.builder(
-                padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-                itemCount: _controller.filteredTeachers.length,
-                itemBuilder: (context, index) {
-                  final teacherInfo = _controller.filteredTeachers[index];
-                  return TeacherLocationCard(teacherInfo: teacherInfo);
-                },
-              ),
-            ),
-        ],
+              if (_controller.filteredTeachers.isEmpty)
+                Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          PhosphorIconsRegular.person,
+                          color: AppColors.textMuted,
+                          size: AppSpacing.iconXl,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          _controller.searchQuery.isEmpty
+                              ? 'No teachers found'
+                              : 'No matching teachers',
+                          style: AppTextStyles.body.copyWith(
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: UAdaptiveCardGrid(
+                    singleColumnBreakpoint: 700,
+                    mainAxisExtent: 312,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isDesktopGrid ? AppSpacing.sm : 0,
+                      vertical: AppSpacing.md,
+                    ),
+                    itemCount: _controller.filteredTeachers.length,
+                    itemBuilder: (context, index) {
+                      final teacherInfo = _controller.filteredTeachers[index];
+                      return TeacherLocationCard(teacherInfo: teacherInfo);
+                    },
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
