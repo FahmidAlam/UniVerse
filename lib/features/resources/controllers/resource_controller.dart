@@ -5,10 +5,15 @@ import 'package:universe/features/auth/controllers/auth_controller.dart';
 import 'package:universe/features/resources/services/resource_service.dart';
 
 class ResourceController extends SafeChangeNotifier {
-  final ResourceService _service = ResourceService();
+  final ResourceService _service;
   final AuthController authController;
 
-  ResourceController({required this.authController});
+  ResourceController({
+    required this.authController,
+    ResourceService? service,
+    List<Resource>? initialItems,
+  })  : _service = service ?? ResourceService(),
+        _items = initialItems ?? [];
 
   static const String allCategory = 'All';
 
@@ -54,6 +59,10 @@ class ResourceController extends SafeChangeNotifier {
   }
 
   Future<void> load() async {
+    if (_items.isNotEmpty) {
+      notifyListeners();
+      return;
+    }
     final me = _me;
     if (me == null) return;
 

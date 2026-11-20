@@ -49,6 +49,8 @@ abstract class AppTheme {
 
         textTheme: GoogleFonts.interTextTheme(
           ThemeData.dark().textTheme,
+        ).apply(
+          fontFamilyFallback: AppTextStyles.primaryFontFallback,
         ).copyWith(
           displayLarge: AppTextStyles.displayLarge,
           headlineLarge: AppTextStyles.h1,

@@ -1,4 +1,5 @@
 import 'dart:async' show unawaited;
+import 'dart:ui' show PointerDeviceKind;
 
 import 'package:app_links/app_links.dart';
 
@@ -111,6 +112,14 @@ class UniVerseApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
       routerConfig: router.router,
+      scrollBehavior: const MaterialScrollBehavior().copyWith(
+        dragDevices: {
+          PointerDeviceKind.mouse,
+          PointerDeviceKind.touch,
+          PointerDeviceKind.trackpad,
+          PointerDeviceKind.stylus,
+        },
+      ),
       // One overlay for every sign-out button in the app.
       builder: (context, child) => ListenableBuilder(
         listenable: router.authController,

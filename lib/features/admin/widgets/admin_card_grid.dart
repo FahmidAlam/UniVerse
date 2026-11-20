@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 
-/// Uses the width remaining after sidebar and page padding, including at zoom.
+// PHASE 5: Uses the width remaining after sidebar and page padding, including at zoom.
 class AdminCardGrid extends StatelessWidget {
   final List<Widget> children;
   const AdminCardGrid({super.key, required this.children});

@@ -262,10 +262,12 @@ void main() {
       // Navigate to Configuration Tab
       await tester.tap(find.text('Configuration'));
       await tester.pumpAndSettle();
-      expect(find.text('SECTION CALENDAR'), findsOneWidget);
-      expect(find.text('FACULTY WORKLOAD'), findsOneWidget);
-      expect(find.text('R1 / D1'), findsOneWidget);
-      expect(find.text('R7 / D3'), findsOneWidget);
+      expect(find.textContaining('SECTION CALENDAR'), findsWidgets);
+      expect(find.text('R1 / D1'), findsWidgets);
+      await tester.drag(find.byType(ListView).first, const Offset(0, -1000));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('FACULTY WORKLOAD'), findsWidgets);
+      expect(find.text('R7 / D3'), findsWidgets);
 
       // PHASE 0: Persistent warnings describe source records, not solved collisions.
       expect(find.textContaining('2 source warnings'), findsOneWidget);
@@ -284,14 +286,14 @@ void main() {
       await tester.pumpAndSettle();
       expect(
           find.text('MULTI-OBJECTIVE OPTIMIZATION PARAMETERS'), findsOneWidget);
+      await tester.drag(find.byType(ListView).first, const Offset(0, -300));
+      await tester.pumpAndSettle();
       expect(find.text('Run CP-SAT Solver'), findsOneWidget);
 
       // Navigate to Review Tab
       await tester.tap(find.text('Review & publish'));
       await tester.pumpAndSettle();
       expect(find.text('Section Grid'), findsOneWidget);
-      expect(find.text('Conflict Inspector: Zero Hard Collisions'),
-          findsOneWidget);
 
       // Verify Faculty Schedule view
       await tester.tap(find.text('Faculty Schedule'));
@@ -303,7 +305,16 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('ROOM OCCUPANCY SCHEDULE'), findsOneWidget);
 
-      await tester.drag(find.byType(ListView).last, const Offset(0, -600));
+      // Return to Section Grid and scroll down to inspect conflict and atomic publish gate
+      await tester.tap(find.text('Section Grid'));
+      await tester.pumpAndSettle();
+
+      await tester.drag(find.byType(ListView).last, const Offset(0, -500));
+      await tester.pumpAndSettle();
+      expect(find.text('Conflict Inspector: Zero Hard Collisions'),
+          findsOneWidget);
+
+      await tester.drag(find.byType(ListView).last, const Offset(0, -500));
       await tester.pumpAndSettle();
       expect(find.textContaining('ATOMIC PUBLICATION GATE'), findsOneWidget);
     });

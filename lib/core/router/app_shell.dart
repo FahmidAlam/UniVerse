@@ -1,4 +1,3 @@
-import 'package:universe/core/theme/app_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -11,7 +10,6 @@ import 'package:universe/features/auth/controllers/auth_controller.dart';
 import 'package:universe/features/notifications/controllers/notification_controller.dart';
 import 'package:universe/shared/widgets/app_bottom_nav.dart';
 import 'package:universe/shared/widgets/app_drawer.dart';
-import 'package:universe/shared/widgets/explore_fab_menu.dart';
 // PHASE 1: Desktop roles share shell chrome without changing mobile back semantics.
 import 'package:universe/shared/widgets/desktop_shell_scope.dart';
 import 'package:universe/shared/widgets/role_desktop_shell.dart';
@@ -189,26 +187,6 @@ class _AppShellState extends State<AppShell> {
                   // PHASE 1: Embedded UAppBars provide the mobile account action.
                   body: DesktopShellScope(
                       isDesktop: false, tier: tier, child: widget.child),
-                  // PHASE 1 RECONCILE: Retain the reviewed mobile discovery action on each role home.
-                  floatingActionButton: (role == AppConstants.roleStudent ||
-                              role == AppConstants.roleTeacher) &&
-                          (_location.isEmpty || _location == _home)
-                      ? ValueListenableBuilder<bool>(
-                          valueListenable: drawerOpenNotifier,
-                          builder: (context, drawerOpen, child) =>
-                              AnimatedScale(
-                                scale: drawerOpen ? 0.8 : 1,
-                                duration: AppMotion.duration(
-                                    context, AppMotion.micro),
-                                child: AnimatedOpacity(
-                                  opacity: drawerOpen ? 0 : 1,
-                                  duration: AppMotion.duration(
-                                      context, AppMotion.micro),
-                                  child: child,
-                                ),
-                              ),
-                          child: const ExploreFabMenu())
-                      : null,
                   bottomNavigationBar: AppBottomNav(
                     role: widget.authController.role,
                     currentRoute: _location,

@@ -273,8 +273,9 @@ class DistributionListMobile extends StatelessWidget {
         label = 'Corrected';
         break;
       case DistributionRecordStatus.verified:
-        bg = AppColors.successSoft;
-        fg = AppColors.success;
+        // PHASE 5: "Checkbox Off = Gray" signaling discipline for verified baseline records.
+        bg = AppColors.bgElevated;
+        fg = AppColors.textSecondary;
         label = 'Verified';
         break;
     }

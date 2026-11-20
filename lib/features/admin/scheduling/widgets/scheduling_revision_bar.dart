@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
@@ -31,7 +32,7 @@ class SchedulingRevisionBar extends StatelessWidget {
 
         return LayoutBuilder(
           builder: (context, constraints) {
-            final isCompact = constraints.maxWidth < 1080;
+            final isCompact = constraints.maxWidth < 1240;
 
             return Container(
               width: double.infinity,
@@ -74,12 +75,14 @@ class SchedulingRevisionBar extends StatelessWidget {
                           runSpacing: 4,
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
+                            _buildArtifactFreshnessChip(),
                             Text(
                               'Rev #${rev.revisionNumber} (v${rev.revisionVersion})',
                               style: AppTextStyles.captionMedium.copyWith(
                                 color: AppColors.primary,
                               ),
                             ),
+                            _buildHashCopyChip(context, rev.sourceHash),
                             // PHASE 0: Source warnings differ from solved-schedule collisions.
                             Text(
                               '${controller.totalRecordsCount} rows · ${controller.correctionsCount} corr · ${controller.conflictsCount} source warnings',
@@ -103,11 +106,9 @@ class SchedulingRevisionBar extends StatelessWidget {
                                           .withValues(alpha: 0.4),
                                     ),
                                   ),
-                                  child: const Text(
+                                  child: Text(
                                     'Seal Draft',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
+                                    style: AppTextStyles.badge.copyWith(
                                       color: AppColors.primary,
                                     ),
                                   ),
@@ -159,24 +160,21 @@ class SchedulingRevisionBar extends StatelessWidget {
                                 ],
                               ),
                               const SizedBox(height: 2),
-                              Row(
+                              Wrap(
+                                spacing: AppSpacing.sm,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   Text(
                                     'Revision: Accepted #${rev.revisionNumber} · v${rev.revisionVersion}',
-                                    style: AppTextStyles.captionMedium.copyWith(
+                                    style:
+                                        AppTextStyles.captionMedium.copyWith(
                                       color: AppColors.primary,
                                     ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  const SizedBox(width: AppSpacing.md),
-                                  Flexible(
-                                    child: Text(
-                                      'Hash: ${rev.sourceHash.substring(0, 12)}…',
-                                      style: AppTextStyles.caption.copyWith(
-                                        color: AppColors.textMuted,
-                                        fontFamily: 'monospace',
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                                  _buildHashCopyChip(
+                                    context,
+                                    rev.sourceHash,
                                   ),
                                 ],
                               ),
@@ -208,6 +206,8 @@ class SchedulingRevisionBar extends StatelessWidget {
                             ),
                             const SizedBox(width: 4),
                             _buildStatusChip(rev.status),
+                            const SizedBox(width: 4),
+                            _buildArtifactFreshnessChip(),
                             if (controller.correctionsCount > 0) ...[
                               const SizedBox(width: 4),
                               FilledButton.tonalIcon(
@@ -228,10 +228,9 @@ class SchedulingRevisionBar extends StatelessWidget {
                                   PhosphorIconsRegular.shieldCheck,
                                   size: 13,
                                 ),
-                                label: const Text(
+                                label: Text(
                                   'Seal Revision',
-                                  style: TextStyle(
-                                    fontSize: 11,
+                                  style: AppTextStyles.captionMedium.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -263,6 +262,72 @@ class SchedulingRevisionBar extends StatelessWidget {
     );
   }
 
+  // PHASE 5: Click-to-copy revision hash with immediate confirmation pill.
+  Widget _buildHashCopyChip(BuildContext context, String hash) {
+    final shortHash = hash.length > 12 ? '${hash.substring(0, 12)}…' : hash;
+    return Tooltip(
+      message: 'Copy revision hash ($hash)',
+      child: InkWell(
+        onTap: () {
+          Clipboard.setData(ClipboardData(text: hash));
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(
+                behavior: SnackBarBehavior.floating,
+                backgroundColor: AppColors.bgElevated,
+                duration: const Duration(seconds: 2),
+                content: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      PhosphorIconsRegular.checkCircle,
+                      color: AppColors.success,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Copied revision hash: $shortHash',
+                        style: AppTextStyles.captionMedium.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+        },
+        borderRadius: AppSpacing.radiusSm,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  'Hash: $shortHash',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textMuted,
+                    fontFamily: 'monospace',
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(
+                PhosphorIconsRegular.copy,
+                size: 11,
+                color: AppColors.textMuted,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showSealRevisionDialog(BuildContext context) {
     final reasonCtrl = TextEditingController(
       text: 'Accepted Departmental Distribution Baseline with Faculty Overlays',
@@ -283,18 +348,39 @@ class SchedulingRevisionBar extends StatelessWidget {
               size: 20,
             ),
             const SizedBox(width: AppSpacing.sm),
-            Text(
-              'Seal Revision #${controller.revision.revisionNumber + 1}',
-              style: AppTextStyles.h4,
+            Expanded(
+              child: Text(
+                'Seal Revision #${controller.revision.revisionNumber + 1}',
+                style: AppTextStyles.h4,
+              ),
             ),
           ],
         ),
-        content: SizedBox(
-          width: 440,
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Container(
+                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.infoSoft,
+                  borderRadius: AppSpacing.radiusSm,
+                  border:
+                      Border.all(color: AppColors.info.withValues(alpha: 0.4)),
+                ),
+                child: Text(
+                  'SIMULATED PREVIEW · NO DATABASE WRITES',
+                  style: AppTextStyles.caption.copyWith(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                    color: AppColors.info,
+                  ),
+                ),
+              ),
               Text(
                 'This creates a sealed, immutable accepted revision snapshot incorporating ${controller.correctionsCount} audited correction(s). '
                 'Downstream engine normalization and CP-SAT solver inputs will bind directly to this new revision.',
@@ -345,12 +431,52 @@ class SchedulingRevisionBar extends StatelessWidget {
                   backgroundColor: AppColors.bgElevated,
                   content: Text(
                     'Sealed Revision #${controller.revision.revisionNumber} (v1) created successfully.',
-                    style: const TextStyle(color: AppColors.success),
+                    style: AppTextStyles.caption.copyWith(color: AppColors.success),
                   ),
                 ),
               );
             },
             child: const Text('Confirm & Seal Snapshot'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildArtifactFreshnessChip() {
+    final freshness = controller.artifactFreshness;
+    final isStale = freshness.hasStaleArtifacts;
+    final rev = controller.revision;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: isStale ? AppColors.warningSoft : AppColors.successSoft,
+        borderRadius: AppSpacing.radiusSm,
+        border: Border.all(
+          color: isStale ? AppColors.warning : AppColors.success,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isStale
+                ? PhosphorIconsRegular.warning
+                : PhosphorIconsRegular.checkCircle,
+            size: 12,
+            color: isStale ? AppColors.warning : AppColors.success,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            isStale
+                ? 'ARTIFACTS STALE · RE-VALIDATION REQUIRED FOR v${rev.revisionVersion}'
+                : 'ARTIFACTS CURRENT (v${freshness.validatedAgainstVersion ?? rev.revisionVersion})',
+            style: AppTextStyles.caption.copyWith(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+              color: isStale ? AppColors.warning : AppColors.success,
+            ),
           ),
         ],
       ),

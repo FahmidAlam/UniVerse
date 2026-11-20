@@ -1,4 +1,7 @@
+import 'package:universe/features/admin/widgets/admin_route_tabs.dart';
+import 'package:universe/shared/widgets/desktop_shell_scope.dart';
 import 'package:flutter/material.dart';
+import 'package:universe/shared/widgets/u_adaptive_overlay.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/whitelist_model.dart';
@@ -14,7 +17,8 @@ import 'package:universe/shared/widgets/u_loading.dart';
 import 'package:universe/shared/widgets/u_text_field.dart';
 
 class AdminRegistrationScreen extends StatefulWidget {
-  const AdminRegistrationScreen({super.key});
+  final WhitelistController? controller;
+  const AdminRegistrationScreen({super.key, this.controller});
 
   @override
   State<AdminRegistrationScreen> createState() =>
@@ -39,13 +43,13 @@ class _AdminRegistrationScreenState extends State<AdminRegistrationScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = WhitelistController();
+    _controller = widget.controller ?? WhitelistController();
     _controller.load();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    if (widget.controller == null) _controller.dispose();
     _emailCtrl.dispose();
     _nameCtrl.dispose();
     _teacherEmailCtrl.dispose();
@@ -114,31 +118,22 @@ class _AdminRegistrationScreenState extends State<AdminRegistrationScreen> {
   }
 
   Future<void> _confirmRemove(WhitelistEntry e) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgCard,
-        shape: RoundedRectangleBorder(borderRadius: AppSpacing.radiusLg),
-        title: Text('Remove from whitelist?', style: AppTextStyles.h3),
-        content: Text(
-          '${e.email} will no longer be pre-authorized. (This does not '
-          'delete an account they already created.)',
-          style: AppTextStyles.bodySm,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel',
-                style: AppTextStyles.bodyMedium
-                    .copyWith(color: AppColors.textSecondary)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Remove', style: AppTextStyles.danger),
-          ),
-        ],
-      ),
-    );
+    final confirmed = await showUAdaptiveModal<bool>(
+        context: context,
+        title: 'Remove from whitelist?',
+        builder: (ctx) => Column(mainAxisSize: MainAxisSize.min, children: [
+              Text(
+                  '${e.email} will no longer be pre-authorized. This does not delete an existing account.',
+                  style: AppTextStyles.bodySm),
+              Wrap(spacing: 12, children: [
+                TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Cancel')),
+                TextButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Remove'))
+              ]),
+            ]));
     if (confirmed == true) await _controller.remove(e.email);
   }
 
@@ -156,25 +151,42 @@ class _AdminRegistrationScreenState extends State<AdminRegistrationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
-      appBar: const UAppBar(title: 'Admin Registration'),
+      appBar: DesktopShellScope.isDesktopOf(context)
+          ? null
+          : const UAppBar(title: 'Admin Registration'),
       body: ListenableBuilder(
         listenable: _controller,
         builder: (context, _) {
-          return SingleChildScrollView(
-            padding: AppSpacing.screenPadding,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildTeacherForm(),
-                AppSpacing.xxlGap,
-                _buildForm(),
-                AppSpacing.xxlGap,
-                Text('WHITELISTED', style: AppTextStyles.labelCaps),
-                AppSpacing.smGap,
-                _buildList(),
-              ],
-            ),
-          );
+          return Center(
+              child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1160),
+                  child: SingleChildScrollView(
+                    padding: AppSpacing.screenPadding,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AdminRouteTabs(
+                            selected: '/admin/registration',
+                            destinations: {
+                              '/admin/users': 'User Directory',
+                              '/admin/registration': 'Admin Invites & Whitelist'
+                            }),
+                        AppSpacing.mdGap,
+                        UCard(isTopLit: true, child: _buildTeacherForm()),
+                        AppSpacing.xxlGap,
+                        UCard(isTopLit: true, child: _buildForm()),
+                        AppSpacing.xxlGap,
+                        Text('Whitelist governance',
+                            style: AppTextStyles.labelCaps),
+                        AppSpacing.smGap,
+                        Text(
+                            'Whitelist entries pre-authorize registration. Removing an entry does not delete an existing account.',
+                            style: AppTextStyles.caption),
+                        AppSpacing.smGap,
+                        _buildList(),
+                      ],
+                    ),
+                  )));
         },
       ),
     );
@@ -255,11 +267,13 @@ class _AdminRegistrationScreenState extends State<AdminRegistrationScreen> {
         Text(label, style: AppTextStyles.label),
         AppSpacing.smGap,
         DropdownButtonFormField<String>(
+          isExpanded: true,
           key: ValueKey('$label-$_teacherFormVersion'),
           initialValue: value,
           style: AppTextStyles.input,
           dropdownColor: AppColors.bgElevated,
-          hint: Text('Optional', style: AppTextStyles.placeholder),
+          hint: Text('Optional',
+              style: AppTextStyles.placeholder.copyWith(inherit: false)),
           decoration: InputDecoration(
             filled: true,
             fillColor: AppColors.bgElevated,
@@ -343,6 +357,10 @@ class _AdminRegistrationScreenState extends State<AdminRegistrationScreen> {
     if (_controller.isLoading) {
       return const ULoading.skeleton(skeletonHeight: 64);
     }
+    if (_controller.errorMessage != null) {
+      return UEmptyState.error(
+          message: _controller.errorMessage!, onRetry: _controller.load);
+    }
     if (_controller.entries.isEmpty) {
       return const UEmptyState(
         icon: PhosphorIconsRegular.identificationBadge,
@@ -355,6 +373,7 @@ class _AdminRegistrationScreenState extends State<AdminRegistrationScreen> {
       children: [
         for (final e in _controller.entries) ...[
           UCard(
+            isTopLit: true,
             child: Row(
               children: [
                 Expanded(

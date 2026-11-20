@@ -16,6 +16,7 @@ import 'package:universe/features/admin/scheduling/widgets/review/scheduling_rev
 import 'package:universe/features/admin/scheduling/widgets/scheduling_header_bar.dart';
 import 'package:universe/features/admin/scheduling/widgets/scheduling_revision_bar.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
+import 'package:universe/shared/widgets/u_adaptive_overlay.dart';
 
 export 'package:universe/features/admin/scheduling/controllers/scheduling_workspace_controller.dart'
     show DistributionAvailability;
@@ -107,31 +108,39 @@ class _SchedulingWorkspaceScreenState extends State<SchedulingWorkspaceScreen>
     return ListenableBuilder(
       listenable: _controller,
       builder: (context, _) {
-        final screenWidth = MediaQuery.of(context).size.width;
-        final isDesktop = screenWidth >= 1024;
-        final isMobile = screenWidth < 768;
-
+        // PHASE 5: Drive workbench layout from LayoutBuilder post-sidebar usable width
+        // instead of raw MediaQuery screen width to prevent 1024px sidebar collision.
         return Scaffold(
           backgroundColor: AppColors.bgPrimary,
           body: SafeArea(
-            child: Padding(
-              padding: EdgeInsets.all(
-                isMobile ? AppSpacing.md : AppSpacing.xl,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SchedulingHeaderBar(controller: _controller),
-                  const SizedBox(height: AppSpacing.md),
-                  SchedulingRevisionBar(controller: _controller),
-                  const SizedBox(height: AppSpacing.md),
-                  _buildTabBar(),
-                  const SizedBox(height: AppSpacing.md),
-                  Expanded(
-                    child: _buildTabContent(isDesktop, isMobile),
+            child: LayoutBuilder(
+              builder: (context, outerConstraints) {
+                final isCompactOuter = outerConstraints.maxWidth < 768;
+                return Padding(
+                  padding: EdgeInsets.all(
+                    isCompactOuter ? AppSpacing.md : AppSpacing.xl,
                   ),
-                ],
-              ),
+                  child: LayoutBuilder(
+                    builder: (context, innerConstraints) {
+                      final usableWidth = innerConstraints.maxWidth;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SchedulingHeaderBar(controller: _controller),
+                          const SizedBox(height: AppSpacing.md),
+                          SchedulingRevisionBar(controller: _controller),
+                          const SizedBox(height: AppSpacing.md),
+                          _buildTabBar(),
+                          const SizedBox(height: AppSpacing.md),
+                          Expanded(
+                            child: _buildTabContent(usableWidth),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                );
+              },
             ),
           ),
         );
@@ -168,7 +177,7 @@ class _SchedulingWorkspaceScreenState extends State<SchedulingWorkspaceScreen>
     );
   }
 
-  Widget _buildTabContent(bool isDesktop, bool isMobile) {
+  Widget _buildTabContent(double usableWidth) {
     // PHASE 0: Live mode must never fall through to fixture-backed panes.
     if (!_controller.isPreviewMode) {
       return TabBarView(
@@ -203,7 +212,7 @@ class _SchedulingWorkspaceScreenState extends State<SchedulingWorkspaceScreen>
     return TabBarView(
       controller: _tabs,
       children: [
-        _buildDistributionTab(isDesktop),
+        _buildDistributionTab(usableWidth),
         SchedulingConfigurationPane(controller: _controller),
         SchedulingReadinessPane(controller: _controller),
         SchedulingGeneratePane(controller: _controller),
@@ -219,37 +228,100 @@ class _SchedulingWorkspaceScreenState extends State<SchedulingWorkspaceScreen>
     );
   }
 
-  Widget _buildDistributionTab(bool isDesktop) {
-    return Column(
-      children: [
-        DistributionFiltersBar(controller: _controller),
-        const SizedBox(height: AppSpacing.sm),
-        Expanded(
-          child: isDesktop
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      flex: _controller.isInspectorOpen ? 65 : 100,
-                      child: DistributionTableDesktop(controller: _controller),
-                    ),
-                    if (_controller.isInspectorOpen) ...[
-                      const SizedBox(width: AppSpacing.md),
-                      SizedBox(
-                        width: 380,
-                        child: ClipRRect(
-                          borderRadius: AppSpacing.radiusMd,
-                          child: DistributionRecordInspector(
-                            controller: _controller,
+  // PHASE 5: Three-tier distribution layout based on post-sidebar usableWidth:
+  // - Expanded (>= 1020px): Full 12-column table + docked 360px Record Inspector.
+  // - Medium (680px <= usableWidth < 1020px): Full-width 12-column table; Record Inspector opens in adaptive modal.
+  // - Compact (< 680px): Touch-friendly DistributionListMobile with bottom-sheet inspector.
+  Widget _buildDistributionTab(double usableWidth) {
+    final isExpanded = usableWidth >= 1020;
+    final isMedium = usableWidth >= 680 && usableWidth < 1020;
+
+    // PHASE 5: Short canvases scroll the toolbar with the table workspace rather
+    // than forcing the persistent above-field labels into a collapsed Column.
+    // The table retains its own scroll controller and a usable minimum canvas.
+    return LayoutBuilder(builder: (context, constraints) {
+      final workspaceHeight =
+          constraints.maxHeight < 560 ? 560.0 : constraints.maxHeight;
+      return SingleChildScrollView(
+        primary: false,
+        child: SizedBox(
+          height: workspaceHeight,
+          child: Column(
+            children: [
+              DistributionFiltersBar(
+                controller: _controller,
+                onToggleInspector: isMedium
+                    ? () => _openAdaptiveInspectorModal(context)
+                    : null,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Expanded(
+                child: isExpanded
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            flex: _controller.isInspectorOpen ? 65 : 100,
+                            child: DistributionTableDesktop(
+                                controller: _controller),
                           ),
-                        ),
-                      ),
-                    ],
-                  ],
-                )
-              : DistributionListMobile(controller: _controller),
+                          if (_controller.isInspectorOpen) ...[
+                            const SizedBox(width: AppSpacing.md),
+                            SizedBox(
+                              width: 360,
+                              child: ClipRRect(
+                                borderRadius: AppSpacing.radiusMd,
+                                child: DistributionRecordInspector(
+                                  controller: _controller,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      )
+                    : isMedium
+                        ? DistributionTableDesktop(
+                            controller: _controller,
+                            onInspectRecord: (record) {
+                              _controller.selectRecord(record);
+                              _openAdaptiveInspectorModal(context);
+                            },
+                          )
+                        : DistributionListMobile(controller: _controller),
+              ),
+            ],
+          ),
         ),
-      ],
+      );
+    });
+  }
+
+  void _openAdaptiveInspectorModal(BuildContext context) {
+    final record = _controller.selectedRecord ??
+        (_controller.filteredRecords.isNotEmpty
+            ? _controller.filteredRecords.first
+            : null);
+    if (record != null && _controller.selectedRecord == null) {
+      _controller.selectRecord(record);
+    }
+    showUAdaptiveModal<void>(
+      context: context,
+      title: record != null
+          ? 'Provenance Inspector · Row ${record.row}'
+          : 'Provenance Inspector',
+      subtitle: record != null
+          ? '${record.courseCode} · Batch ${record.batch} (${record.section})'
+          : 'Select a distribution row to inspect cell provenance.',
+      badge: 'SIMULATED PREVIEW · NO DATABASE WRITES',
+      icon: PhosphorIconsRegular.fileText,
+      maxDesktopWidth: 560,
+      builder: (modalCtx) => SizedBox(
+        height: 520,
+        child: DistributionRecordInspector(
+          controller: _controller,
+          isMobileModal: true,
+        ),
+      ),
     );
   }
 

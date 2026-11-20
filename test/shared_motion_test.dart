@@ -105,7 +105,7 @@ void main() {
     final gesture =
         await tester.startGesture(tester.getCenter(find.text('Action')));
     await tester.pump();
-    expect(scale(), .975);
+    expect(scale(), 0.97);
     await gesture.up();
     await tester.pumpAndSettle();
     expect(scale(), 1);

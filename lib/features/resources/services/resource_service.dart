@@ -5,7 +5,10 @@ import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/resource_model.dart';
 
 class ResourceService {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final SupabaseClient? _client;
+  SupabaseClient get _supabase => _client ?? Supabase.instance.client;
+
+  ResourceService({SupabaseClient? client}) : _client = client;
 
   Future<List<Resource>> fetchForSemester(int semester) async {
     final rows = await _supabase

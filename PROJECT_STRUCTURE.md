@@ -22,6 +22,15 @@ This document provides a comprehensive, complete index of all folders and files 
 | `tool/` | Python diagnostics, schema probes, visual capture scripts, and defense diagram generators. |
 | `web/` | Web platform runner, `index.html` canvas configuration, manifest, and service worker. |
 | `workbook/` | Academic curriculum distributions, room inventory workbooks, and semester constraints (read-only). |
+| `AGENTS.md` | Primary operating rules, approval gates, and UI/UX skill routing for Codex (Terra & Sol) and Antigravity. |
+| `CLAUDE.md` | Primary operating rules, architecture summary, and UI/UX skill routing for Claude Code. |
+| `GLOBAL_FLUTTER_DART_SKILLS_REPORT.md` | Ecosystem audit evaluating global Flutter/Dart skills against UniVerse architecture and guidelines. |
+| `PHASE_2B_UI_UX_IMPLEMENTATION_REPORT.md` | Architectural implementation report for the Phase 2b Scheduling Workspace foundation. |
+| `PHASE_6_COMMITTEE_RULES_AND_SUPPORTING_MODULES_REPORT.md` | Comprehensive implementation report for Phase 6 R1–R16 committee scheduling rules and supporting module overhaul. |
+| `PROJECT_STRUCTURE.md` | Complete file inventory and subsystem directory guide (this document). |
+| `README.md` | Project overview, tech stack, quick-start guide, and architectural introduction. |
+| `UI_UX_SKILLS_INTEGRATION_REPORT.md` | Multi-phase UI/UX skills integration, workflow lifecycle, and cross-phase execution evidence report. |
+| `UNIVERSE_CURRENT_ARCHITECTURE_AND_UI_UX_DOSSIER.md` | Authoritative 29-section architecture, route inventory, design system, and operational safety dossier. |
 | `analysis_options.yaml` | Dart static analysis configuration with strict lint rules enforcing clean code quality. |
 | `pubspec.yaml` | Flutter package dependencies (`go_router`, `supabase_flutter`, `google_fonts`, etc.) and asset declarations. |
 | `render.yaml` | Deployment specification for hosting the Python engine microservice on Render. |
@@ -47,7 +56,7 @@ This document provides a comprehensive, complete index of all folders and files 
 - `lib/core/models/notification_model.dart` — In-app notification and campus broadcast data model.
 - `lib/core/models/profile_model.dart` — User profile entity with role flags, department, batch, and teacher acronym.
 - `lib/core/models/resource_model.dart` — Learning resource model representing course syllabus, slides, and class notes.
-- `lib/core/models/routine_model.dart` — Timetable schedule entry model (`RoutineEntry`) representing a single scheduled class slot.
+- `lib/core/models/routine_model.dart` — Timetable schedule entry model (`RoutineEntry`) representing a single scheduled class slot with teacher and section matching helpers.
 - `lib/core/models/timetable_config_model.dart` — Configuration model for timetable solver constraints, time windows, and day-offs.
 - `lib/core/models/whitelist_model.dart` — Whitelist entry model used for pre-registering authorized faculty and admin emails.
 
@@ -90,53 +99,53 @@ This document provides a comprehensive, complete index of all folders and files 
 
 #### `lib/features/admin/` (Administration & Timetable Engine Management)
 - **Controllers:**
-  - `admin_dashboard_controller.dart` — Coordinates admin dashboard state, quick stats, and engine readiness metrics.
+  - `admin_dashboard_controller.dart` — Coordinates admin dashboard state, readiness metrics, and quick stats with DI seams.
   - `broadcast_controller.dart` — Manages composing and dispatching urgent campus-wide broadcasts.
   - `course_eligibility_controller.dart` — Controls faculty course assignment eligibility and allocation rules.
   - `manage_users_controller.dart` — Handles searching, filtering, and role modifications for student/teacher accounts.
   - `resource_admin_controller.dart` — Manages university curriculum files, slide uploads, and folder structures.
   - `routine_admin_controller.dart` — Oversees active routine versions, archive states, and publish status gates.
-  - `routine_upload_controller.dart` — Handles parsing and validating uploaded Excel schedule files before database commit.
+  - `routine_upload_controller.dart` — Handles parsing, validating, and publishing uploaded Excel schedule workbooks.
   - `timetable_faculty_controller.dart` — Manages faculty availability, preferred teaching windows, and off-day rules.
-  - `timetable_gen_controller.dart` — Interacts with the backend engine to trigger OR-Tools timetable generation jobs.
+  - `timetable_gen_controller.dart` — Interacts with backend engine to trigger and monitor OR-Tools timetable generation jobs.
   - `timetable_rooms_controller.dart` — Manages room inventory, theory vs. lab assignments, and student capacity limits.
   - `timetable_settings_controller.dart` — Configures global solver constraints (session lengths, slot times, max consecutive hours).
   - `whitelist_controller.dart` — Manages authorized email addresses for teacher and admin role approvals.
 - **Scheduling Workspace (`lib/features/admin/scheduling/`):**
-  - `controllers/scheduling_workspace_controller.dart` — State machine governing the 5-tab scheduling preview workspace (`Readiness`, `Distribution`, `Config`, `Generate`, `Review`).
+  - `controllers/scheduling_workspace_controller.dart` — State machine governing the 5-tab scheduling preview workspace (`Readiness`, `Distribution`, `Config`, `Generate`, `Review`) and gateway abstraction.
   - `fixtures/scheduling_preview_fixtures.dart` — High-fidelity synthetic preview fixtures for offline scheduling workbench evaluation.
   - `models/scheduling_workspace_models.dart` — Domain models for editable course distributions, solver constraints, and validation diagnostics.
-  - `widgets/scheduling_header_bar.dart` — Desktop header bar showing active semester, solve status badge, and primary action buttons.
-  - `widgets/scheduling_revision_bar.dart` — Versioning toolbar managing distribution draft revisions and change history.
-  - `widgets/configuration/scheduling_configuration_pane.dart` — UI panel for editing daily time slots, room pools, and faculty constraint sets.
-  - `widgets/distribution/distribution_filters_bar.dart` — Filter bar for sorting and searching distribution rows by batch, department, or faculty.
+  - `widgets/scheduling_header_bar.dart` — Desktop header bar showing active semester, preview mode badge, and primary action buttons.
+  - `widgets/scheduling_revision_bar.dart` — Versioning toolbar managing distribution draft revisions and click-to-copy hash.
+  - `widgets/configuration/scheduling_configuration_pane.dart` — UI panel for editing daily time slots, room pools, and faculty constraint sets (`R1`–`R15`).
+  - `widgets/distribution/distribution_filters_bar.dart` — Filter bar for sorting and searching distribution rows with upfront option counts.
   - `widgets/distribution/distribution_list_mobile.dart` — Mobile adaptive vertical list view for course distribution records.
-  - `widgets/distribution/distribution_record_inspector.dart` — Modal/side inspector for editing single course offering constraints and assigned faculty.
-  - `widgets/distribution/distribution_table_desktop.dart` — High-density tabular grid for managing course distribution records on desktop.
-  - `widgets/generate/scheduling_generate_pane.dart` — Solver execution pane with progress telemetry, solver log streaming, and conflict alerts.
-  - `widgets/readiness/scheduling_readiness_pane.dart` — Preflight validation checklist verifying curriculum, room, and faculty integrity before solve.
-  - `widgets/review/scheduling_review_pane.dart` — Post-solve routine review matrix showing timetable preview, teacher load, and room utilization.
+  - `widgets/distribution/distribution_record_inspector.dart` — 5-part academic provenance inspector for editing course offering constraints.
+  - `widgets/distribution/distribution_table_desktop.dart` — High-density tabular grid with "Checkbox Off = Gray" signaling and hover reveal.
+  - `widgets/generate/scheduling_generate_pane.dart` — Solver execution pane with priority weights, execution telemetry, and conflict alerts.
+  - `widgets/readiness/scheduling_readiness_pane.dart` — 3-tier preflight validation checklist verifying curriculum, room, and faculty integrity before solve.
+  - `widgets/review/scheduling_review_pane.dart` — Post-solve review matrix with section grid, faculty timetable, room occupancy, and tactile Slide-to-Confirm publication gate.
 - **Screens:**
-  - `admin_dashboard_screen.dart` — Main administrative overview screen featuring quick actions, system health, and timetable shortcuts.
+  - `admin_dashboard_screen.dart` — Administrative command center featuring 4-stage readiness checklist, load breakdown bar chart, and dual-track launchpad.
   - `admin_registration_screen.dart` — Dedicated enrollment screen for invited campus administrators.
-  - `admin_routine_screen.dart` — Master administrative routine screen providing tabs for routine management, solver generation, and Excel upload.
+  - `admin_routine_screen.dart` — Master administrative routine operations screen with `USegmentedControl` and `IndexedStack` state preservation.
   - `broadcast_history_screen.dart` — History view of all past campus broadcasts and push notifications sent to students/faculty.
   - `campus_broadcast_screen.dart` — Screen for drafting and broadcasting announcements targeting specific batches or departments.
-  - `generate_timetable_screen.dart` — Specialized wizard screen for configuring and launching OR-Tools timetable solver runs.
+  - `generate_timetable_screen.dart` — Specialized wizard screen with 4-node visual solver timeline and Service Recovery Paradox error card.
   - `manage_course_eligibility_screen.dart` — Matrix screen assigning teacher qualifications to departmental course offerings.
   - `manage_faculty_screen.dart` — Screen for configuring teacher off-days, max daily load, and department allocations.
   - `manage_resources_screen.dart` — Admin screen for organizing, approving, or removing uploaded learning resources.
   - `manage_rooms_screen.dart` — Screen for editing campus room numbers, seat capacities, and computer lab designations.
   - `manage_users_screen.dart` — User directory screen for inspecting user profiles and role assignment.
   - `resource_library_screen.dart` — Administrative document library viewer.
-  - `routine_management_screen.dart` — Version control screen for activating, archiving, or rolling back published timetable versions.
-  - `scheduling_workspace_screen.dart` — Full-page container for the interactive 5-tab Phase 2b Scheduling Workspace.
-  - `timetable_grid_screen.dart` — Full-canvas weekly timetable grid viewer for visualizing complete departmental routines.
+  - `routine_management_screen.dart` — Version control screen with upfront slot counts, hover/focus editing actions, and adaptive modal editor.
+  - `scheduling_workspace_screen.dart` — Full-page container for the interactive 5-tab Scheduling Workspace with 1024px collision fix and 390px ergonomics.
+  - `timetable_grid_screen.dart` — Full-canvas weekly timetable grid viewer with above-control filters, live match counts, docked 340px inspector at $\ge 1100\text{px}$, and swipeable day agenda below $860\text{px}$.
   - `timetable_settings_screen.dart` — Settings screen for customizing academic shift times, lunch breaks, and prayer slots.
-  - `upload_routine_screen.dart` — Drag-and-drop Excel routine upload screen with column mapping and schema validation.
+  - `upload_routine_screen.dart` — Drag-and-drop Excel routine upload screen with 3-step post-parse publication pipeline and secondary warning recovery.
 - **Services:**
   - `academic_config_service.dart` — Backend service fetching and persisting academic catalog hierarchies (departments, courses, semesters).
-  - `admin_service.dart` — Core admin service handling high-privilege RPCs and administrative queries.
+  - `admin_service.dart` — Core admin service handling high-privilege RPCs, room queries, and administrative operations.
   - `engine_connectivity_service.dart` — Health check and network client communicating with the Python solver microservice.
   - `generation_profile.dart` — Helper service bundling semester constraints into the standardized JSON payload required by the engine.
   - `routine_workbook_parser.dart` — Dart-side Excel parser extracting routine entries and room schedules from uploaded `.xlsx` files.
@@ -144,7 +153,8 @@ This document provides a comprehensive, complete index of all folders and files 
   - `timetable_engine_service.dart` — Dispatcher sending solve requests to Supabase Edge Functions or the direct solver API.
 - **Widgets:**
   - `admin_card_grid.dart` — Responsive grid displaying operational summary cards on the admin dashboard.
-  - `admin_desktop_shell.dart` — Full-height desktop shell with persistent sidebar navigation, top header, and role-guarded action buttons.
+  - `admin_desktop_shell.dart` — Full-height desktop shell with persistent sidebar navigation, engine health pill, breadcrumbs, and single-header enforcement.
+  - `admin_schedule_slot.dart` — Administrative schedule slot component with semantic left border accents (theory, lab, joint), cohort/faculty tags, and room alias tooltips.
 
 #### `lib/features/auth/` (Authentication, Pre-Auth Story & Account Security)
 - **Controllers:**
@@ -179,8 +189,8 @@ This document provides a comprehensive, complete index of all folders and files 
   - `routine_convergence_showcase.dart` — Pure-Flutter vector instrument illustrating academic inputs converging into an organized timetable.
 
 #### `lib/features/dashboard/` (Student Hub)
-- `controllers/student_dashboard_controller.dart` — Manages student dashboard data fetching, next class calculation, and routine highlights.
-- `screens/student_dashboard_screen.dart` — Main student home screen showing live/upcoming classes, quick actions, and recent announcements.
+- `controllers/student_dashboard_controller.dart` — Manages student dashboard data fetching, joint-section resolution, next class calculation, and tomorrow's first class preview.
+- `screens/student_dashboard_screen.dart` — Student command center featuring 62/38 desktop split, 68px telemetry strip, and temporal Hero Card (`LiveClassCard`, `NextClassCard`, `MessageHeroCard`).
 
 #### `lib/features/find_teacher/` (Faculty Directory & Real-Time Availability)
 - `controllers/find_teacher_controller.dart` — Handles faculty directory searches, department filtering, and active schedule lookups.
@@ -212,16 +222,16 @@ This document provides a comprehensive, complete index of all folders and files 
 - `widgets/room_status_card.dart` — Top-lit card showing room capacity, active class, occupying teacher, and next free time slot.
 
 #### `lib/features/routine/` (Timetable Viewer)
-- `controllers/routine_controller.dart` — Fetches published routine slots, filters by student batch/section, and toggles full-sheet views.
-- `screens/routine_screen.dart` — Core student routine screen with `USegmentedControl` toggling between personalized and full cohort sheets.
+- `controllers/routine_controller.dart` — Fetches published routine slots, filters by student batch/section or teacher code, and supports swipe day navigation.
+- `screens/routine_screen.dart` — Core timetable viewer with Connected Filter & View Context Bar (`USegmentedControl`), $\ge 860\text{px}$ weekly matrix default, swipeable day agenda, and $\ge 40\text{m}$ break dividers.
 - `services/routine_service.dart` — Fetches active published routine entries from the `routines` Supabase table.
 
 #### `lib/features/teacher/` (Faculty Hub)
-- `controllers/manage_classes_controller.dart` — Controls posting class cancellations, makeup class announcements, and room changes.
-- `controllers/teacher_dashboard_controller.dart` — Manages faculty dashboard data, today's teaching load, and cohort broadcast tools.
-- `screens/manage_classes_screen.dart` — Teacher tool screen for cancelling classes or scheduling makeup slots with automated student notification.
-- `screens/teacher_dashboard_screen.dart` — Faculty home screen displaying today's teaching schedule, room assignments, and student alerts.
-- `services/teacher_service.dart` — Service handling teacher schedule retrieval and database mutations for class cancellations.
+- `controllers/manage_classes_controller.dart` — Controls date-scoped class cancellations, master-detail selection, and truthful two-step side-effect recovery.
+- `controllers/teacher_dashboard_controller.dart` — Manages faculty dashboard data, today's teaching load summary, and cancellation telemetry.
+- `screens/manage_classes_screen.dart` — Surgical teacher class management screen with occurrence date banner, 55/45 master-detail split on desktop vs floating sheet on mobile, and two-step recovery.
+- `screens/teacher_dashboard_screen.dart` — Faculty command center featuring teacher code badge, teaching load summary, and inline `Manage Occurrence` action pills.
+- `services/teacher_service.dart` — Service handling teacher schedule retrieval and `CancellationOutcome` two-step result classification.
 
 ---
 
@@ -236,14 +246,14 @@ This document provides a comprehensive, complete index of all folders and files 
 - `app_drawer.dart` — Slide-out navigation drawer used on compact mobile admin views.
 - `campus_lookup_switcher.dart` — Sliding segmented control switching seamlessly between Teacher and Room lookup modes.
 - `chat_bubble.dart` — Chat/announcement message bubble styling for broadcast feeds.
-- `class_card.dart` — Standard timetable class block card showing course code, room, teacher initials, and time range.
+- `class_card.dart` — Standard timetable class block card with 3px semantic accent bar, teacher badges, `trailingAction` slot, and `isSelected` highlight.
 - `day_selector.dart` — Horizontal day-of-week selector strip for jumping between timetable days (`Sun`–`Thu`).
 - `desktop_shell_scope.dart` — Inherited widget providing desktop shell state, breadcrumbs, and user account popup menus.
 - `explore_fab_menu.dart` — Expandable floating action button providing quick lookup shortcuts on mobile dashboards.
 - `info_row.dart` — Standardized key-value metadata row with high-contrast text and icons.
-- `live_class_card.dart` — Prominent live class hero card with real clock-based progress bar, time elapsed, and reduced-motion guard.
-- `message_hero_card.dart` — Highlight card used for prominent campus notices and emergency alerts.
-- `next_class_card.dart` — Upcoming class preview card showing time remaining until the next lecture begins.
+- `live_class_card.dart` — Active class hero card with 3px orange left accent bar, real clock-based progress bar, time elapsed, cohort pill, and styled room badge.
+- `message_hero_card.dart` — Top-lit status card with 3px semantic accent bar summarizing daily class completion and previewing tomorrow's first lecture.
+- `next_class_card.dart` — Upcoming class preview card with 3px cyan info accent bar, countdown timer, cohort pill, and styled room badge.
 - `notification_tile.dart` — List tile component representing an individual broadcast notice or class update.
 - `quick_action_card.dart` — Grid action card providing one-tap navigation to frequent tasks (e.g. Find Room, View Routine).
 - `resource_card.dart` — File download card displaying document title, file type badge, and size.
@@ -252,8 +262,8 @@ This document provides a comprehensive, complete index of all folders and files 
 - `scrollable_empty.dart` — Scrollable empty-state container allowing pull-to-refresh gestures even when lists are empty.
 - `settings_tile.dart` — Standardized settings row with leading icon, title, subtitle, and trailing switch or chevron.
 - `shell_back_scope.dart` — Back-navigation interceptor managing nested route pops within shell scaffolds.
-- `stat_card.dart` — Metric summary card displaying large tabular numbers and trend labels.
-- `u_adaptive_overlay.dart` — Shared adaptive overlay primitive rendering a centered top-lit modal dialog (`[Esc]` dismissible) on desktop/tablet (`>=768px`) and a single-handle floating bottom sheet on mobile (`<768px`).
+- `stat_card.dart` — Metric summary card displaying large tabular numbers and compact 68px matched-height telemetry mode.
+- `u_adaptive_overlay.dart` — Shared adaptive overlay primitive rendering a centered top-lit modal dialog (`[Esc]` dismissible) on desktop/tablet ($\ge 768\text{px}$) and a single-handle floating bottom sheet on mobile ($< 768\text{px}$).
 - `u_animated_swap.dart` — Shared keyed crossfade, slide, and scale transition primitive that immediately renders rest states under reduced motion.
 - `u_app_bar.dart` — Obsidian Orbit styled application bar with back buttons and action slots.
 - `u_avatar.dart` — Network user avatar with fallback initials and token-compliant borders.
@@ -272,7 +282,7 @@ This document provides a comprehensive, complete index of all folders and files 
 - `u_section_header.dart` — Typography header separating dashboard sections with optional trailing action buttons.
 - `u_segmented_control.dart` — Accessible sliding segmented selector with animated thumb, keyboard navigation, and screen-reader support.
 - `u_text_field.dart` — Form text input field featuring animated outer focus glow, validation error styling, and label hints.
-- `weekly_schedule_view.dart` — Matrix timetable schedule view rendering five days of academic time slots.
+- `weekly_schedule_view.dart` — High-craft academic matrix with 3px semantic cell accents, sticky time headers, today row highlight, cell detail modal inspection, and `RoutineBreakDivider`.
 
 ---
 
@@ -373,6 +383,10 @@ This document provides a comprehensive, complete index of all folders and files 
 | `test/phase_1_navigation_and_shell_test.dart` | Tests role navigation, query-only URL updates, and admin desktop layout under `AppTheme.dark`. |
 | `test/phase_2_design_system_and_components_test.dart` | Tests Obsidian Orbit token contrast, `UButton`, `UCard`, `UTextField`, `UChip`, and state presenters. |
 | `test/phase_3_onboarding_and_auth_experience_test.dart` | Tests onboarding narrative persistence, responsive auth layouts, password checklists, and lens previews. |
+| `test/phase_4_student_teacher_experiences_test.dart` | Tests Phase 4 student/teacher dashboards, weekly routine matrix & swipeable day agenda, and surgical teacher class management at $390\times 844$ and $1440\times 900$. |
+| `test/phase_5_admin_scheduling_and_operations_test.dart` | Tests Phase 5 Admin Command Center (4-stage readiness checklist, load breakdown), 1024px collision & 390px ergonomics in Scheduling Workbench across all 5 panes (Default-Gray signaling, Slide-to-Confirm), and live Routine Operations (USegmentedControl, 4-node solver timeline, 3-step post-parse upload pipeline, Service Recovery Paradox notices). |
+| `test/phase_6_r1_r16_and_supporting_modules_test.dart` | Tests Phase 6 R1–R16 5-category policy architecture, R15 6/7-slot control, CRUD master-detail screens (R4–R14), and supporting campus/admin module overhauls. |
+| `test/phase5_visual_capture_test.dart` | Opt-in visual capture suite rendering the 22-screenshot Phase 5 inspection gallery across Admin Command Center, Scheduling Workbench, and Live Routine Operations. |
 | `test/phase35_visual_capture_test.dart` | Opt-in visual capture suite rendering the 76-screenshot Phase 3.5 inspection gallery. |
 | `test/publish_gate_test.dart` | Validates atomic timetable publishing gates and preflight verification checks. |
 | `test/routine_identity_test.dart` | Tests routine slot matching, section parsing, and combined-section resolution. |
@@ -383,6 +397,7 @@ This document provides a comprehensive, complete index of all folders and files 
 | `test/showcase_controller_test.dart` | Tests state transitions and step selection in the routine convergence showcase. |
 | `test/showcase_preview_test.dart` | Validates showcase vector layout and responsive element sizing. |
 | `test/timetable_settings_test.dart` | Tests solver settings persistence and validation. |
+| `test/failures/` | Working-tree artifact folder holding visual regression diff masks, master images, and isolated diffs generated during golden test runs. |
 
 ---
 
@@ -405,10 +420,10 @@ This document provides a comprehensive, complete index of all folders and files 
 ### Agent Skills (`.agents/skills/`)
 - `.agents/skills/universe-visual-design-system/` — Governs Obsidian Orbit visual tokens, surface hierarchy, and dark/orange palette restraint.
 - `.agents/skills/flutter-interaction-motion/` — Governs micro-interactions, `AppMotion` durations, press compression, and reduced-motion stops.
-- `.agents/skills/flutter-web-responsive-ui/` — Governs desktop-first web breakpoints (`1440`, `1280`, `1024`, `920`, `768`, `390 px`).
-- `.agents/skills/universe-ux-principles/` — Governs product-level UX reasoning, academic task clarity, and honest progress feedback.
+- `.agents/skills/flutter-web-responsive-ui/` — Governs desktop-first web breakpoints ($1440$, $1280$, $1024$, $920$, $860$, $768$, $390\text{px}$).
+- `.agents/skills/universe-ux-principles/` — Governs product-level UX reasoning, academic task clarity, honest progress feedback, and Service Recovery Paradox.
 - `.agents/skills/accessibility-performance/` — Governs WCAG AA/AAA contrast ratios, keyboard focus traversal, and widget rebuild minimization.
-- `.agents/skills/visual-ui-qa/` — Governs visual review, screenshot comparison protocols, and multi-viewport inspection.
+- `.agents/skills/visual-ui-qa/` — Governs visual review, screenshot comparison protocols, and multi-viewport golden inspection.
 - `.agents/skills/universe-implementation/` — Master implementation skill coordinating specialist roles and execution gates.
 
 ### Documentation Files (`docs/`)
@@ -417,8 +432,12 @@ This document provides a comprehensive, complete index of all folders and files 
 - `docs/implementation/phase_1_information_architecture_and_navigation.md` — Phase 1 admin web extension and role navigation documentation.
 - `docs/implementation/phase_2_visual_identity_and_design_system.md` — Phase 2 Obsidian Orbit token specifications and shared widget documentation.
 - `docs/implementation/phase_3_first_impression_onboarding_and_auth.md` — Phase 3/3.5 onboarding, authentication, and showcase documentation.
+- `docs/implementation/phase_4_core_student_and_teacher_experiences.md` — Phase 4 adaptive student/teacher dashboards, routine matrix/agenda, and surgical class management documentation.
+- `docs/implementation/phase_5_administrative_scheduling_experience.md` — Phase 5 Administrative Command Center, live routine operations, and clip-free scheduling workbench documentation.
 - `docs/implementation/phase_0_3_continuation_completion_report.md` — Comprehensive completion report for Phases 0–3.5.
 - `docs/implementation/22-phase-2b-scheduling-workspace-design-proposal.md` — Approved design proposal for the Phase 2b Scheduling Workspace.
+- `docs/screenshots/phase_5/VISUAL_REVIEW_GALLERY.md` — Markdown gallery indexing all 22 Phase 5 visual inspection screenshots across Admin Command Center, Scheduling Workbench, and Live Routine Operations.
+- `docs/screenshots/phase_5/` — Visual raster assets (22 PNG files) documenting Phase 5 viewports ($1440\text{px}$, $1024\text{px}$, $390\text{px}$).
 - `docs/screenshots/phase_3/VISUAL_REVIEW_GALLERY.md` — Markdown gallery indexing all 76 Phase 3.5 visual inspection screenshots.
 - `docs/screenshots/phase_3/README.md` — Visual review guide and local testing instructions.
 - `docs/backend-setup.md` — Database setup guide, table inventory, and security rule reference.

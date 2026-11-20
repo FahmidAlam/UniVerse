@@ -102,11 +102,15 @@ class _UButtonState extends State<UButton> {
     final double hPadding = isCompact ? AppSpacing.lg : AppSpacing.xxl;
     final double vPadding = isCompact ? AppSpacing.sm : AppSpacing.md;
 
-    final Widget labelWidget = Text(
-      widget.label,
-      style: AppTextStyles.button.copyWith(
-        color: _contentColor,
-        fontWeight: FontWeight.w600,
+    final Widget labelWidget = Flexible(
+      child: Text(
+        widget.label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: AppTextStyles.button.copyWith(
+          color: _contentColor,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
 

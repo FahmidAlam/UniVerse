@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
@@ -89,7 +90,8 @@ class _DistributionRecordInspectorState
           _isEditing = false;
           _formError = null;
         } else {
-          _formError = 'Failed to record correction.';
+          _formError = widget.controller.concurrencyConflictMessage ??
+              'Failed to record correction.';
         }
       });
     }
@@ -122,6 +124,8 @@ class _DistributionRecordInspectorState
                   controller: widget.scrollController,
                   padding: const EdgeInsets.all(AppSpacing.lg),
                   children: [
+                    if (widget.controller.hasConcurrencyConflict)
+                      _buildConcurrencyConflictBanner(),
                     _buildIdentityBanner(r),
                     const SizedBox(height: AppSpacing.lg),
                     // 1. Evidence
@@ -244,6 +248,94 @@ class _DistributionRecordInspectorState
     );
   }
 
+  Widget _buildConcurrencyConflictBanner() {
+    final msg = widget.controller.concurrencyConflictMessage ??
+        'Revision v${widget.controller.revision.revisionVersion} was modified by another committee member.';
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.warningSoft,
+        borderRadius: AppSpacing.radiusSm,
+        border: Border.all(color: AppColors.warning),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                PhosphorIconsRegular.warningCircle,
+                color: AppColors.warning,
+                size: 18,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  'CONCURRENCY CONFLICT (SQLSTATE 40001)',
+                  style: AppTextStyles.labelCaps.copyWith(
+                    color: AppColors.warning,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '$msg Your draft inputs are preserved. You can copy your reason/value below and reload the latest revision.',
+            style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
+            children: [
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  minimumSize: Size.zero,
+                ),
+                icon: const Icon(PhosphorIconsRegular.copy, size: 14),
+                label: Text('Copy Draft Edits', style: AppTextStyles.captionMedium),
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(
+                    text:
+                        'Column $_targetColumn: ${_valueController.text}\nReason: ${_reasonController.text}',
+                  ));
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Draft correction copied to clipboard.')),
+                    );
+                  }
+                },
+              ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  minimumSize: Size.zero,
+                ),
+                icon: const Icon(PhosphorIconsRegular.arrowClockwise, size: 14),
+                label:
+                    Text('Reload Latest Revision', style: AppTextStyles.captionMedium),
+                onPressed: () async {
+                  await widget.controller.reloadLatestRevision();
+                  setState(() {
+                    _formError = null;
+                  });
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildIdentityBanner(DistributionSourceRecord r) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -262,11 +354,9 @@ class _DistributionRecordInspectorState
             children: [
               Text(
                 r.courseCode,
-                style: const TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+                style: AppTextStyles.h3.copyWith(
                   color: AppColors.primary,
+                  fontFamilyFallback: AppTextStyles.monospaceFontFallback,
                 ),
               ),
               Container(
@@ -277,8 +367,7 @@ class _DistributionRecordInspectorState
                 ),
                 child: Text(
                   'Batch ${r.batch} · Sec ${r.section}',
-                  style: const TextStyle(
-                    fontSize: 11,
+                  style: AppTextStyles.captionMedium.copyWith(
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
                   ),
@@ -315,10 +404,8 @@ class _DistributionRecordInspectorState
                   Expanded(
                     child: Text(
                       r.conflicts.first,
-                      style: const TextStyle(
-                        fontSize: 11,
+                      style: AppTextStyles.captionMedium.copyWith(
                         color: AppColors.error,
-                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
@@ -331,17 +418,17 @@ class _DistributionRecordInspectorState
     );
   }
 
+  // PHASE 5: Dissolve nested 4-sided inner cards inside the inspector into clean
+  // top-bordered sections with hard-left title alignment.
   Widget _buildSectionCard({
     required String title,
     required IconData icon,
     required Widget child,
   }) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.bgPrimary,
-        borderRadius: AppSpacing.radiusMd,
-        border: Border.all(color: AppColors.border),
+      padding: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.xs),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -353,17 +440,12 @@ class _DistributionRecordInspectorState
               Expanded(
                 child: Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.8,
-                    color: AppColors.textMuted,
-                  ),
+                  style: AppTextStyles.labelCaps,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.sm),
           child,
         ],
       ),
@@ -402,9 +484,8 @@ class _DistributionRecordInspectorState
                 ),
                 child: Text(
                   c['col']!,
-                  style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 10,
+                  style: AppTextStyles.caption.copyWith(
+                    fontFamilyFallback: AppTextStyles.monospaceFontFallback,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textMuted,
                   ),
@@ -415,8 +496,7 @@ class _DistributionRecordInspectorState
                 width: 70,
                 child: Text(
                   c['name']!,
-                  style: const TextStyle(
-                    fontSize: 11,
+                  style: AppTextStyles.caption.copyWith(
                     color: AppColors.textSecondary,
                   ),
                 ),
@@ -424,9 +504,7 @@ class _DistributionRecordInspectorState
               Expanded(
                 child: Text(
                   c['val']!,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
+                  style: AppTextStyles.captionMedium.copyWith(
                     color: AppColors.textPrimary,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -456,10 +534,12 @@ class _DistributionRecordInspectorState
               color: AppColors.success,
             ),
             const SizedBox(width: 6),
-            Text(
-              'Identical to source evidence (No corrections applied)',
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.textSecondary,
+            Expanded(
+              child: Text(
+                'Identical to source evidence (No corrections applied)',
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
             ),
           ],
@@ -480,37 +560,34 @@ class _DistributionRecordInspectorState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              Wrap(
+                spacing: 6,
+                runSpacing: 2,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Text(
                     'Column ${corr.column}:',
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 11,
+                    style: AppTextStyles.caption.copyWith(
+                      fontFamilyFallback: AppTextStyles.monospaceFontFallback,
                       fontWeight: FontWeight.bold,
                       color: AppColors.warning,
                     ),
                   ),
-                  const SizedBox(width: 6),
                   Text(
                     corr.originalValue,
-                    style: const TextStyle(
-                      fontSize: 11,
+                    style: AppTextStyles.caption.copyWith(
                       decoration: TextDecoration.lineThrough,
                       color: AppColors.textMuted,
                     ),
                   ),
-                  const SizedBox(width: 6),
                   const Icon(
                     PhosphorIconsRegular.arrowRight,
                     size: 11,
                     color: AppColors.warning,
                   ),
-                  const SizedBox(width: 6),
                   Text(
                     corr.effectiveValue,
-                    style: const TextStyle(
-                      fontSize: 12,
+                    style: AppTextStyles.bodySmMedium.copyWith(
                       fontWeight: FontWeight.bold,
                       color: AppColors.textPrimary,
                     ),
@@ -520,8 +597,7 @@ class _DistributionRecordInspectorState
               const SizedBox(height: 4),
               Text(
                 'Reason: ${corr.reason}',
-                style: const TextStyle(
-                  fontSize: 11,
+                style: AppTextStyles.caption.copyWith(
                   color: AppColors.textSecondary,
                 ),
               ),
@@ -570,17 +646,15 @@ class _DistributionRecordInspectorState
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
-                    fontSize: 11,
+                  style: AppTextStyles.captionMedium.copyWith(
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
                   ),
                 ),
                 Text(
                   formula != null ? 'Formula: $formula' : 'Static literal value',
-                  style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 10,
+                  style: AppTextStyles.caption.copyWith(
+                    fontFamilyFallback: AppTextStyles.monospaceFontFallback,
                     color: AppColors.textMuted,
                   ),
                 ),
@@ -596,9 +670,8 @@ class _DistributionRecordInspectorState
             ),
             child: Text(
               'Cached: $cached',
-              style: const TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 10,
+              style: AppTextStyles.caption.copyWith(
+                fontFamilyFallback: AppTextStyles.monospaceFontFallback,
                 color: AppColors.primary,
               ),
             ),
@@ -666,16 +739,14 @@ class _DistributionRecordInspectorState
                     children: [
                       Text(
                         'Version v${corr.revisionVersion} · Col ${corr.column}',
-                        style: const TextStyle(
-                          fontSize: 10,
+                        style: AppTextStyles.captionMedium.copyWith(
                           fontWeight: FontWeight.bold,
                           color: AppColors.primary,
                         ),
                       ),
                       Text(
                         '${corr.timestamp.day}/${corr.timestamp.month}/${corr.timestamp.year}',
-                        style: const TextStyle(
-                          fontSize: 10,
+                        style: AppTextStyles.caption.copyWith(
                           color: AppColors.textMuted,
                         ),
                       ),
@@ -684,15 +755,13 @@ class _DistributionRecordInspectorState
                   const SizedBox(height: 2),
                   Text(
                     'Author: ${corr.author}',
-                    style: const TextStyle(
-                      fontSize: 11,
+                    style: AppTextStyles.caption.copyWith(
                       color: AppColors.textSecondary,
                     ),
                   ),
                   Text(
                     'Reason: ${corr.reason}',
-                    style: const TextStyle(
-                      fontSize: 11,
+                    style: AppTextStyles.captionMedium.copyWith(
                       color: AppColors.textPrimary,
                     ),
                   ),
@@ -736,10 +805,9 @@ class _DistributionRecordInspectorState
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'New Audited Correction',
-                style: TextStyle(
-                  fontSize: 12,
+                style: AppTextStyles.bodySmMedium.copyWith(
                   fontWeight: FontWeight.bold,
                   color: AppColors.textPrimary,
                 ),
@@ -800,7 +868,7 @@ class _DistributionRecordInspectorState
             const SizedBox(height: AppSpacing.xs),
             Text(
               _formError!,
-              style: const TextStyle(fontSize: 11, color: AppColors.error),
+              style: AppTextStyles.caption.copyWith(color: AppColors.error),
             ),
           ],
           const SizedBox(height: AppSpacing.md),

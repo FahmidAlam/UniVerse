@@ -554,154 +554,261 @@ abstract class SchedulingPreviewFixtures {
   ];
 
   static final List<PolicyConfigItem> policyItems = [
-    // 1. Section Calendar & Working Days
+    // Category 1 — Term Grid & Section Calendar (R1, R2, R3, R15)
     const PolicyConfigItem(
-      category: 'Section Calendar',
-      ruleId: 'R1 / D1',
-      label: 'Weekend Default & Working Days',
+      category: 'Term Grid & Section Calendar',
+      ruleId: 'R15',
+      label: 'Flexible Daily Slot Grid Configuration (6 vs 7 Slots)',
       description:
-          'Standard academic week runs Sunday through Thursday. Friday and Saturday are university weekends.',
-      defaultValue: 'Friday, Saturday (5 teaching days)',
+          'Controls the daily period grid dimension. 7 daily slots include an afternoon session; 6 slots compress the teaching day before evening.',
+      defaultValue: '7 daily slots (09:00 - 16:00, Period 4 Break)',
+      overrideValue: 'None (Default 7-Slot Grid)',
+      effectiveValue: '7 slots (Period 4 reserved for Lunch/Prayer)',
+      isLocked: true,
+      snapshotRequirement: 'Requires policy snapshot contract: time_slots_grid',
+      valueType: PolicyValueType.slotGridSelector,
+      typedPayload: {'slot_count': 7, 'break_period': 4},
+    ),
+    const PolicyConfigItem(
+      category: 'Term Grid & Section Calendar',
+      ruleId: 'R1 / D1',
+      label: 'Consecutive Section Weekend (7-Day University Week)',
+      description:
+          'University operates across all 7 days (Sunday–Saturday) with Friday Jummah prayer hard-blocked (friday_no_p4). Each section receives 2 consecutive days off per week as its staggered weekend.',
+      defaultValue: '2 consecutive weekend days per section',
       overrideValue: 'None (Universal policy applies)',
-      effectiveValue: 'Sunday - Thursday (5 days)',
+      effectiveValue: 'Staggered 2-Day Section Weekends (5 active teaching days across 7-day cycle)',
       isLocked: true,
       snapshotRequirement:
           'Requires policy snapshot contract: academic_calendars',
+      valueType: PolicyValueType.weekendPairSelector,
+      typedPayload: {'weekend': 'Fri-Sat', 'working_days': 7},
     ),
     const PolicyConfigItem(
-      category: 'Section Calendar',
+      category: 'Term Grid & Section Calendar',
       ruleId: 'R2',
-      label: 'Batch Days-Off Range & Section Calendars',
+      label: 'Batch Day-Off Parity (Max ±1 Day Variance)',
       description:
-          'Undergraduate batches are scheduled across all 5 working days with balanced distribution.',
-      defaultValue: '0 extra cohort off-days',
+          'Sections within the same batch maintain balanced weekly days off (max ±1 day variance across the 7-day cycle).',
+      defaultValue: 'Max ±1 day-off variance across sections',
       overrideValue: 'None',
-      effectiveValue: '5 days active per batch',
+      effectiveValue: 'Strict batch parity enforced across 7-day cycle (Max ±1 Day)',
       isLocked: true,
       snapshotRequirement:
           'Requires policy snapshot contract: cohort_schedule_rules',
+      valueType: PolicyValueType.intStepper,
+      typedPayload: {'max_days_off_diff': 1},
+    ),
+    const PolicyConfigItem(
+      category: 'Term Grid & Section Calendar',
+      ruleId: 'R3',
+      label: 'Section Gap Compactness (Max Consecutive Gap = 1 Slot)',
+      description:
+          'Restricts idle gaps between classes for any student section to at most 1 slot (never 2 consecutive empty slots; 1 slot + break permitted).',
+      defaultValue: 'Max gap <= 1 slot (Hard constraint)',
+      overrideValue: 'None (Universal policy applies)',
+      effectiveValue: 'Max consecutive gap = 1 slot',
+      isLocked: true,
+      snapshotRequirement:
+          'Requires policy snapshot contract: cohort_schedule_rules',
+      valueType: PolicyValueType.intStepper,
+      typedPayload: {'max_internal_gap': 1},
     ),
 
-    // 2. Faculty Availability & Workload
+    // Category 2 — Faculty Workload, Categories & Compactness (R4, R5, R6, R7, R8, R9)
     const PolicyConfigItem(
-      category: 'Faculty Workload',
-      ruleId: 'R7 / D3',
-      label: 'Permanent Faculty Attendance & 2-or-3-Day Off Allocation',
+      category: 'Faculty Workload, Categories & Compactness',
+      ruleId: 'R4',
+      label: 'CSE External-Department Teaching Blocks',
       description:
-          'Full-time faculty are granted attendance days and max 2 scheduled off-days per weekly cycle.',
-      defaultValue: 'Max 2 teaching off-days',
+          'Hard constraint guaranteeing CSE faculty teaching commitments in other departments are fully blocked out.',
+      defaultValue: 'Declared external blocks locked out',
+      overrideValue: 'None (Default blocks honored)',
+      effectiveValue: 'External department teaching blocks locked',
+      isLocked: true,
+      snapshotRequirement:
+          'Requires policy snapshot contract: faculty_blackout_windows',
+      valueType: PolicyValueType.timeWindowList,
+      typedPayload: {'external_blocks': 2},
+    ),
+    const PolicyConfigItem(
+      category: 'Faculty Workload, Categories & Compactness',
+      ruleId: 'R5',
+      label: 'Guest & External Faculty Windows (GED/EEE/PHY/ENG)',
+      description:
+          'Guest and external department teachers (GED, EEE, Physics, English) are scheduled strictly within their verified declared windows.',
+      defaultValue: 'Strict window adherence',
+      overrideValue: 'None (Universal policy applies)',
+      effectiveValue: 'Teaching restricted to declared windows only',
+      isLocked: true,
+      snapshotRequirement:
+          'Requires policy snapshot contract: faculty_blackout_windows',
+      valueType: PolicyValueType.timeWindowList,
+      typedPayload: {'guest_windows_enforced': true},
+    ),
+    const PolicyConfigItem(
+      category: 'Faculty Workload, Categories & Compactness',
+      ruleId: 'R6 / D4',
+      label: 'Category-Based Workload Distribution (Adjunct vs Permanent)',
+      description:
+          'Out of the 7-day week, Permanent faculty receive 2–3 off-days (4–5 working days). Adjuncts scale by course count (2 crs → ≤2d, 3 crs → 3–4d, ≥4 crs → 4–5d).',
+      defaultValue: 'Adjunct bands: 2->2d, 3->3-4d, 4+->4-5d | Permanent: 4-5d',
+      overrideValue: 'None',
+      effectiveValue: 'Enforced strictly per category matrix',
+      isLocked: true,
+      snapshotRequirement:
+          'Requires policy snapshot contract: adjunct_engagement_policy',
+      valueType: PolicyValueType.dayBandMatrix,
+      typedPayload: {'2_courses': 2, '3_courses': 4, '4plus_courses': 5, 'permanent_days': 5},
+    ),
+    const PolicyConfigItem(
+      category: 'Faculty Workload, Categories & Compactness',
+      ruleId: 'R7 / D3',
+      label: 'Permanent Faculty Off-Day Bounds (Min 2 / Max 3 Days Off)',
+      description:
+          'Full-time permanent faculty are guaranteed a minimum of 2 and maximum of 3 weekly days off.',
+      defaultValue: 'Min 2 / Max 3 weekly days off',
       overrideValue: 'Approved committee allocations for 14 faculty',
       effectiveValue: '2 off-days per full-time faculty member',
       isLocked: true,
       snapshotRequirement:
           'Requires policy snapshot contract: faculty_availability_matrix',
+      valueType: PolicyValueType.intStepper,
+      typedPayload: {'off_days_min': 2, 'off_days_max': 3},
     ),
     const PolicyConfigItem(
-      category: 'Faculty Workload',
-      ruleId: 'R6 / D4',
-      label: 'Adjunct Faculty Distinct-Course Restriction',
+      category: 'Faculty Workload, Categories & Compactness',
+      ruleId: 'R8',
+      label: 'Individual Faculty Day & Slot Preferences',
       description:
-          'Adjunct teachers may teach at most 2 distinct course codes to ensure focus and availability.',
-      defaultValue: 'Max 2 distinct courses',
+          'Soft objective optimization prioritizing individual faculty day and slot preferences.',
+      defaultValue: 'Weight 0.85 in soft objective',
       overrideValue: 'None',
-      effectiveValue: 'Enforced strictly (Hard constraint in CP-SAT)',
-      isLocked: true,
-      snapshotRequirement:
-          'Requires policy snapshot contract: adjunct_engagement_policy',
-    ),
-    const PolicyConfigItem(
-      category: 'Faculty Workload',
-      ruleId: 'R4 / R5',
-      label: 'External Commitments & Incoming Availability',
-      description:
-          'Tracks verified external academic commitments and restricts class scheduling to declared available windows.',
-      defaultValue: 'Full availability',
-      overrideValue: 'Dr. FA: Unavailable Wed afternoon (Senate Meeting)',
-      effectiveValue: 'Custom windows active for 2 faculty',
-      isLocked: true,
-      snapshotRequirement:
-          'Requires policy snapshot contract: faculty_blackout_windows',
-    ),
-    const PolicyConfigItem(
-      category: 'Faculty Workload',
-      ruleId: 'R8 / R9',
-      label: 'Teacher Preferences & SUST Compactness',
-      description:
-          'Minimizes gaps between consecutive teaching periods (compactness) and honors morning/afternoon preferences.',
-      defaultValue: 'Balanced spread, max 2 period gap',
-      overrideValue: 'High penalty on 3+ period gaps',
       effectiveValue: 'Optimized with weight 0.85 in soft objective',
       isLocked: true,
       snapshotRequirement:
           'Requires policy snapshot contract: solver_objective_weights',
+      valueType: PolicyValueType.intStepper,
+      typedPayload: {'preference_weight': 85},
+    ),
+    const PolicyConfigItem(
+      category: 'Faculty Workload, Categories & Compactness',
+      ruleId: 'R9',
+      label: 'SUST Adjunct Mode & Compactness (Single Side of Break)',
+      description:
+          'SUST Adjunct teachers prefer classes grouped on a single side of break (Before Break OR After Break) with max daily gap <= 2 slots.',
+      defaultValue: 'Single side of break preferred, max gap <= 2 slots',
+      overrideValue: 'High penalty on 3+ period gaps',
+      effectiveValue: 'Single side of break + max 2-period gap enforced',
+      isLocked: true,
+      snapshotRequirement:
+          'Requires policy snapshot contract: solver_objective_weights',
+      valueType: PolicyValueType.booleanToggle,
+      typedPayload: {'max_gap': 2, 'side_of_break_preference': true},
     ),
 
-    // 3. Room Pools & Specialized Facilities
+    // Category 3 — Shared Laboratories & Dynamic Classroom Pools (R10, R11, R14)
     const PolicyConfigItem(
-      category: 'Room Pools',
-      ruleId: 'R10 / R11',
-      label: 'ECL & Physics Lab Specialized Calendars',
+      category: 'Shared Laboratories & Dynamic Classroom Pools',
+      ruleId: 'R10',
+      label: 'ECL Laboratories Availability Windows (EEE-Owned)',
       description:
-          'Electronics Lab (ECL) and Physics Lab are shared across EEE and CSE departments with pre-allocated slots.',
-      defaultValue: 'Shared pool with fixed time-shares',
+          'Electronics Lab (ECL-1 and ECL-2) are owned by EEE department and scheduled strictly within their declared available windows.',
+      defaultValue: 'ECL-1 & ECL-2 available in declared windows only',
       overrideValue: 'CSE: Mon 10:00-12:00, Wed 14:00-16:00',
-      effectiveValue: 'Reserved slots enforced for PHY-1104 and EEE-2206',
+      effectiveValue: 'Reserved slots enforced for EEE-2206 and shared sessionals',
       isLocked: true,
       snapshotRequirement:
           'Requires policy snapshot contract: shared_lab_allocations',
+      valueType: PolicyValueType.timeWindowList,
+      typedPayload: {
+        'ecl_windows': ['Mon 10:00-12:00', 'Wed 14:00-16:00']
+      },
     ),
     const PolicyConfigItem(
-      category: 'Room Pools',
-      ruleId: 'R14',
-      label: 'Semester-Specific General Classroom Allocation',
+      category: 'Shared Laboratories & Dynamic Classroom Pools',
+      ruleId: 'R11',
+      label: 'Physics Laboratory Exclusivity & Bound Course Codes',
       description:
-          'Allocates general lecture halls (RAB-101 to RAB-305) based on cohort enrollment thresholds.',
-      defaultValue: 'Dynamic room selection based on headcount',
+          'Physics Lab is exclusively dedicated to designated Physics lab course codes within its declared conflict-free windows.',
+      defaultValue: 'Designated Physics lab courses exclusively bound to Physics Lab',
+      overrideValue: 'PHY-1104 bound exclusively (Tue 10:00-12:00)',
+      effectiveValue: 'Physics lab conflict-free schedule locked',
+      isLocked: true,
+      snapshotRequirement:
+          'Requires policy snapshot contract: shared_lab_allocations',
+      valueType: PolicyValueType.timeWindowList,
+      typedPayload: {
+        'physics_courses': ['PHY-1104'],
+        'physics_windows': ['Tue 10:00-12:00']
+      },
+    ),
+    const PolicyConfigItem(
+      category: 'Shared Laboratories & Dynamic Classroom Pools',
+      ruleId: 'R14',
+      label: 'Semester Dynamic General Classroom Pool',
+      description:
+          'Semester-specific active general lecture room pool with active theory hall count and deep-link to room management.',
+      defaultValue: 'Dynamic room selection based on enrollment headcount',
       overrideValue: 'Combined A+B sections must use 90+ seat halls',
-      effectiveValue: 'Halls 301, 302, 305 allocated for combined sections',
+      effectiveValue: 'Active pool: 7 theory halls (RAB-101 to RAB-305)',
       isLocked: true,
       snapshotRequirement:
           'Requires policy snapshot contract: room_capacity_rules',
+      valueType: PolicyValueType.booleanToggle,
+      typedPayload: {'term_scoped_room_pool': true, 'active_theory_rooms': 7},
     ),
 
-    // 4. Time Grid & Course Meeting Patterns
+    // Category 4 — Credit-Based Course Distribution Rules (R12, R13)
     const PolicyConfigItem(
-      category: 'Time Grid',
-      ruleId: 'R15',
-      label: 'Daily Time Slots, Clocks & Break Structure',
-      description:
-          '7 daily slots: 09:00, 10:00, 11:00, 12:00 (Prayer/Lunch Break), 13:00, 14:00, 15:00.',
-      defaultValue: '7 periods, 50 min each, 1 hr break at 12:00',
-      overrideValue: 'Universal schedule active',
-      effectiveValue: '7 slots (Period 4 reserved for Lunch/Prayer)',
-      isLocked: true,
-      snapshotRequirement: 'Requires policy snapshot contract: time_slots_grid',
-    ),
-    const PolicyConfigItem(
-      category: 'Time Grid',
+      category: 'Credit-Based Course Distribution Rules',
       ruleId: 'R12 / D5',
-      label: 'Sessional Break-Crossing Permission',
+      label: 'Sessional Lab Weekly Meeting Distribution',
       description:
-          'By default, 100-minute sessional lab sessions cannot span across the university lunch break.',
-      defaultValue: 'Disallowed (Break crossing forbidden)',
+          '1 / 1.5 Credits -> 2 classes/week; 2 Credits -> 3 classes/week (2 consecutive slots in same lab preferred). Crossing university break is disallowed.',
+      defaultValue: '1/1.5 Cr -> 2 slots/wk; 2 Cr -> 3 slots/wk (no break crossing)',
       overrideValue: 'None',
-      effectiveValue: 'Disallowed (Strict boundary enforcement)',
+      effectiveValue: 'Strict sessional duration and break boundary enforced',
       isLocked: true,
       snapshotRequirement:
           'Requires policy snapshot contract: session_duration_rules',
+      valueType: PolicyValueType.booleanToggle,
+      typedPayload: {'allow_break_crossing': false, '1cr_slots': 2, '2cr_slots': 3},
     ),
     const PolicyConfigItem(
-      category: 'Time Grid',
+      category: 'Credit-Based Course Distribution Rules',
       ruleId: 'R13 / D2',
-      label: 'Theory 3-Credit Meeting Pattern Spread',
+      label: '1–2 Credit CSE Theory Consecutive Slot Completion',
       description:
-          '3-credit courses are scheduled as 2 meetings/week with at least 1 day gap (e.g. Sun/Tue or Mon/Wed).',
-      defaultValue: '2 sessions/week separated by at least 1 day',
-      overrideValue: 'Strictly forbids back-to-back days',
-      effectiveValue: 'Sun/Tue, Mon/Wed, or Tue/Thu pattern enforced',
+          '1 or 2 Credits theory -> completed in 1 day across 2 consecutive slots in the same classroom. 3-Credit theory -> scheduled as 2 meetings/week with at least 1 day gap.',
+      defaultValue: '1-2 Cr Theory: 1 day, 2 consecutive slots | 3 Cr: 2 days spread',
+      overrideValue: 'Strictly forbids back-to-back days for 3-credit',
+      effectiveValue: '1-2 Cr in 1 day (2 consecutive slots); 3 Cr Sun/Tue or Mon/Wed',
       isLocked: true,
       snapshotRequirement:
           'Requires policy snapshot contract: course_pattern_rules',
+      valueType: PolicyValueType.textRule,
+      typedPayload: {'low_credit_consecutive': true, '3cr_spread': true},
+    ),
+
+    // Category 5 — UI Governance & Impact Warnings (R16)
+    const PolicyConfigItem(
+      category: 'UI Governance & Impact Warnings',
+      ruleId: 'R16',
+      label: 'Authoritative Policy Snapshot Binding & Impact Governance',
+      description:
+          'Binds all typed calendar, workload, facility, and meeting rules to the accepted revision SHA-256 hash. Overrides light up with warning accents and 1-tap reset.',
+      defaultValue: 'Frozen JSON PolicySnapshot payload',
+      overrideValue: 'None (Default baseline active)',
+      effectiveValue: 'PolicySnapshot frozen & verified for Revision v4',
+      isLocked: true,
+      snapshotRequirement:
+          'Requires policy snapshot contract: policy_snapshot_binding',
+      valueType: PolicyValueType.textRule,
+      typedPayload: {
+        'snapshot_bound': true,
+        'hash': 'sha256:8f4a7c29e1b65d0a334812fec902b4d758913ac6b110294e77fa5920a0b94321',
+      },
     ),
   ];
 
@@ -743,44 +850,66 @@ abstract class SchedulingPreviewFixtures {
       isResolved: false,
     ),
     const ReadinessItem(
-      id: 'chk-lab-calendars',
-      category: 'Specialized Labs',
-      title: 'Physics Lab & ECL Calendars Reconciled',
+      id: 'chk-faculty-windows',
+      category: 'Faculty Availability (R4, R5)',
+      title: 'R4/R5 Faculty Window Completeness & External Blocks',
       description:
-          'Shared lab hours for PHY-1104 and EEE-2205 reconciled with EEE and Physics departments.',
+          'CSE external-department teaching blocks (R4) and guest/external faculty windows (GED, EEE, Physics, English) are declared and conflict-free.',
       severity: ReadinessSeverity.info,
-      affectedEntities: ['PHY-LAB', 'ECL-LAB'],
-      targetTab: 1,
-      isResolved: true,
-    ),
-    const ReadinessItem(
-      id: 'chk-policy-snapshot',
-      category: 'Policy Snapshot',
-      title: 'Academic Policy Baseline Loaded',
-      description:
-          'Resolutions R1 through R15 are loaded into the working configuration snapshot.',
-      severity: ReadinessSeverity.info,
-      affectedEntities: ['All 4 Academic Decision Pillars'],
+      affectedEntities: ['Dr. FA (Senate Wed)', 'Guest Windows (GED/EEE)'],
       targetTab: 1,
       isResolved: true,
     ),
     const ReadinessItem(
       id: 'chk-faculty-offdays',
-      category: 'Faculty Availability',
-      title: 'Permanent Faculty Off-Day Matrix Complete',
+      category: 'Faculty Workload (R7)',
+      title: 'R7 Permanent Faculty 2–3 Day-Off Bounds Compliance',
       description:
-          'All 14 permanent faculty members have designated attendance and teaching off-days.',
+          'All 14 permanent faculty members satisfy the Min 2 / Max 3 weekly days-off policy requirement.',
       severity: ReadinessSeverity.info,
-      affectedEntities: ['14 Faculty Members'],
+      affectedEntities: ['14 Permanent Faculty Members'],
+      targetTab: 1,
+      isResolved: true,
+    ),
+    const ReadinessItem(
+      id: 'chk-lab-calendars',
+      category: 'Specialized Labs (R10, R11)',
+      title: 'R10/R11 ECL & Physics Lab Calendars & Course Exclusivity',
+      description:
+          'Shared lab hours for PHY-1104 and EEE-2206 reconciled with EEE and Physics departments. PHY-1104 bound exclusively to Physics Lab.',
+      severity: ReadinessSeverity.info,
+      affectedEntities: ['PHY-LAB (Exclusive)', 'ECL-1 & ECL-2 (EEE Shared)'],
+      targetTab: 1,
+      isResolved: true,
+    ),
+    const ReadinessItem(
+      id: 'chk-room-capacity',
+      category: 'Dynamic Room Pool (R14, R15)',
+      title: 'R14/R15 Dynamic Room Pool to Daily Slot Capacity Ratio',
+      description:
+          '7 active theory rooms across 7 daily slots (49 room-slots/day) adequately accommodate 38 required theory sections with 22.4% buffer.',
+      severity: ReadinessSeverity.info,
+      affectedEntities: ['7 Active Theory Halls', '7-Slot Daily Grid'],
+      targetTab: 1,
+      isResolved: true,
+    ),
+    const ReadinessItem(
+      id: 'chk-policy-snapshot',
+      category: 'Policy Snapshot (R16)',
+      title: 'R1–R16 Academic Policy Snapshot Bound',
+      description:
+          'All 16 committee scheduling resolutions (R1 through R16) are frozen into the working configuration snapshot tied to Revision #4.',
+      severity: ReadinessSeverity.info,
+      affectedEntities: ['Resolutions R1–R16 Snapshot'],
       targetTab: 1,
       isResolved: true,
     ),
     const ReadinessItem(
       id: 'chk-engine-connectivity',
       category: 'Engine Boundary',
-      title: 'CP-SAT Engine Contract Ready',
+      title: 'CP-SAT Engine Protocol Ready',
       description:
-          'Solver service protocol v2 ready to accept normalized immutable bytes and policy parameters.',
+          'Solver service protocol v2 ready to accept normalized immutable bytes and frozen policy parameters.',
       severity: ReadinessSeverity.info,
       affectedEntities: ['OR-Tools CP-SAT Service'],
       targetTab: 3,
@@ -805,6 +934,43 @@ abstract class SchedulingPreviewFixtures {
       'Teacher Preference Score': '94.8%',
       'Room Travel Optimization': '98.2%',
       'Branch & Bound Iterations': '4,120',
+    },
+  );
+
+  static const SolverExecutionResult infeasibleResult = SolverExecutionResult(
+    state: SolverRunState.infeasible,
+    outcomeLabel: 'INFEASIBLE (Hard Constraint Conflict)',
+    hardViolations: 2,
+    softScorePercent: 0.0,
+    variablesExplored: 14200,
+    elapsedSeconds: 14.2,
+    conflictDetails: [
+      'R10 ECL Window Conflict: EEE-2206 and PHY-1104 compete for ECL-1 on Monday 10:00-12:00.',
+      'R4 Faculty Blackout: Dr. FA is assigned CSE-3101 during declared Senate Meeting window (Wed 14:00).',
+    ],
+    conflictDiagnostics: [
+      SolverConflictDiagnostic(
+        constraintId: 'R10_ECL_WINDOW',
+        title: 'Shared ECL Lab Over-Subscription',
+        humanExplanation:
+            'Both EEE-2206 Section A and PHY-1104 Section B are assigned to ECL-1 during the shared Monday 10:00-12:00 window. Department quotas exceed capacity.',
+        affectedEntities: ['EEE-2206 (Sec A)', 'PHY-1104 (Sec B)', 'Room ECL-1'],
+        targetTab: 1, // Configuration
+      ),
+      SolverConflictDiagnostic(
+        constraintId: 'R4_FACULTY_BLACKOUT',
+        title: 'Faculty External Blackout Violation',
+        humanExplanation:
+            'Dr. FA has a registered hard external commitment (University Senate) on Wednesday 14:00-16:00, but Row 24 distribution assigns a theory session.',
+        affectedEntities: ['Dr. FA', 'CSE-3101', 'Wed 14:00'],
+        targetTab: 0, // Distribution
+        targetRow: 24,
+      ),
+    ],
+    diagnostics: {
+      'Hard Constraints Checked': '18,400',
+      'Unresolved Infeasibility Cores': '2',
+      'Conflicted Variables': '14',
     },
   );
 
@@ -950,6 +1116,50 @@ abstract class SchedulingPreviewFixtures {
       'subject_code': 'CSE-2204',
       'teacher_code': 'TI / RA',
       'teachers': ['TI', 'RA'],
+      'room': 'SW-LAB-2',
+    }),
+    RoutineEntry.fromMap({
+      'day': 'Thursday',
+      'time_start': '09:00',
+      'time_end': '09:50',
+      'batch': '2024',
+      'section': 'A',
+      'subject_code': 'CSE-1101',
+      'teacher_code': 'MSA',
+      'teachers': ['MSA'],
+      'room': 'RAB-201',
+    }),
+    RoutineEntry.fromMap({
+      'day': 'Friday',
+      'time_start': '09:00',
+      'time_end': '09:50',
+      'batch': '2023',
+      'section': 'A',
+      'subject_code': 'CSE-2201',
+      'teacher_code': 'TI',
+      'teachers': ['TI'],
+      'room': 'RAB-302',
+    }),
+    RoutineEntry.fromMap({
+      'day': 'Friday',
+      'time_start': '14:00',
+      'time_end': '15:40',
+      'batch': '2023',
+      'section': 'B',
+      'subject_code': 'CSE-2202',
+      'teacher_code': 'FK / NJ',
+      'teachers': ['FK', 'NJ'],
+      'room': 'SW-LAB-1',
+    }),
+    RoutineEntry.fromMap({
+      'day': 'Saturday',
+      'time_start': '10:00',
+      'time_end': '11:40',
+      'batch': '2024',
+      'section': 'A',
+      'subject_code': 'CSE-1102',
+      'teacher_code': 'MSA / NJ',
+      'teachers': ['MSA', 'NJ'],
       'room': 'SW-LAB-2',
     }),
   ];

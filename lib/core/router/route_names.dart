@@ -41,6 +41,8 @@ abstract class RouteNames {
   static const String resourceLibrary = '/admin/resources/library';
   static const String broadcastHistory = '/admin/broadcast/history';
 
+  static const String manageCourses = '/admin/timetable/courses';
+  static const String manageBatches = '/admin/timetable/batches';
   static const String manageRooms = '/admin/timetable/rooms';
   static const String manageFaculty = '/admin/timetable/faculty';
   static const String manageCourseEligibility =
@@ -62,8 +64,9 @@ abstract class RouteNames {
         'desig': desig
       }).toString();
 
-  // PHASE 1: The routine screen and sidebar share the same query/default contract.
-  static String routineTab(Uri uri) => switch (uri.queryParameters['tab']) {
+  // The routine screen and sidebar share the same query/default contract.
+  static String routineTab(Uri uri) => switch (uri.queryParameters['tab']?.trim().toLowerCase()) {
+        'grid' => 'grid',
         'generate' => 'generate',
         'upload' => 'upload',
         _ => 'manage',

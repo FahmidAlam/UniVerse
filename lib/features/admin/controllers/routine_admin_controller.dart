@@ -4,16 +4,31 @@ import 'package:universe/core/utils/safe_change_notifier.dart';
 import 'package:universe/features/routine/services/routine_service.dart';
 
 class RoutineAdminController extends SafeChangeNotifier {
-  final RoutineService _service = RoutineService();
+  final RoutineService _service;
 
   List<RoutineEntry> _all = [];
   bool _isLoading = false;
+  bool _hasLoaded = false;
   String? _errorMessage;
   String? _dayFilter;
 
+  // PHASE 5: Optional DI seams for deterministic offline widget testing.
+  RoutineAdminController({
+    RoutineService? service,
+    List<RoutineEntry>? initialEntries,
+  }) : _service = service ?? RoutineService() {
+    if (initialEntries != null) {
+      _all = List<RoutineEntry>.of(initialEntries);
+      _hasLoaded = true;
+    }
+  }
+
   bool get isLoading => _isLoading;
+  bool get hasLoaded => _hasLoaded;
   String? get errorMessage => _errorMessage;
   String? get dayFilter => _dayFilter;
+  int get totalCount => _all.length;
+  List<RoutineEntry> get allRows => _all;
 
   List<RoutineEntry> get filtered => _dayFilter == null
       ? _all
@@ -31,6 +46,7 @@ class RoutineAdminController extends SafeChangeNotifier {
         return byDay != 0 ? byDay : a.timeStart.compareTo(b.timeStart);
       });
       _all = list;
+      _hasLoaded = true;
     } catch (_) {
       _errorMessage = 'Could not load routines.';
     }

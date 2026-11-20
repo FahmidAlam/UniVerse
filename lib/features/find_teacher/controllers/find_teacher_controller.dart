@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:universe/core/models/routine_model.dart';
+import 'package:universe/core/utils/safe_change_notifier.dart';
 import 'package:universe/features/find_teacher/services/teacher_location_service.dart';
 
 class TeacherInfo {
@@ -28,8 +29,9 @@ class TeacherInfo {
   });
 }
 
-class FindTeacherController extends ChangeNotifier {
+class FindTeacherController extends SafeChangeNotifier {
   final TeacherLocationService _service;
+  StreamSubscription<List<RoutineEntry>>? _routineSub;
 
   FindTeacherController({required TeacherLocationService service})
     : _service = service;
@@ -53,6 +55,7 @@ class FindTeacherController extends ChangeNotifier {
       notifyListeners();
 
       _allRoutines = await _service.fetchAllRoutines();
+      if (disposed) return;
 
       final teacherMap = <String, String>{};
       for (final entry in _allRoutines!) {
@@ -73,6 +76,7 @@ class FindTeacherController extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     } catch (e) {
+      if (disposed) return;
       _error = e.toString();
       _isLoading = false;
       notifyListeners();
@@ -157,10 +161,19 @@ class FindTeacherController extends ChangeNotifier {
   }
 
   void subscribeToRealTimeUpdates() {
-    _service.streamAllRoutines().listen((routines) {
+    _routineSub?.cancel();
+    _routineSub = _service.streamAllRoutines().listen((routines) {
+      if (disposed) return;
       _allRoutines = routines;
       initialize();
     });
+  }
+
+  @override
+  void dispose() {
+    _routineSub?.cancel();
+    _routineSub = null;
+    super.dispose();
   }
 
   Future<void> refresh() async {

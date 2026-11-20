@@ -51,6 +51,8 @@ class TestNotifications extends ChangeNotifier
 
 class FakeRoomsController extends ChangeNotifier implements RoomsController {
   @override
+  bool get disposed => false;
+  @override
   bool get isLoading => false;
   @override
   String? get error => null;
@@ -88,6 +90,8 @@ class FakeRoomsController extends ChangeNotifier implements RoomsController {
 
 class FakeFindTeacherController extends ChangeNotifier
     implements FindTeacherController {
+  @override
+  bool get disposed => false;
   String _query = '';
   final List<TeacherInfo> _all = [
     TeacherInfo(
@@ -318,13 +322,13 @@ void main() {
               .subject,
           'Subject 302');
       final retainedState = tester
-          .state(find.byType(faculty ? TeacherDetailScreen : RoomDetailScreen));
+          .state(find.byType(faculty ? TeacherDetailView : RoomDetailView));
       router.go('$path?$parameter=303');
       await tester.pump();
       expect(requests.length, 2);
       expect(
-          tester.state(
-              find.byType(faculty ? TeacherDetailScreen : RoomDetailScreen)),
+          tester
+              .state(find.byType(faculty ? TeacherDetailView : RoomDetailView)),
           same(retainedState));
       expect(find.byType(WeeklyScheduleView), findsNothing);
       router.go('$path?$parameter=304');
@@ -422,18 +426,18 @@ void main() {
   // PHASE 1 RECONCILE: Release-mode preview access is admin-only; debug may disclose it publicly.
   test('release preview guard requires an authenticated administrator', () {
     expect(
-        AppRouter.redirectFor(
-            AuthStatus.unauthenticated, RouteNames.schedulingWorkspacePreview, null,
+        AppRouter.redirectFor(AuthStatus.unauthenticated,
+            RouteNames.schedulingWorkspacePreview, null,
             enableUnauthenticatedSchedulingPreview: false),
         RouteNames.login);
     expect(
-        AppRouter.redirectFor(
-            AuthStatus.authenticated, RouteNames.schedulingWorkspacePreview, 'student',
+        AppRouter.redirectFor(AuthStatus.authenticated,
+            RouteNames.schedulingWorkspacePreview, 'student',
             enableUnauthenticatedSchedulingPreview: false),
         RouteNames.studentDashboard);
     expect(
-        AppRouter.redirectFor(
-            AuthStatus.authenticated, RouteNames.schedulingWorkspacePreview, 'admin',
+        AppRouter.redirectFor(AuthStatus.authenticated,
+            RouteNames.schedulingWorkspacePreview, 'admin',
             enableUnauthenticatedSchedulingPreview: false),
         isNull);
   });
@@ -597,8 +601,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.byType(AppBottomNav),
             width < 768 ? findsOneWidget : findsNothing);
-        expect(find.byType(ExploreFabMenu),
-            width < 768 && role != 'admin' ? findsOneWidget : findsNothing);
+        expect(find.byType(ExploreFabMenu), findsNothing);
         expect(find.byTooltip('Profile / Account'), findsOneWidget);
         expect(find.text('Page body'), findsOneWidget);
         expect(tester.takeException(), isNull);
@@ -606,9 +609,13 @@ void main() {
     }
   }
 
-  for (final size in [const Size(390, 844), const Size(1440, 900)]) {
+  for (final (size, textScale) in [
+    (const Size(390, 844), 1.0),
+    (const Size(390, 844), 1.3),
+    (const Size(1440, 900), 1.0)
+  ]) {
     testWidgets(
-        'RoomsScreen and FindTeacherScreen render cleanly at $size without overflow',
+        'RoomsScreen and FindTeacherScreen render cleanly at $size text $textScale without overflow',
         (tester) async {
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;
@@ -624,7 +631,10 @@ void main() {
         MaterialApp(
           theme: AppTheme.dark,
           home: MediaQuery(
-            data: MediaQueryData(size: size, disableAnimations: true),
+            data: MediaQueryData(
+                size: size,
+                disableAnimations: true,
+                textScaler: TextScaler.linear(textScale)),
             child: RoomsScreen(controller: roomsCtrl),
           ),
         ),
@@ -632,17 +642,19 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Showing 3 rooms'), findsOneWidget);
       expect(find.text('302'), findsOneWidget);
-      expect(
-        find.byType(GridView),
-        size.width >= 700 ? findsOneWidget : findsNothing,
-      );
+      expect(find.byType(ListView), findsWidgets);
+      expect(find.byType(VerticalDivider),
+          size.width >= 900 ? findsOneWidget : findsNothing);
       expect(tester.takeException(), isNull);
 
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.dark,
           home: MediaQuery(
-            data: MediaQueryData(size: size, disableAnimations: true),
+            data: MediaQueryData(
+                size: size,
+                disableAnimations: true,
+                textScaler: TextScaler.linear(textScale)),
             child: FindTeacherScreen(controller: teacherCtrl),
           ),
         ),
@@ -650,10 +662,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Showing 3 faculty'), findsOneWidget);
       expect(find.text('Dr. Jamilur Rahman'), findsOneWidget);
-      expect(
-        find.byType(GridView),
-        size.width >= 700 ? findsOneWidget : findsNothing,
-      );
+      expect(find.byType(ListView), findsWidgets);
+      expect(find.byType(VerticalDivider),
+          size.width >= 900 ? findsOneWidget : findsNothing);
       expect(tester.takeException(), isNull);
     });
   }

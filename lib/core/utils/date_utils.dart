@@ -2,6 +2,11 @@ import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/constants/app_enums.dart';
 
 class AppDateUtils {
+  static String dateKey(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
+
   static String formatTimeSlot(int slotIndex) {
     if (slotIndex < 0 || slotIndex >= AppConstants.timeSlots.length) return '';
     return AppConstants.timeSlots[slotIndex];
@@ -67,15 +72,19 @@ class AppDateUtils {
     return '${days[d.weekday - 1]}, ${d.day} ${months[d.month - 1]}';
   }
 
-  static bool isLive(DateTime start, DateTime end) {
-    final now = DateTime.now();
+  static bool isLive(DateTime start, DateTime end, [DateTime? at]) {
+    final now = at ?? DateTime.now();
     return now.isAfter(start) && now.isBefore(end);
   }
 
-  static ClassStatus getClassStatus(DateTime start, DateTime end) {
-    final now = DateTime.now();
+  static ClassStatus getClassStatus(
+    DateTime start,
+    DateTime end, [
+    DateTime? at,
+  ]) {
+    final now = at ?? DateTime.now();
     if (now.isAfter(end)) return ClassStatus.done;
-    if (now.isAfter(start)) return ClassStatus.live;
+    if (!now.isBefore(start)) return ClassStatus.live;
     if (start.difference(now).inMinutes <= 30) return ClassStatus.next;
     return ClassStatus.upcoming;
   }

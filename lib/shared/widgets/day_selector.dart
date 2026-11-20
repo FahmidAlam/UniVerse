@@ -67,13 +67,13 @@ class _DaySelectorState extends State<DaySelector> {
         final velocity = details.primaryVelocity ?? 0;
         if (velocity.abs() < 220) return;
         final currentIndex = widget.days.indexOf(widget.selectedDay);
-        if (currentIndex < 0) return;
-        // Swipe left -> next day; swipe right -> previous day
-        final nextIndex = velocity < 0 ? currentIndex + 1 : currentIndex - 1;
-        if (nextIndex >= 0 && nextIndex < widget.days.length) {
-          AppMotion.selectionHaptic(context);
-          widget.onSelect(widget.days[nextIndex]);
-        }
+        if (currentIndex < 0 || widget.days.isEmpty) return;
+        // Swipe left -> next day; swipe right -> previous day (circular modulo)
+        final delta = velocity < 0 ? 1 : -1;
+        final nextIndex =
+            (currentIndex + delta + widget.days.length) % widget.days.length;
+        AppMotion.selectionHaptic(context);
+        widget.onSelect(widget.days[nextIndex]);
       },
       child: SizedBox(
         height: AppSpacing.chipHeight,

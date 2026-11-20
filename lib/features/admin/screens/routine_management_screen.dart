@@ -1,3 +1,4 @@
+import 'package:universe/features/admin/widgets/admin_schedule_slot.dart';
 import 'package:flutter/material.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/constants/app_constants.dart';
@@ -6,18 +7,24 @@ import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
 import 'package:universe/features/admin/controllers/routine_admin_controller.dart';
+import 'package:universe/shared/widgets/u_adaptive_overlay.dart';
 import 'package:universe/shared/widgets/u_app_bar.dart';
 import 'package:universe/shared/widgets/u_button.dart';
 import 'package:universe/shared/widgets/u_card.dart';
-import 'package:universe/shared/widgets/u_chip.dart';
 import 'package:universe/shared/widgets/u_empty_state.dart';
 import 'package:universe/shared/widgets/u_loading.dart';
 import 'package:universe/shared/widgets/u_text_field.dart';
 
 class RoutineManagementScreen extends StatefulWidget {
   final bool embedded;
+  // PHASE 5: Optional DI seam for deterministic offline widget testing.
+  final RoutineAdminController? controller;
 
-  const RoutineManagementScreen({super.key, this.embedded = false});
+  const RoutineManagementScreen({
+    super.key,
+    this.embedded = false,
+    this.controller,
+  });
 
   @override
   State<RoutineManagementScreen> createState() =>
@@ -26,25 +33,48 @@ class RoutineManagementScreen extends StatefulWidget {
 
 class _RoutineManagementScreenState extends State<RoutineManagementScreen> {
   late final RoutineAdminController _controller;
+  late final bool _ownsController;
+  String _cohort = '';
+  String _query = '';
+  final _searchController = TextEditingController();
+  List<RoutineEntry> get _visible => _controller.filtered
+      .where((e) =>
+          (_cohort.isEmpty || '${e.batch}|${e.section}' == _cohort) &&
+          (_query.isEmpty ||
+              '${e.subjectCode} ${e.subject} ${e.teacherDisplay} ${e.room}'
+                  .toLowerCase()
+                  .contains(_query.toLowerCase())))
+      .toList();
 
   @override
   void initState() {
     super.initState();
-    _controller = RoutineAdminController();
-    _controller.load();
+    _ownsController = widget.controller == null;
+    _controller = widget.controller ?? RoutineAdminController();
+    if (!_controller.hasLoaded) {
+      _controller.load();
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _searchController.dispose();
+    if (_ownsController) {
+      _controller.dispose();
+    }
     super.dispose();
   }
 
+  // PHASE 5: Adaptive modal dialog on desktop (>= 768px) and floating bottom sheet on mobile (< 768px).
   Future<void> _openForm({RoutineEntry? existing}) async {
-    final data = await showModalBottomSheet<Map<String, dynamic>>(
+    final isEdit = existing != null;
+    final data = await showUAdaptiveModal<Map<String, dynamic>>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      title: isEdit ? 'Edit Routine Entry' : 'Add Routine Entry',
+      subtitle: 'Configure scheduled class slot, cohort, faculty, and room.',
+      badge: 'LIVE ROUTINE TABLE',
+      icon: PhosphorIconsRegular.calendarCheck,
+      maxDesktopWidth: 520,
       builder: (_) => _RoutineFormSheet(initial: existing),
     );
     if (data == null) return;
@@ -65,7 +95,8 @@ class _RoutineManagementScreenState extends State<RoutineManagementScreen> {
         title: Text('Delete entry?', style: AppTextStyles.h3),
         content: Text(
           '${e.subject} (${e.day}, ${e.timeLabel}) will be removed.',
-          style: AppTextStyles.bodySm,
+          style: AppTextStyles.bodySm.copyWith(
+              fontFamily: Theme.of(context).textTheme.bodyMedium?.fontFamily),
         ),
         actions: [
           TextButton(
@@ -132,34 +163,125 @@ class _RoutineManagementScreenState extends State<RoutineManagementScreen> {
     );
   }
 
-  Widget _buildDayFilter() {
-    final chips = <({String? day, String label})>[
-      (day: null, label: 'All'),
-      for (var i = 0; i < AppConstants.weekDays.length; i++)
-        (day: AppConstants.weekDays[i], label: AppConstants.weekDaysShort[i]),
-    ];
+  // PHASE 5: Labels live outside controls, preserving their baseline at every width.
+  Widget _buildDayFilter() => Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: UCard(
+            isTopLit: true,
+            child: LayoutBuilder(builder: (context, constraints) {
+              final width =
+                  constraints.maxWidth < 600 ? constraints.maxWidth : 184.0;
+              final cohorts = _controller.filtered
+                  .map((e) => '${e.batch}|${e.section}')
+                  .toSet()
+                  .toList()
+                ..sort();
+              return Wrap(
+                  spacing: AppSpacing.md,
+                  runSpacing: AppSpacing.md,
+                  crossAxisAlignment: WrapCrossAlignment.end,
+                  children: [
+                    _filterControl(
+                        'COHORT',
+                        width,
+                        DropdownButton<String>(
+                          value: cohorts.contains(_cohort) ? _cohort : '',
+                          isExpanded: true,
+                          dropdownColor: AppColors.bgElevated,
+                          style: AppTextStyles.bodySm.copyWith(
+                              fontFamily: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.fontFamily),
+                          items: [
+                            const DropdownMenuItem(
+                                value: '', child: Text('All cohorts')),
+                            for (final c in cohorts)
+                              DropdownMenuItem(
+                                  value: c,
+                                  child: Text(
+                                      'Batch ${c.replaceAll('|', ' \u00b7 Sec ')}',
+                                      overflow: TextOverflow.ellipsis))
+                          ],
+                          onChanged: (v) => setState(() => _cohort = v ?? ''),
+                        )),
+                    _filterControl(
+                        'DAY',
+                        width,
+                        DropdownButton<String>(
+                          value: _controller.dayFilter ?? '',
+                          isExpanded: true,
+                          dropdownColor: AppColors.bgElevated,
+                          style: AppTextStyles.bodySm.copyWith(
+                              fontFamily: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.fontFamily),
+                          items: [
+                            const DropdownMenuItem(
+                                value: '', child: Text('All days')),
+                            for (final d in AppConstants.weekDays)
+                              DropdownMenuItem(value: d, child: Text(d))
+                          ],
+                          onChanged: (v) {
+                            setState(() => _cohort = '');
+                            _controller.setDayFilter(v == '' ? null : v);
+                          },
+                        )),
+                    _filterControl(
+                        'SEARCH',
+                        width,
+                        TextField(
+                          controller: _searchController,
+                          style: AppTextStyles.bodySm.copyWith(
+                              fontFamily: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.fontFamily),
+                          decoration: InputDecoration(
+                              hintStyle: AppTextStyles.bodySm.copyWith(
+                                  fontFamily: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.fontFamily,
+                                  color: AppColors.textMuted),
+                              hintText: 'Course, faculty or room',
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              isDense: true,
+                              contentPadding: EdgeInsets.zero),
+                          onChanged: (v) => setState(() => _query = v),
+                        )),
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.sm),
+                      decoration: BoxDecoration(
+                          color: AppColors.bgElevated,
+                          borderRadius: AppSpacing.radiusSm,
+                          border: Border.all(color: AppColors.border)),
+                      child: Text(
+                          'Showing ${_visible.length} of ${_controller.totalCount} published slots',
+                          style: AppTextStyles.captionMedium),
+                    ),
+                  ]);
+            })),
+      );
 
-    return SizedBox(
-      height: AppSpacing.chipHeight + AppSpacing.lg,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.screenH,
-          vertical: AppSpacing.sm,
-        ),
-        itemCount: chips.length,
-        separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
-        itemBuilder: (context, i) {
-          final c = chips[i];
-          return UChip(
-            label: c.label,
-            isActive: _controller.dayFilter == c.day,
-            onTap: () => _controller.setDayFilter(c.day),
-          );
-        },
-      ),
-    );
-  }
+  Widget _filterControl(String label, double width, Widget control) => SizedBox(
+      width: width,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: AppTextStyles.labelCaps),
+        AppSpacing.smGap,
+        Container(
+            height: 40,
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            decoration: BoxDecoration(
+                color: AppColors.bgPrimary,
+                borderRadius: AppSpacing.radiusSm,
+                border: Border.all(color: AppColors.border)),
+            child: DropdownButtonHideUnderline(child: control)),
+      ]));
 
   Widget _buildBody() {
     if (_controller.isLoading) {
@@ -171,26 +293,42 @@ class _RoutineManagementScreenState extends State<RoutineManagementScreen> {
       );
     }
 
-    final items = _controller.filtered;
+    final items = _visible;
     if (items.isEmpty) {
-      return const UEmptyState(
+      return UEmptyState(
         icon: PhosphorIconsRegular.calendarBlank,
-        title: 'No routine entries',
-        message: 'Tap + to add a class to the schedule.',
+        title: _controller.totalCount > 0
+            ? 'No matching published slots'
+            : 'No routine entries',
+        message: _controller.totalCount > 0
+            ? 'Try another cohort, day or search.'
+            : 'Tap + to add a class to the schedule.',
+        action: _controller.totalCount > 0
+            ? TextButton(
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() {
+                    _query = '';
+                    _cohort = '';
+                  });
+                  _controller.setDayFilter(null);
+                },
+                child: const Text('Clear filters'))
+            : null,
       );
     }
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isDesktop = constraints.maxWidth >= 700;
+        final isDesktop = constraints.maxWidth >= 960;
         if (isDesktop) {
           return GridView.builder(
             padding: AppSpacing.screenPadding,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: constraints.maxWidth >= 1400 ? 3 : 2,
               mainAxisSpacing: 10,
               crossAxisSpacing: AppSpacing.md,
-              mainAxisExtent: 96,
+              mainAxisExtent: 240,
             ),
             itemCount: items.length,
             itemBuilder: (context, i) {
@@ -221,57 +359,61 @@ class _RoutineManagementScreenState extends State<RoutineManagementScreen> {
   }
 }
 
-class _RoutineTile extends StatelessWidget {
+class _RoutineTile extends StatefulWidget {
   final RoutineEntry entry;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
-
-  const _RoutineTile({
-    required this.entry,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
+  const _RoutineTile(
+      {required this.entry, required this.onEdit, required this.onDelete});
   @override
-  Widget build(BuildContext context) {
-    return UCard(
-      onTap: onEdit,
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${entry.subject}  ·  ${entry.subjectCode}',
-                  style: AppTextStyles.h4,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                AppSpacing.xsGap,
-                Text(
-                  '${entry.day}  ·  ${entry.timeLabel}',
-                  style: AppTextStyles.bodySm,
-                ),
-                AppSpacing.xsGap,
-                Text(
-                  'Batch ${entry.batch}/${entry.section}  ·  Room ${entry.room}  ·  ${entry.teacherDisplay}',
-                  style: AppTextStyles.caption,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(PhosphorIconsRegular.trash,
-                color: AppColors.error, size: AppSpacing.iconMd),
-            onPressed: onDelete,
-          ),
-        ],
-      ),
-    );
-  }
+  State<_RoutineTile> createState() => _RoutineTileState();
+}
+
+class _RoutineTileState extends State<_RoutineTile> {
+  bool _active = false;
+  @override
+  Widget build(BuildContext context) =>
+      LayoutBuilder(builder: (context, constraints) {
+        final showActions = _active || MediaQuery.sizeOf(context).width < 960;
+        return Focus(
+            onFocusChange: (v) => setState(() => _active = v),
+            child: MouseRegion(
+              onEnter: (_) => setState(() => _active = true),
+              onExit: (_) => setState(() => _active = false),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AdminScheduleSlot(
+                        entry: widget.entry, onTap: widget.onEdit),
+                    SizedBox(
+                        height: 40,
+                        child: Row(children: [
+                          Expanded(
+                              child: Text(
+                                  '${widget.entry.day} ? ${widget.entry.timeLabel}',
+                                  style: AppTextStyles.caption)),
+                          Opacity(
+                              opacity: showActions ? 1 : 0,
+                              child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                        tooltip: 'Edit slot',
+                                        onPressed: widget.onEdit,
+                                        icon: const Icon(Icons.edit_outlined,
+                                            size: AppSpacing.iconSm)),
+                                    IconButton(
+                                        tooltip: 'Delete slot',
+                                        onPressed: widget.onDelete,
+                                        icon: const Icon(Icons.delete_outline,
+                                            size: AppSpacing.iconSm,
+                                            color: AppColors.error)),
+                                  ])),
+                        ])),
+                  ]),
+            ));
+      });
 }
 
 class _RoutineFormSheet extends StatefulWidget {
@@ -351,8 +493,8 @@ class _RoutineFormSheetState extends State<_RoutineFormSheet> {
   Future<void> _pickTime(bool isStart) async {
     final picked = await showTimePicker(
       context: context,
-      initialTime: (isStart ? _start : _end) ??
-          const TimeOfDay(hour: 9, minute: 30),
+      initialTime:
+          (isStart ? _start : _end) ?? const TimeOfDay(hour: 9, minute: 30),
     );
     if (picked != null) {
       setState(() => isStart ? _start = picked : _end = picked);
@@ -366,8 +508,8 @@ class _RoutineFormSheetState extends State<_RoutineFormSheet> {
     if (!formOk || !fieldsOk) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Please complete every field.',
-              style: AppTextStyles.bodySm),
+          content:
+              Text('Please complete every field.', style: AppTextStyles.bodySm),
           backgroundColor: AppColors.bgElevated,
           behavior: SnackBarBehavior.floating,
         ),
@@ -396,132 +538,110 @@ class _RoutineFormSheetState extends State<_RoutineFormSheet> {
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.initial != null;
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.bgCard,
-          borderRadius: BorderRadius.vertical(
-              top: Radius.circular(AppSpacing.radiusXlD)),
-        ),
-        padding: AppSpacing.screenPadding,
-        child: SingleChildScrollView(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return SingleChildScrollView(
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _dropdownLabel('Day'),
+            AppSpacing.smGap,
+            _dayDropdown(),
+            AppSpacing.mdGap,
+            Row(
               children: [
-                Center(
-                  child: Text(
-                    isEdit ? 'Edit routine entry' : 'Add routine entry',
-                    style: AppTextStyles.h3,
-                  ),
-                ),
-                AppSpacing.lgGap,
-                _dropdownLabel('Day'),
-                AppSpacing.smGap,
-                _dayDropdown(),
-                AppSpacing.mdGap,
-                Row(
-                  children: [
-                    Expanded(child: _timeField('Start', true, _start)),
-                    AppSpacing.smHGap,
-                    Expanded(child: _timeField('End', false, _end)),
-                  ],
-                ),
-                AppSpacing.mdGap,
-                UTextField(
-                  controller: _subjectCtrl,
-                  label: 'Subject',
-                  hint: 'e.g. Operating Systems',
-                  validator: _required,
-                ),
-                AppSpacing.mdGap,
-                UTextField(
-                  controller: _codeCtrl,
-                  label: 'Subject code',
-                  hint: 'e.g. CSE-3201',
-                  validator: _required,
-                ),
-                AppSpacing.mdGap,
-                Row(
-                  children: [
-                    Expanded(
-                      child: UTextField(
-                        controller: _teacherNameCtrl,
-                        label: 'Teacher name',
-                        hint: 'e.g. Dr. Aminul',
-                      ),
-                    ),
-                    AppSpacing.smHGap,
-                    Expanded(
-                      child: UTextField(
-                        controller: _teacherCodeCtrl,
-                        label: 'Teacher code',
-                        hint: 'e.g. JIM',
-                      ),
-                    ),
-                  ],
-                ),
-                AppSpacing.mdGap,
-                UTextField(
-                  controller: _roomCtrl,
-                  label: 'Room',
-                  hint: 'e.g. 401',
-                  validator: _required,
-                ),
-                AppSpacing.mdGap,
-                Row(
-                  children: [
-                    Expanded(
-                      child: UTextField(
-                        controller: _batchCtrl,
-                        label: 'Batch',
-                        hint: 'e.g. 62',
-                        validator: _required,
-                      ),
-                    ),
-                    AppSpacing.smHGap,
-                    Expanded(
-                      child: UTextField(
-                        controller: _sectionCtrl,
-                        label: 'Section',
-                        hint: 'e.g. G',
-                        validator: _required,
-                      ),
-                    ),
-                  ],
-                ),
-                AppSpacing.mdGap,
-                _dropdownLabel('Semester'),
-                AppSpacing.smGap,
-                _semesterDropdown(),
-                AppSpacing.sectionGap,
-                UButton(
-                  label: isEdit ? 'Save changes' : 'Add entry',
-                  icon: PhosphorIconsRegular.check,
-                  onPressed: _submit,
-                ),
-                AppSpacing.smGap,
-                UButton(
-                  label: 'Cancel',
-                  variant: UButtonVariant.secondary,
-                  onPressed: () => Navigator.pop(context),
-                ),
-                AppSpacing.smGap,
+                Expanded(child: _timeField('Start', true, _start)),
+                AppSpacing.smHGap,
+                Expanded(child: _timeField('End', false, _end)),
               ],
             ),
-          ),
+            AppSpacing.mdGap,
+            UTextField(
+              controller: _subjectCtrl,
+              label: 'Subject',
+              hint: 'e.g. Operating Systems',
+              validator: _required,
+            ),
+            AppSpacing.mdGap,
+            UTextField(
+              controller: _codeCtrl,
+              label: 'Subject code',
+              hint: 'e.g. CSE-3201',
+              validator: _required,
+            ),
+            AppSpacing.mdGap,
+            Row(
+              children: [
+                Expanded(
+                  child: UTextField(
+                    controller: _teacherNameCtrl,
+                    label: 'Teacher name',
+                    hint: 'e.g. Dr. Aminul',
+                  ),
+                ),
+                AppSpacing.smHGap,
+                Expanded(
+                  child: UTextField(
+                    controller: _teacherCodeCtrl,
+                    label: 'Teacher code',
+                    hint: 'e.g. JIM',
+                  ),
+                ),
+              ],
+            ),
+            AppSpacing.mdGap,
+            UTextField(
+              controller: _roomCtrl,
+              label: 'Room',
+              hint: 'e.g. 401',
+              validator: _required,
+            ),
+            AppSpacing.mdGap,
+            Row(
+              children: [
+                Expanded(
+                  child: UTextField(
+                    controller: _batchCtrl,
+                    label: 'Batch',
+                    hint: 'e.g. 62',
+                    validator: _required,
+                  ),
+                ),
+                AppSpacing.smHGap,
+                Expanded(
+                  child: UTextField(
+                    controller: _sectionCtrl,
+                    label: 'Section',
+                    hint: 'e.g. G',
+                    validator: _required,
+                  ),
+                ),
+              ],
+            ),
+            AppSpacing.mdGap,
+            _dropdownLabel('Semester'),
+            AppSpacing.smGap,
+            _semesterDropdown(),
+            AppSpacing.sectionGap,
+            UButton(
+              label: isEdit ? 'Save changes' : 'Add entry',
+              icon: PhosphorIconsRegular.check,
+              onPressed: _submit,
+            ),
+            AppSpacing.smGap,
+            UButton(
+              label: 'Cancel',
+              variant: UButtonVariant.secondary,
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _dropdownLabel(String text) =>
-      Text(text, style: AppTextStyles.label);
+  Widget _dropdownLabel(String text) => Text(text, style: AppTextStyles.label);
 
   InputDecoration _decoration(IconData icon) => InputDecoration(
         prefixIcon: Icon(icon, size: AppSpacing.iconMd),
@@ -541,8 +661,7 @@ class _RoutineFormSheetState extends State<_RoutineFormSheet> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: AppSpacing.radiusMd,
-          borderSide:
-              const BorderSide(color: AppColors.primary, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
         ),
       );
 
@@ -589,8 +708,7 @@ class _RoutineFormSheetState extends State<_RoutineFormSheet> {
           borderRadius: AppSpacing.radiusMd,
           child: Container(
             height: AppSpacing.inputHeight,
-            padding:
-                const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             decoration: BoxDecoration(
               color: AppColors.bgElevated,
               borderRadius: AppSpacing.radiusMd,

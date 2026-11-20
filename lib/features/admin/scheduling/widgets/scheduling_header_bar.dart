@@ -21,136 +21,171 @@ class SchedulingHeaderBar extends StatelessWidget {
       listenable: controller,
       builder: (context, _) {
         final isPreview = controller.isPreviewMode;
-        final isMobile = MediaQuery.of(context).size.width < 768;
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            // PHASE 5: Drive header layout from LayoutBuilder usable width so 390px never clips.
+            final isNarrow = constraints.maxWidth < 680;
 
-        return Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: isMobile ? AppSpacing.md : AppSpacing.lg,
-            vertical: AppSpacing.md,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.bgCard,
-            border: Border.all(color: AppColors.border),
-            borderRadius: AppSpacing.radiusMd,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Top line: Title & Actions
-              Row(
+            return Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: isNarrow ? AppSpacing.md : AppSpacing.lg,
+                vertical: AppSpacing.md,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.bgCard,
+                border: Border.all(color: AppColors.border),
+                borderRadius: AppSpacing.radiusMd,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: AppColors.primarySoft,
-                      borderRadius: AppSpacing.radiusMd,
-                      border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.3),
+                  // Top line: Title & Actions
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: AppColors.primarySoft,
+                          borderRadius: AppSpacing.radiusMd,
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: const Icon(
+                          PhosphorIconsRegular.stack,
+                          color: AppColors.primary,
+                          size: AppSpacing.iconMd,
+                        ),
                       ),
-                    ),
-                    child: const Icon(
-                      PhosphorIconsRegular.stack,
-                      color: AppColors.primary,
-                      size: AppSpacing.iconMd,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Wrap(
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: AppSpacing.sm,
-                          runSpacing: 2,
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              // PHASE 1 RECONCILE: Preserve workspace heading for regressions while repeating preview boundary.
-                              'Scheduling Workspace',
-                              style: AppTextStyles.h2.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isPreview
-                                    ? AppColors.infoSoft
-                                    : AppColors.bgElevated,
-                                border: Border.all(
-                                  color: isPreview
-                                      ? AppColors.info.withValues(alpha: 0.5)
-                                      : AppColors.border,
-                                ),
-                                borderRadius: AppSpacing.radiusFull,
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    isPreview
-                                        ? PhosphorIconsRegular.eye
-                                        : PhosphorIconsRegular.database,
-                                    size: 11,
-                                    color: isPreview
-                                        ? AppColors.info
-                                        : AppColors.textSecondary,
+                            Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: AppSpacing.sm,
+                              runSpacing: 4,
+                              children: [
+                                Text(
+                                  // PHASE 1 RECONCILE: Preserve workspace heading for regressions while repeating preview boundary.
+                                  'Scheduling Workspace',
+                                  style: AppTextStyles.h2.copyWith(
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    isPreview
-                                        ? 'DESIGN PREVIEW'
-                                        : 'LIVE BACKEND',
-                                    style: AppTextStyles.captionMedium.copyWith(
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isPreview
+                                        ? AppColors.infoSoft
+                                        : AppColors.bgElevated,
+                                    border: Border.all(
                                       color: isPreview
-                                          ? AppColors.info
-                                          : AppColors.textSecondary,
-                                      fontSize: 10,
-                                      letterSpacing: 0.6,
+                                          ? AppColors.info.withValues(alpha: 0.5)
+                                          : AppColors.border,
+                                    ),
+                                    borderRadius: AppSpacing.radiusFull,
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        isPreview
+                                            ? PhosphorIconsRegular.eye
+                                            : PhosphorIconsRegular.database,
+                                        size: 11,
+                                        color: isPreview
+                                            ? AppColors.info
+                                            : AppColors.textSecondary,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        isPreview
+                                            ? 'DESIGN PREVIEW'
+                                            : 'LIVE BACKEND',
+                                        style:
+                                            AppTextStyles.captionMedium.copyWith(
+                                          color: isPreview
+                                              ? AppColors.info
+                                              : AppColors.textSecondary,
+                                          fontSize: 10,
+                                          letterSpacing: 0.6,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (isPreview)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.bgElevated,
+                                      borderRadius: AppSpacing.radiusFull,
+                                      border:
+                                          Border.all(color: AppColors.border),
+                                    ),
+                                    child: Text(
+                                      'SIMULATED PREVIEW · NO DATABASE WRITES',
+                                      style: AppTextStyles.caption.copyWith(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.5,
+                                        color: AppColors.textMuted,
+                                      ),
                                     ),
                                   ),
-                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Prepare, configure, and inspect traceable timetable scheduling inputs.',
+                              style: AppTextStyles.bodySm.copyWith(
+                                color: AppColors.textSecondary,
+                                fontSize: 12,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Prepare, configure, and inspect traceable timetable scheduling inputs.',
-                          style: AppTextStyles.bodySm.copyWith(
-                            color: AppColors.textSecondary,
-                            fontSize: 12,
+                      ),
+                      // PHASE 1: The custom workbench header also exposes mobile account access.
+                      if (DesktopShellScope.maybeOf(context)?.isDesktop == false)
+                        const ProfileAccountAction(),
+                      if (!isNarrow) ...[
+                        _buildModeToggle(context, isPreview, isCompact: false),
+                        const SizedBox(width: AppSpacing.sm),
+                        _buildRefreshButton(context),
+                      ],
+                    ],
+                  ),
+                  if (isNarrow) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildModeToggle(
+                            context,
+                            isPreview,
+                            isCompact: true,
                           ),
                         ),
+                        const SizedBox(width: AppSpacing.sm),
+                        _buildRefreshButton(context),
                       ],
                     ),
-                  ),
-                  // PHASE 1: The custom workbench header also exposes mobile account access.
-                  if (DesktopShellScope.maybeOf(context)?.isDesktop == false)
-                    const ProfileAccountAction(),
-                  if (!isMobile) ...[
-                    _buildModeToggle(context, isPreview, isCompact: false),
-                    const SizedBox(width: AppSpacing.sm),
-                    _buildRefreshButton(context),
                   ],
                 ],
               ),
-              if (isMobile) ...[
-                const SizedBox(height: AppSpacing.md),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildModeToggle(context, isPreview, isCompact: true),
-                    _buildRefreshButton(context),
-                  ],
-                ),
-              ],
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -161,24 +196,23 @@ class SchedulingHeaderBar extends StatelessWidget {
     bool isPreview, {
     required bool isCompact,
   }) {
-    return SizedBox(
-      width: isCompact ? 220 : 310,
-      child: USegmentedControl<bool>(
-        compact: true,
-        selected: isPreview,
-        onChanged: controller.togglePreviewMode,
-        segments: [
-          USegment(
-              value: false,
-              label: isCompact ? 'Live' : 'Live Backend',
-              icon: PhosphorIconsRegular.database),
-          USegment(
-              value: true,
-              label: isCompact ? 'Preview' : 'Design Preview',
-              icon: PhosphorIconsRegular.sparkle),
-        ],
-      ),
+    final control = USegmentedControl<bool>(
+      compact: true,
+      selected: isPreview,
+      onChanged: controller.togglePreviewMode,
+      segments: [
+        USegment(
+            value: false,
+            label: isCompact ? 'Live' : 'Live Backend',
+            icon: PhosphorIconsRegular.database),
+        USegment(
+            value: true,
+            label: isCompact ? 'Preview' : 'Design Preview',
+            icon: PhosphorIconsRegular.sparkle),
+      ],
     );
+    if (isCompact) return control;
+    return SizedBox(width: 310, child: control);
   }
 
   Widget _buildRefreshButton(BuildContext context) {

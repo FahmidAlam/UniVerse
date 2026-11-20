@@ -162,6 +162,6 @@ class RoutineEntry {
 
   ClassStatus statusOn(DateTime date, {required bool isToday}) {
     if (!isToday) return ClassStatus.upcoming;
-    return AppDateUtils.getClassStatus(startOn(date), endOn(date));
+    return AppDateUtils.getClassStatus(startOn(date), endOn(date), date);
   }
 }

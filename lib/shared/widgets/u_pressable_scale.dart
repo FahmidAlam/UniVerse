@@ -42,7 +42,7 @@ class _UPressableScaleState extends State<UPressableScale> {
             scale: !widget.enabled || AppMotion.reduced(context)
                 ? 1
                 : _pointers.isNotEmpty
-                    ? .975
+                    ? 0.97
                     : _hovered
                         ? 1.012
                         : 1,

@@ -4,12 +4,15 @@ import 'package:universe/core/models/profile_model.dart';
 import 'package:universe/core/models/whitelist_model.dart';
 import 'package:universe/features/auth/services/auth_callback_policy.dart';
 
+// PHASE 5: AdminCounts includes room and course eligibility readiness telemetry.
 class AdminCounts {
   final int students;
   final int teachers;
   final int admins;
   final int routines;
   final int broadcasts;
+  final int rooms;
+  final int courseEligibilities;
 
   const AdminCounts({
     this.students = 0,
@@ -17,13 +20,16 @@ class AdminCounts {
     this.admins = 0,
     this.routines = 0,
     this.broadcasts = 0,
+    this.rooms = 0,
+    this.courseEligibilities = 0,
   });
 
   int get totalUsers => students + teachers + admins;
 }
 
 class AdminService {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  // PHASE 5: Lazy Supabase client getter so offline controller instantiation never throws.
+  SupabaseClient get _supabase => Supabase.instance.client;
 
   Future<AdminCounts> counts() async {
     final results = await Future.wait([
@@ -32,6 +38,8 @@ class AdminService {
       _count(AppConstants.tableProfiles, roleEq: AppConstants.roleAdmin),
       _count(AppConstants.tableRoutines),
       _count(AppConstants.tableNotifications),
+      _safeCount(AppConstants.tableTimetableRooms),
+      _safeCount(AppConstants.tableTimetableEligibility),
     ]);
     return AdminCounts(
       students: results[0],
@@ -39,7 +47,17 @@ class AdminService {
       admins: results[2],
       routines: results[3],
       broadcasts: results[4],
+      rooms: results[5],
+      courseEligibilities: results[6],
     );
+  }
+
+  Future<int> _safeCount(String table) async {
+    try {
+      return await _count(table);
+    } catch (_) {
+      return 0;
+    }
   }
 
   Future<int> _count(String table, {String? roleEq}) async {

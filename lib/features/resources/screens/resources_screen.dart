@@ -9,6 +9,7 @@ import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
 import 'package:universe/features/auth/controllers/auth_controller.dart';
 import 'package:universe/features/resources/controllers/resource_controller.dart';
+import 'package:universe/shared/widgets/desktop_shell_scope.dart';
 import 'package:universe/shared/widgets/resource_card.dart';
 import 'package:universe/shared/widgets/scrollable_empty.dart';
 import 'package:universe/shared/widgets/shell_back_scope.dart';
@@ -20,8 +21,13 @@ import 'package:universe/shared/widgets/u_loading.dart';
 
 class ResourcesScreen extends StatefulWidget {
   final AuthController authController;
+  final ResourceController? controller;
 
-  const ResourcesScreen({super.key, required this.authController});
+  const ResourcesScreen({
+    super.key,
+    required this.authController,
+    this.controller,
+  });
 
   @override
   State<ResourcesScreen> createState() => _ResourcesScreenState();
@@ -29,17 +35,22 @@ class ResourcesScreen extends StatefulWidget {
 
 class _ResourcesScreenState extends State<ResourcesScreen> {
   late final ResourceController _controller;
+  late final bool _ownsController;
 
   @override
   void initState() {
     super.initState();
-    _controller = ResourceController(authController: widget.authController);
+    _ownsController = widget.controller == null;
+    _controller = widget.controller ??
+        ResourceController(authController: widget.authController);
     _controller.load();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    if (_ownsController) {
+      _controller.dispose();
+    }
     super.dispose();
   }
 
@@ -57,8 +68,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     try {
       final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (opened) return;
-    } catch (_) {
-    }
+    } catch (_) {}
     await Clipboard.setData(ClipboardData(text: link));
     _snack('Couldn\'t open it — link copied instead.');
   }
@@ -76,6 +86,8 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktopShell = DesktopShellScope.isDesktopOf(context);
+
     return ListenableBuilder(
       listenable: _controller,
       builder: (context, _) {
@@ -84,27 +96,145 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
           onBack: open == null ? null : _controller.closeFolder,
           child: Scaffold(
             backgroundColor: AppColors.bgPrimary,
-            appBar: open == null
-                ? const UAppBar(title: 'Resources', showBackButton: false)
-                : UAppBar(
-                    title: 'Semester $open',
-                    leading: IconButton(
-                      icon: const Icon(PhosphorIconsRegular.arrowLeft,
-                          color: AppColors.textPrimary),
-                      onPressed: _controller.closeFolder,
+            appBar: isDesktopShell
+                ? null
+                : (open == null
+                    ? const UAppBar(title: 'Resources', showBackButton: false)
+                    : UAppBar(
+                        title: 'Semester $open',
+                        leading: IconButton(
+                          icon: const Icon(
+                            PhosphorIconsRegular.arrowLeft,
+                            color: AppColors.textPrimary,
+                          ),
+                          onPressed: _controller.closeFolder,
+                        ),
+                      )),
+            body: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1100),
+                child: Column(
+                  children: [
+                    if (isDesktopShell) _buildDesktopHeader(open),
+                    Expanded(
+                      child: open == null
+                          ? _buildFolderGrid()
+                          : Column(
+                              children: [
+                                _buildFilterBar(),
+                                Expanded(child: _buildBody()),
+                              ],
+                            ),
                     ),
-                  ),
-            body: open == null
-                ? _buildFolderGrid()
-                : Column(
-                    children: [
-                      _buildFilterBar(),
-                      Expanded(child: _buildBody()),
-                    ],
-                  ),
+                  ],
+                ),
+              ),
+            ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildDesktopHeader(int? open) {
+    if (open != null) {
+      final count = _controller.countForSemester(open);
+      return Container(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.sm,
+        ),
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(
+                PhosphorIconsRegular.arrowLeft,
+                color: AppColors.textPrimary,
+              ),
+              onPressed: _controller.closeFolder,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Semester $open Resources', style: AppTextStyles.h2),
+                const SizedBox(height: 2),
+                Text(
+                  'Syllabi, course files & materials',
+                  style: AppTextStyles.caption
+                      .copyWith(color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.xs,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.bgSubtle,
+                borderRadius: AppSpacing.radiusFull,
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Text(
+                '$count ${count == 1 ? 'file' : 'files'}',
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.sm,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Academic Resources', style: AppTextStyles.h2),
+              const SizedBox(height: 2),
+              Text(
+                'Department syllabus, handouts, question archives & references',
+                style: AppTextStyles.caption
+                    .copyWith(color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.bgSubtle,
+              borderRadius: AppSpacing.radiusFull,
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Text(
+              '${AppConstants.semesters.length} Semesters Available',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -116,16 +246,27 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
       color: AppColors.primary,
       backgroundColor: AppColors.bgCard,
       onRefresh: _controller.load,
-      child: GridView.count(
-        padding: AppSpacing.screenPadding,
-        physics: const AlwaysScrollableScrollPhysics(),
-        crossAxisCount: 2,
-        mainAxisSpacing: AppSpacing.md,
-        crossAxisSpacing: AppSpacing.md,
-        childAspectRatio: 1.15,
-        children: [
-          for (final s in AppConstants.semesters) _folderCard(s),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final crossAxisCount = width >= 1000 ? 4 : (width >= 640 ? 3 : 2);
+
+          return GridView.builder(
+            padding: AppSpacing.screenPadding,
+            physics: const AlwaysScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              mainAxisSpacing: AppSpacing.md,
+              crossAxisSpacing: AppSpacing.md,
+              childAspectRatio: 1.15,
+            ),
+            itemCount: AppConstants.semesters.length,
+            itemBuilder: (context, index) {
+              final s = AppConstants.semesters[index];
+              return _folderCard(s);
+            },
+          );
+        },
       ),
     );
   }
@@ -134,9 +275,10 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     final count = _controller.countForSemester(semester);
     final isMine = _controller.mySemester == semester;
     return UCard(
+      isTopLit: true,
       onTap: () => _controller.openFolder(semester),
       border: isMine
-          ? Border.all(color: AppColors.primary.withValues(alpha: 0.5))
+          ? Border.all(color: AppColors.primary.withValues(alpha: 0.6), width: 1.5)
           : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,8 +292,11 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                   color: AppColors.primarySoft,
                   borderRadius: AppSpacing.radiusMd,
                 ),
-                child: const Icon(PhosphorIconsRegular.folder,
-                    color: AppColors.primary, size: AppSpacing.iconLg),
+                child: const Icon(
+                  PhosphorIconsRegular.folder,
+                  color: AppColors.primary,
+                  size: AppSpacing.iconLg,
+                ),
               ),
               const Spacer(),
               if (isMine)
@@ -164,9 +309,10 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                     color: AppColors.primarySoft,
                     borderRadius: AppSpacing.radiusSm,
                   ),
-                  child: Text('YOURS',
-                      style: AppTextStyles.badge
-                          .copyWith(color: AppColors.primary)),
+                  child: Text(
+                    'YOURS',
+                    style: AppTextStyles.badge.copyWith(color: AppColors.primary),
+                  ),
                 ),
             ],
           ),
@@ -229,21 +375,38 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                 message: 'Nothing here yet for this filter. Check back later.',
               ),
             )
-          : ListView.separated(
-              padding: AppSpacing.screenPadding,
-              physics: const AlwaysScrollableScrollPhysics(),
-              itemCount: items.length,
-              separatorBuilder: (_, __) => AppSpacing.cardGap,
-              itemBuilder: (context, i) {
-                final r = items[i];
-                return ResourceCard(
-                  title: r.title,
-                  subject: r.subjectLabel,
-                  category: r.category,
-                  type: r.isPdf ? ResourceType.pdf : ResourceType.drive,
-                  onTap: () => _openResource(r),
-                );
-              },
+          : Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.sm,
+              ),
+              child: UCard(
+                isTopLit: true,
+                padding: EdgeInsets.zero,
+                child: ClipRRect(
+                  borderRadius: AppSpacing.radiusMd,
+                  child: ListView.separated(
+                    padding: EdgeInsets.zero,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    itemCount: items.length,
+                    separatorBuilder: (_, __) => const Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: AppColors.border,
+                    ),
+                    itemBuilder: (context, i) {
+                      final r = items[i];
+                      return ResourceCard(
+                        title: r.title,
+                        subject: r.subjectLabel,
+                        category: r.category,
+                        type: r.isPdf ? ResourceType.pdf : ResourceType.drive,
+                        onTap: () => _openResource(r),
+                      );
+                    },
+                  ),
+                ),
+              ),
             ),
     );
   }

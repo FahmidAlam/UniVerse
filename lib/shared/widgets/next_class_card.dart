@@ -7,12 +7,15 @@ import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
 import 'package:universe/core/utils/date_utils.dart';
 
+// PHASE 4: Up-next session hero card with cyan analytical accent, countdown, and deterministic clock seam.
 class NextClassCard extends StatefulWidget {
   final String subject;
   final String subtitle;
   final String room;
   final DateTime startTime;
   final String timeLabel;
+  final String? cohortPill;
+  final DateTime Function()? clock;
 
   const NextClassCard({
     super.key,
@@ -21,6 +24,8 @@ class NextClassCard extends StatefulWidget {
     required this.room,
     required this.startTime,
     required this.timeLabel,
+    this.cohortPill,
+    this.clock,
   });
 
   @override
@@ -30,6 +35,8 @@ class NextClassCard extends StatefulWidget {
 class _NextClassCardState extends State<NextClassCard> {
   late Duration _remaining;
   Timer? _timer;
+
+  DateTime get _now => widget.clock?.call() ?? DateTime.now();
 
   @override
   void initState() {
@@ -41,8 +48,14 @@ class _NextClassCardState extends State<NextClassCard> {
     );
   }
 
+  @override
+  void didUpdateWidget(covariant NextClassCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _updateRemaining();
+  }
+
   void _updateRemaining() {
-    final remaining = widget.startTime.difference(DateTime.now());
+    final remaining = widget.startTime.difference(_now);
     if (mounted) {
       setState(() {
         _remaining = remaining.isNegative ? Duration.zero : remaining;
@@ -58,38 +71,93 @@ class _NextClassCardState extends State<NextClassCard> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: AppSpacing.heroCardHeight,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: AppSpacing.heroCardHeight),
       child: UCard(
-          isTopLit: true,
-          padding: EdgeInsets.zero,
-          borderRadius: AppSpacing.radiusLg,
-          child: Stack(children: [
+        isTopLit: true,
+        padding: EdgeInsets.zero,
+        borderRadius: AppSpacing.radiusLg,
+        child: Stack(
+          children: [
             const Positioned(
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: 3,
-                child: ColoredBox(color: AppColors.info)),
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 3,
+              child: ColoredBox(color: AppColors.info),
+            ),
             Padding(
               padding: AppSpacing.cardPaddingLg,
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
                       _UpNextPill(),
-                      const Spacer(),
-                      Icon(
-                        PhosphorIconsRegular.mapPin,
-                        size: AppSpacing.iconSm,
-                        color: AppColors.textMuted,
+                      if (widget.cohortPill != null &&
+                          widget.cohortPill!.isNotEmpty) ...[
+                        const SizedBox(width: AppSpacing.sm),
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.bgElevated,
+                              borderRadius: AppSpacing.radiusSm,
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Text(
+                              widget.cohortPill!,
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      ] else
+                        const Spacer(),
+                      if (widget.cohortPill != null &&
+                          widget.cohortPill!.isNotEmpty)
+                        const SizedBox(width: AppSpacing.sm),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.sm,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.infoSoft,
+                          borderRadius: AppSpacing.radiusSm,
+                          border: Border.all(
+                            color: AppColors.info.withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              PhosphorIconsRegular.mapPin,
+                              size: AppSpacing.iconSm,
+                              color: AppColors.info,
+                            ),
+                            const SizedBox(width: AppSpacing.xs),
+                            Text(
+                              widget.room,
+                              style: AppTextStyles.roomCode.copyWith(
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Text(widget.room, style: AppTextStyles.bodySm),
                     ],
                   ),
-                  const Spacer(),
+                  const SizedBox(height: AppSpacing.lg),
                   Text(
                     widget.subject,
                     style: AppTextStyles.h2,
@@ -107,7 +175,7 @@ class _NextClassCardState extends State<NextClassCard> {
                           children: [
                             Row(
                               children: [
-                                Icon(
+                                const Icon(
                                   PhosphorIconsRegular.userCircle,
                                   size: AppSpacing.iconSm,
                                   color: AppColors.textMuted,
@@ -125,14 +193,20 @@ class _NextClassCardState extends State<NextClassCard> {
                             const SizedBox(height: AppSpacing.xs),
                             Row(
                               children: [
-                                Icon(
+                                const Icon(
                                   PhosphorIconsRegular.clock,
                                   size: AppSpacing.iconSm,
                                   color: AppColors.textMuted,
                                 ),
                                 const SizedBox(width: AppSpacing.xs),
-                                Text(widget.timeLabel,
-                                    style: AppTextStyles.caption),
+                                Expanded(
+                                  child: Text(
+                                    widget.timeLabel,
+                                    style: AppTextStyles.caption,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
                               ],
                             ),
                           ],
@@ -161,7 +235,9 @@ class _NextClassCardState extends State<NextClassCard> {
                 ],
               ),
             ),
-          ])),
+          ],
+        ),
+      ),
     );
   }
 }

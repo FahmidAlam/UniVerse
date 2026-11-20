@@ -12,8 +12,15 @@ import 'package:universe/features/find_teacher/screens/teacher_detail_screen.dar
 
 class TeacherLocationCard extends StatelessWidget {
   final TeacherInfo teacherInfo;
+  final VoidCallback? onSelect;
+  final bool isSelected;
 
-  const TeacherLocationCard({super.key, required this.teacherInfo});
+  const TeacherLocationCard({
+    super.key,
+    required this.teacherInfo,
+    this.onSelect,
+    this.isSelected = false,
+  });
 
   Color _getStatusColor(String status) {
     switch (status) {
@@ -39,12 +46,17 @@ class TeacherLocationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return UCard(
-      isTopLit: true,
-      margin: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
-      padding: EdgeInsets.zero,
-      child: DecoratedBox(
+    return InkWell(
+      onTap: onSelect,
+      borderRadius: AppSpacing.radiusMd,
+      child: UCard(
+        isTopLit: true,
+        margin: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+        padding: EdgeInsets.zero,
+        border:
+            isSelected ? Border.all(color: AppColors.primary, width: 2) : null,
+        child: DecoratedBox(
           decoration: BoxDecoration(
               border: Border(
                   left: BorderSide(
@@ -63,10 +75,12 @@ class TeacherLocationCard extends StatelessWidget {
                         children: [
                           Icon(
                             PhosphorIconsRegular.person,
-                            color: AppColors.primary,
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.textSecondary,
                             size: AppSpacing.iconMd,
                           ),
-                          SizedBox(width: AppSpacing.md),
+                          const SizedBox(width: AppSpacing.md),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -75,6 +89,9 @@ class TeacherLocationCard extends StatelessWidget {
                                   teacherInfo.name,
                                   style: AppTextStyles.h4.copyWith(
                                     color: AppColors.textPrimary,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.w600,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -91,39 +108,49 @@ class TeacherLocationCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    SizedBox(width: AppSpacing.md),
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: AppSpacing.sm,
-                        vertical: AppSpacing.xs,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor(
-                          teacherInfo.status!,
-                        ).withValues(alpha: 0.15),
-                        borderRadius: AppSpacing.radiusSm,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _getStatusIcon(teacherInfo.status!),
-                            color: _getStatusColor(teacherInfo.status!),
-                            size: AppSpacing.iconSm,
+                    const SizedBox(width: AppSpacing.md),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm,
+                            vertical: AppSpacing.xs,
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            teacherInfo.status!,
-                            style: AppTextStyles.chip.copyWith(
-                              color: _getStatusColor(teacherInfo.status!),
-                            ),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(
+                              teacherInfo.status!,
+                            ).withValues(alpha: 0.15),
+                            borderRadius: AppSpacing.radiusSm,
                           ),
-                        ],
-                      ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _getStatusIcon(teacherInfo.status!),
+                                color: _getStatusColor(teacherInfo.status!),
+                                size: AppSpacing.iconSm,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                teacherInfo.status!,
+                                style: AppTextStyles.chip.copyWith(
+                                  color: _getStatusColor(teacherInfo.status!),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                      ],
                     ),
                   ],
                 ),
-                SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.xs),
+                Text('Derived from published routine',
+                    style: AppTextStyles.caption
+                        .copyWith(fontSize: 9, color: AppColors.textMuted)),
+                const SizedBox(height: AppSpacing.md),
 
                 if (teacherInfo.status == 'In Class') ...[
                   _InfoRow(
@@ -189,18 +216,26 @@ class TeacherLocationCard extends StatelessWidget {
                 ),
                 // PHASE 1: Persist faculty identity in the URL alongside the typed payload.
                 _MoreDetailsLink(
-                  onTap: () => context.push(
-                    RouteNames.teacherDetailLocation(
-                        code: teacherInfo.code, name: teacherInfo.name),
-                    extra: TeacherDetailArgs(
-                      code: teacherInfo.code,
-                      name: teacherInfo.name,
-                    ),
-                  ),
+                  onTap: () {
+                    if (onSelect != null) {
+                      onSelect!();
+                    } else {
+                      context.push(
+                        RouteNames.teacherDetailLocation(
+                            code: teacherInfo.code, name: teacherInfo.name),
+                        extra: TeacherDetailArgs(
+                          code: teacherInfo.code,
+                          name: teacherInfo.name,
+                        ),
+                      );
+                    }
+                  },
                 ),
               ],
             ),
-          )),
+          ),
+        ),
+      ),
     );
   }
 }

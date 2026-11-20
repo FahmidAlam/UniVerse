@@ -1,40 +1,34 @@
-// Timetable Settings — the university's scheduling rules.
+// Timetable Settings — Visual Studio for Institutional Scheduling & Committee Policy Rules.
 //
-// Everything on this screen used to be a constant inside the Python engine: a
-// fixed period grid, a 14-week term, a Friday-only period block, a 7:00pm slot
-// that could never be used. The university changes all of them (summer vs
-// winter timings, bi- vs tri-semester), so switching them must be an edit here,
-// not a code change and a new APK.
+// Everything on this screen configures the university's 7-day academic week,
+// R15 6/7-slot period grid, Jummah prayer hard constraints, committee rules (R1–R14),
+// and CP-SAT soft objective weights.
 //
 //     Admin UI  ->  timetable_settings  ->  buildEngineConfig()  ->  solver
-//
-// Period boundaries are typed by hand from the department's workbook, so every
-// one of them is pushed through `ClockTime` before it is stored — a bare "1:50"
-// would otherwise reach Postgres as 01:50 and put an afternoon class at night.
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/timetable_config_model.dart';
-import 'package:universe/core/router/route_names.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
 import 'package:universe/core/utils/clock_time.dart';
 import 'package:universe/features/admin/controllers/timetable_settings_controller.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
+import 'package:universe/shared/widgets/desktop_shell_scope.dart';
 import 'package:universe/shared/widgets/u_app_bar.dart';
 import 'package:universe/shared/widgets/u_button.dart';
 import 'package:universe/shared/widgets/u_card.dart';
 import 'package:universe/shared/widgets/u_chip.dart';
 import 'package:universe/shared/widgets/u_loading.dart';
+import 'package:universe/shared/widgets/u_segmented_control.dart';
 import 'package:universe/shared/widgets/u_text_field.dart';
 
 const Map<String, String> _kWeights = {
-  'different_days': 'Spread a course across days',
-  'compactness': 'Fewer class-days per section',
-  'spread': 'Balance daily load',
-  'late_slot': 'Avoid the last period',
+  'different_days': 'Spread course across different days (Rule R13)',
+  'compactness': 'Fewer class-days per section & gap avoidance (Rule R3)',
+  'spread': 'Balance daily teaching load across days',
+  'late_slot': 'Avoid scheduling into late/evening period (Rule R15)',
 };
 
 const Map<String, int> _kWeightDefaults = {
@@ -44,23 +38,16 @@ const Map<String, int> _kWeightDefaults = {
   'late_slot': 1,
 };
 
-/// Spreadsheet columns the printed template reserves for periods (G is the
-/// break column). A period needs one so `render.py` knows where to draw it,
-/// which is why the grid cannot grow past seven.
+/// Spreadsheet columns the printed template reserves for periods (G is the break column).
 const List<String> _kPeriodColumns = ['D', 'E', 'F', 'H', 'I', 'J', 'K'];
 
-/// One editable period row.
+/// One editable period row draft.
 class _PeriodDraft {
   int idx;
   final TextEditingController start;
   final TextEditingController end;
   String col;
-
-  /// Real period, but held back from the solver unless online periods are
-  /// enabled — the department's 7:00pm "OL Class" slot.
   bool online;
-
-  /// Days this period is not taught, e.g. Friday P4 for Jummah.
   final Set<String> blockedOn;
 
   _PeriodDraft({
@@ -90,8 +77,7 @@ class TimetableSettingsScreen extends StatefulWidget {
   const TimetableSettingsScreen({super.key});
 
   @override
-  State<TimetableSettingsScreen> createState() =>
-      _TimetableSettingsScreenState();
+  State<TimetableSettingsScreen> createState() => _TimetableSettingsScreenState();
 }
 
 class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
@@ -109,12 +95,27 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
   String _serviceScope = 'resource_only';
   bool _loaded = false;
   String? _formError;
+  int _activeTab = 0; // 0: Term Clock & R15, 1: Committee Rules (R1–R14), 2: Optimization Profiles
+  bool _isDirty = false;
+  int _slotMode = 6; // R15 toggle: 6 Slots / Day vs 7 Slots / Day
 
   @override
   void initState() {
     super.initState();
     _controller = TimetableSettingsController();
     _controller.load().then((_) => _hydrate());
+    _semester.addListener(_markDirty);
+    _weeks.addListener(_markDirty);
+    _fixedSessions.addListener(_markDirty);
+    for (final c in _weightCtrls.values) {
+      c.addListener(_markDirty);
+    }
+  }
+
+  void _markDirty() {
+    if (!_isDirty && _loaded && mounted) {
+      setState(() => _isDirty = true);
+    }
   }
 
   void _hydrate() {
@@ -129,20 +130,19 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
     _workingDays = s.workingDays.isEmpty
         ? AppConstants.weekDays.toSet()
         : s.workingDays.toSet();
+
     for (final k in _kWeights.keys) {
       _weightCtrls[k]!.text = s.weight(k, _kWeightDefaults[k] ?? 1).toString();
     }
 
-    // Fold the stored rules back onto the period they belong to, so the admin
-    // edits one row per period instead of three parallel lists.
     final blockedFor = <int, Set<String>>{};
     s.blockedPeriods.forEach((day, idxs) {
       for (final i in idxs) {
         blockedFor.putIfAbsent(i, () => <String>{}).add(day);
       }
     });
-    // Legacy flag, kept working for rows written before migration 011.
-    if (s.fridayNoP4 && s.blockedPeriods.isEmpty) {
+
+    if (s.fridayNoP4) {
       blockedFor.putIfAbsent(4, () => <String>{}).add('Friday');
     }
     final online = {...s.onlinePeriods, ...s.excludedPeriods};
@@ -150,11 +150,38 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
     _periods = [
       for (var i = 0; i < s.periods.length; i++)
         if (s.periods[i] is Map)
-          _buildDraft((s.periods[i] as Map).cast<String, dynamic>(), i,
-              blockedFor, online),
+          _buildDraft((s.periods[i] as Map).cast<String, dynamic>(), i, blockedFor, online),
     ];
+
+    if (_periods.isEmpty) {
+      // Seed standard default R15 6-period grid with Period 4 as break/Jummah
+      _periods = [
+        _PeriodDraft(idx: 1, start: '08:50', end: '10:05', col: 'D'),
+        _PeriodDraft(idx: 2, start: '10:10', end: '11:25', col: 'E'),
+        _PeriodDraft(idx: 3, start: '11:30', end: '12:45', col: 'F'),
+        _PeriodDraft(
+          idx: 4,
+          start: '12:50',
+          end: '02:05',
+          col: 'H',
+          blockedOn: {'Friday'},
+        ),
+        _PeriodDraft(idx: 5, start: '02:10', end: '03:25', col: 'I'),
+        _PeriodDraft(idx: 6, start: '03:30', end: '04:45', col: 'J'),
+      ];
+    }
+
+    for (final p in _periods) {
+      p.start.addListener(_markDirty);
+      p.end.addListener(_markDirty);
+    }
+
+    _slotMode = _periods.length >= 7 ? 7 : 6;
     if (!mounted) return;
-    setState(() => _loaded = true);
+    setState(() {
+      _loaded = true;
+      _isDirty = false;
+    });
   }
 
   _PeriodDraft _buildDraft(Map<String, dynamic> p, int i,
@@ -189,28 +216,63 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
     super.dispose();
   }
 
-  void _addPeriod() {
-    if (_periods.length >= _kPeriodColumns.length) return;
-    final last = _periods.isEmpty ? null : _periods.last;
+  void _toggleSlotCount(int targetSlots) {
+    if (_slotMode == targetSlots) return;
     setState(() {
-      _periods.add(_PeriodDraft(
-        idx: (_periods.map((p) => p.idx).fold<int>(0, (a, b) => a > b ? a : b)) + 1,
-        start: last?.end.text ?? '08:50',
-        end: '',
-        col: _nextColumn(_periods.length),
-      ));
+      _slotMode = targetSlots;
+      if (targetSlots == 7 && _periods.length < 7) {
+        final last = _periods.isEmpty ? null : _periods.last;
+        final p7 = _PeriodDraft(
+          idx: 7,
+          start: last?.end.text.isNotEmpty == true ? last!.end.text : '04:50',
+          end: '06:05',
+          col: _nextColumn(6),
+        );
+        p7.start.addListener(_markDirty);
+        p7.end.addListener(_markDirty);
+        _periods.add(p7);
+      } else if (targetSlots == 6 && _periods.length >= 7) {
+        final removed = _periods.removeLast();
+        removed.dispose();
+      }
+      _isDirty = true;
     });
   }
 
-  void _removePeriod(int i) {
+  void _applyOptimizationPreset(String preset) {
     setState(() {
-      _periods.removeAt(i).dispose();
-      // Keep numbering and template columns contiguous after a removal.
-      for (var j = 0; j < _periods.length; j++) {
-        _periods[j]
-          ..idx = j + 1
-          ..col = _nextColumn(j);
+      if (preset == 'strict') {
+        _weightCtrls['different_days']!.text = '10';
+        _weightCtrls['compactness']!.text = '6';
+        _weightCtrls['spread']!.text = '4';
+        _weightCtrls['late_slot']!.text = '2';
+      } else if (preset == 'balanced') {
+        _weightCtrls['different_days']!.text = '8';
+        _weightCtrls['compactness']!.text = '3';
+        _weightCtrls['spread']!.text = '2';
+        _weightCtrls['late_slot']!.text = '1';
+      } else if (preset == 'relaxed') {
+        _weightCtrls['different_days']!.text = '5';
+        _weightCtrls['compactness']!.text = '2';
+        _weightCtrls['spread']!.text = '1';
+        _weightCtrls['late_slot']!.text = '0';
       }
+      _isDirty = true;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Applied optimization preset: $preset'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  void _restoreDefaultWeights() {
+    setState(() {
+      for (final k in _kWeights.keys) {
+        _weightCtrls[k]!.text = (_kWeightDefaults[k] ?? 1).toString();
+      }
+      _isDirty = true;
     });
   }
 
@@ -232,8 +294,6 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
       return;
     }
 
-    // Empty means "work it out per course". Anything else must be a sane
-    // weekly count: the grid cannot hold more classes than it has periods.
     final fixedText = _fixedSessions.text.trim();
     int? fixedSessions;
     if (fixedText.isNotEmpty) {
@@ -243,8 +303,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
           fixedSessions > AppConstants.weekDays.length) {
         setState(() => _formError =
             'Classes per week must be between 1 and '
-            '${AppConstants.weekDays.length}, or empty to work it out per '
-            'course.');
+            '${AppConstants.weekDays.length}, or empty to work it out per course.');
         return;
       }
     }
@@ -258,18 +317,13 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
     }
 
     final updated = TimetableSettings(
-      semesterLabel:
-          _semester.text.trim().isEmpty ? null : _semester.text.trim(),
+      semesterLabel: _semester.text.trim().isEmpty ? null : _semester.text.trim(),
       periods: periods,
-      // Persist in the canonical week order so the engine's day list and
-      // AppConstants.weekDays stay aligned.
       workingDays: [
         for (final d in AppConstants.weekDays)
           if (_workingDays.contains(d)) d,
       ],
       weeksInTerm: weeks,
-      // Explicitly null when the field is left empty; the constructor default
-      // only applies when the argument is omitted altogether.
       fixedSessionsPerWeek: fixedSessions,
       blockedPeriods: blocked,
       onlinePeriods: [
@@ -279,224 +333,113 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
       allowOnlinePeriods: _allowOnline,
       excludedPeriods: const [],
       semesterMap: _controller.settings.semesterMap,
-      // Superseded by `blockedPeriods`, but kept in step with it rather than
-      // hard-coded false: an engine build older than migration 011 reads only
-      // this flag, and writing false there would quietly let it schedule
-      // Friday P4 again. Derived, so the two can never disagree.
-      fridayNoP4: blocked['Friday']?.contains(4) ?? false,
+      fridayNoP4: blocked['Friday']?.contains(4) ?? true,
       serviceScope: _serviceScope,
       weights: {
         for (final k in _kWeights.keys)
-          k: int.tryParse(_weightCtrls[k]!.text.trim()) ??
-              _kWeightDefaults[k] ??
-              1,
+          k: int.tryParse(_weightCtrls[k]!.text.trim()) ?? _kWeightDefaults[k] ?? 1,
       },
     );
 
     final ok = await _controller.save(updated);
     if (!mounted) return;
+    if (ok) {
+      setState(() => _isDirty = false);
+    }
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(ok
-          ? 'Saved. The next generated routine uses these settings.'
-          : 'Could not save settings'),
-      backgroundColor: ok ? AppColors.success : AppColors.error,
+          ? 'Settings saved. Solver will generate with updated institutional rules.'
+          : 'Could not save settings.'),
+      backgroundColor: ok ? AppColors.roleTeacher : AppColors.error,
     ));
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDesktopShell = DesktopShellScope.isDesktopOf(context);
+
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
-      appBar: const UAppBar(
-        title: 'Timetable Settings',
-        subtitle: 'Class times, term & solver rules',
-      ),
+      appBar: isDesktopShell
+          ? null
+          : const UAppBar(
+              title: 'Timetable Settings',
+              subtitle: '7-Day Term Clock, Committee Rules & Engine Weights',
+            ),
       body: ListenableBuilder(
         listenable: _controller,
         builder: (context, _) {
           if (_controller.isLoading || !_loaded) {
-            return const ULoading.spinner();
+            return const Center(child: ULoading.spinner());
           }
-          return ListView(
-            padding: AppSpacing.screenPadding,
+
+          return Column(
             children: [
-              Container(
-                margin: const EdgeInsets.only(bottom: AppSpacing.lg),
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: AppColors.bgElevated,
-                  borderRadius: AppSpacing.radiusMd,
-                  border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.35),
+              // Studio Tab Navigator
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screenH,
+                  AppSpacing.md,
+                  AppSpacing.screenH,
+                  AppSpacing.sm,
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 820),
+                    child: USegmentedControl<int>(
+                      selected: _activeTab,
+                      onChanged: (idx) => setState(() => _activeTab = idx),
+                      segments: const [
+                        USegment(
+                          value: 0,
+                          label: '7-Day Clock & R15 Timeline',
+                          icon: PhosphorIconsRegular.clock,
+                        ),
+                        USegment(
+                          value: 1,
+                          label: 'Committee Rules (R1–R14)',
+                          icon: PhosphorIconsRegular.shieldCheck,
+                        ),
+                        USegment(
+                          value: 2,
+                          label: 'Engine Profiles & Weights',
+                          icon: PhosphorIconsRegular.slidersHorizontal,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                child: Row(
+              ),
+
+              // Studio Tab Views
+              Expanded(
+                child: ListView(
+                  padding: AppSpacing.screenPadding,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(AppSpacing.xs),
-                      decoration: BoxDecoration(
-                        color: AppColors.primarySoft,
-                        borderRadius: AppSpacing.radiusSm,
-                      ),
-                      child: const Icon(
-                        PhosphorIconsRegular.stack,
-                        color: AppColors.primary,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Policy Baseline for Scheduling Workspace',
-                            style: AppTextStyles.bodySmMedium.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Settings defined here serve as baseline defaults. In Phase 2B, the CP-SAT engine binds to frozen revision snapshots.',
-                            style: AppTextStyles.caption.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    FilledButton.tonal(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.primarySoft,
-                        foregroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
+                    if (_formError != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.15),
+                          borderRadius: AppSpacing.radiusMd,
+                          border: Border.all(color: AppColors.error),
                         ),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        child: Text(_formError!, style: AppTextStyles.bodyError),
                       ),
-                      onPressed: () => context.go(RouteNames.schedulingWorkspace),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Open Workspace',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(width: 4),
-                          Icon(PhosphorIconsRegular.arrowRight, size: 12),
-                        ],
-                      ),
-                    ),
+                    ],
+
+                    if (_activeTab == 0) _buildTab0ClockAndTimeline(),
+                    if (_activeTab == 1) _buildTab1CommitteeRules(),
+                    if (_activeTab == 2) _buildTab2OptimizationProfiles(),
+
+                    const SizedBox(height: 80), // spacer for sticky bottom dirty bar
                   ],
                 ),
               ),
-              Text('TERM', style: AppTextStyles.labelCaps),
-              AppSpacing.smGap,
-              UTextField(
-                label: 'Semester label',
-                hint: 'e.g. Summer 2025',
-                controller: _semester,
-                prefixIcon: PhosphorIconsRegular.calendarBlank,
-              ),
-              AppSpacing.mdGap,
-              UTextField(
-                label: 'Teaching weeks in the term',
-                hint: '14',
-                controller: _weeks,
-                keyboardType: TextInputType.number,
-                prefixIcon: PhosphorIconsRegular.calendarBlank,
-              ),
-              AppSpacing.xsGap,
-              Text(
-                'Turns each course’s whole-term class count into weekly '
-                'classes. 28 classes over 14 weeks means two a week; over 10 '
-                'weeks it becomes three.',
-                style: AppTextStyles.caption,
-              ),
-              AppSpacing.mdGap,
-              UTextField(
-                label: 'Classes per week for every course',
-                hint: '2 — leave empty to work it out per course',
-                controller: _fixedSessions,
-                keyboardType: TextInputType.number,
-                prefixIcon: PhosphorIconsRegular.repeat,
-              ),
-              AppSpacing.xsGap,
-              Text(
-                'Gives every course the same number of weekly classes, '
-                'ignoring its own class count. Leave empty and each course '
-                'gets what its total needs — a 38-class course would take '
-                'three a week instead of two. A course needing more than the '
-                'number set here will not be fully taught; the generator lists '
-                'each one and how many classes are lost.',
-                style: AppTextStyles.caption,
-              ),
-              AppSpacing.mdGap,
-              _workingDaysCard(),
-              AppSpacing.sectionGap,
-              Row(
-                children: [
-                  Expanded(
-                      child: Text('CLASS PERIODS',
-                          style: AppTextStyles.labelCaps)),
-                  if (_periods.length < _kPeriodColumns.length)
-                    UChip(
-                      label: 'Add period',
-                      isActive: false,
-                      onTap: _addPeriod,
-                    ),
-                ],
-              ),
-              AppSpacing.smGap,
-              Text(
-                'Used for both summer and winter timings — edit them here '
-                'rather than rebuilding the app. The printed workbook has '
-                '${_kPeriodColumns.length} period columns, so that is the '
-                'maximum.',
-                style: AppTextStyles.caption,
-              ),
-              AppSpacing.mdGap,
-              for (var i = 0; i < _periods.length; i++) ...[
-                _periodCard(i),
-                AppSpacing.mdGap,
-              ],
-              _onlineCard(),
-              AppSpacing.sectionGap,
-              Text('RULES', style: AppTextStyles.labelCaps),
-              AppSpacing.smGap,
-              _serviceScopeCard(),
-              AppSpacing.sectionGap,
-              Text('SOFT-CONSTRAINT WEIGHTS', style: AppTextStyles.labelCaps),
-              AppSpacing.smGap,
-              Text(
-                'Higher = the solver tries harder to satisfy it. 0 turns it off.',
-                style: AppTextStyles.caption,
-              ),
-              AppSpacing.mdGap,
-              ..._kWeights.entries.map(_weightField),
-              AppSpacing.sectionGap,
-              if (_formError != null) ...[
-                Text(_formError!, style: AppTextStyles.bodyError),
-                AppSpacing.smGap,
-              ],
-              if (_controller.errorMessage != null) ...[
-                Text(_controller.errorMessage!, style: AppTextStyles.bodyError),
-                AppSpacing.smGap,
-              ],
-              UButton(
-                label: 'Save Settings',
-                icon: PhosphorIconsRegular.floppyDisk,
-                isLoading: _controller.isSaving,
-                onPressed: _save,
-              ),
-              const SizedBox(height: AppSpacing.x4l),
+
+              // Bottom Dirty State Save Bar
+              if (_isDirty) _buildStickyDirtyBar(),
             ],
           );
         },
@@ -504,15 +447,619 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
     );
   }
 
+  // =========================================================================
+  // TAB 0: 7-DAY TERM CLOCK & R15 TIMELINE
+  // =========================================================================
+  Widget _buildTab0ClockAndTimeline() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(PhosphorIconsRegular.calendar, size: 16, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Text(
+              'SECTION 1 · CORE TERM GRID & TIMINGS (R15)',
+              style: AppTextStyles.labelCaps.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        UCard(
+          isTopLit: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Academic Term Parameters', style: AppTextStyles.h4),
+              const SizedBox(height: 4),
+              Text(
+                'Define institutional term length, course class cadence, and active teaching days.',
+                style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+              ),
+              AppSpacing.mdGap,
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: UTextField(
+                      label: 'Semester Label',
+                      hint: 'e.g. Summer 2025',
+                      controller: _semester,
+                      prefixIcon: PhosphorIconsRegular.calendarBlank,
+                    ),
+                  ),
+                  AppSpacing.mdGap,
+                  Expanded(
+                    child: UTextField(
+                      label: 'Teaching Weeks',
+                      hint: '14',
+                      controller: _weeks,
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  AppSpacing.mdGap,
+                  Expanded(
+                    child: UTextField(
+                      label: 'Classes/Wk Override',
+                      hint: 'Empty = automatic',
+                      controller: _fixedSessions,
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        AppSpacing.mdGap,
+
+        // 7-Day Institutional Working Days Strip
+        _workingDaysCard(),
+        AppSpacing.mdGap,
+
+        // R15 Slot Count Toggle
+        UCard(
+          isTopLit: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('R15 Daily Period Structure', style: AppTextStyles.bodyMedium),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Configure daily periods per academic day (6 vs 7 slots). Period 4 is reserved for Lunch/Jummah Prayer.',
+                          style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  USegmentedControl<int>(
+                    compact: true,
+                    selected: _slotMode,
+                    onChanged: _toggleSlotCount,
+                    segments: const [
+                      USegment(value: 6, label: '6 Slots / Day (Standard R15)'),
+                      USegment(value: 7, label: '7 Slots / Day (Extended)'),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        AppSpacing.mdGap,
+
+        // Daily Periods Timeline Cards
+        for (var i = 0; i < _periods.length; i++) ...[
+          _periodCard(i),
+          AppSpacing.mdGap,
+        ],
+
+        _onlineCard(),
+        AppSpacing.lgGap,
+        Row(
+          children: [
+            const Icon(Icons.balance_outlined, size: 16, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Text(
+              'SECTION 2 · COMMITTEE SOLVER RULES & WEIGHTS (R1–R14)',
+              style: AppTextStyles.labelCaps.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'View or manage complete rule governance across cohorts, faculty, and room pools.',
+          style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+        ),
+        AppSpacing.smGap,
+        _serviceScopeCard(),
+      ],
+    );
+  }
+
+  // =========================================================================
+  // TAB 1: COMMITTEE POLICY RULES (R1–R14)
+  // =========================================================================
+  Widget _buildTab1CommitteeRules() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        UCard(
+          isTopLit: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(PhosphorIconsRegular.shieldCheck, color: AppColors.primary, size: 20),
+                  const SizedBox(width: 8),
+                  Text('Routine Committee Policy Rules (R1–R14)', style: AppTextStyles.h4),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Comprehensive rule governance enforcing solver constraints across cohorts, faculty availability, and room classifications.',
+                style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+        AppSpacing.mdGap,
+
+        // Group 1: Cohort & Section Weekend Rules (R1–R3)
+        _buildRuleGroup(
+          title: 'Cohort & Section Weekend Governance (Rules R1–R3)',
+          description: 'Enforces student rest cycles, parity across sections, and lecture compactness.',
+          rules: [
+            _RuleItem(
+              code: 'R1',
+              title: 'Staggered Section Weekends (2 Consecutive Days Off)',
+              description: 'Each section receives 2 consecutive days off out of the 7-day week (e.g., Thu+Fri or Sun+Mon).',
+              statusText: 'Enforced Active',
+              isSemantic: false,
+            ),
+            _RuleItem(
+              code: 'R2',
+              title: 'Section Day-Off Parity (max variance ≤ 1 day)',
+              description: 'All sections within the same batch must have approximately equal total weekly days off.',
+              statusText: 'Enforced Active',
+              isSemantic: false,
+            ),
+            _RuleItem(
+              code: 'R3',
+              title: 'Cohort Class Compactness & Gap Minimization',
+              description: 'Minimizes scattered idle gaps between lectures for student cohorts on scheduled days.',
+              statusText: 'Engine Soft Objective',
+              isSemantic: true,
+            ),
+          ],
+        ),
+        AppSpacing.mdGap,
+
+        // Group 2: Faculty Availability & Workload Rules (R4–R9)
+        _buildRuleGroup(
+          title: 'Faculty Availability & Workload Matrix (Rules R4–R9)',
+          description: 'Governs service blocks, traveling adjunct windows, and weekly teaching limits.',
+          rules: [
+            _RuleItem(
+              code: 'R4',
+              title: 'External Service Blocks (Non-CSE Service Classes)',
+              description: 'Blocks CSE faculty teaching time when they conduct service classes in Law, BuA, EEE, or English.',
+              statusText: _serviceScope == 'resource_only' ? 'Resource-Only Active' : 'Ignored',
+              isSemantic: _serviceScope != 'resource_only',
+              customControl: _serviceScopeCard(),
+            ),
+            _RuleItem(
+              code: 'R5',
+              title: 'External Guest Faculty Declared Windows',
+              description: 'Guest faculty slots are strictly restricted to their declared 2-day teaching availability windows.',
+              statusText: 'Enforced Active',
+              isSemantic: false,
+            ),
+            _RuleItem(
+              code: 'R6',
+              title: '7-Day Faculty Teaching Days (4–5 Working Days)',
+              description: 'Permanent faculty work 4 to 5 days across the 7-day operational week.',
+              statusText: '4–5 Days / Week',
+              isSemantic: false,
+            ),
+            _RuleItem(
+              code: 'R7',
+              title: '7-Day Faculty Day-Off Allocation (2–3 Days Off)',
+              description: 'Permanent faculty receive 2 to 3 days off per week (4+3=7 or 5+2=7).',
+              statusText: '2–3 Days Off',
+              isSemantic: false,
+            ),
+            _RuleItem(
+              code: 'R8',
+              title: 'Faculty Preferred Slots Priority',
+              description: 'Soft priority given to faculty-declared preferred teaching slots during solver placement.',
+              statusText: 'Weighted Priority',
+              isSemantic: true,
+            ),
+            _RuleItem(
+              code: 'R9',
+              title: 'SUST Adjunct Half-Day Compactness',
+              description: 'Traveling SUST adjunct faculty sessions are clustered before or after the 1:00 PM prayer break.',
+              statusText: 'Before/After Break',
+              isSemantic: true,
+            ),
+          ],
+        ),
+        AppSpacing.mdGap,
+
+        // Group 3: Room & Course Rules (R10–R14)
+        _buildRuleGroup(
+          title: 'Room & Course Classification Rules (Rules R10–R14)',
+          description: 'Enforces lab exclusivity, single-day theory blocks, and physical capacity constraints.',
+          rules: [
+            _RuleItem(
+              code: 'R10',
+              title: 'ECL Lab Exclusivity (EEE Dept Lab)',
+              description: 'EEE department sessional courses are strictly assigned to the ECL lab.',
+              statusText: 'Hard Exclusivity',
+              isSemantic: false,
+            ),
+            _RuleItem(
+              code: 'R11',
+              title: 'Physics Lab Exclusivity',
+              description: 'PHY-1102 and PHY-1202 courses are strictly bound to the Physics Lab.',
+              statusText: 'Hard Exclusivity',
+              isSemantic: false,
+            ),
+            _RuleItem(
+              code: 'R12',
+              title: 'Sessional Consecutive Slots (1.5 Cr vs >1.5 Cr)',
+              description: '≤1.5 Cr sessionals = 2 lab slots; >1.5 Cr = 3 slots with at least 2 consecutive.',
+              statusText: 'Consecutive Lab Rule',
+              isSemantic: false,
+            ),
+            _RuleItem(
+              code: 'R13',
+              title: '1–2 Credit CSE Theory Block (Same Day, Same Room)',
+              description: '1–2 Cr CSE theory courses are scheduled on 1 day with 2 consecutive slots in the same room.',
+              statusText: '1-Day Block Rule',
+              isSemantic: true,
+            ),
+            _RuleItem(
+              code: 'R14',
+              title: 'Room Capacity & Pool Integrity',
+              description: 'Cohort enrollment must never exceed assigned room capacity.',
+              statusText: 'Capacity Bound',
+              isSemantic: false,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // =========================================================================
+  // TAB 2: ENGINE OPTIMIZATION PROFILE (CP-SAT WEIGHTS)
+  // =========================================================================
+  Widget _buildTab2OptimizationProfiles() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        UCard(
+          isTopLit: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(PhosphorIconsRegular.magicWand, color: AppColors.primary, size: 20),
+                  const SizedBox(width: 8),
+                  Text('Engine Optimization Profiles (CP-SAT Solver Weights)', style: AppTextStyles.h4),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Configure mathematical penalty weights guiding the OR-Tools CP-SAT solver. '
+                'Higher values heavily penalize violations of soft quality objectives.',
+                style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+              ),
+              AppSpacing.mdGap,
+
+              // 3 Optimization Preset Cards
+              Text('SOLVER PRESETS', style: AppTextStyles.labelCaps.copyWith(fontSize: 10)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildPresetCard(
+                      title: 'Strict Compliance',
+                      desc: 'Heavily penalizes gaps and schedule spread. Max rule enforcement.',
+                      presetKey: 'strict',
+                      icon: PhosphorIconsRegular.shieldCheck,
+                    ),
+                  ),
+                  AppSpacing.smGap,
+                  Expanded(
+                    child: _buildPresetCard(
+                      title: 'Balanced (Default)',
+                      desc: 'Optimized balance of student compactness and faculty preferences.',
+                      presetKey: 'balanced',
+                      icon: PhosphorIconsRegular.sparkle,
+                      isDefault: true,
+                    ),
+                  ),
+                  AppSpacing.smGap,
+                  Expanded(
+                    child: _buildPresetCard(
+                      title: 'Relaxed Feasibility',
+                      desc: 'Faster solver convergence with lower penalty thresholds.',
+                      presetKey: 'relaxed',
+                      icon: PhosphorIconsRegular.sliders,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        AppSpacing.mdGap,
+
+        // Soft-Constraint Sliders & Inputs
+        UCard(
+          isTopLit: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text('Soft-Constraint Objective Weights', style: AppTextStyles.bodyMedium),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: _restoreDefaultWeights,
+                    icon: const Icon(PhosphorIconsRegular.arrowCounterClockwise, size: 14),
+                    label: const Text('Restore Defaults'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Adjust relative importance (0 = disabled, 10 = maximum penalty).',
+                style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+              ),
+              AppSpacing.mdGap,
+              for (final entry in _kWeights.entries) ...[
+                _buildWeightSliderRow(entry.key, entry.value),
+                const Divider(color: AppColors.border, height: AppSpacing.lg),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPresetCard({
+    required String title,
+    required String desc,
+    required String presetKey,
+    required IconData icon,
+    bool isDefault = false,
+  }) {
+    return InkWell(
+      onTap: () => _applyOptimizationPreset(presetKey),
+      borderRadius: AppSpacing.radiusMd,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.bgElevated,
+          borderRadius: AppSpacing.radiusMd,
+          border: Border.all(
+            color: isDefault ? AppColors.primary.withValues(alpha: 0.6) : AppColors.border,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 16, color: isDefault ? AppColors.primary : AppColors.textSecondary),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: AppTextStyles.bodySmMedium.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: isDefault ? AppColors.primary : AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(desc, style: AppTextStyles.caption.copyWith(fontSize: 11)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWeightSliderRow(String key, String description) {
+    final ctrl = _weightCtrls[key]!;
+    final int currentVal = int.tryParse(ctrl.text.trim()) ?? 1;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(description, style: AppTextStyles.bodySmMedium),
+                Text('Engine weight key: $key', style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
+              ],
+            ),
+          ),
+          AppSpacing.mdGap,
+          Expanded(
+            flex: 2,
+            child: Slider(
+              value: currentVal.clamp(0, 10).toDouble(),
+              min: 0,
+              max: 10,
+              divisions: 10,
+              activeColor: AppColors.primary,
+              onChanged: (v) {
+                setState(() {
+                  ctrl.text = v.round().toString();
+                  _isDirty = true;
+                });
+              },
+            ),
+          ),
+          SizedBox(
+            width: 44,
+            child: Text(
+              '$currentVal',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.numeric.copyWith(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRuleGroup({
+    required String title,
+    required String description,
+    required List<_RuleItem> rules,
+  }) {
+    return UCard(
+      isTopLit: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: AppTextStyles.bodyMedium),
+          const SizedBox(height: 2),
+          Text(description, style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+          const SizedBox(height: AppSpacing.md),
+          for (final rule in rules) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppColors.border, width: 1)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: rule.isSemantic
+                              ? AppColors.info.withValues(alpha: 0.15)
+                              : AppColors.surfaceElevated,
+                          borderRadius: AppSpacing.radiusSm,
+                        ),
+                        child: Text(
+                          rule.code,
+                          style: AppTextStyles.caption.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: rule.isSemantic ? AppColors.info : AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          rule.title,
+                          style: AppTextStyles.bodySmMedium.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceElevated,
+                          borderRadius: AppSpacing.radiusSm,
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Text(
+                          rule.statusText,
+                          style: AppTextStyles.caption.copyWith(fontSize: 10),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 32),
+                    child: Text(
+                      rule.description,
+                      style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                    ),
+                  ),
+                  if (rule.customControl != null) ...[
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 32),
+                      child: rule.customControl!,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // =========================================================================
+  // HELPER CARDS (Working Days, Period Card, Online Card, Service Scope)
+  // =========================================================================
   Widget _workingDaysCard() {
     return UCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Working days', style: AppTextStyles.bodyMedium),
+          Row(
+            children: [
+              Text('Working days', style: AppTextStyles.bodyMedium),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primarySoft,
+                  borderRadius: AppSpacing.radiusSm,
+                ),
+                child: Text(
+                  '7-Day Operational Week (Sun–Sat)',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+            ],
+          ),
           AppSpacing.xsGap,
-          Text('Days the department teaches. The engine schedules into these '
-              'only.', style: AppTextStyles.caption),
+          Text(
+            'Days the department teaches across the full 7-day institutional week. '
+            'The engine schedules classes across Sunday through Saturday. Friday Jummah Prayer (Period 4) is hard-blocked.',
+            style: AppTextStyles.caption,
+          ),
           AppSpacing.smGap,
           Wrap(
             spacing: AppSpacing.sm,
@@ -527,6 +1074,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
                     _workingDays.contains(day)
                         ? _workingDays.remove(day)
                         : _workingDays.add(day);
+                    _isDirty = true;
                   }),
                 ),
             ],
@@ -551,10 +1099,47 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
                 icon: const Icon(PhosphorIconsRegular.trash,
                     size: AppSpacing.iconMd, color: AppColors.error),
                 tooltip: 'Remove period ${p.idx}',
-                onPressed: () => _removePeriod(i),
+                onPressed: () {
+                  setState(() {
+                    _periods.removeAt(i).dispose();
+                    for (var j = 0; j < _periods.length; j++) {
+                      _periods[j]
+                        ..idx = j + 1
+                        ..col = _nextColumn(j);
+                    }
+                    _isDirty = true;
+                  });
+                },
               ),
             ],
           ),
+          if (p.idx == 4) ...[
+            AppSpacing.xsGap,
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.1),
+                borderRadius: AppSpacing.radiusSm,
+                border: Border.all(color: AppColors.error.withValues(alpha: 0.35)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(PhosphorIconsRegular.lock, size: 14, color: AppColors.error),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Hard Constraint: Friday Jummah Prayer Block (friday_no_p4 — Zero classes permitted during Friday Jummah window)',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           Row(
             children: [
               Expanded(
@@ -590,6 +1175,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
                     p.blockedOn.contains(day)
                         ? p.blockedOn.remove(day)
                         : p.blockedOn.add(day);
+                    _isDirty = true;
                   }),
                 ),
             ],
@@ -605,7 +1191,10 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
             UChip(
               label: p.online ? 'Yes' : 'No',
               isActive: p.online,
-              onTap: () => setState(() => p.online = !p.online),
+              onTap: () => setState(() {
+                p.online = !p.online;
+                _isDirty = true;
+              }),
             ),
           ]),
         ],
@@ -618,8 +1207,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Schedule into online / reserve periods',
-              style: AppTextStyles.bodyMedium),
+          Text('Schedule into online / reserve periods', style: AppTextStyles.bodyMedium),
           AppSpacing.xsGap,
           Text(
             'Off by default: the evening slot exists on the printed grid but '
@@ -632,13 +1220,19 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
             UChip(
               label: 'On',
               isActive: _allowOnline,
-              onTap: () => setState(() => _allowOnline = true),
+              onTap: () => setState(() {
+                _allowOnline = true;
+                _isDirty = true;
+              }),
             ),
             AppSpacing.smHGap,
             UChip(
               label: 'Off',
               isActive: !_allowOnline,
-              onTap: () => setState(() => _allowOnline = false),
+              onTap: () => setState(() {
+                _allowOnline = false;
+                _isDirty = true;
+              }),
             ),
           ]),
         ],
@@ -647,55 +1241,111 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen> {
   }
 
   Widget _serviceScopeCard() {
-    return UCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.bgElevated,
+        borderRadius: AppSpacing.radiusSm,
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
         children: [
-          Text('Service / non-CSE classes', style: AppTextStyles.bodyMedium),
-          AppSpacing.xsGap,
-          Text(
-            'Resource-only blocks a CSE teacher’s time for their service '
-            'classes (Law, BuA, EEE…) so CSE classes never clash with them.',
-            style: AppTextStyles.caption,
+          Expanded(
+            child: Text('Service Class Scope:', style: AppTextStyles.bodySm),
           ),
-          AppSpacing.smGap,
-          Row(children: [
-            UChip(
-              label: 'Resource-only',
-              isActive: _serviceScope == 'resource_only',
-              onTap: () => setState(() => _serviceScope = 'resource_only'),
-            ),
-            AppSpacing.smHGap,
-            UChip(
-              label: 'Ignore',
-              isActive: _serviceScope == 'ignore',
-              onTap: () => setState(() => _serviceScope = 'ignore'),
-            ),
-          ]),
+          UChip(
+            label: 'Resource-only',
+            isActive: _serviceScope == 'resource_only',
+            onTap: () => setState(() {
+              _serviceScope = 'resource_only';
+              _isDirty = true;
+            }),
+          ),
+          AppSpacing.smHGap,
+          UChip(
+            label: 'Ignore',
+            isActive: _serviceScope == 'ignore',
+            onTap: () => setState(() {
+              _serviceScope = 'ignore';
+              _isDirty = true;
+            }),
+          ),
         ],
       ),
     );
   }
 
-  Widget _weightField(MapEntry<String, String> e) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+  Widget _buildStickyDirtyBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.screenH,
+        vertical: AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.bgElevated,
+        border: const Border(
+          top: BorderSide(color: AppColors.border, width: 1),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Expanded(child: Text(e.value, style: AppTextStyles.bodySm)),
-          AppSpacing.mdGap,
-          SizedBox(
-            width: AppSpacing.x4l + AppSpacing.x3l,
-            child: UTextField(
-              label: '',
-              hint: '0',
-              controller: _weightCtrls[e.key],
-              keyboardType: TextInputType.number,
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: AppColors.warning,
+              shape: BoxShape.circle,
             ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Unsaved Modifications · Review changes before generating',
+              style: AppTextStyles.bodySmMedium.copyWith(color: AppColors.warning),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              _hydrate();
+              setState(() => _isDirty = false);
+            },
+            child: Text('Discard', style: AppTextStyles.button.copyWith(color: AppColors.textSecondary)),
+          ),
+          AppSpacing.smHGap,
+          UButton(
+            label: 'Save Settings',
+            icon: PhosphorIconsRegular.floppyDisk,
+            isLoading: _controller.isSaving,
+            fullWidth: false,
+            onPressed: _save,
           ),
         ],
       ),
     );
   }
+}
+
+class _RuleItem {
+  final String code;
+  final String title;
+  final String description;
+  final String statusText;
+  final bool isSemantic;
+  final Widget? customControl;
+
+  _RuleItem({
+    required this.code,
+    required this.title,
+    required this.description,
+    required this.statusText,
+    this.isSemantic = false,
+    this.customControl,
+  });
 }

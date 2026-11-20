@@ -11,17 +11,29 @@ import 'package:universe/features/rooms/controllers/rooms_controller.dart';
 
 class RoomStatusCard extends StatelessWidget {
   final RoomStatus roomStatus;
+  final VoidCallback? onSelect;
+  final bool isSelected;
 
-  const RoomStatusCard({super.key, required this.roomStatus});
+  const RoomStatusCard({
+    super.key,
+    required this.roomStatus,
+    this.onSelect,
+    this.isSelected = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return UCard(
-      isTopLit: true,
-      margin: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
-      padding: EdgeInsets.zero,
-      child: DecoratedBox(
+    return InkWell(
+      onTap: onSelect,
+      borderRadius: AppSpacing.radiusMd,
+      child: UCard(
+        isTopLit: true,
+        margin: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+        padding: EdgeInsets.zero,
+        border:
+            isSelected ? Border.all(color: AppColors.primary, width: 2) : null,
+        child: DecoratedBox(
           decoration: BoxDecoration(
               border: Border(
                   left: BorderSide(
@@ -37,45 +49,64 @@ class RoomStatusCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
+                    Expanded(
+                        child: Row(
                       children: [
                         Icon(
                           PhosphorIconsRegular.door,
-                          color: AppColors.primary,
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.textSecondary,
                           size: AppSpacing.iconMd,
                         ),
-                        SizedBox(width: AppSpacing.md),
-                        Text(
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                            child: Text(
                           roomStatus.room,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: AppTextStyles.h3.copyWith(
                             color: AppColors.textPrimary,
+                            fontWeight:
+                                isSelected ? FontWeight.bold : FontWeight.w600,
+                          ),
+                        )),
+                      ],
+                    )),
+                    const SizedBox(width: AppSpacing.sm),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm,
+                            vertical: AppSpacing.xs,
+                          ),
+                          decoration: BoxDecoration(
+                            color: roomStatus.isOccupied
+                                ? AppColors.errorSoft
+                                : AppColors.success.withValues(alpha: 0.1),
+                            borderRadius: AppSpacing.radiusSm,
+                          ),
+                          child: Text(
+                            roomStatus.isOccupied ? 'OCCUPIED' : 'AVAILABLE',
+                            style: AppTextStyles.chip.copyWith(
+                              color: roomStatus.isOccupied
+                                  ? AppColors.error
+                                  : AppColors.success,
+                            ),
                           ),
                         ),
+                        const SizedBox(height: 2),
                       ],
-                    ),
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: AppSpacing.sm,
-                        vertical: AppSpacing.xs,
-                      ),
-                      decoration: BoxDecoration(
-                        color: roomStatus.isOccupied
-                            ? AppColors.errorSoft
-                            : AppColors.success.withValues(alpha: 0.1),
-                        borderRadius: AppSpacing.radiusSm,
-                      ),
-                      child: Text(
-                        roomStatus.isOccupied ? 'OCCUPIED' : 'AVAILABLE',
-                        style: AppTextStyles.chip.copyWith(
-                          color: roomStatus.isOccupied
-                              ? AppColors.error
-                              : AppColors.success,
-                        ),
-                      ),
                     ),
                   ],
                 ),
-                SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.xs),
+                Text('Derived from published routine',
+                    style: AppTextStyles.caption
+                        .copyWith(fontSize: 9, color: AppColors.textMuted)),
+                const SizedBox(height: AppSpacing.md),
 
                 if (roomStatus.isOccupied) ...[
                   _InfoRow(
@@ -131,13 +162,22 @@ class RoomStatusCard extends StatelessWidget {
                 const _MoreDetailsDivider(),
                 // PHASE 1: The room identifier is durable even when extra is lost on refresh.
                 _MoreDetailsLink(
-                  onTap: () => context.push(
-                      RouteNames.roomDetailLocation(roomStatus.room),
-                      extra: roomStatus.room),
+                  onTap: () {
+                    if (onSelect != null) {
+                      onSelect!();
+                    } else {
+                      context.push(
+                        RouteNames.roomDetailLocation(roomStatus.room),
+                        extra: roomStatus.room,
+                      );
+                    }
+                  },
                 ),
               ],
             ),
-          )),
+          ),
+        ),
+      ),
     );
   }
 }

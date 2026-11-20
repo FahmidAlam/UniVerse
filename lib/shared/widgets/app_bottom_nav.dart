@@ -130,6 +130,8 @@ class AppBottomNav extends StatelessWidget {
 
   // PHASE 1: Mobile admin tools stay reachable through existing guarded routes.
   static const adminTools = <({String label, String route})>[
+    (label: 'Courses', route: RouteNames.manageCourses),
+    (label: 'Batches & Sections', route: RouteNames.manageBatches),
     (label: 'Users', route: RouteNames.manageUsers),
     (label: 'Registration', route: RouteNames.adminRegistration),
     (label: 'Faculty', route: RouteNames.manageFaculty),

@@ -38,7 +38,9 @@ class PhosphorIcons {
   static const x = Icons.close;
   static const check = Icons.check;
   static const plus = Icons.add;
+  static const plusCircle = Icons.add_circle_outline;
   static const minus = Icons.remove;
+  static const bug = Icons.bug_report_outlined;
   static const trash = Icons.delete_outline;
   static const pencil = Icons.edit_outlined;
   static const eye = Icons.visibility_outlined;
@@ -154,6 +156,8 @@ class PhosphorIcons {
   static const gitDiff = Icons.difference_outlined;
   static const checkFat = Icons.verified_outlined;
   static const rows = Icons.table_rows_outlined;
+  static const laptop = Icons.laptop_outlined;
+  static const desktop = Icons.desktop_windows_outlined;
 }
 
 class PhosphorIconsRegular {
@@ -194,7 +198,9 @@ class PhosphorIconsRegular {
   static const x = Icons.close;
   static const check = Icons.check;
   static const plus = Icons.add;
+  static const plusCircle = Icons.add_circle_outline;
   static const minus = Icons.remove;
+  static const bug = Icons.bug_report_outlined;
   static const trash = Icons.delete_outline;
   static const pencil = Icons.edit_outlined;
   static const eye = Icons.visibility_outlined;
@@ -310,4 +316,6 @@ class PhosphorIconsRegular {
   static const gitDiff = Icons.difference_outlined;
   static const checkFat = Icons.verified_outlined;
   static const rows = Icons.table_rows_outlined;
+  static const laptop = Icons.laptop_outlined;
+  static const desktop = Icons.desktop_windows_outlined;
 }

@@ -36,6 +36,10 @@ class SchedulingGeneratePane extends StatelessWidget {
               const SizedBox(height: AppSpacing.lg),
               _buildDiagnosticsCard(context, res),
             ],
+            if (res.isNonFeasible || res.conflictDiagnostics.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.lg),
+              _buildConflictDiagnosticsCard(context, res),
+            ],
           ],
         );
       },
@@ -107,110 +111,119 @@ class SchedulingGeneratePane extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          // PHASE 5: Responsive header that wraps cleanly at 390px without clipping.
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: 6,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              const Icon(
-                PhosphorIconsRegular.sliders,
-                color: AppColors.primary,
-                size: 18,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    PhosphorIconsRegular.sliders,
+                    color: AppColors.primary,
+                    size: 18,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Flexible(
+                    child: Text(
+                      'MULTI-OBJECTIVE OPTIMIZATION PARAMETERS',
+                      style: AppTextStyles.h4.copyWith(
+                        fontSize: 12,
+                        letterSpacing: 0.8,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: AppSpacing.sm),
-              const Text(
-                'MULTI-OBJECTIVE OPTIMIZATION PARAMETERS',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.8,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppColors.bgElevated,
                   borderRadius: AppSpacing.radiusSm,
                 ),
-                child: const Text(
-                  'Policy Bound (R8 / R9 / R15)',
-                  style: TextStyle(fontSize: 10, color: AppColors.textMuted),
+                child: Text(
+                  'Policy Bound (R3 / R8 / R9 / R13 / R15)',
+                  style: AppTextStyles.caption.copyWith(
+                    fontSize: 10,
+                    color: AppColors.textMuted,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 6),
           Text(
-            'Adjust soft penalty weights. Hard academic constraints (no room collisions, no teacher overlap, lab requirements) are non-negotiable and always enforced with infinite priority.',
+            'Adjust soft penalty weights across four priority tiers. Hard academic constraints (no room collisions, no teacher overlap, lab requirements) are non-negotiable and always enforced with infinite priority.',
             style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: AppSpacing.lg),
-          // Sliders
+          // Sliders across R1-R16 priority tiers
           _weightSlider(
-            label: 'Faculty Compactness & Idle Time Minimization (R8/R9)',
+            label: 'Tier 1: Cohort Compactness & Idle Gap Minimization (R3/R9)',
             description:
-                'Penalizes gaps > 1 period between teaching sessions for full-time faculty.',
-            value: cfg.teacherIdleWeight,
+                'Penalizes internal section gaps >= 2 consecutive empty slots and ensures SUST adjunct compact clustering.',
+            value: cfg.cohortCompactnessWeight,
             enabled: !isSolving,
-            onChanged: (v) =>
-                controller.updateSolverConfig(cfg.copyWith(teacherIdleWeight: v)),
+            onChanged: (v) => controller.updateSolverConfig(
+              cfg.copyWith(cohortCompactnessWeight: v, teacherIdleWeight: v),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           _weightSlider(
-            label: 'Campus Room Travel Distance Minimization',
+            label: 'Tier 2: Faculty Stated Preferences Satisfaction (R8/R9)',
+            description:
+                'Rewards assigning classes within faculty preferred morning/afternoon windows and SUST adjunct side-of-break clusters.',
+            value: cfg.facultyPreferenceWeight,
+            enabled: !isSolving,
+            onChanged: (v) => controller.updateSolverConfig(
+              cfg.copyWith(facultyPreferenceWeight: v, teacherPreferenceWeight: v),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _weightSlider(
+            label: 'Tier 3: Weekly Theory Distribution Spread Balance (R13/D2)',
+            description:
+                'Maximizes day intervals for 3-credit theory courses across the section\'s active working days in the 7-day week (Sunday–Saturday) to avoid same-day cramming.',
+            value: cfg.theorySpreadWeight,
+            enabled: !isSolving,
+            onChanged: (v) => controller.updateSolverConfig(
+              cfg.copyWith(theorySpreadWeight: v, distributionSpreadWeight: v),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _weightSlider(
+            label: 'Tier 4: Late Afternoon Slot Avoidance (R15)',
+            description:
+                'Penalizes assigning sessions to late afternoon periods when morning/midday slots are available.',
+            value: cfg.latePeriodAvoidanceWeight,
+            enabled: !isSolving,
+            onChanged: (v) => controller.updateSolverConfig(
+              cfg.copyWith(latePeriodAvoidanceWeight: v),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _weightSlider(
+            label: 'Secondary: Campus Room Travel Distance Minimization',
             description:
                 'Encourages assigning consecutive classes in the same building or floor.',
             value: cfg.roomTravelWeight,
             enabled: !isSolving,
-            onChanged: (v) =>
-                controller.updateSolverConfig(cfg.copyWith(roomTravelWeight: v)),
+            onChanged: (v) => controller.updateSolverConfig(
+              cfg.copyWith(roomTravelWeight: v),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
-          _weightSlider(
-            label: 'Weekly Distribution Spread Balance (R13/D2)',
-            description:
-                'Maximizes day intervals for 3-credit theory courses across Sunday-Thursday.',
-            value: cfg.distributionSpreadWeight,
-            enabled: !isSolving,
-            onChanged: (v) => controller
-                .updateSolverConfig(cfg.copyWith(distributionSpreadWeight: v)),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _weightSlider(
-            label: 'Teacher Stated Preferences Satisfaction',
-            description:
-                'Rewards assigning classes within each faculty member\'s preferred morning/afternoon window.',
-            value: cfg.teacherPreferenceWeight,
-            enabled: !isSolving,
-            onChanged: (v) => controller
-                .updateSolverConfig(cfg.copyWith(teacherPreferenceWeight: v)),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          // Time Budget
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Search Time Budget Limit',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      'Maximum exploration time before returning best feasible candidate.',
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Wrap(
+          // Time Budget (Responsive layout at 390px)
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 540;
+              final chips = Wrap(
                 spacing: 6,
+                runSpacing: 4,
                 children: [60.0, 120.0, 300.0].map((t) {
                   final isSelected = cfg.timeLimitSeconds == t;
                   return ChoiceChip(
@@ -223,7 +236,7 @@ class SchedulingGeneratePane extends StatelessWidget {
                             ),
                     selectedColor: AppColors.primary,
                     backgroundColor: AppColors.bgElevated,
-                    labelStyle: TextStyle(
+                    labelStyle: AppTextStyles.captionMedium.copyWith(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: isSelected
@@ -232,14 +245,64 @@ class SchedulingGeneratePane extends StatelessWidget {
                     ),
                   );
                 }).toList(),
-              ),
-            ],
+              );
+
+              if (isNarrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Search Time Budget Limit',
+                      style: AppTextStyles.bodySmMedium.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      'Maximum exploration time before returning best feasible candidate.',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    chips,
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Search Time Budget Limit',
+                          style: AppTextStyles.bodySmMedium.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          'Maximum exploration time before returning best feasible candidate.',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  chips,
+                ],
+              );
+            },
           ),
         ],
       ),
     );
   }
 
+  // PHASE 5: Axis-labeled multi-objective weight control with priority tier indicator and tabular numerals.
   Widget _weightSlider({
     required String label,
     required String description,
@@ -247,24 +310,48 @@ class SchedulingGeneratePane extends StatelessWidget {
     required bool enabled,
     required ValueChanged<double> onChanged,
   }) {
+    final tierLabel = value >= 0.75
+        ? 'Strict Priority'
+        : (value >= 0.45 ? 'Balanced' : 'Low');
+    final tierColor = value >= 0.75
+        ? AppColors.primary
+        : (value >= 0.45 ? AppColors.info : AppColors.textMuted);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+            Expanded(
+              child: Text(
+                label,
+                style: AppTextStyles.bodySmMedium.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
+            const SizedBox(width: AppSpacing.xs),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: AppColors.bgElevated,
+                borderRadius: BorderRadius.circular(3),
+              ),
+              child: Text(
+                tierLabel,
+                style: AppTextStyles.captionMedium.copyWith(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  color: tierColor,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
             Text(
               '${(value * 100).toInt()}%',
-              style: const TextStyle(
-                fontFamily: 'monospace',
+              style: AppTextStyles.numeric.copyWith(
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
                 color: AppColors.primary,
@@ -277,13 +364,13 @@ class SchedulingGeneratePane extends StatelessWidget {
           style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
         ),
         SliderTheme(
-          data: SliderThemeData(
+          data: const SliderThemeData(
             trackHeight: 4,
             activeTrackColor: AppColors.primary,
             inactiveTrackColor: AppColors.bgElevated,
             thumbColor: AppColors.primary,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+            thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
+            overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
           ),
           child: Slider(
             value: value,
@@ -302,6 +389,26 @@ class SchedulingGeneratePane extends StatelessWidget {
     SolverExecutionResult res,
     bool isSolving,
   ) {
+    final runBtn = FilledButton.icon(
+      style: FilledButton.styleFrom(
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.textPrimary,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+      onPressed: isSolving ? null : controller.runSolverPreview,
+      icon: isSolving
+          ? const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.textPrimary,
+              ),
+            )
+          : const Icon(PhosphorIconsRegular.play, size: 16),
+      label: Text(isSolving ? 'Solving Routine…' : 'Run CP-SAT Solver'),
+    );
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
@@ -309,66 +416,121 @@ class SchedulingGeneratePane extends StatelessWidget {
         borderRadius: AppSpacing.radiusMd,
         border: Border.all(color: AppColors.border),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 600;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('CP-SAT Search Engine Control', style: AppTextStyles.h4),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Runs OR-Tools CP-SAT with multi-threaded constraint satisfaction search.',
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textSecondary,
+              Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: 4,
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.infoSoft,
+                      borderRadius: AppSpacing.radiusSm,
+                      border: Border.all(
+                        color: AppColors.info.withValues(alpha: 0.4),
                       ),
                     ),
+                    child: Text(
+                      'SIMULATED PREVIEW · NO ENGINE CALL',
+                      style: AppTextStyles.caption.copyWith(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                        color: AppColors.info,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              if (isNarrow) ...[
+                Text('CP-SAT Search Engine Control', style: AppTextStyles.h4),
+                const SizedBox(height: 2),
+                Text(
+                  'Runs OR-Tools CP-SAT with multi-threaded constraint satisfaction search.',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                SizedBox(width: double.infinity, child: runBtn),
+                const SizedBox(height: AppSpacing.xs),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: isSolving ? null : controller.simulateInfeasibleSolverRun,
+                    icon: const Icon(PhosphorIconsRegular.bug, size: 14),
+                    label: Text(
+                      'Simulate Infeasible Core',
+                      style: AppTextStyles.captionMedium.copyWith(
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ),
+                ),
+              ] else ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'CP-SAT Search Engine Control',
+                            style: AppTextStyles.h4,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Runs OR-Tools CP-SAT with multi-threaded constraint satisfaction search.',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    TextButton.icon(
+                      onPressed: isSolving ? null : controller.simulateInfeasibleSolverRun,
+                      icon: const Icon(PhosphorIconsRegular.bug, size: 14),
+                      label: Text(
+                        'Simulate Infeasible Core',
+                        style: AppTextStyles.captionMedium.copyWith(
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    runBtn,
                   ],
                 ),
-              ),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.textPrimary,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ],
+              if (isSolving) ...[
+                const SizedBox(height: AppSpacing.md),
+                LinearProgressIndicator(
+                  value: controller.solvingProgress,
+                  backgroundColor: AppColors.bgElevated,
+                  color: AppColors.primary,
+                  minHeight: 6,
                 ),
-                onPressed: isSolving ? null : controller.runSolverPreview,
-                icon: isSolving
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.textPrimary,
-                        ),
-                      )
-                    : const Icon(PhosphorIconsRegular.play, size: 16),
-                label: Text(isSolving ? 'Solving Routine…' : 'Run CP-SAT Solver'),
-              ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  controller.solvingStepMessage,
+                  style: AppTextStyles.timeCode.copyWith(
+                    fontSize: 11,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
             ],
-          ),
-          if (isSolving) ...[
-            const SizedBox(height: AppSpacing.md),
-            LinearProgressIndicator(
-              value: controller.solvingProgress,
-              backgroundColor: AppColors.bgElevated,
-              color: AppColors.primary,
-              minHeight: 6,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              controller.solvingStepMessage,
-              style: const TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 11,
-                color: AppColors.primary,
-              ),
-            ),
-          ],
-        ],
+          );
+        },
       ),
     );
   }
@@ -377,6 +539,22 @@ class SchedulingGeneratePane extends StatelessWidget {
     BuildContext context,
     SolverExecutionResult res,
   ) {
+    final reviewBtn = FilledButton.tonal(
+      style: FilledButton.styleFrom(
+        backgroundColor: AppColors.successSoft,
+        foregroundColor: AppColors.success,
+      ),
+      onPressed: () => controller.setTabIndex(4),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Review Routine'),
+          SizedBox(width: 4),
+          Icon(PhosphorIconsRegular.arrowRight, size: 14),
+        ],
+      ),
+    );
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
@@ -386,21 +564,129 @@ class SchedulingGeneratePane extends StatelessWidget {
           color: AppColors.success.withValues(alpha: 0.4),
         ),
       ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 600;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColors.successSoft,
+                      borderRadius: AppSpacing.radiusSm,
+                    ),
+                    child: const Icon(
+                      PhosphorIconsRegular.checkCircle,
+                      color: AppColors.success,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          res.outcomeLabel,
+                          style: AppTextStyles.h4.copyWith(
+                            fontSize: 13,
+                            letterSpacing: 0.8,
+                            color: AppColors.success,
+                          ),
+                        ),
+                        Text(
+                          'Explored ${res.variablesExplored} decision variables in ${res.elapsedSeconds.toStringAsFixed(2)}s. Zero hard conflicts.',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (!isNarrow) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    reviewBtn,
+                  ],
+                ],
+              ),
+              if (isNarrow) ...[
+                const SizedBox(height: AppSpacing.sm),
+                SizedBox(width: double.infinity, child: reviewBtn),
+              ],
+              const SizedBox(height: AppSpacing.md),
+              const Divider(color: AppColors.border, height: 1),
+              const SizedBox(height: AppSpacing.md),
+              // Diagnostic Grid
+              Wrap(
+                spacing: AppSpacing.lg,
+                runSpacing: AppSpacing.md,
+                children: res.diagnostics.entries.map((entry) {
+                  return SizedBox(
+                    width: 150,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          entry.key.toUpperCase(),
+                          style: AppTextStyles.labelCaps.copyWith(
+                            fontSize: 10,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          entry.value.toString(),
+                          style: AppTextStyles.numeric.copyWith(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildConflictDiagnosticsCard(
+    BuildContext context,
+    SolverExecutionResult res,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.bgCard,
+        borderRadius: AppSpacing.radiusMd,
+        border: Border.all(
+          color: AppColors.error.withValues(alpha: 0.45),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: AppColors.successSoft,
+                  color: AppColors.errorSoft,
                   borderRadius: AppSpacing.radiusSm,
                 ),
                 child: const Icon(
-                  PhosphorIconsRegular.checkCircle,
-                  color: AppColors.success,
-                  size: 18,
+                  PhosphorIconsRegular.warningCircle,
+                  color: AppColors.error,
+                  size: 20,
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -409,35 +695,20 @@ class SchedulingGeneratePane extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      res.outcomeLabel,
-                      style: const TextStyle(
+                      'CP-SAT SOLVER INFEASIBLE · CONFLICT DIAGNOSTICS',
+                      style: AppTextStyles.h4.copyWith(
                         fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.8,
-                        color: AppColors.success,
+                        letterSpacing: 0.6,
+                        color: AppColors.error,
                       ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
-                      'Explored ${res.variablesExplored} decision variables in ${res.elapsedSeconds.toStringAsFixed(2)}s. Zero hard conflicts.',
+                      'The CP-SAT constraint engine proved no feasible schedule exists satisfying all active hard constraints. Review the Minimal Unsatisfiable Core (MUC) below:',
                       style: AppTextStyles.caption.copyWith(
                         color: AppColors.textSecondary,
                       ),
                     ),
-                  ],
-                ),
-              ),
-              FilledButton.tonal(
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.successSoft,
-                  foregroundColor: AppColors.success,
-                ),
-                onPressed: () => controller.setTabIndex(4),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Review Routine'),
-                    SizedBox(width: 4),
-                    Icon(PhosphorIconsRegular.arrowRight, size: 14),
                   ],
                 ),
               ),
@@ -446,39 +717,133 @@ class SchedulingGeneratePane extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           const Divider(color: AppColors.border, height: 1),
           const SizedBox(height: AppSpacing.md),
-          // Diagnostic Grid
-          Wrap(
-            spacing: AppSpacing.lg,
-            runSpacing: AppSpacing.md,
-            children: res.diagnostics.entries.map((entry) {
-              return SizedBox(
-                width: 180,
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: res.conflictDiagnostics.length,
+            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+            itemBuilder: (context, index) {
+              final diag = res.conflictDiagnostics[index];
+              return Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.bgElevated,
+                  borderRadius: AppSpacing.radiusSm,
+                  border: const Border(
+                    left: BorderSide(color: AppColors.error, width: 3),
+                  ),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.errorSoft,
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                          child: Text(
+                            diag.ruleCode,
+                            style: AppTextStyles.labelCaps.copyWith(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.error,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            diag.title,
+                            style: AppTextStyles.bodySmMedium.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.textPrimary,
+                            side: BorderSide(
+                              color: AppColors.primary.withValues(alpha: 0.5),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: () => controller.setTabIndex(diag.targetTab),
+                          icon: const Icon(
+                            PhosphorIconsRegular.arrowSquareOut,
+                            size: 12,
+                          ),
+                          label: Text(
+                            diag.targetTab == 0
+                                ? 'Fix in Distribution'
+                                : 'Fix in Config',
+                            style: AppTextStyles.captionMedium.copyWith(
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
                     Text(
-                      entry.key.toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.6,
-                        color: AppColors.textMuted,
+                      diag.summary,
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textSecondary,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      entry.value.toString(),
-                      style: const TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                    if (diag.suggestedAction.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Recommendation: ${diag.suggestedAction}',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.warning,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
-                    ),
+                    ],
+                    if (diag.involvedEntities.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 4,
+                        runSpacing: 4,
+                        children: diag.involvedEntities.map((e) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.bgPrimary,
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: Text(
+                              e,
+                              style: AppTextStyles.timeCode.copyWith(
+                                fontSize: 10,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ],
                 ),
               );
-            }).toList(),
+            },
           ),
         ],
       ),

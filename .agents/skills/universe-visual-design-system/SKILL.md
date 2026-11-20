@@ -103,3 +103,19 @@ Require perceptual depth #0B0C0E -> #121417 -> #17191E -> #1F2229, crisp 1px #26
 
 ## Cohesive Phase 0-3 implementation standard
 Use centralized AppColors.cardIdleGradient/cardHoverGradient, dualElevationShadow and specular/specularHover on meaningful elevated surfaces. Passive cards stay passive. UAvatar/ULocalAvatar and ProfileAccountAction own account chrome; preserve the dark/orange identity.
+
+## Anti-Slop, Concentric Radius & Institutional Precision Standard (Phase A & B)
+1. **Delete Filler Badges & Unselected Row Stripes ("Checkbox Off = Gray"):**
+   - Normal/default states must NOT display filler badges (`Standard 3x/Wk`, `Active`, `Verified`, `Default Baseline`). Normal metrics (credits, capacities, meetings) render as clean right-aligned tabular numerals (`AppTextStyles.numeric`).
+   - Reserve semantic badges ONLY for active exceptions/rules: `R13 · 1-Day Block` (Cyan), `R12 · Lab Block` (Emerald), `B+C Joint` (Cyan), `Retake` (Amber), `External Guest [R5]` / `SUST [R9]` (Amber), `R7 Violation` / `R2 Variance > 1d` (Crimson), `Jummah Block` (Amber/Crimson).
+   - In master lists, display the `3px` left accent bar ONLY on the currently selected row. Unselected rows remain clean with `1px` dissolved horizontal dividers.
+2. **Drop Redundant Labels & Eyebrow Clutter:**
+   - Eliminate permanent `Saved in Catalog Store · Staged for Phase D` text banners from inspector headers. Show an optimistic toast/pill upon save, and show the `[Discard] [Save Changes]` bar only when `isDirty == true`.
+   - Avoid excessive ALL-CAPS subtitles; use crisp sentence-case headings (`20–24px` max, `-2%` tracking) and group related fields using `AppSpacing` (`4px` grid) rather than extra nested bordered boxes.
+3. **Concentric Corner Radii (Inner Radius = Outer – Padding):**
+   - Outer `UCard` radius = `12px`; inner toolbars/segmented controls (`4px` padding) = `8px`; matrix cells = `6px`.
+   - Lock column and table widths so toggling filters or R15 slot count (`6` vs `7` slots) causes zero layout shift.
+4. **7-Day Institutional Week & Jummah Hard Block:**
+   - All matrices, day strips, and timetable views span all 7 days (`Sun..Sat`).
+   - Friday Period 4 is permanently locked with `JUMMAH` badge and tooltip (`friday_no_p4` hard constraint).
+

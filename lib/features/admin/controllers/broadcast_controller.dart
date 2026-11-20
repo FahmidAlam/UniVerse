@@ -5,10 +5,13 @@ import 'package:universe/features/auth/controllers/auth_controller.dart';
 import 'package:universe/features/notifications/services/notification_service.dart';
 
 class BroadcastController extends SafeChangeNotifier {
-  final NotificationService _service = NotificationService();
+  final NotificationService _service;
   final AuthController authController;
 
-  BroadcastController({required this.authController});
+  BroadcastController({
+    required this.authController,
+    NotificationService? service,
+  }) : _service = service ?? NotificationService();
 
   NotifType _type = NotifType.university;
   String? _targetRole;
@@ -38,6 +41,7 @@ class BroadcastController extends SafeChangeNotifier {
 
   Future<void> loadRecent() async {
     _isLoadingRecent = true;
+    _errorMessage = null;
     notifyListeners();
     try {
       _recent = await _service.fetchAllForAdmin();

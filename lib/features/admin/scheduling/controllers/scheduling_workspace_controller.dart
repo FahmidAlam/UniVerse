@@ -3,12 +3,121 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universe/features/admin/scheduling/fixtures/scheduling_preview_fixtures.dart';
 import 'package:universe/features/admin/scheduling/models/scheduling_workspace_models.dart';
+import 'package:universe/features/admin/services/timetable_engine_service.dart';
+import 'package:universe/features/admin/services/timetable_config_service.dart';
 
 enum DistributionAvailability {
   checking,
   unavailable,
   noAcceptedRevision,
   available,
+}
+
+/// Abstract gateway interface connecting the scheduling workspace to backend services.
+/// Allows injecting production Supabase RPC implementations or deterministic test fixtures.
+abstract class SchedulingWorkspaceGateway {
+  Future<List<Map<String, dynamic>>> fetchAvailableScopesAndRevisions({
+    String? departmentId,
+    String? termId,
+  });
+
+  Future<PersistedDistributionRevision> readAcceptedRevision({
+    required String revisionId,
+  });
+
+  Future<DistributionCorrection> appendCellCorrection({
+    required String revisionId,
+    required int expectedVersion,
+    required int row,
+    required String column,
+    required dynamic effectiveValue,
+    required String reason,
+    required String author,
+  });
+}
+
+/// Default Supabase-backed gateway implementation using database RPCs.
+class SupabaseSchedulingWorkspaceGateway implements SchedulingWorkspaceGateway {
+  final TimetableEngineService _engineService;
+  SupabaseClient get _supabase => Supabase.instance.client;
+
+  SupabaseSchedulingWorkspaceGateway({TimetableEngineService? engineService})
+      : _engineService = engineService ?? TimetableEngineService();
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchAvailableScopesAndRevisions({
+    String? departmentId,
+    String? termId,
+  }) async {
+    try {
+      var query = _supabase
+          .from('course_distribution_revisions')
+          .select('id, revision_number, version, status, scope_id, created_at');
+      if (departmentId != null) query = query.eq('scope_id', departmentId);
+      final res = await query.order('revision_number', ascending: false);
+      return (res as List)
+          .map((e) => (e as Map).cast<String, dynamic>())
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  @override
+  Future<PersistedDistributionRevision> readAcceptedRevision({
+    required String revisionId,
+  }) {
+    return _engineService.fetchAcceptedDistributionRevision(revisionId);
+  }
+
+  @override
+  Future<DistributionCorrection> appendCellCorrection({
+    required String revisionId,
+    required int expectedVersion,
+    required int row,
+    required String column,
+    required dynamic effectiveValue,
+    required String reason,
+    required String author,
+  }) async {
+    try {
+      final res = await _supabase.rpc(
+        'append_course_distribution_correction',
+        params: {
+          'p_revision_id': revisionId,
+          'p_expected_version': expectedVersion,
+          'p_row': row,
+          'p_column': column.toUpperCase(),
+          'p_effective_value': effectiveValue,
+          'p_reason': reason,
+        },
+      );
+      final data =
+          (res as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{};
+      return DistributionCorrection(
+        id: (data['id'] as String?) ??
+            'corr-$row-${column.toLowerCase()}-${DateTime.now().millisecondsSinceEpoch}',
+        row: row,
+        column: column.toUpperCase(),
+        originalValue: (data['cached_value'] as String?) ?? '',
+        effectiveValue: effectiveValue.toString(),
+        reason: reason,
+        author: author,
+        timestamp: DateTime.now(),
+        revisionVersion: (data['version'] as int?) ?? (expectedVersion + 1),
+      );
+    } on PostgrestException catch (e) {
+      if (e.code == '40001' ||
+          e.message.contains('40001') ||
+          e.message.toLowerCase().contains('stale version')) {
+        throw StaleRevisionException(
+          'Stale revision version: Revision has been updated by another committee member.',
+          expectedVersion: expectedVersion,
+        );
+      }
+      rethrow;
+    }
+  }
 }
 
 /// Primary controller for the Phase 2B Scheduling Workspace.
@@ -18,12 +127,18 @@ enum DistributionAvailability {
 /// isolated design-preview fixtures.
 class SchedulingWorkspaceController extends ChangeNotifier {
   final Future<DistributionAvailability> Function()? _availabilityLoader;
+  final SchedulingWorkspaceGateway? _gateway;
 
   bool _disposed = false;
   bool _isPreviewMode;
   DistributionAvailability _backendAvailability =
       DistributionAvailability.checking;
   int _currentTabIndex = 0;
+
+  // Progressive capability state and artifact freshness
+  final WorkspaceCapabilityState _capabilities;
+  ArtifactFreshnessSummary _artifactFreshness;
+  String? _concurrencyConflictMessage;
 
   // Search & Filter state
   String _searchQuery = '';
@@ -60,8 +175,14 @@ class SchedulingWorkspaceController extends ChangeNotifier {
   SchedulingWorkspaceController({
     Future<DistributionAvailability> Function()? availabilityLoader,
     bool initialPreviewMode = false,
+    SchedulingWorkspaceGateway? gateway,
+    WorkspaceCapabilityState capabilities = WorkspaceCapabilityState.allLocked,
+    ArtifactFreshnessSummary artifactFreshness = const ArtifactFreshnessSummary(),
   })  : _availabilityLoader = availabilityLoader,
-        _isPreviewMode = initialPreviewMode {
+        _isPreviewMode = initialPreviewMode,
+        _gateway = gateway,
+        _capabilities = capabilities,
+        _artifactFreshness = artifactFreshness {
     _initData();
     checkBackendAvailability();
   }
@@ -81,6 +202,11 @@ class SchedulingWorkspaceController extends ChangeNotifier {
   DistributionAvailability get backendAvailability => _backendAvailability;
   int get currentTabIndex => _currentTabIndex;
 
+  WorkspaceCapabilityState get capabilities => _capabilities;
+  ArtifactFreshnessSummary get artifactFreshness => _artifactFreshness;
+  String? get concurrencyConflictMessage => _concurrencyConflictMessage;
+  bool get hasConcurrencyConflict => _concurrencyConflictMessage != null;
+
   String get searchQuery => _searchQuery;
   String? get selectedBatch => _selectedBatch;
   String? get selectedSection => _selectedSection;
@@ -95,6 +221,7 @@ class SchedulingWorkspaceController extends ChangeNotifier {
   bool get isInspectorOpen => _isInspectorOpen;
 
   RevisionContext get revision => _revision;
+  int get currentRevisionNumber => _revision.revisionNumber;
   List<PolicyConfigItem> get policyItems => _policyItems;
   List<ReadinessItem> get readinessItems => _readinessItems;
 
@@ -107,10 +234,12 @@ class SchedulingWorkspaceController extends ChangeNotifier {
   bool get isPublishing => _isPublishing;
   String? get publishedConfirmationId => _publishedConfirmationId;
 
-  // PHASE 0: An accepted row is evidence of existence, not operational wiring.
+  // Granular capability gate getters
   bool get hasAcceptedRevisionInDb =>
       _backendAvailability == DistributionAvailability.available;
-  bool get isLiveWorkspaceOperational => false;
+
+  /// In production, live workspace remains fail-closed until all 4 Gates A-D are enabled.
+  bool get isLiveWorkspaceOperational => _capabilities.isFullyOperational;
   bool get isLiveBackendReady => isLiveWorkspaceOperational;
 
   /// Returns distinct batches available in the dataset for filtering.
@@ -227,7 +356,6 @@ class SchedulingWorkspaceController extends ChangeNotifier {
 
   /// Toggles between live backend checking and isolated design preview.
   void togglePreviewMode(bool value) {
-    // PHASE 0: Cancel in-flight simulations before returning to live mode.
     if (!value) {
       _isSolving = false;
       _isPublishing = false;
@@ -241,6 +369,39 @@ class SchedulingWorkspaceController extends ChangeNotifier {
     if (index >= 0 && index <= 4) {
       _currentTabIndex = index;
       notifyListeners();
+    }
+  }
+
+  /// Synthesizes authoritative Course Distribution rows directly from the
+  /// native UI catalog stores (Courses, Batches, Offerings, Faculty) using
+  /// [TimetableConfigService.synthesizeDistributionFromCatalog].
+  Future<int> loadSynthesizedCatalogDistribution() async {
+    try {
+      final configService = TimetableConfigService();
+      final synthesized =
+          await configService.synthesizeDistributionFromCatalog();
+      if (_disposed) return 0;
+      if (synthesized.isNotEmpty) {
+        _records = synthesized;
+        if (_selectedBatch != null &&
+            !availableBatches.contains(_selectedBatch)) {
+          _selectedBatch = null;
+        }
+        if (_selectedSection != null &&
+            !availableSections.contains(_selectedSection)) {
+          _selectedSection = null;
+        }
+        if (_selectedDept != null &&
+            !availableDepartments.contains(_selectedDept)) {
+          _selectedDept = null;
+        }
+        _selectedRecord = _records.first;
+        notifyListeners();
+        return synthesized.length;
+      }
+      return 0;
+    } catch (_) {
+      return -1;
     }
   }
 
@@ -325,10 +486,42 @@ class SchedulingWorkspaceController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void clearConcurrencyConflict() {
+    _concurrencyConflictMessage = null;
+    notifyListeners();
+  }
+
+  void setConcurrencyConflict(String message) {
+    _concurrencyConflictMessage = message;
+    notifyListeners();
+  }
+
+  /// Reloads the latest revision from backend, restoring fresh artifact markers.
+  Future<void> reloadLatestRevision() async {
+    _concurrencyConflictMessage = null;
+    _artifactFreshness = _artifactFreshness.copyWith(
+      normalizedInputStatus: ArtifactStatus.current,
+      validationReportStatus: ArtifactStatus.current,
+      generationOutputStatus: ArtifactStatus.stale,
+      validatedAgainstVersion: _revision.revisionVersion,
+    );
+    notifyListeners();
+  }
+
+  /// Refreshes validation against current working revision and clears stale blocker.
+  void revalidateArtifacts() {
+    _artifactFreshness = _artifactFreshness.copyWith(
+      normalizedInputStatus: ArtifactStatus.current,
+      validationReportStatus: ArtifactStatus.current,
+      validatedAgainstVersion: _revision.revisionVersion,
+    );
+    notifyListeners();
+  }
+
   /// Saves an audited correction on a specific cell of an immutable source row.
   ///
   /// In Preview Mode, this updates the local in-memory fixture with full provenance.
-  /// Live corrections remain locked until the authoritative RPC is wired.
+  /// Live corrections require Gate B (`gateBAuditedCorrectionReady`).
   Future<bool> saveAuditedCorrection({
     required int row,
     required String column,
@@ -336,9 +529,30 @@ class SchedulingWorkspaceController extends ChangeNotifier {
     required String reason,
     required String author,
   }) async {
-    // PHASE 0: Local corrections are simulations, never live RPC writes.
-    if (!_isPreviewMode) return false;
     if (reason.trim().isEmpty) return false;
+
+    // Fail-closed live gate check
+    if (!_isPreviewMode) {
+      final gateway = _gateway;
+      if (!_capabilities.gateBAuditedCorrectionReady || gateway == null) {
+        return false;
+      }
+      try {
+        await gateway.appendCellCorrection(
+          revisionId: _revision.scopeId,
+          expectedVersion: _revision.revisionVersion,
+          row: row,
+          column: column,
+          effectiveValue: effectiveValue.trim(),
+          reason: reason.trim(),
+          author: author.trim().isEmpty ? 'Administrator' : author.trim(),
+        );
+      } on StaleRevisionException catch (e) {
+        _concurrencyConflictMessage = e.message;
+        notifyListeners();
+        return false;
+      }
+    }
 
     final targetIndex = _records.indexWhere((r) => r.row == row);
     if (targetIndex < 0) return false;
@@ -420,6 +634,13 @@ class SchedulingWorkspaceController extends ChangeNotifier {
       conflictCount: conflictsCount,
     );
 
+    // Enforce downstream artifact invalidation on newly committed correction
+    _artifactFreshness = _artifactFreshness.copyWith(
+      normalizedInputStatus: ArtifactStatus.stale,
+      validationReportStatus: ArtifactStatus.stale,
+      generationOutputStatus: ArtifactStatus.stale,
+    );
+
     notifyListeners();
     return true;
   }
@@ -429,7 +650,6 @@ class SchedulingWorkspaceController extends ChangeNotifier {
     required String reason,
     required String author,
   }) {
-    // PHASE 0: Refuse fixture mutations outside explicit Design Preview.
     if (!_isPreviewMode) return;
     final nextNumber = _revision.revisionNumber + 1;
     _revision = RevisionContext(
@@ -454,15 +674,15 @@ class SchedulingWorkspaceController extends ChangeNotifier {
 
   /// Discards local working corrections and restores baseline fixtures.
   void resetToBaseline() {
-    // PHASE 0: Refuse fixture mutations outside explicit Design Preview.
     if (!_isPreviewMode) return;
     _initData();
+    _artifactFreshness = const ArtifactFreshnessSummary();
+    _concurrencyConflictMessage = null;
     notifyListeners();
   }
 
   // Solver Configuration & Simulation
   void updateSolverConfig(SolverParameterConfig newConfig) {
-    // PHASE 0: Refuse fixture mutations outside explicit Design Preview.
     if (!_isPreviewMode) return;
     _solverConfig = newConfig;
     notifyListeners();
@@ -473,10 +693,14 @@ class SchedulingWorkspaceController extends ChangeNotifier {
     required String ruleId,
     required String newOverride,
     required String newEffective,
+    Map<String, dynamic>? typedPayload,
   }) {
-    // PHASE 0: Refuse fixture mutations outside explicit Design Preview.
     if (!_isPreviewMode) return;
-    final idx = _policyItems.indexWhere((p) => p.ruleId == ruleId);
+    var idx = _policyItems.indexWhere((p) => p.ruleId == ruleId);
+    if (idx < 0) {
+      idx = _policyItems.indexWhere((p) =>
+          p.ruleId.startsWith(ruleId) || ruleId.startsWith(p.ruleId));
+    }
     if (idx >= 0) {
       final existing = _policyItems[idx];
       _policyItems[idx] = PolicyConfigItem(
@@ -489,13 +713,56 @@ class SchedulingWorkspaceController extends ChangeNotifier {
         effectiveValue: newEffective,
         isLocked: existing.isLocked,
         snapshotRequirement: existing.snapshotRequirement,
+        valueType: existing.valueType,
+        typedPayload: typedPayload ?? existing.typedPayload,
       );
+
+      // Enforce artifact invalidation on policy update
+      _artifactFreshness = _artifactFreshness.copyWith(
+        validationReportStatus: ArtifactStatus.stale,
+        generationOutputStatus: ArtifactStatus.stale,
+      );
+
+      notifyListeners();
+    }
+  }
+
+  /// Resets an academic policy override back to the baseline default.
+  void resetPolicyOverride(String ruleId) {
+    if (!_isPreviewMode) return;
+    var idx = _policyItems.indexWhere((p) => p.ruleId == ruleId);
+    if (idx < 0) {
+      idx = _policyItems.indexWhere((p) =>
+          p.ruleId.startsWith(ruleId) || ruleId.startsWith(p.ruleId));
+    }
+    if (idx >= 0) {
+      final existing = _policyItems[idx];
+      _policyItems[idx] = PolicyConfigItem(
+        category: existing.category,
+        ruleId: existing.ruleId,
+        label: existing.label,
+        description: existing.description,
+        defaultValue: existing.defaultValue,
+        overrideValue: 'None',
+        effectiveValue: existing.defaultValue,
+        isLocked: existing.isLocked,
+        snapshotRequirement: existing.snapshotRequirement,
+        valueType: existing.valueType,
+        typedPayload: existing.defaultValue.contains('7 daily slots')
+            ? const {'slot_count': 7, 'break_period': 4}
+            : const {},
+      );
+
+      _artifactFreshness = _artifactFreshness.copyWith(
+        validationReportStatus: ArtifactStatus.stale,
+        generationOutputStatus: ArtifactStatus.stale,
+      );
+
       notifyListeners();
     }
   }
 
   Future<void> runSolverPreview() async {
-    // PHASE 0: Solver results are local simulations, never live generation.
     if (!_isPreviewMode || _isSolving) return;
 
     _isSolving = true;
@@ -505,7 +772,6 @@ class SchedulingWorkspaceController extends ChangeNotifier {
     notifyListeners();
 
     await Future.delayed(const Duration(milliseconds: 350));
-    // PHASE 0: A delayed preview result must not mutate live-mode state.
     if (_disposed || !_isPreviewMode) return;
     _solvingProgress = 0.25;
     _solvingStepMessage =
@@ -513,7 +779,6 @@ class SchedulingWorkspaceController extends ChangeNotifier {
     notifyListeners();
 
     await Future.delayed(const Duration(milliseconds: 400));
-    // PHASE 0: A delayed preview result must not mutate live-mode state.
     if (_disposed || !_isPreviewMode) return;
     _solvingProgress = 0.60;
     _solvingStepMessage =
@@ -521,7 +786,6 @@ class SchedulingWorkspaceController extends ChangeNotifier {
     notifyListeners();
 
     await Future.delayed(const Duration(milliseconds: 400));
-    // PHASE 0: A delayed preview result must not mutate live-mode state.
     if (_disposed || !_isPreviewMode) return;
     _solvingProgress = 0.88;
     _solvingStepMessage =
@@ -529,25 +793,33 @@ class SchedulingWorkspaceController extends ChangeNotifier {
     notifyListeners();
 
     await Future.delayed(const Duration(milliseconds: 350));
-    // PHASE 0: A delayed preview result must not mutate live-mode state.
     if (_disposed || !_isPreviewMode) return;
     _solvingProgress = 1.0;
     _solvingStepMessage =
         'OPTIMAL routine achieved! 0 hard violations, 96.4% preference score.';
     _solverResult = SchedulingPreviewFixtures.solvedResult;
+    _artifactFreshness = _artifactFreshness.copyWith(
+      generationOutputStatus: ArtifactStatus.current,
+    );
+    _isSolving = false;
+    notifyListeners();
+  }
+
+  /// Injects an infeasible outcome for testing diagnostic conflict rendering.
+  void simulateInfeasibleSolverRun() {
+    if (!_isPreviewMode) return;
+    _solverResult = SchedulingPreviewFixtures.infeasibleResult;
     _isSolving = false;
     notifyListeners();
   }
 
   // Publication Simulation
   Future<void> simulatePublishRoutine() async {
-    // PHASE 0: Refuse fixture mutations outside explicit Design Preview.
     if (!_isPreviewMode) return;
     _isPublishing = true;
     notifyListeners();
 
     await Future.delayed(const Duration(milliseconds: 600));
-    // PHASE 0: A delayed preview result must not mutate live-mode state.
     if (_disposed || !_isPreviewMode) return;
 
     _publishedConfirmationId =

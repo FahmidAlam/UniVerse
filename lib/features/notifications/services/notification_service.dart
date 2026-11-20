@@ -5,7 +5,10 @@ import 'package:universe/core/models/notification_model.dart';
 import 'package:universe/core/models/profile_model.dart';
 
 class NotificationService {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final SupabaseClient? _client;
+  SupabaseClient get _supabase => _client ?? Supabase.instance.client;
+
+  NotificationService({SupabaseClient? client}) : _client = client;
 
   Future<List<NotificationItem>> fetchNotifications(Profile me) async {
     final rows = await _supabase

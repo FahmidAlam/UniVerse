@@ -12,6 +12,8 @@ import 'package:universe/features/admin/screens/admin_routine_screen.dart';
 import 'package:universe/features/admin/screens/broadcast_history_screen.dart';
 import 'package:universe/features/admin/screens/campus_broadcast_screen.dart';
 import 'package:universe/features/admin/screens/manage_course_eligibility_screen.dart';
+import 'package:universe/features/admin/screens/manage_courses_screen.dart';
+import 'package:universe/features/admin/screens/manage_batches_screen.dart';
 import 'package:universe/features/admin/screens/manage_faculty_screen.dart';
 import 'package:universe/features/admin/screens/manage_resources_screen.dart';
 import 'package:universe/features/admin/screens/manage_rooms_screen.dart';
@@ -213,6 +215,14 @@ class AppRouter {
             builder: (c, s) => const ManageUsersScreen(),
           ),
           _motionRoute(
+            path: RouteNames.manageCourses,
+            builder: (c, s) => const ManageCoursesScreen(),
+          ),
+          _motionRoute(
+            path: RouteNames.manageBatches,
+            builder: (c, s) => const ManageBatchesScreen(),
+          ),
+          _motionRoute(
             path: RouteNames.manageRooms,
             builder: (c, s) => const ManageRoomsScreen(),
           ),
@@ -233,7 +243,7 @@ class AppRouter {
             builder: (c, s) => TimetableGridScreen(
               rows: s.extra is TimetablePreview
                   ? (s.extra as TimetablePreview).rows
-                  : (s.extra as List<RoutineEntry>?) ?? const [],
+                  : (s.extra as List<RoutineEntry>?),
               roomAliases: s.extra is TimetablePreview
                   ? (s.extra as TimetablePreview).roomAliases
                   : const {},

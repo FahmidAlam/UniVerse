@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:universe/core/models/routine_model.dart';
 import 'package:universe/core/utils/room_identity.dart';
+import 'package:universe/core/utils/safe_change_notifier.dart';
 import 'package:universe/features/rooms/services/room_status_service.dart';
 
 class RoomStatus {
@@ -31,8 +32,9 @@ class RoomStatus {
   });
 }
 
-class RoomsController extends ChangeNotifier {
+class RoomsController extends SafeChangeNotifier {
   final RoomStatusService _service;
+  StreamSubscription<List<RoutineEntry>>? _routineSub;
 
   RoomsController({required RoomStatusService service}) : _service = service;
 
@@ -52,6 +54,7 @@ class RoomsController extends ChangeNotifier {
       notifyListeners();
 
       _allRoutines = await _service.fetchAllRoutines();
+      if (disposed) return;
 
       final now = DateTime.now();
       final roomMap = <String, RoomStatus>{};
@@ -123,6 +126,7 @@ class RoomsController extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     } catch (e) {
+      if (disposed) return;
       _error = e.toString();
       _isLoading = false;
       notifyListeners();
@@ -130,10 +134,19 @@ class RoomsController extends ChangeNotifier {
   }
 
   void subscribeToRealTimeUpdates() {
-    _service.streamAllRoutines().listen((routines) {
+    _routineSub?.cancel();
+    _routineSub = _service.streamAllRoutines().listen((routines) {
+      if (disposed) return;
       _allRoutines = routines;
       fetchRoomStatuses();
     });
+  }
+
+  @override
+  void dispose() {
+    _routineSub?.cancel();
+    _routineSub = null;
+    super.dispose();
   }
 
   bool _isDayToday(String dayName) {

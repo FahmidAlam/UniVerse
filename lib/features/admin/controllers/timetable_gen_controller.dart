@@ -76,6 +76,7 @@ class TimetableGenController extends SafeChangeNotifier {
 
   GenPhase _phase = GenPhase.idle;
   double _progress = 0;
+  String? _activeJobState;
   String? _errorMessage;
   TimetableResult? _result;
   String? _jobId;
@@ -88,9 +89,11 @@ class TimetableGenController extends SafeChangeNotifier {
   bool _isPublishing = false;
   int? _publishedCount;
   String? _publishError;
+  String? _publishSecondaryWarning;
 
   GenPhase get phase => _phase;
   double get progress => _progress;
+  String? get activeJobState => _activeJobState;
   String? get errorMessage => _errorMessage;
   TimetableResult? get result => _result;
   bool get isDownloading => _isDownloading;
@@ -98,8 +101,36 @@ class TimetableGenController extends SafeChangeNotifier {
   bool get isPublishing => _isPublishing;
   int? get publishedCount => _publishedCount;
   String? get publishError => _publishError;
+  String? get publishSecondaryWarning => _publishSecondaryWarning;
   bool get isBusy =>
       _phase == GenPhase.generating || _phase == GenPhase.polling;
+
+  // PHASE 5: Deterministic state seeding seam for offline widget testing.
+  void seedPreviewState({
+    GenPhase? phase,
+    double? progress,
+    String? activeJobState,
+    String? errorMessage,
+    TimetableResult? result,
+    String? fileName,
+    int? publishedCount,
+    String? publishError,
+    String? publishSecondaryWarning,
+  }) {
+    if (fileName != null) {
+      _fileName = fileName;
+      _fileBytes = Uint8List.fromList(const [0]);
+    }
+    if (phase != null) _phase = phase;
+    if (progress != null) _progress = progress;
+    _activeJobState = activeJobState;
+    _errorMessage = errorMessage;
+    _result = result;
+    _publishedCount = publishedCount;
+    _publishError = publishError;
+    _publishSecondaryWarning = publishSecondaryWarning;
+    notifyListeners();
+  }
 
   Future<void> pickFile() async {
     final res = await FilePicker.platform.pickFiles(
@@ -194,6 +225,7 @@ class TimetableGenController extends SafeChangeNotifier {
     if (_fileBytes == null) return;
     _phase = GenPhase.generating;
     _progress = 0;
+    _activeJobState = 'queued';
     _errorMessage = null;
     _result = null;
     _jobId = null;
@@ -201,6 +233,7 @@ class TimetableGenController extends SafeChangeNotifier {
     _workbookPath = null;
     _publishedCount = null;
     _publishError = null;
+    _publishSecondaryWarning = null;
     _downloadError = null;
     notifyListeners();
 
@@ -244,6 +277,7 @@ class TimetableGenController extends SafeChangeNotifier {
 
         if (status != null) {
           _progress = status.progress;
+          _activeJobState = status.state;
           notifyListeners();
 
           if (status.isFailed) {
@@ -253,6 +287,7 @@ class TimetableGenController extends SafeChangeNotifier {
           if (status.isDone) {
             _result = await _service.fetchResult(jobId);
             _phase = GenPhase.done;
+            _activeJobState = 'done';
             _progress = 1;
             notifyListeners();
             return;
@@ -372,6 +407,7 @@ class TimetableGenController extends SafeChangeNotifier {
 
     _isPublishing = true;
     _publishError = null;
+    _publishSecondaryWarning = null;
     notifyListeners();
 
     try {
@@ -391,14 +427,21 @@ class TimetableGenController extends SafeChangeNotifier {
         validation: res.validation,
       );
       _publishedCount = published.rowCount;
-      await _service.recordRun(
-        semesterLabel: _semesterLabel,
-        filePath: _workbookPath,
-        stats: res.stats,
-        validation: res.validation,
-        rowCount: published.rowCount,
-        status: 'published',
-      );
+      // PHASE 5: Service Recovery Paradox — if secondary run-history write fails after
+      // atomic publish_routine succeeds, retain _publishedCount and record a secondary warning.
+      try {
+        await _service.recordRun(
+          semesterLabel: _semesterLabel,
+          filePath: _workbookPath,
+          stats: res.stats,
+          validation: res.validation,
+          rowCount: published.rowCount,
+          status: 'published',
+        );
+      } catch (secondaryErr) {
+        _publishSecondaryWarning =
+            'Routine is live (${published.rowCount} slots), but run-history log could not be recorded (${_clean(secondaryErr)}).';
+      }
 
       try {
         await NotificationService().createBroadcast(
@@ -419,6 +462,7 @@ class TimetableGenController extends SafeChangeNotifier {
   void reset() {
     _phase = GenPhase.idle;
     _progress = 0;
+    _activeJobState = null;
     _errorMessage = null;
     _result = null;
     _jobId = null;
@@ -426,6 +470,7 @@ class TimetableGenController extends SafeChangeNotifier {
     _workbookPath = null;
     _publishedCount = null;
     _publishError = null;
+    _publishSecondaryWarning = null;
     _downloadError = null;
     _generationConfig = null;
     notifyListeners();

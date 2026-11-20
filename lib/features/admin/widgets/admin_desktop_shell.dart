@@ -82,11 +82,17 @@ class _AdminDesktopShellState extends State<AdminDesktopShell> {
       // PHASE 1 RECONCILE: The preview label is persistent, not a mode implied by styling.
       return 'Scheduling Workbench · Preview';
     }
+    if (location.startsWith(RouteNames.manageCourses)) {
+      return 'Courses';
+    }
+    if (location.startsWith(RouteNames.manageBatches)) {
+      return 'Batches & Sections';
+    }
     if (location.startsWith(RouteNames.manageFaculty)) {
-      return 'Faculty Management';
+      return 'Faculty';
     }
     if (location.startsWith(RouteNames.manageRooms)) {
-      return 'Room Management';
+      return 'Room Pools';
     }
     if (location.startsWith(RouteNames.timetableSettings)) {
       return 'Timetable Settings';
@@ -310,8 +316,18 @@ class _AdminDesktopShellState extends State<AdminDesktopShell> {
                 AppSpacing.smGap,
                 _sectionLabel('CONFIGURATION'),
                 _navItem(
+                  icon: PhosphorIconsRegular.bookOpen,
+                  label: 'Courses',
+                  route: RouteNames.manageCourses,
+                ),
+                _navItem(
+                  icon: PhosphorIconsRegular.users,
+                  label: 'Batches & Sections',
+                  route: RouteNames.manageBatches,
+                ),
+                _navItem(
                   icon: PhosphorIconsRegular.usersThree,
-                  label: 'Faculty & Day-offs',
+                  label: 'Faculty',
                   route: RouteNames.manageFaculty,
                 ),
                 _navItem(
@@ -320,14 +336,14 @@ class _AdminDesktopShellState extends State<AdminDesktopShell> {
                   route: RouteNames.manageRooms,
                 ),
                 _navItem(
-                  icon: PhosphorIconsRegular.gear,
-                  label: 'Timetable Settings',
-                  route: RouteNames.timetableSettings,
-                ),
-                _navItem(
                   icon: PhosphorIconsRegular.chalkboardTeacher,
                   label: 'Course Eligibility',
                   route: RouteNames.manageCourseEligibility,
+                ),
+                _navItem(
+                  icon: PhosphorIconsRegular.gear,
+                  label: 'Timetable Settings',
+                  route: RouteNames.timetableSettings,
                 ),
                 AppSpacing.smGap,
                 _sectionLabel('COMMUNICATION & USERS'),
@@ -526,7 +542,9 @@ class _AdminDesktopShellState extends State<AdminDesktopShell> {
     };
     final color = _health == EngineConnectivity.connected
         ? AppColors.success
-        : AppColors.textMuted;
+        : _health == EngineConnectivity.unavailable
+            ? AppColors.warning
+            : AppColors.textMuted;
     return Container(
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
@@ -534,11 +552,19 @@ class _AdminDesktopShellState extends State<AdminDesktopShell> {
           color: AppColors.bgElevated,
           border: Border(bottom: BorderSide(color: AppColors.border))),
       child: LayoutBuilder(builder: (context, constraints) {
-        final titleWidget = // PHASE 1: The shell heading is global; the embedded page owns its title.
-            Text('Administrative console',
-                style: AppTextStyles.h4,
+        final titleWidget = Wrap(
+          spacing: AppSpacing.sm,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text('Administrative Console  /',
+                style:
+                    AppTextStyles.bodySm.copyWith(color: AppColors.textMuted)),
+            Text(title,
+                style: AppTextStyles.h3,
                 maxLines: 2,
-                overflow: TextOverflow.ellipsis);
+                overflow: TextOverflow.ellipsis),
+          ],
+        );
         final actions = Wrap(
             spacing: AppSpacing.sm,
             crossAxisAlignment: WrapCrossAlignment.center,
@@ -556,17 +582,40 @@ class _AdminDesktopShellState extends State<AdminDesktopShell> {
                       onPressed: _health == EngineConnectivity.checking
                           ? null
                           : _checkHealth,
-                      child: Text(label,
-                          style:
-                              AppTextStyles.caption.copyWith(color: color)))),
+                      style: TextButton.styleFrom(
+                        backgroundColor: AppColors.bgCard,
+                        side: const BorderSide(color: AppColors.border),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: AppSpacing.radiusSm),
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                                color: color, shape: BoxShape.circle)),
+                        const SizedBox(width: AppSpacing.sm),
+                        Text(label,
+                            style: AppTextStyles.captionMedium
+                                .copyWith(color: color)),
+                      ]))),
               FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.textOnPrimary,
+                      textStyle: AppTextStyles.button.copyWith(
+                          color: AppColors.textOnPrimary,
+                          fontFamily: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.fontFamily)),
                   icon: const Icon(PhosphorIconsRegular.magicWand, size: 16),
                   label: const Text('Generate Routine'),
                   onPressed: () => context
                       .go('${RouteNames.routineManagement}?tab=generate')),
             ]);
         // PHASE 1 RECONCILE: Header composition follows post-sidebar usable width.
-        if (constraints.maxWidth < 860 ||
+        if (constraints.maxWidth < 1100 ||
             MediaQuery.textScalerOf(context).scale(1) > 1.3) {
           return Column(
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -4,149 +4,244 @@ import 'package:universe/core/router/route_names.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
+import 'package:universe/features/admin/controllers/routine_admin_controller.dart';
+import 'package:universe/features/admin/controllers/routine_upload_controller.dart';
+import 'package:universe/features/admin/controllers/timetable_gen_controller.dart';
 import 'package:universe/features/admin/screens/generate_timetable_screen.dart';
 import 'package:universe/features/admin/screens/routine_management_screen.dart';
+import 'package:universe/features/admin/screens/timetable_grid_screen.dart';
 import 'package:universe/features/admin/screens/upload_routine_screen.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
+import 'package:universe/shared/widgets/desktop_shell_scope.dart';
 import 'package:universe/shared/widgets/u_app_bar.dart';
+import 'package:universe/shared/widgets/u_segmented_control.dart';
 
 class AdminRoutineScreen extends StatefulWidget {
-  const AdminRoutineScreen({super.key});
+  final RoutineAdminController? manageController;
+  final TimetableGenController? generateController;
+  final RoutineUploadController? uploadController;
+  final int initialTabIndex;
+
+  const AdminRoutineScreen({
+    super.key,
+    this.manageController,
+    this.generateController,
+    this.uploadController,
+    this.initialTabIndex = 0,
+  });
 
   @override
   State<AdminRoutineScreen> createState() => _AdminRoutineScreenState();
 }
 
 class _AdminRoutineScreenState extends State<AdminRoutineScreen> {
-  int _index = 0;
+  late int _index;
   String? _lastTabQuery;
+  bool _hasReadInitialTab = false;
+
+  late final RoutineAdminController _manageController;
+  late final TimetableGenController _generateController;
+  late final RoutineUploadController _uploadController;
+  late final bool _ownsManage;
+  late final bool _ownsGenerate;
+  late final bool _ownsUpload;
+
+  @override
+  void initState() {
+    super.initState();
+    _index = widget.initialTabIndex.clamp(0, 3);
+    _ownsManage = widget.manageController == null;
+    _manageController = widget.manageController ?? RoutineAdminController();
+    _ownsGenerate = widget.generateController == null;
+    _generateController = widget.generateController ?? TimetableGenController();
+    _ownsUpload = widget.uploadController == null;
+    _uploadController = widget.uploadController ?? RoutineUploadController();
+  }
+
+  @override
+  void dispose() {
+    if (_ownsManage) _manageController.dispose();
+    if (_ownsGenerate) _generateController.dispose();
+    if (_ownsUpload) _uploadController.dispose();
+    super.dispose();
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final tab = GoRouterState.of(context).uri.queryParameters['tab'];
-    if (tab != _lastTabQuery) {
-      _lastTabQuery = tab;
-      // PHASE 1: The URL is the selected-tab authority while IndexedStack retains forms.
-      _index = switch (RouteNames.routineTab(GoRouterState.of(context).uri)) {
-        'generate' => 1,
-        'upload' => 2,
-        _ => 0,
-      };
+    GoRouterState? routerState;
+    try {
+      routerState = GoRouterState.of(context);
+    } catch (_) {
+      routerState = null;
+    }
+    if (routerState != null) {
+      final tab = routerState.uri.queryParameters['tab'];
+      if (!_hasReadInitialTab || tab != _lastTabQuery) {
+        _hasReadInitialTab = true;
+        _lastTabQuery = tab;
+        _index = switch (RouteNames.routineTab(routerState.uri)) {
+          'grid' => 0,
+          'manage' => 1,
+          'generate' => 2,
+          'upload' => 3,
+          _ => 1,
+        };
+      }
+    }
+  }
+
+  void _selectTab(int idx) {
+    final clamped = idx.clamp(0, 3);
+    setState(() => _index = clamped);
+    final router = GoRouter.maybeOf(context);
+    if (router != null) {
+      router.go(
+        '${RouteNames.routineManagement}?tab=${['grid', 'manage', 'generate', 'upload'][clamped]}',
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // PHASE 5: Suppress duplicate inner UAppBar when rendered inside AdminDesktopShell.
+    final isInDesktopShell = DesktopShellScope.isDesktopOf(context);
+
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
-      appBar: const UAppBar(title: 'Routine', showBackButton: false),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.screenH,
-              AppSpacing.md,
-              AppSpacing.screenH,
-              0,
+      appBar: isInDesktopShell
+          ? null
+          : const UAppBar(
+              title: 'Routine Operations',
+              showBackButton: false,
             ),
-            child: _buildSchedulingWorkspaceBanner(),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.screenH,
-              AppSpacing.md,
-              AppSpacing.screenH,
-              AppSpacing.sm,
+      body: SafeArea(
+        top: !isInDesktopShell,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH,
+                AppSpacing.md,
+                AppSpacing.screenH,
+                0,
+              ),
+              child: _buildSchedulingWorkspaceBanner(),
             ),
-            child: _segmented(),
-          ),
-          Expanded(
-            child: IndexedStack(
-              index: _index,
-              sizing: StackFit.expand,
-              children: const [
-                RoutineManagementScreen(embedded: true),
-                GenerateTimetableScreen(embedded: true),
-                UploadRoutineScreen(embedded: true),
-              ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH,
+                AppSpacing.md,
+                AppSpacing.screenH,
+                AppSpacing.sm,
+              ),
+              child: _segmented(),
             ),
-          ),
-        ],
+            // Lazy active tab switching with state maintained in controller instances
+            Expanded(
+              child: _buildActiveTab(),
+            ),
+          ],
+        ),
       ),
     );
   }
 
+  Widget _buildActiveTab() {
+    switch (_index) {
+      case 0:
+        return TimetableGridScreen(
+          embedded: true,
+          adminController: _manageController,
+        );
+      case 1:
+        return RoutineManagementScreen(
+          embedded: true,
+          controller: _manageController,
+        );
+      case 2:
+        return GenerateTimetableScreen(
+          embedded: true,
+          controller: _generateController,
+        );
+      case 3:
+        return UploadRoutineScreen(
+          embedded: true,
+          controller: _uploadController,
+        );
+      default:
+        return RoutineManagementScreen(
+          embedded: true,
+          controller: _manageController,
+        );
+    }
+  }
+
+  // PHASE 5: Compact 1-line instrument strip linking to Scheduling Workbench · Preview.
   Widget _buildSchedulingWorkspaceBanner() {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
+        vertical: AppSpacing.xs,
       ),
       decoration: BoxDecoration(
         color: AppColors.bgElevated,
         borderRadius: AppSpacing.radiusMd,
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.35),
-        ),
+        border: Border.all(color: AppColors.border),
       ),
-      child: Row(
+      child: Wrap(
+        spacing: AppSpacing.sm,
+        runSpacing: 4,
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.xs),
-            decoration: BoxDecoration(
-              color: AppColors.primarySoft,
-              borderRadius: AppSpacing.radiusSm,
-            ),
-            child: const Icon(
-              PhosphorIconsRegular.stack,
-              color: AppColors.primary,
-              size: 18,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  // PHASE 1: Keep live routine tools distinct from the preview workbench.
-                  // PHASE 1 RECONCILE: Keep the separate workbench visibly preview-only.
-                  'Scheduling Workbench · Preview',
-                  style: AppTextStyles.bodySmMedium.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                Text(
-                  'Explore the proposed revision-bound workbench in Design Preview. Live generation and uploads remain here.',
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                PhosphorIconsRegular.stack,
+                color: AppColors.info,
+                size: 15,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Flexible(
+                child: Text(
+                  'Need revision-bound provenance preview?',
                   style: AppTextStyles.caption.copyWith(
                     color: AppColors.textSecondary,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(width: AppSpacing.sm),
-          FilledButton.tonal(
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primarySoft,
-              foregroundColor: AppColors.primary,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            onPressed: () => context.go(RouteNames.schedulingWorkspace),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Open Workspace',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(width: 4),
-                Icon(PhosphorIconsRegular.arrowRight, size: 12),
-              ],
+          InkWell(
+            onTap: () {
+              final router = GoRouter.maybeOf(context);
+              if (router != null) {
+                router.go(RouteNames.schedulingWorkspace);
+              }
+            },
+            borderRadius: AppSpacing.radiusSm,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Scheduling Workbench · Preview',
+                    style: AppTextStyles.captionMedium.copyWith(
+                      color: AppColors.info,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(
+                    PhosphorIconsRegular.arrowRight,
+                    size: 12,
+                    color: AppColors.info,
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -154,55 +249,44 @@ class _AdminRoutineScreenState extends State<AdminRoutineScreen> {
     );
   }
 
+  // Unified USegmentedControl<int> for 4 integrated live routine operations.
   Widget _segmented() {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480),
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.xs),
-          decoration: BoxDecoration(
-            color: AppColors.bgElevated,
-            borderRadius: AppSpacing.radiusFull,
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Row(
-            children: [
-              _seg('Manage', 0),
-              _seg('Generate', 1),
-              _seg('Upload', 2)
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _seg(String label, int idx) {
-    final active = _index == idx;
-    return Expanded(
-      child: GestureDetector(
-        // PHASE 1: Local tab changes update the URL and desktop sidebar together.
-        onTap: () => context.go('${RouteNames.routineManagement}?tab=${[
-          'manage',
-          'generate',
-          'upload'
-        ][idx]}'),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          height: AppSpacing.chipHeight,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: active ? AppColors.primary : Colors.transparent,
-            borderRadius: AppSpacing.radiusFull,
-          ),
-          child: Text(
-            label,
-            style: AppTextStyles.bodySmMedium.copyWith(
-              color: active ? AppColors.textPrimary : AppColors.textMuted,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 640;
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: USegmentedControl<int>(
+              compact: isCompact,
+              selected: _index,
+              onChanged: _selectTab,
+              segments: [
+                USegment(
+                  value: 0,
+                  label: isCompact ? '2D Grid' : 'Operational 2D Grid',
+                  icon: PhosphorIconsRegular.gridFour,
+                ),
+                USegment(
+                  value: 1,
+                  label: isCompact ? 'Manage' : 'Manage Published',
+                  icon: PhosphorIconsRegular.calendarCheck,
+                ),
+                USegment(
+                  value: 2,
+                  label: isCompact ? 'Generate' : 'Generate via Engine',
+                  icon: PhosphorIconsRegular.magicWand,
+                ),
+                USegment(
+                  value: 3,
+                  label: isCompact ? 'Upload' : 'Upload Workbook',
+                  icon: PhosphorIconsRegular.uploadSimple,
+                ),
+              ],
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'package:universe/features/admin/widgets/admin_schedule_slot.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -221,7 +222,7 @@ void main() {
         expect(find.text('ADMIN PORTAL'), findsOneWidget);
         expect(find.text('TIMETABLE ENGINE'), findsOneWidget);
         // PHASE 1: Live routine tools and preview workbench have distinct labels.
-        expect(find.text('Manage Routine (Live)'), findsOneWidget);
+        expect(find.text('Routine Operations'), findsOneWidget);
         expect(find.text('Engine Connected'), findsNothing);
         expect(find.text('Engine Unavailable'), findsOneWidget);
         expect(find.text('Admin Dashboard Body'), findsOneWidget);
@@ -318,11 +319,16 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Batch·Sec'), findsOneWidget);
-      expect(find.text('60-A'), findsOneWidget);
-      expect(find.text('CSE-1101'), findsOneWidget);
-      expect(find.text('FA'), findsOneWidget);
-      expect(find.text('Lab-1'), findsOneWidget);
+      expect(find.text('COHORT / SECTION'), findsWidgets);
+      expect(find.text('Batch 60'), findsOneWidget);
+      expect(find.text('Sec A'), findsOneWidget);
+      expect(find.text('CSE-1101'), findsWidgets);
+      expect(
+          find.descendant(
+              of: find.byType(AdminScheduleSlot), matching: find.text('FA')),
+          findsOneWidget);
+      expect(tester.widget<AdminScheduleSlot>(find.byType(AdminScheduleSlot)).entry.room, 'Lab-1');
+      expect(find.text('LAB-1'), findsWidgets);
     });
   });
 

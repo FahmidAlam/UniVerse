@@ -96,5 +96,7 @@ All UI/UX work must strictly complement UniVerse's established architecture:
   - **Never rewrite the application in React or replace Flutter just to achieve better visual results.**
   - Retain the mandatory UI/UX approval gate from project instructions.
 
+| **Any UI/UX feature, form, table, or admin control touching backend data, solver rules, or Routine Committee requirements** | `ui-backend-policy-correlation` + `universe-ux-principles` (Mandatory before writing any UI code; prohibits unbacked UI matrices and enforces 1:1 model/backend binding) |
+
 ## Phase 3.5 approved visual direction
 The Product Owner explicitly approved the specified full-bleed auth/onboarding overhaul and Step 0 skill alignment. Repository-local `.agents/skills/` governs Level-4 depth, semantic accents and dual-mode continuous/reduced motion. This approval is scoped to Phase 3.5; all permanent auth/backend, hosted-service, Git and scheduling gates remain enforced.

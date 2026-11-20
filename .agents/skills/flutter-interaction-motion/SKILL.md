@@ -102,3 +102,14 @@ Reduced motion/test mode (disableAnimations == true): immediately controller.sto
 
 ## Cohesive Phase 0-3 implementation standard
 AppMotion in lib/core/theme/app_motion.dart supersedes the baseline duration table above: micro 140ms, fast 220ms, medium 340ms, slow 520ms; snappy, magnetic and fluid curves. Use UAnimatedSwap for keyed route-adjacent content, UPressableScale for pointer feedback, and USegmentedControl for custom sliding selection. AppMotion.reduced also respects accessibleNavigation and TickerMode; remove outgoing animated content immediately in reduced mode.
+
+## Precision Motion & Everyday UI Transitions (Phase A & B)
+1. **Everyday Transitions (No Elastic Bounce):**
+   - In `u_adaptive_overlay.dart`, dropdown popovers, dialogs, and modal sheets: replace `Curves.easeOutBack` with **`Curves.easeOutCubic`**. Everyday operational software must feel crisp, decisive, and stable—zero rubber-band or cartoon bounce on standard administrative interfaces.
+2. **Asymmetric Durations (Fast Exits):**
+   - Entrances: `180–220ms` (`Curves.easeOutCubic`), starting with scale `0.95` and opacity `0.0`.
+   - Exits: **15–20% shorter** (`140–160ms`) (`Curves.easeInCubic`) so dismissal feels instantaneous.
+3. **Micro-Scale Press Feedback:**
+   - Tap/click interactions use `0.97` press scaling (`UPressableScale`) without continuous tweening while held down.
+   - Trigger a subtle confirmation pulse/toast upon saving records.
+

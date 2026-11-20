@@ -64,13 +64,13 @@ Future<T?> showUAdaptiveModal<T>({
         if (AppMotion.reduced(ctx) || reduced) return child;
         final curved = CurvedAnimation(
           parent: anim,
-          curve: Curves.easeOutBack,
+          curve: Curves.easeOutCubic,
           reverseCurve: Curves.easeInCubic,
         );
         return FadeTransition(
           opacity: anim.drive(CurveTween(curve: Curves.easeOutCubic)),
           child: ScaleTransition(
-            scale: Tween<double>(begin: 0.96, end: 1.0).animate(curved),
+            scale: Tween<double>(begin: 0.95, end: 1.0).animate(curved),
             child: child,
           ),
         );
