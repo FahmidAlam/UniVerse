@@ -14,11 +14,12 @@
 ## 2. Permanent Project Constraints
 
 - **Implementation-First & Token Efficiency:** Do not repeat completed audits, re-plan settled phases, or re-run test suites that already have valid passing evidence.
-- **Preserve Architecture:** Keep the existing Flutter feature-first architecture (`ChangeNotifier` / `SafeChangeNotifier`), `GoRouter`, Supabase backend, and Python OR-Tools CP-SAT engine. No unrequested React/Next.js rewrite or state-management migration.
+- **Preserve Architecture:** Keep the existing Flutter feature-first architecture (`ChangeNotifier` / `SafeChangeNotifier`) and `GoRouter` for Android and iOS mobile (`lib/`), while delivering the standalone browser experience as a React 19 + TypeScript + Vite application (`apps/web/`). Both clients share the existing Supabase and Python FastAPI OR-Tools CP-SAT backend without duplicating business logic.
 - **User Controls UI/UX (Mandatory Approval Gate):** Before writing any new UI for Phase 2b (editable Course Distribution & configuration workspace), Phase 5 (committee workbench), or any major redesign, present grounded design alternatives and trade-offs and wait for explicit user approval.
-- **Design System & Theme Governance:** Preserve UniVerse's dark visual identity with orange accent (`AppColors`, `AppTheme.dark`), desktop-first web layout, and first-class responsive mobile adaptations. Never introduce competing theme systems or scatter hardcoded styling across screens. Centralize approved theme changes in the token layer, test cross-screen impact, and never replace Flutter with React/Next.js.
-- **No iOS Work:** Do not spend time on iOS configuration, builds, or testing for now.
-- **No Supabase CLI:** Never recommend, install, or use Supabase CLI. Use the connected Supabase plugin/integration. When database inspection or verification cannot be completed through it, provide the exact SQL query for the user to run in **Supabase Dashboard → SQL Editor** and ask them to return its output.
+- **Design System & Theme Governance:** Keep Flutter mobile (`lib/`) on UniVerse's dark Obsidian Orbit visual identity (`AppColors`, `AppTheme.dark`) as a mobile-first client with full Android and iOS compatibility. Standalone React Web (`apps/web/`) uses its own completely separate light-first design system (**UniVerse Academic Ledger**; dark mode deferred). Never introduce competing theme systems within either client or back-port mobile styling onto React Web.
+- **iOS Scope (Compatibility vs. Feature Expansion):** Active iOS feature expansion and net-new iOS-only features are deferred; **continuous iOS compatibility preservation is mandatory**. Never remove or break iOS deep links, URL schemes, auth callback compatibility, or shared FastAPI/Supabase contracts.
+- **No Supabase CLI:** Never recommend, install, or use Supabase CLI. Use the connected Supabase plugin/integration. When database inspection or verification cannot be completed through it, provide the exact read-only SQL query for the user to run in **Supabase Dashboard → SQL Editor** and ask them to return its output.
+- **Supabase Environment Governance:** Production Supabase (`yxqyrjyzxitrgkhgauli`) remains **read-only** during initial React Web development. Secondary Supabase project `oqwvxplteqtlrhktsplj` passed Phase 0 read-only SQL verification (`37` tables including `20261022140809` and `20261106130000`, `0` rows across all baseline/Track 2 tables, and zero outbound `send_push_on_notification` webhook) and is **owner-approved as the isolated non-production staging project** (quarantine lifted). Any production database modification still requires separate explicit owner authorization.
 - **Hosted Services & Git Safety:** Never modify hosted Supabase, Firebase, OAuth, email/SMTP, or production configuration without explicit user approval. Preserve all existing work, untracked files, Git history, and working-tree changes — never run `git reset`, `git clean`, `git stash`, or `git push`.
 - **PII & Workbook Safety:** Raw `engine/routine generation files/*.xlsx` contain personal data and remain gitignored. Treat workbooks as read-only untrusted data; never execute macros, mutate original workbook bytes, or commit PII/secrets.
 
@@ -57,6 +58,9 @@ Six specialized UI/UX skills are located in `.agents/skills/`. Agents must read 
 | Accessibility or performance improvements | `accessibility-performance` |
 | Final visual inspection or UI review | `visual-ui-qa` + relevant implementation skills |
 | Complete UI/UX task | Only the relevant combination of skills |
+| Any React Web (`apps/web/`) design, layout, color, typography, or component work | `react-web-academic-design-system` + `react-web-motion-and-craft` |
+| Any React Web (`apps/web/`) auth, Supabase query/RPC, FastAPI engine, or admin persistence work | `react-admin-backend-contracts` (Mandatory before writing API/state code) |
+| React Web (`apps/web/`) visual/DOM inspection & QA | `visual-ui-qa` + `react-web-academic-design-system` (via Chrome DevTools) |
 
 > **Context Efficiency Rule:** Do **not** load all six skills for every task. Load only the specific combination matching the active work type.
 
@@ -80,23 +84,21 @@ For all UI/UX-related work, agents must follow this 11-step process:
 
 ## 6. Design System & Architecture Preservation
 
-All UI/UX work must strictly complement UniVerse's established architecture:
+All UI/UX work must strictly respect the separated client architecture:
 
-- **Technology Stack:** Flutter frontend with Supabase backend.
-- **Architecture Pattern:** Feature-first organization (`lib/features/`, `lib/core/`, `lib/shared/`), `ChangeNotifier` / `SafeChangeNotifier`, and `GoRouter`.
-- **Visual Identity:** Dark visual identity with orange as the secondary accent (`AppColors`, `AppTheme.dark`, `AppSpacing`, `AppTextStyles`).
-- **Platform Priority:** Desktop-first web experience, with mobile maintained as a first-class responsive adaptation.
-- **Deliberate Theme Evolution:** The existing theme is open to improvement, but changes must be deliberate. Agents may propose improvements to color relationships, typography, spacing, contrast, surfaces, and component design.
-- **Theme Guardrails:**
-  - Never introduce an unrelated competing theme system.
-  - Never scatter hardcoded styling throughout the application.
-  - Make approved theme changes centrally in `lib/core/theme/`.
-  - Verify impact across existing screens, shared components, and both web/mobile layouts.
-  - Preserve functionality and architectural boundaries.
-  - **Never rewrite the application in React or replace Flutter just to achieve better visual results.**
-  - Retain the mandatory UI/UX approval gate from project instructions.
+- **Mobile Client (`lib/` — Android & iOS compatibility):** Flutter frontend with Supabase + FastAPI backends, feature-first organization (`lib/features/`, `lib/core/`, `lib/shared/`), `ChangeNotifier` / `SafeChangeNotifier`, `GoRouter`, and dark Obsidian Orbit tokens (`AppColors`, `AppTheme.dark`, `AppSpacing`, `AppTextStyles`). Preserve Android and iOS compatibility continuously; never replace Flutter mobile with React/Next.js, scatter hardcoded styling, or bypass `lib/core/theme/`.
+- **Web Client (`apps/web/` — Desktop Admin & Public Entry):** Standalone React 19 + TypeScript + Vite frontend governed by **UniVerse Academic Ledger** (`react-web-academic-design-system` + `react-web-motion-and-craft` + `react-admin-backend-contracts`). Students and teachers signing in on web receive a mobile-app guidance view.
+- **Mandatory UI/UX Approval Gate:** Obtain explicit user approval before implementing material screen, theme, navigation, or workflow changes.
 
 | **Any UI/UX feature, form, table, or admin control touching backend data, solver rules, or Routine Committee requirements** | `ui-backend-policy-correlation` + `universe-ux-principles` (Mandatory before writing any UI code; prohibits unbacked UI matrices and enforces 1:1 model/backend binding) |
 
-## Phase 3.5 approved visual direction
-The Product Owner explicitly approved the specified full-bleed auth/onboarding overhaul and Step 0 skill alignment. Repository-local `.agents/skills/` governs Level-4 depth, semantic accents and dual-mode continuous/reduced motion. This approval is scoped to Phase 3.5; all permanent auth/backend, hosted-service, Git and scheduling gates remain enforced.
+## Phase 3.5 approved visual direction (Flutter Mobile Scope)
+The Product Owner previously approved the specified full-bleed auth/onboarding overhaul for the Flutter app (`lib/`). All permanent auth/backend, hosted-service, Git, and scheduling gates remain enforced.
+
+## React Web v1 Approved Visual Direction (UniVerse Academic Ledger)
+Standalone React Web (`apps/web/`, Administrator Operations Console + Public Institutional Entry `/` + Mobile-App Guidance for student/teacher sessions) uses **UniVerse Academic Ledger**, combining **Precision Ledger** (administrative ergonomics), **Campus Atelier** (comfortable long-session usability), and **Archival Registrar** (institutional public presentation).
+
+- **Light-First Mandatory:** Light mode only for v1; dark mode is deferred. Completely separate from Flutter's dark-orange Obsidian Orbit (`#0B0C0E` + `#FF7A00`), and must **not** inherit the superseded dark-cyan Spatial Orbit Engine prototype.
+- **Typography:** `Source Serif 4` (editorial headlines), `IBM Plex Sans` (UI and dense operational tables), `IBM Plex Mono` (course codes, time slots, and tabular numerals).
+- **Color Tokens:** OKLCH token architecture verified via automated WCAG AA checks over actual opaque sRGB foreground/background pairs; Charcoal Ink primary action; Deep Botanical Pine confirmed for Phase 1A accent (tokenized cleanly in `tokens.css`).
+- **Timetable & Craft:** Custom CSS Grid + React scheduling timetable (not a Gregorian calendar library), restrained Motion/CSS transitions respecting `prefers-reduced-motion`, user-controlled illustrative public timetable, invisible UI in dense operational tables, and backend-derived dashboard readiness. Flutter mobile (`lib/`) remains on Obsidian Orbit (`#0B0C0E` + `#FF7A00`).

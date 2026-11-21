@@ -1,0 +1,3066 @@
+<!doctype html>
+<html lang="en" data-concept="monolith" data-mode="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <title>UniVerse — Academic Routine Platform | Bold Direction Lookbook (R2)</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%231b1c1f'/%3E%3Cellipse cx='32' cy='32' rx='24' ry='11' fill='none' stroke='%23f5f4f0' stroke-width='3.2'/%3E%3Ccircle cx='32' cy='32' r='10' fill='%23f5f4f0'/%3E%3Ccircle cx='52.5' cy='32' r='4.8' fill='%23e04826'/%3E%3C/svg%3E" />
+
+  <!-- Distinctive Anchor-First Google Fonts (Zero Inter / Geist / Instrument Serif) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500;1,9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Phosphor Icons Regular (Zero Lucide / Zero Sparkles) -->
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
+
+  <style>
+    @layer reset, tokens, base, shared, concept-a, concept-b, concept-c, utilities;
+
+    /* =========================================================================
+       LAYER: RESET (Element-scoped, zero bare `*` reset)
+    ========================================================================= */
+    @layer reset {
+      html, body, h1, h2, h3, h4, p, ul, ol, dl, dd, figure, blockquote {
+        margin: 0;
+        padding: 0;
+      }
+      html, body, main, section, aside, header, nav, article, div, form, label, input, button, table, thead, tbody, tr, th, td, span, a, dialog {
+        box-sizing: border-box;
+      }
+      button, input {
+        font: inherit;
+        color: inherit;
+      }
+      button {
+        cursor: pointer;
+        background: transparent;
+        border: 0;
+      }
+      ul, ol {
+        list-style: none;
+      }
+    }
+
+    /* =========================================================================
+       LAYER: TOKENS — 6 OKLCH PALETTES (3 CONCEPTS × LIGHT / DARK)
+       Lifted Dark Surfaces L >= 0.165; Zero #000000; Zero #FF7A00; Zero Purple.
+       Only color-mix(in oklab, ...) used for translucent mixes.
+    ========================================================================= */
+    @layer tokens {
+      :root {
+        view-transition-name: none;
+        --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+        --ease-in: cubic-bezier(0.4, 0, 1, 1);
+        --dur-in: 210ms;
+        --dur-out: 165ms;
+        --dur-press: 115ms;
+      }
+
+      /* -----------------------------------------------------------------------
+         CONCEPT A: KINETIC TRANSIT MONOLITH (LIGHT — Warm Chalk + Vermilion)
+      ----------------------------------------------------------------------- */
+      html[data-concept="monolith"][data-mode="light"] {
+        color-scheme: light;
+        --bg-dark: oklch(0.908 0.008 85);
+        --bg: oklch(0.954 0.006 85);
+        --bg-light: oklch(0.988 0.003 85);
+
+        --text-primary: oklch(0.145 0.008 80);
+        --text-secondary: oklch(0.365 0.008 80);
+        --text-muted: oklch(0.465 0.006 80);
+
+        --cta-bg: oklch(0.145 0.008 80);
+        --cta-hover: oklch(0.240 0.008 80);
+        --cta-ink: oklch(0.985 0.004 85);
+
+        --accent: oklch(0.490 0.192 29);
+        --accent-soft: oklch(0.935 0.036 29);
+        --accent-border: oklch(0.490 0.192 29 / 0.42);
+        --accent-ink: oklch(0.990 0.003 30);
+
+        --border: oklch(0.150 0.008 80 / 0.16);
+        --border-strong: oklch(0.150 0.008 80 / 0.36);
+        --rule-heavy: oklch(0.145 0.008 80);
+        --highlight: inset 0 1px 0 oklch(1 0 0 / 0.86);
+        --surface-grad: linear-gradient(180deg, oklch(0.994 0.002 85), oklch(0.974 0.005 85));
+        --shadow-elevated: 0 1px 2px oklch(0.15 0.01 80 / 0.08), 0 14px 32px -10px oklch(0.15 0.01 80 / 0.14);
+        --shadow-sm: 0 1px 1.5px oklch(0.15 0.01 80 / 0.08);
+
+        --sem-theory-bg: oklch(0.922 0.008 85);
+        --sem-theory-border: oklch(0.18 0.008 80 / 0.24);
+        --sem-theory-ink: oklch(0.18 0.008 80);
+
+        --sem-lab-bg: oklch(0.932 0.025 185);
+        --sem-lab-border: oklch(0.40 0.082 185 / 0.38);
+        --sem-lab-ink: oklch(0.26 0.078 185);
+
+        --sem-joint-bg: oklch(0.942 0.032 78);
+        --sem-joint-border: oklch(0.50 0.100 74 / 0.40);
+        --sem-joint-ink: oklch(0.31 0.088 72);
+
+        --sem-alert-bg: oklch(0.938 0.036 29);
+        --sem-alert-border: oklch(0.49 0.185 29 / 0.48);
+        --sem-alert-ink: oklch(0.37 0.168 29);
+
+        --sem-neutral-bg: oklch(0.920 0.007 85);
+        --sem-neutral-ink: oklch(0.36 0.008 80);
+
+        --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+        --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+        --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+        --r-outer: 2px;
+        --r-inner: 2px;
+        --r-control: 2px;
+      }
+
+      /* -----------------------------------------------------------------------
+         CONCEPT A: KINETIC TRANSIT MONOLITH (DARK — Graphite Carbon + Vermilion)
+      ----------------------------------------------------------------------- */
+      html[data-concept="monolith"][data-mode="dark"] {
+        color-scheme: dark;
+        --bg-dark: oklch(0.165 0.006 240);
+        --bg: oklch(0.205 0.006 240);
+        --bg-light: oklch(0.254 0.007 240);
+
+        --text-primary: oklch(0.945 0.004 85);
+        --text-secondary: oklch(0.778 0.005 85);
+        --text-muted: oklch(0.682 0.005 85);
+
+        --cta-bg: oklch(0.940 0.005 85);
+        --cta-hover: oklch(0.865 0.005 85);
+        --cta-ink: oklch(0.155 0.006 240);
+
+        --accent: oklch(0.695 0.185 29);
+        --accent-soft: oklch(0.285 0.058 29);
+        --accent-border: oklch(0.695 0.185 29 / 0.52);
+        --accent-ink: oklch(0.150 0.015 29);
+
+        --border: oklch(0.940 0.005 85 / 0.14);
+        --border-strong: oklch(0.940 0.005 85 / 0.30);
+        --rule-heavy: oklch(0.940 0.005 85);
+        --highlight: inset 0 1px 0 oklch(1 0 0 / 0.12);
+        --surface-grad: linear-gradient(180deg, oklch(0.272 0.007 240), oklch(0.240 0.006 240));
+        --shadow-elevated: 0 2px 4px oklch(0.06 0.005 240 / 0.55), 0 18px 40px -12px oklch(0.04 0.005 240 / 0.72);
+        --shadow-sm: 0 1px 2px oklch(0.06 0.005 240 / 0.45);
+
+        --sem-theory-bg: oklch(0.268 0.009 240);
+        --sem-theory-border: oklch(0.88 0.006 85 / 0.24);
+        --sem-theory-ink: oklch(0.92 0.005 85);
+
+        --sem-lab-bg: oklch(0.268 0.038 185);
+        --sem-lab-border: oklch(0.72 0.108 185 / 0.42);
+        --sem-lab-ink: oklch(0.90 0.068 185);
+
+        --sem-joint-bg: oklch(0.286 0.038 80);
+        --sem-joint-border: oklch(0.78 0.105 80 / 0.42);
+        --sem-joint-ink: oklch(0.92 0.066 82);
+
+        --sem-alert-bg: oklch(0.276 0.058 29);
+        --sem-alert-border: oklch(0.71 0.175 29 / 0.54);
+        --sem-alert-ink: oklch(0.91 0.092 29);
+
+        --sem-neutral-bg: oklch(0.236 0.006 240);
+        --sem-neutral-ink: oklch(0.78 0.005 85);
+
+        --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+        --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+        --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+        --r-outer: 2px;
+        --r-inner: 2px;
+        --r-control: 2px;
+      }
+
+      /* -----------------------------------------------------------------------
+         CONCEPT B: SPATIAL ORBIT ENGINE (LIGHT — Ceramic Daylight + Cyan-Emerald)
+      ----------------------------------------------------------------------- */
+      html[data-concept="orbit"][data-mode="light"] {
+        color-scheme: light;
+        --bg-dark: oklch(0.926 0.009 228);
+        --bg: oklch(0.966 0.005 228);
+        --bg-light: oklch(0.996 0.002 228);
+
+        --text-primary: oklch(0.185 0.018 232);
+        --text-secondary: oklch(0.390 0.016 232);
+        --text-muted: oklch(0.480 0.014 232);
+
+        --cta-bg: oklch(0.425 0.112 186);
+        --cta-hover: oklch(0.365 0.118 186);
+        --cta-ink: oklch(0.990 0.003 190);
+
+        --accent: oklch(0.435 0.115 186);
+        --accent-soft: oklch(0.935 0.032 186);
+        --accent-border: oklch(0.435 0.115 186 / 0.34);
+        --accent-ink: oklch(0.990 0.003 190);
+
+        --border: oklch(0.200 0.018 232 / 0.115);
+        --border-strong: oklch(0.200 0.018 232 / 0.25);
+        --rule-heavy: oklch(0.220 0.020 232);
+        --highlight: inset 0 1px 0 oklch(1 0 0 / 0.94);
+        --surface-grad: linear-gradient(180deg, oklch(1 0.001 228), oklch(0.982 0.005 228));
+        --shadow-elevated: 0 1px 2px oklch(0.18 0.02 232 / 0.06), 0 16px 36px -10px oklch(0.18 0.02 232 / 0.12);
+        --shadow-sm: 0 1px 1.5px oklch(0.18 0.02 232 / 0.05), 0 3px 8px -3px oklch(0.18 0.02 232 / 0.07);
+
+        --sem-theory-bg: oklch(0.944 0.024 238);
+        --sem-theory-border: oklch(0.47 0.095 238 / 0.32);
+        --sem-theory-ink: oklch(0.30 0.095 238);
+
+        --sem-lab-bg: oklch(0.938 0.028 182);
+        --sem-lab-border: oklch(0.43 0.098 182 / 0.35);
+        --sem-lab-ink: oklch(0.28 0.094 182);
+
+        --sem-joint-bg: oklch(0.948 0.032 82);
+        --sem-joint-border: oklch(0.52 0.105 78 / 0.36);
+        --sem-joint-ink: oklch(0.34 0.092 76);
+
+        --sem-alert-bg: oklch(0.944 0.034 22);
+        --sem-alert-border: oklch(0.52 0.148 22 / 0.42);
+        --sem-alert-ink: oklch(0.37 0.150 22);
+
+        --sem-neutral-bg: oklch(0.940 0.007 228);
+        --sem-neutral-ink: oklch(0.40 0.014 232);
+
+        --font-display: "Space Grotesk", system-ui, sans-serif;
+        --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+        --font-mono: "JetBrains Mono", ui-monospace, monospace;
+        --r-outer: 12px;
+        --r-inner: 6px;
+        --r-control: 6px;
+      }
+
+      /* -----------------------------------------------------------------------
+         CONCEPT B: SPATIAL ORBIT ENGINE (DARK — Deep Space Slate + Cyan-Emerald)
+      ----------------------------------------------------------------------- */
+      html[data-concept="orbit"][data-mode="dark"] {
+        color-scheme: dark;
+        --bg-dark: oklch(0.168 0.018 230);
+        --bg: oklch(0.208 0.018 230);
+        --bg-light: oklch(0.258 0.020 230);
+
+        --text-primary: oklch(0.938 0.008 220);
+        --text-secondary: oklch(0.780 0.012 225);
+        --text-muted: oklch(0.684 0.014 225);
+
+        --cta-bg: oklch(0.762 0.124 182);
+        --cta-hover: oklch(0.818 0.128 182);
+        --cta-ink: oklch(0.158 0.024 195);
+
+        --accent: oklch(0.762 0.124 182);
+        --accent-soft: oklch(0.295 0.048 184);
+        --accent-border: oklch(0.762 0.124 182 / 0.42);
+        --accent-ink: oklch(0.158 0.024 195);
+
+        --border: oklch(0.920 0.010 220 / 0.125);
+        --border-strong: oklch(0.920 0.010 220 / 0.25);
+        --rule-heavy: oklch(0.880 0.012 220);
+        --highlight: inset 0 1px 0 oklch(0.960 0.012 200 / 0.16);
+        --surface-grad: linear-gradient(180deg, oklch(0.276 0.020 230), oklch(0.244 0.018 230));
+        --shadow-elevated: 0 2px 4px oklch(0.06 0.015 230 / 0.50), 0 22px 46px -14px oklch(0.04 0.015 230 / 0.68);
+        --shadow-sm: 0 1px 2px oklch(0.06 0.015 230 / 0.40);
+
+        --sem-theory-bg: oklch(0.275 0.038 234);
+        --sem-theory-border: oklch(0.72 0.105 234 / 0.38);
+        --sem-theory-ink: oklch(0.89 0.062 232);
+
+        --sem-lab-bg: oklch(0.274 0.046 180);
+        --sem-lab-border: oklch(0.75 0.120 180 / 0.42);
+        --sem-lab-ink: oklch(0.90 0.072 178);
+
+        --sem-joint-bg: oklch(0.292 0.040 84);
+        --sem-joint-border: oklch(0.79 0.108 82 / 0.42);
+        --sem-joint-ink: oklch(0.92 0.068 84);
+
+        --sem-alert-bg: oklch(0.278 0.054 22);
+        --sem-alert-border: oklch(0.72 0.145 22 / 0.48);
+        --sem-alert-ink: oklch(0.90 0.085 22);
+
+        --sem-neutral-bg: oklch(0.242 0.018 230);
+        --sem-neutral-ink: oklch(0.78 0.012 225);
+
+        --font-display: "Space Grotesk", system-ui, sans-serif;
+        --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+        --font-mono: "JetBrains Mono", ui-monospace, monospace;
+        --r-outer: 12px;
+        --r-inner: 6px;
+        --r-control: 6px;
+      }
+
+      /* -----------------------------------------------------------------------
+         CONCEPT C: AVANT-GARDE ACADEMIC PRESS (LIGHT — Archival Ivory + Oxblood)
+      ----------------------------------------------------------------------- */
+      html[data-concept="press"][data-mode="light"] {
+        color-scheme: light;
+        --bg-dark: oklch(0.916 0.013 84);
+        --bg: oklch(0.960 0.009 84);
+        --bg-light: oklch(0.990 0.004 84);
+
+        --text-primary: oklch(0.172 0.015 70);
+        --text-secondary: oklch(0.380 0.014 72);
+        --text-muted: oklch(0.470 0.012 72);
+
+        --cta-bg: oklch(0.172 0.015 70);
+        --cta-hover: oklch(0.275 0.015 70);
+        --cta-ink: oklch(0.985 0.005 84);
+
+        --accent: oklch(0.415 0.148 18);
+        --accent-soft: oklch(0.938 0.034 18);
+        --accent-border: oklch(0.415 0.148 18 / 0.40);
+        --accent-ink: oklch(0.988 0.004 84);
+
+        --border: oklch(0.180 0.014 70 / 0.16);
+        --border-strong: oklch(0.180 0.014 70 / 0.34);
+        --rule-heavy: oklch(0.172 0.015 70);
+        --highlight: inset 0 1px 0 oklch(1 0 0 / 0.85);
+        --surface-grad: linear-gradient(180deg, oklch(0.994 0.003 84), oklch(0.976 0.007 84));
+        --shadow-elevated: 0 1px 2px oklch(0.18 0.015 70 / 0.06), 0 10px 26px -10px oklch(0.18 0.015 70 / 0.10);
+        --shadow-sm: 0 1px 1px oklch(0.18 0.015 70 / 0.06);
+
+        --sem-theory-bg: oklch(0.940 0.020 236);
+        --sem-theory-border: oklch(0.45 0.082 236 / 0.34);
+        --sem-theory-ink: oklch(0.30 0.084 236);
+
+        --sem-lab-bg: oklch(0.936 0.026 154);
+        --sem-lab-border: oklch(0.42 0.090 154 / 0.36);
+        --sem-lab-ink: oklch(0.28 0.090 154);
+
+        --sem-joint-bg: oklch(0.946 0.034 68);
+        --sem-joint-border: oklch(0.52 0.105 62 / 0.38);
+        --sem-joint-ink: oklch(0.34 0.095 60);
+
+        --sem-alert-bg: oklch(0.938 0.036 18);
+        --sem-alert-border: oklch(0.44 0.148 18 / 0.45);
+        --sem-alert-ink: oklch(0.36 0.148 18);
+
+        --sem-neutral-bg: oklch(0.928 0.010 84);
+        --sem-neutral-ink: oklch(0.38 0.013 72);
+
+        --font-display: "Fraunces", Georgia, serif;
+        --font-sans: "DM Sans", system-ui, sans-serif;
+        --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+        --r-outer: 0px;
+        --r-inner: 0px;
+        --r-control: 2px;
+      }
+
+      /* -----------------------------------------------------------------------
+         CONCEPT C: AVANT-GARDE ACADEMIC PRESS (DARK — Forest-Charcoal + Carmine)
+      ----------------------------------------------------------------------- */
+      html[data-concept="press"][data-mode="dark"] {
+        color-scheme: dark;
+        --bg-dark: oklch(0.168 0.016 165);
+        --bg: oklch(0.206 0.016 165);
+        --bg-light: oklch(0.252 0.018 165);
+
+        --text-primary: oklch(0.935 0.008 88);
+        --text-secondary: oklch(0.778 0.012 95);
+        --text-muted: oklch(0.684 0.014 115);
+
+        --cta-bg: oklch(0.930 0.010 88);
+        --cta-hover: oklch(0.860 0.012 88);
+        --cta-ink: oklch(0.168 0.016 165);
+
+        --accent: oklch(0.715 0.138 22);
+        --accent-soft: oklch(0.286 0.052 20);
+        --accent-border: oklch(0.715 0.138 22 / 0.48);
+        --accent-ink: oklch(0.165 0.016 20);
+
+        --border: oklch(0.930 0.008 88 / 0.14);
+        --border-strong: oklch(0.930 0.008 88 / 0.30);
+        --rule-heavy: oklch(0.930 0.008 88 / 0.86);
+        --highlight: inset 0 1px 0 oklch(0.96 0.008 90 / 0.12);
+        --surface-grad: linear-gradient(180deg, oklch(0.268 0.018 165), oklch(0.238 0.016 165));
+        --shadow-elevated: 0 2px 4px oklch(0.06 0.012 165 / 0.48), 0 16px 36px -12px oklch(0.04 0.012 165 / 0.62);
+        --shadow-sm: 0 1px 2px oklch(0.06 0.012 165 / 0.40);
+
+        --sem-theory-bg: oklch(0.270 0.032 230);
+        --sem-theory-border: oklch(0.72 0.095 230 / 0.38);
+        --sem-theory-ink: oklch(0.90 0.056 228);
+
+        --sem-lab-bg: oklch(0.272 0.042 158);
+        --sem-lab-border: oklch(0.74 0.110 158 / 0.42);
+        --sem-lab-ink: oklch(0.90 0.068 156);
+
+        --sem-joint-bg: oklch(0.288 0.038 78);
+        --sem-joint-border: oklch(0.79 0.105 78 / 0.42);
+        --sem-joint-ink: oklch(0.92 0.065 80);
+
+        --sem-alert-bg: oklch(0.278 0.056 20);
+        --sem-alert-border: oklch(0.72 0.140 22 / 0.50);
+        --sem-alert-ink: oklch(0.91 0.086 20);
+
+        --sem-neutral-bg: oklch(0.240 0.016 165);
+        --sem-neutral-ink: oklch(0.78 0.010 95);
+
+        --font-display: "Fraunces", Georgia, serif;
+        --font-sans: "DM Sans", system-ui, sans-serif;
+        --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+        --r-outer: 0px;
+        --r-inner: 0px;
+        --r-control: 2px;
+      }
+
+      /* Instant 1-frame theme switch (zero cross-fade lag) */
+      html.theme-switching body,
+      html.theme-switching body * {
+        transition: none !important;
+      }
+
+      @media (prefers-contrast: more) {
+        html[data-mode="light"] {
+          --border: oklch(0.16 0.01 220 / 0.34);
+          --text-muted: oklch(0.34 0.01 220);
+        }
+        html[data-mode="dark"] {
+          --border: oklch(0.94 0.01 220 / 0.34);
+          --text-muted: oklch(0.80 0.01 220);
+        }
+      }
+
+      @media (forced-colors: active) {
+        .btn-cta, .btn-ghost, .dock-key, .ops-cell, .dialog-panel {
+          border: 1px solid CanvasText;
+          box-shadow: none;
+          background-image: none;
+        }
+        button:focus-visible, input:focus-visible, .ops-cell.is-selected {
+          outline: 2px solid Highlight;
+        }
+      }
+    }
+
+    /* =========================================================================
+       LAYER: BASE TYPOGRAPHY, MOTION OPT-IN & ACCESSIBILITY
+       Per modern-web-guidance `motion`: NEVER use global `0.01ms` hacks.
+       Opt in to spatial motion strictly inside prefers-reduced-motion: no-preference.
+    ========================================================================= */
+    @layer base {
+      body {
+        font-family: var(--font-sans);
+        font-size: 14px;
+        line-height: 1.5;
+        color: var(--text-primary);
+        background: var(--bg-dark);
+        min-height: 100dvh;
+        -webkit-font-smoothing: antialiased;
+        overflow-x: clip;
+      }
+      h1, h2, h3, h4 {
+        font-family: var(--font-display);
+        color: var(--text-primary);
+        text-wrap: balance;
+      }
+      .mono {
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+      }
+      .tabular {
+        font-variant-numeric: tabular-nums;
+      }
+      .acronym {
+        font-variant-caps: all-small-caps;
+        letter-spacing: 0.05em;
+        font-weight: 600;
+      }
+      button:focus-visible,
+      input:focus-visible,
+      a:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      ::view-transition {
+        pointer-events: none;
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        ::view-transition-group(.rt-cell) {
+          animation-duration: 260ms;
+          animation-timing-function: var(--ease-out);
+        }
+        ::view-transition-new(.rt-cell):only-child {
+          animation: rtFadeIn 220ms var(--ease-out) both;
+        }
+        ::view-transition-old(.rt-cell):only-child {
+          animation: rtFadeOut 150ms var(--ease-in) both;
+        }
+      }
+      @keyframes rtFadeIn {
+        from { opacity: 0; transform: translateY(4px) scale(0.97); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      @keyframes rtFadeOut {
+        from { opacity: 1; transform: scale(1); }
+        to { opacity: 0; transform: scale(0.97); }
+      }
+      @keyframes errShake {
+        0%, 100% { transform: translateX(0); }
+        20% { transform: translateX(-4px); }
+        45% { transform: translateX(4px); }
+        70% { transform: translateX(-3px); }
+      }
+      @keyframes okPulse {
+        0% { opacity: 0.8; transform: scale(0.985); }
+        100% { opacity: 1; transform: scale(1); }
+      }
+    }
+
+    /* =========================================================================
+       LAYER: SHARED CHROME, TOP BAR, NATIVE <dialog> SIGN-IN, ADMIN SHELLS
+    ========================================================================= */
+    @layer shared {
+      /* Floating Lookbook Bar (Compact <= 54px) */
+      .top-bar {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: color-mix(in oklab, var(--bg) 93%, transparent);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--border);
+      }
+      .top-bar-inner {
+        max-width: 1420px;
+        margin-inline: auto;
+        padding-inline: 20px;
+        height: 52px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .brand-lockup {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        flex-shrink: 0;
+      }
+      .orbit-logo {
+        width: 26px;
+        height: 26px;
+      }
+      .brand-lockup strong {
+        font-family: var(--font-display);
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .brand-lockup span {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-muted);
+        border-inline-start: 1px solid var(--border-strong);
+        padding-inline-start: 9px;
+      }
+
+      /* Switchers with Reserved Bold Width */
+      .switcher-group {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px;
+        background: var(--bg-dark);
+        border: 1px solid var(--border);
+        border-radius: calc(var(--r-control) + 2px);
+        gap: 3px;
+      }
+      .sw-btn {
+        height: 32px;
+        padding-inline: 12px;
+        border-radius: var(--r-control);
+        font-size: 12.5px;
+        color: var(--text-secondary);
+        display: inline-grid;
+        place-items: center;
+        white-space: nowrap;
+        transition: color var(--dur-in) var(--ease-out), background var(--dur-in) var(--ease-out);
+      }
+      .sw-btn::after {
+        content: attr(data-label);
+        font-weight: 600;
+        height: 0;
+        visibility: hidden;
+        overflow: hidden;
+        pointer-events: none;
+      }
+      .sw-btn:hover:not([aria-pressed="true"]) {
+        color: var(--text-primary);
+      }
+      .sw-btn[aria-pressed="true"] {
+        background: var(--bg-light);
+        color: var(--text-primary);
+        font-weight: 600;
+        border: 1px solid var(--border);
+        box-shadow: var(--highlight), var(--shadow-sm);
+      }
+
+      .bar-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .mode-btn {
+        height: 32px;
+        padding-inline: 10px;
+        border-radius: var(--r-control);
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: color var(--dur-in) var(--ease-out), background var(--dur-in) var(--ease-out);
+      }
+      .mode-btn[aria-pressed="true"] {
+        background: var(--bg-light);
+        color: var(--text-primary);
+        font-weight: 600;
+        border: 1px solid var(--border);
+        box-shadow: var(--highlight);
+      }
+
+      /* Optical Action Buttons */
+      .btn-cta,
+      a.btn-cta {
+        height: 40px;
+        padding-inline: 20px;
+        border-radius: var(--r-control);
+        background: var(--cta-bg);
+        color: var(--cta-ink);
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        white-space: nowrap;
+        border: 1px solid var(--cta-bg);
+        transition: background var(--dur-in) var(--ease-out), transform var(--dur-press) var(--ease-out);
+      }
+      .btn-cta:hover:not(:disabled) {
+        background: var(--cta-hover);
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        .btn-cta:active:not(:disabled),
+        .btn-ghost:active:not(:disabled) {
+          transform: scale(0.97);
+        }
+      }
+      .btn-cta.is-sm {
+        height: 36px;
+        padding-inline: 16px;
+        font-size: 12.5px;
+      }
+
+      .btn-ghost,
+      a.btn-ghost {
+        height: 36px;
+        padding-inline: 14px;
+        border-radius: var(--r-control);
+        background: var(--surface-grad);
+        color: var(--text-primary);
+        font-size: 12.5px;
+        font-weight: 500;
+        text-decoration: none;
+        border: 1px solid var(--border);
+        box-shadow: var(--highlight);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        white-space: nowrap;
+        transition: border-color var(--dur-in) var(--ease-out), background var(--dur-in) var(--ease-out), transform var(--dur-press) var(--ease-out);
+      }
+      .btn-ghost:hover:not(:disabled) {
+        border-color: var(--border-strong);
+      }
+      .btn-ghost.is-active {
+        background: var(--accent-soft);
+        border-color: var(--accent-border);
+        font-weight: 600;
+      }
+      .btn-ghost.is-xs {
+        height: 30px;
+        padding-inline: 10px;
+        font-size: 12px;
+      }
+
+      /* Concept Stage Wrapper */
+      .stage-shell {
+        max-width: 1420px;
+        margin-inline: auto;
+        padding: 20px 20px 72px;
+      }
+      .concept-canvas[hidden] {
+        display: none;
+      }
+      .concept-canvas {
+        display: flex;
+        flex-direction: column;
+        gap: 36px;
+      }
+
+      .section-divider-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border);
+      }
+      .section-divider-head h2 {
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.025em;
+      }
+      .section-divider-head p {
+        font-size: 13px;
+        color: var(--text-secondary);
+      }
+
+      /* Shared Semantic Class Tint Helpers */
+      .cat-theory {
+        background: var(--sem-theory-bg);
+        border-color: var(--sem-theory-border);
+        color: var(--sem-theory-ink);
+      }
+      .cat-lab {
+        background: var(--sem-lab-bg);
+        border-color: var(--sem-lab-border);
+        color: var(--sem-lab-ink);
+      }
+      .cat-joint {
+        background: var(--sem-joint-bg);
+        border-color: var(--sem-joint-border);
+        color: var(--sem-joint-ink);
+      }
+      .cat-block {
+        background:
+          repeating-linear-gradient(
+            -45deg,
+            transparent,
+            transparent 5px,
+            color-mix(in oklab, var(--sem-alert-border) 32%, transparent) 5px,
+            color-mix(in oklab, var(--sem-alert-border) 32%, transparent) 8px
+          ),
+          var(--sem-alert-bg);
+        border-color: var(--sem-alert-border);
+        color: var(--sem-alert-ink);
+      }
+
+      /* Middle Truncation keeping .xlsx intact in DOM */
+      .filename-mid {
+        display: inline-flex;
+        max-width: 240px;
+        white-space: nowrap;
+        min-inline-size: 0;
+        font-family: var(--font-mono);
+        font-size: 11.5px;
+        color: var(--text-secondary);
+      }
+      .filename-mid > span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* =====================================================================
+         NATIVE <dialog> RIGHT-EDGE SLIDE-OVER ADMIN SIGN-IN SHEET
+         Per modern-web-guidance `dialog`: scope display to `dialog[open]`,
+         set overscroll-behavior: contain on dialog:modal & ::backdrop.
+      ===================================================================== */
+      dialog.signin-sheet {
+        margin: 0 0 0 auto;
+        padding: 0;
+        border: 0;
+        border-inline-start: 1px solid var(--border-strong);
+        width: min(440px, 100vw);
+        height: 100dvh;
+        max-height: 100dvh;
+        background: var(--bg-light);
+        color: var(--text-primary);
+        box-shadow: var(--shadow-elevated);
+      }
+      dialog.signin-sheet[open] {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      dialog.signin-sheet:modal {
+        overscroll-behavior: contain;
+      }
+      dialog.signin-sheet::backdrop {
+        background: oklch(0.10 0.01 230 / 0.48);
+        backdrop-filter: blur(3px);
+        overflow: hidden;
+        overscroll-behavior: contain;
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        dialog.signin-sheet {
+          transition: transform 240ms var(--ease-out), opacity 220ms var(--ease-out), display 240ms allow-discrete, overlay 240ms allow-discrete;
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        dialog.signin-sheet[open] {
+          transform: translateX(0);
+          opacity: 1;
+        }
+        @starting-style {
+          dialog.signin-sheet[open] {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+        }
+      }
+      .dialog-panel {
+        padding: 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+      }
+      .dialog-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border);
+      }
+      .dialog-top h2 {
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.025em;
+      }
+      .dialog-top p {
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-top: 4px;
+      }
+      .field-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .field-row {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .field-row label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+      .text-field {
+        height: 40px;
+        padding-inline: 12px;
+        border-radius: var(--r-control);
+        border: 1px solid var(--border-strong);
+        background: var(--bg);
+        color: var(--text-primary);
+        font-size: 14px;
+      }
+      .text-field:focus {
+        background: var(--bg-light);
+        border-color: var(--accent);
+      }
+      .dialog-feedback {
+        display: none;
+        padding: 10px 12px;
+        border: 1px solid var(--accent-border);
+        background: var(--accent-soft);
+        border-radius: var(--r-control);
+        font-size: 12.5px;
+        gap: 8px;
+        align-items: center;
+      }
+      .dialog-feedback.is-shown {
+        display: flex;
+      }
+      .dialog-footer-companion {
+        padding: 20px 28px;
+        border-top: 1px solid var(--border);
+        background: var(--bg);
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        font-size: 12.5px;
+        color: var(--text-secondary);
+      }
+      .dialog-footer-companion strong {
+        color: var(--text-primary);
+        display: block;
+        margin-bottom: 2px;
+      }
+
+      /* =====================================================================
+         SHARED ADMIN CONSOLE FOUNDATION (Styled distinctively by each concept!)
+      ===================================================================== */
+      .admin-frame {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--r-outer);
+        box-shadow: var(--highlight), var(--shadow-elevated);
+        overflow: hidden;
+      }
+      .admin-layout {
+        display: grid;
+        grid-template-columns: 224px minmax(0, 1fr);
+      }
+      .admin-rail {
+        background: var(--bg-dark);
+        border-inline-end: 1px solid var(--border);
+        padding: 16px 12px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 18px;
+      }
+      .rail-head {
+        padding: 2px 6px 12px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+      .rail-head strong {
+        font-family: var(--font-display);
+        font-size: 15px;
+        display: block;
+      }
+      .rail-head span {
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+      .rail-nav {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        margin-top: 10px;
+      }
+      .rail-btn {
+        height: 36px;
+        padding-inline: 10px;
+        border-radius: var(--r-control);
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-size: 13px;
+        color: var(--text-secondary);
+        width: 100%;
+        text-align: start;
+        position: relative;
+      }
+      .rail-btn:hover:not(.is-on) {
+        color: var(--text-primary);
+        background: color-mix(in oklab, var(--bg-light) 50%, transparent);
+      }
+      .rail-btn.is-on {
+        background: var(--bg-light);
+        color: var(--text-primary);
+        font-weight: 600;
+        border: 1px solid var(--border);
+      }
+      .rail-btn.is-on::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 7px;
+        bottom: 7px;
+        width: 3px;
+        background: var(--accent);
+      }
+      .rail-foot {
+        padding: 12px 6px 0;
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-size: 12px;
+      }
+      .rail-mono-avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: var(--r-control);
+        border: 1px solid var(--border-strong);
+        background: var(--bg-light);
+        display: grid;
+        place-items: center;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 600;
+        flex-shrink: 0;
+      }
+
+      .admin-workspace {
+        display: flex;
+        flex-direction: column;
+        min-inline-size: 0;
+      }
+      .admin-header {
+        height: 54px;
+        padding-inline: 20px;
+        border-bottom: 1px solid var(--border);
+        background: var(--bg-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .admin-header h3 {
+        font-size: 19px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .engine-badge {
+        height: 32px;
+        padding-inline: 11px;
+        border-radius: var(--r-control);
+        border: 1px solid var(--border);
+        background: var(--bg);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: var(--text-secondary);
+        white-space: nowrap;
+      }
+      .led-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--sem-lab-ink);
+      }
+      .led-dot.is-signal {
+        background: var(--accent);
+      }
+
+      .admin-content {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      /* Proactive Anomaly Banner */
+      .guard-banner {
+        padding: 12px 14px;
+        border-radius: var(--r-inner);
+        border: 1px solid var(--sem-alert-border);
+        background: var(--sem-alert-bg);
+        color: var(--sem-alert-ink);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        font-size: 12.5px;
+      }
+      .guard-banner strong {
+        font-weight: 600;
+      }
+
+      /* Dissolved 4-Stage Readiness List */
+      .readiness-ledger {
+        background: var(--bg-light);
+        border: 1px solid var(--border);
+        border-radius: var(--r-inner);
+        overflow: hidden;
+      }
+      .ledger-head {
+        padding: 11px 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .ledger-head h4 {
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .ledger-row {
+        padding: 11px 16px;
+        display: grid;
+        grid-template-columns: 26px minmax(0, 1fr) 144px 136px;
+        align-items: center;
+        gap: 12px;
+        font-size: 13px;
+      }
+      .ledger-row:not(:last-child) {
+        border-bottom: 1px solid var(--border);
+      }
+      .ledger-row:hover {
+        background: color-mix(in oklab, var(--bg) 65%, transparent);
+      }
+      .ledger-sub {
+        font-size: 12px;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-inline-size: 0;
+        flex-wrap: wrap;
+      }
+      .ledger-val {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        text-align: end;
+        white-space: nowrap;
+        color: var(--text-secondary);
+      }
+      .ledger-val.is-alert {
+        color: var(--sem-alert-ink);
+        font-weight: 600;
+      }
+      .ledger-hover-act {
+        display: flex;
+        justify-content: flex-end;
+        opacity: 0;
+        transition: opacity var(--dur-in) var(--ease-out);
+      }
+      .ledger-row:hover .ledger-hover-act,
+      .ledger-row:focus-within .ledger-hover-act {
+        opacity: 1;
+      }
+
+      /* Connected 2D Operational Matrix + Docked Inspector (inside Admin Specimen) */
+      .ops-workbench {
+        background: var(--bg-light);
+        border: 1px solid var(--border);
+        border-radius: var(--r-inner);
+        overflow: hidden;
+      }
+      .ops-bar {
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--border);
+        background: var(--bg);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .ops-bar-left {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+      }
+      .ops-search {
+        height: 34px;
+        width: 220px;
+        padding-inline: 30px 10px;
+        border-radius: var(--r-control);
+        border: 1px solid var(--border-strong);
+        background: var(--bg-light);
+        font-size: 12.5px;
+      }
+      .ops-search-wrap {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+      }
+      .ops-search-wrap i {
+        position: absolute;
+        left: 9px;
+        font-size: 14px;
+        color: var(--text-muted);
+        pointer-events: none;
+      }
+      .ops-recovery {
+        display: none;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--sem-alert-border);
+        background: var(--sem-alert-bg);
+        color: var(--sem-alert-ink);
+        font-size: 12.5px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .ops-recovery.is-err {
+        display: flex;
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        .ops-recovery.is-err {
+          animation: errShake 250ms var(--ease-out);
+        }
+        .ops-recovery.is-ok {
+          animation: okPulse 260ms var(--ease-out);
+        }
+      }
+      .ops-recovery.is-ok {
+        display: flex;
+        background: var(--sem-lab-bg);
+        border-bottom-color: var(--sem-lab-border);
+        color: var(--sem-lab-ink);
+      }
+
+      .ops-split {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 304px;
+      }
+      .ops-grid-scroll {
+        padding: 12px;
+        border-inline-end: 1px solid var(--border);
+        overflow-x: auto;
+        min-inline-size: 0;
+      }
+      .ops-matrix {
+        width: 100%;
+        min-width: 610px;
+        border-collapse: separate;
+        border-spacing: 5px;
+        table-layout: fixed;
+      }
+      .ops-matrix th {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-muted);
+        text-align: start;
+        padding: 3px 5px;
+        white-space: nowrap;
+      }
+      .ops-matrix th.d-col {
+        width: 44px;
+      }
+      .ops-matrix td.d-cell {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        padding: 4px;
+      }
+      .ops-cell {
+        width: 100%;
+        min-height: 60px;
+        padding: 6px 7px;
+        border-radius: var(--r-control);
+        border: 1px solid var(--border);
+        text-align: start;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 3px;
+      }
+      .ops-cell.is-selected {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+      .ops-cell-empty {
+        min-height: 60px;
+        border-radius: var(--r-control);
+        border: 1px dashed var(--border);
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+        color: var(--text-muted);
+        opacity: 0.45;
+      }
+      .ops-c-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .ops-c-mid {
+        font-size: 11px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .ops-c-bot {
+        display: flex;
+        justify-content: space-between;
+        gap: 4px;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        opacity: 0.86;
+        white-space: nowrap;
+      }
+
+      .ops-inspector {
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-inline-size: 0;
+        background: var(--bg-light);
+      }
+      .insp-title {
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        line-height: 1.25;
+      }
+      .insp-kv {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        padding-block: 6px;
+        font-size: 12px;
+        border-bottom: 1px solid var(--border);
+      }
+      .insp-rule {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        padding: 6px 8px;
+        border-radius: var(--r-control);
+        border: 1px solid var(--border);
+        background: var(--sem-neutral-bg);
+        color: var(--sem-neutral-ink);
+        font-size: 11.5px;
+      }
+      .insp-rule.is-override {
+        background: var(--sem-joint-bg);
+        border-color: var(--sem-joint-border);
+        color: var(--sem-joint-ink);
+        font-weight: 500;
+      }
+      .insp-rule.is-hard {
+        background: var(--sem-alert-bg);
+        border-color: var(--sem-alert-border);
+        color: var(--sem-alert-ink);
+        font-weight: 500;
+      }
+    }
+
+    /* =========================================================================
+       LAYER: CONCEPT A — KINETIC TRANSIT MONOLITH (Swiss Departure × TE Hardware)
+       Completely distinct full-bleed board + floating bottom hardware dock!
+    ========================================================================= */
+    @layer concept-a {
+      .monolith-hero {
+        background: var(--bg);
+        border: 1px solid var(--border-strong);
+        box-shadow: var(--shadow-elevated);
+        display: flex;
+        flex-direction: column;
+      }
+      .mono-coord-strip {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 24px;
+        border-bottom: 1px solid var(--border);
+        background: var(--bg-dark);
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-muted);
+        flex-wrap: wrap;
+      }
+      .mono-masthead {
+        padding: 28px 24px 24px;
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.75fr);
+        gap: 24px;
+        align-items: end;
+        border-bottom: 2px solid var(--rule-heavy);
+      }
+      .mono-masthead h1 {
+        font-size: clamp(40px, 4.6vw, 66px);
+        font-weight: 800;
+        line-height: 0.98;
+        letter-spacing: -0.04em;
+      }
+      .mono-masthead h1 .signal-mark {
+        color: var(--accent);
+      }
+      .mono-mast-right {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        align-items: flex-start;
+        padding-inline-start: 20px;
+        border-inline-start: 1px solid var(--border);
+      }
+      .mono-mast-right p {
+        font-size: 13.5px;
+        color: var(--text-secondary);
+        line-height: 1.48;
+      }
+      .mono-cta-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+      }
+      .mono-android-note {
+        font-size: 12px;
+        color: var(--text-muted);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      /* Full-Width Departure Board with Exposed Coordinate Rulers */
+      .departure-board-wrap {
+        padding: 20px 24px 24px;
+        overflow-x: auto;
+        background: var(--bg);
+      }
+      .departure-table {
+        width: 100%;
+        min-width: 760px;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+      .departure-table th {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-align: start;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--border-strong);
+        border-inline-end: 1px solid var(--border);
+      }
+      .departure-table th.is-now-col {
+        color: var(--accent);
+        border-bottom: 2px solid var(--accent);
+      }
+      .departure-table th.ruler-day {
+        width: 68px;
+      }
+      .departure-table td {
+        padding: 6px;
+        border-bottom: 1px solid var(--border);
+        border-inline-end: 1px solid var(--border);
+        vertical-align: top;
+        height: 76px;
+      }
+      .departure-table td.ruler-row {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-primary);
+        background: var(--bg-dark);
+        vertical-align: middle;
+        padding-inline: 10px;
+      }
+      .departure-tile {
+        view-transition-class: rt-cell;
+        height: 100%;
+        padding: 7px 9px;
+        border: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 4px;
+      }
+      .departure-empty {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        color: var(--text-muted);
+        opacity: 0.35;
+      }
+
+      /* Floating Bottom Teenage Engineering Hardware Command Dock */
+      .hardware-dock-bay {
+        padding: 0 24px 24px;
+        background: var(--bg);
+      }
+      .hardware-dock {
+        background: var(--bg-dark);
+        border: 1px solid var(--border-strong);
+        box-shadow: var(--highlight), var(--shadow-elevated);
+        padding: 10px 14px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .dock-keys {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .dock-key {
+        height: 38px;
+        padding-inline: 12px;
+        background: var(--surface-grad);
+        border: 1px solid var(--border-strong);
+        box-shadow: var(--highlight), 0 2px 0 var(--border-strong);
+        font-family: var(--font-mono);
+        font-size: 11.5px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: background var(--dur-in) var(--ease-out), color var(--dur-in) var(--ease-out), transform var(--dur-press) var(--ease-out);
+      }
+      .dock-key:hover {
+        color: var(--text-primary);
+      }
+      .dock-key[aria-pressed="true"] {
+        background: var(--cta-bg);
+        color: var(--cta-ink);
+        border-color: var(--cta-bg);
+        box-shadow: none;
+      }
+      .key-led {
+        width: 7px;
+        height: 7px;
+        border-radius: 1px;
+        background: var(--text-muted);
+        opacity: 0.45;
+      }
+      .dock-key[aria-pressed="true"] .key-led {
+        background: var(--accent);
+        opacity: 1;
+      }
+      .dock-readout {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: var(--font-mono);
+        font-size: 11.5px;
+        color: var(--text-primary);
+      }
+      .dock-readout.is-err {
+        color: var(--sem-alert-ink);
+      }
+      .mono-footnote {
+        padding: 10px 24px;
+        border-top: 1px solid var(--border);
+        background: var(--bg-dark);
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+    }
+
+    /* =========================================================================
+       LAYER: CONCEPT B — SPATIAL ORBIT ENGINE (3D Perspective × Precision Instrument)
+       Centered 3D Convergence Pipeline with Flatten-to-2D Toggle!
+    ========================================================================= */
+    @layer concept-b {
+      .orbit-hero {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--r-outer);
+        box-shadow: var(--highlight), var(--shadow-elevated);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .orbit-hero-head {
+        padding: 32px 32px 24px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 14px;
+        background: radial-gradient(ellipse 70% 90% at 50% 0%, color-mix(in oklab, var(--accent-soft) 55%, transparent), transparent 75%);
+        border-bottom: 1px solid var(--border);
+      }
+      .orbit-pill-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        border: 1px solid var(--accent-border);
+        background: var(--accent-soft);
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-primary);
+      }
+      .orbit-hero-head h1 {
+        font-size: clamp(34px, 4vw, 54px);
+        font-weight: 700;
+        line-height: 1.06;
+        letter-spacing: -0.035em;
+        max-width: 19ch;
+      }
+      .orbit-hero-head p {
+        font-size: 14.5px;
+        color: var(--text-secondary);
+        max-width: 60ch;
+      }
+      .orbit-head-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 4px;
+      }
+
+      /* Fluted Bezel strictly framing outer 3D showcase (NEVER inside admin tables) */
+      .orbit-fluted-stage {
+        padding: 14px;
+        background:
+          repeating-linear-gradient(
+            90deg,
+            color-mix(in oklab, var(--text-primary) 4%, transparent) 0px,
+            color-mix(in oklab, var(--text-primary) 4%, transparent) 3px,
+            transparent 3px,
+            transparent 11px
+          ),
+          var(--bg-dark);
+      }
+      .orbit-chamber {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--r-inner);
+        box-shadow: var(--highlight);
+        padding: 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      /* Top Orbit Controls Bar inside Chamber */
+      .orbit-control-rail {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding-bottom: 14px;
+        border-bottom: 1px solid var(--border);
+      }
+      .orbit-toggles {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .orbit-chip {
+        height: 36px;
+        padding-inline: 12px;
+        border-radius: var(--r-control);
+        border: 1px solid var(--border);
+        background: var(--surface-grad);
+        box-shadow: var(--highlight), var(--shadow-sm);
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .orbit-chip[aria-pressed="true"] {
+        background: var(--accent-soft);
+        border-color: var(--accent-border);
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+      .orbit-chip-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        border: 1.5px solid var(--text-muted);
+      }
+      .orbit-chip[aria-pressed="true"] .orbit-chip-dot {
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+
+      /* 3D Convergence Pipeline: Inputs -> Orbit Core -> Perspective Timetable Plane */
+      .orbit-pipeline {
+        display: grid;
+        grid-template-columns: 204px 110px minmax(0, 1fr);
+        align-items: center;
+        gap: 12px;
+        perspective: 1250px;
+      }
+      .orbit-inputs-col {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        transform-style: preserve-3d;
+      }
+      .input-card {
+        padding: 11px 13px;
+        border-radius: var(--r-inner);
+        border: 1px solid var(--border);
+        background: var(--surface-grad);
+        box-shadow: var(--highlight), var(--shadow-sm);
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+      .input-card strong {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-inline-size: 0;
+      }
+      .input-card strong span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .orbit-core-col svg {
+        width: 100%;
+        max-width: 108px;
+      }
+      .input-card span {
+        font-size: 11.5px;
+        color: var(--text-secondary);
+      }
+
+      /* Central Orbit CP-SAT Core with Spectral Conduits */
+      .orbit-core-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+      .orbit-core-ring {
+        width: 92px;
+        height: 92px;
+        border-radius: 999px;
+        border: 1px solid var(--accent-border);
+        background: radial-gradient(circle, var(--accent-soft), var(--bg-light) 72%);
+        box-shadow: var(--highlight), var(--shadow-sm);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        text-align: center;
+      }
+      .orbit-core-ring strong {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-primary);
+      }
+      .orbit-core-ring span {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        color: var(--accent);
+      }
+
+      /* Perspective Timetable Plane (Flat by default under reduced motion or Flatten toggle!) */
+      .orbit-plane-wrap {
+        min-inline-size: 0;
+        perspective: 1200px;
+      }
+      .orbit-plane {
+        background: var(--bg-light);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--r-inner);
+        box-shadow: var(--highlight), var(--shadow-elevated);
+        padding: 12px;
+        overflow-x: auto;
+        transform-origin: center center;
+        transition: transform 340ms var(--ease-out), box-shadow 340ms var(--ease-out);
+      }
+
+      /* Opt in to GPU 3D perspective strictly when motion is allowed AND not flattened */
+      @media (prefers-reduced-motion: no-preference) {
+        .orbit-pipeline.is-3d .input-card {
+          transform: rotateY(10deg) translateZ(8px);
+          transition: transform 340ms var(--ease-out);
+        }
+        .orbit-pipeline.is-3d .orbit-plane {
+          transform: rotateX(10deg) rotateY(-5deg);
+        }
+      }
+      .orbit-pipeline:not(.is-3d) .input-card,
+      .orbit-pipeline:not(.is-3d) .orbit-plane {
+        transform: none;
+      }
+
+      .orbit-plane-table {
+        width: 100%;
+        min-width: 560px;
+        border-collapse: separate;
+        border-spacing: 5px;
+        table-layout: fixed;
+      }
+      .orbit-plane-table th {
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        color: var(--text-muted);
+        text-align: start;
+        padding: 3px 5px;
+      }
+      .orbit-plane-table th.d-c {
+        width: 44px;
+      }
+      .orbit-plane-table td.d-l {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        padding: 4px;
+      }
+      .orbit-cell {
+        view-transition-class: rt-cell;
+        height: 54px;
+        padding: 5px 7px;
+        border-radius: 5px;
+        border: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .orbit-empty {
+        height: 54px;
+        border-radius: 5px;
+        border: 1px dashed var(--border);
+        opacity: 0.45;
+      }
+      .orbit-stage-foot {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+    }
+
+    /* =========================================================================
+       LAYER: CONCEPT C — AVANT-GARDE ACADEMIC PRESS (MIT/Pentagram Monograph)
+       Zero bubbly SaaS boxes — decisive 2px ink rules + 1px editorial hairlines!
+    ========================================================================= */
+    @layer concept-c {
+      .press-sheet {
+        background: var(--bg);
+        border-top: 3px solid var(--rule-heavy);
+        border-bottom: 2px solid var(--rule-heavy);
+        border-inline: 1px solid var(--border);
+        padding: 0 28px 28px;
+      }
+      .press-masthead {
+        padding-block: 14px;
+        border-bottom: 1px solid var(--border-strong);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        font-size: 12.5px;
+      }
+      .press-meta-center {
+        font-family: var(--font-mono);
+        font-size: 11.5px;
+        color: var(--text-muted);
+      }
+      .press-mast-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      /* Asymmetric 8/4 Editorial Manifesto + Tabular Proof Strip */
+      .press-front {
+        display: grid;
+        grid-template-columns: minmax(0, 1.85fr) minmax(260px, 1fr);
+        border-bottom: 2px solid var(--rule-heavy);
+      }
+      .press-manifesto {
+        padding: 36px 32px 32px 0;
+        border-inline-end: 1px solid var(--border-strong);
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+      .press-manifesto h1 {
+        font-size: clamp(46px, 5.2vw, 76px);
+        font-weight: 600;
+        line-height: 0.99;
+        letter-spacing: -0.035em;
+      }
+      .press-manifesto h1 em {
+        font-style: italic;
+        color: var(--accent);
+        font-weight: 500;
+      }
+      .press-manifesto p {
+        font-size: 15px;
+        line-height: 1.55;
+        color: var(--text-secondary);
+        max-width: 56ch;
+      }
+
+      .press-colophon {
+        padding: 28px 0 28px 28px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 20px;
+      }
+      .proof-strip {
+        display: flex;
+        flex-direction: column;
+      }
+      .proof-item {
+        padding-block: 11px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .proof-item:first-child {
+        padding-top: 0;
+      }
+      .proof-num {
+        font-family: var(--font-display);
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        color: var(--text-primary);
+      }
+      .proof-label {
+        font-family: var(--font-mono);
+        font-size: 11.5px;
+        color: var(--text-muted);
+        text-align: end;
+      }
+      .press-android-colophon {
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+        font-size: 12.5px;
+        color: var(--text-secondary);
+        line-height: 1.5;
+      }
+      .press-android-colophon strong {
+        color: var(--text-primary);
+      }
+      .press-android-colophon > strong:first-child {
+        display: block;
+        margin-bottom: 3px;
+      }
+
+      /* Full-Width Interactive Constraint Ledger inside Editorial Columns */
+      .press-ledger-grid {
+        display: grid;
+        grid-template-columns: 276px minmax(0, 1fr);
+      }
+      .press-margin-rail {
+        padding: 22px 24px 10px 0;
+        border-inline-end: 1px solid var(--border-strong);
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .press-rail-title {
+        font-family: var(--font-display);
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .press-check-list {
+        display: flex;
+        flex-direction: column;
+      }
+      .press-check-btn {
+        padding-block: 11px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        text-align: start;
+        font-size: 13px;
+        color: var(--text-secondary);
+        width: 100%;
+      }
+      .press-check-btn:hover {
+        color: var(--text-primary);
+      }
+      .press-check-btn[aria-pressed="true"] {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+      .press-state-mark {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        padding: 2px 6px;
+        border: 1px solid var(--border-strong);
+      }
+      .press-check-btn[aria-pressed="true"] .press-state-mark {
+        background: var(--accent);
+        color: var(--accent-ink);
+        border-color: var(--accent);
+      }
+      .press-lens-row {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding-top: 6px;
+      }
+      .press-lens-btn {
+        padding: 6px 8px;
+        font-size: 12.5px;
+        text-align: start;
+        color: var(--text-secondary);
+        border-inline-start: 2px solid transparent;
+      }
+      .press-lens-btn[aria-pressed="true"] {
+        color: var(--text-primary);
+        font-weight: 600;
+        border-inline-start-color: var(--accent);
+        background: var(--bg-light);
+      }
+
+      .press-register-wrap {
+        padding: 22px 0 8px 24px;
+        overflow-x: auto;
+        min-inline-size: 0;
+      }
+      .press-register-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border-strong);
+        margin-bottom: 12px;
+        font-size: 12.5px;
+      }
+      .press-table {
+        width: 100%;
+        min-width: 660px;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+      .press-table th {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-muted);
+        text-align: start;
+        padding: 7px 8px;
+        border-bottom: 2px solid var(--rule-heavy);
+      }
+      .press-table th.p-day {
+        width: 58px;
+      }
+      .press-table td {
+        padding: 6px;
+        border-bottom: 1px solid var(--border);
+        border-inline-end: 1px solid var(--border);
+        vertical-align: top;
+        height: 68px;
+      }
+      .press-table td:last-child {
+        border-inline-end: 0;
+      }
+      .press-table td.p-day-cell {
+        font-family: var(--font-display);
+        font-style: italic;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+        vertical-align: middle;
+        padding-inline: 4px;
+      }
+      .press-slot {
+        view-transition-class: rt-cell;
+        height: 100%;
+        padding: 6px 8px;
+        border-inline-start: 2px solid currentColor;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .press-slot-empty {
+        height: 100%;
+        display: grid;
+        place-items: center;
+        color: var(--text-muted);
+        opacity: 0.3;
+        font-family: var(--font-mono);
+        font-size: 11px;
+      }
+    }
+
+    /* =========================================================================
+       LAYER: UTILITIES & RESPONSIVE ADAPTATIONS (1024px & Narrow)
+    ========================================================================= */
+    @layer utilities {
+      @media (max-width: 1120px) {
+        .brand-lockup span {
+          display: none;
+        }
+        .mono-masthead {
+          grid-template-columns: minmax(0, 1.25fr) minmax(240px, 0.85fr);
+        }
+        .orbit-pipeline {
+          grid-template-columns: 176px 86px minmax(0, 1fr);
+        }
+        .press-front {
+          grid-template-columns: minmax(0, 1.45fr) minmax(240px, 0.95fr);
+        }
+        .press-ledger-grid {
+          grid-template-columns: 236px minmax(0, 1fr);
+        }
+        .admin-layout {
+          grid-template-columns: 196px minmax(0, 1fr);
+        }
+        .ledger-row {
+          grid-template-columns: 24px minmax(0, 1fr) 132px 118px;
+        }
+        .ops-split {
+          grid-template-columns: minmax(0, 1fr) 276px;
+        }
+        .ops-search {
+          width: 184px;
+        }
+      }
+
+      @media (max-width: 900px) {
+        .mono-masthead,
+        .orbit-pipeline,
+        .press-front,
+        .press-ledger-grid,
+        .admin-layout,
+        .ops-split {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .mono-mast-right,
+        .press-manifesto,
+        .press-margin-rail,
+        .admin-rail,
+        .ops-grid-scroll {
+          border-inline-start: 0;
+          border-inline-end: 0;
+          padding-inline: 0;
+        }
+        .press-colophon,
+        .press-register-wrap {
+          padding-inline-start: 0;
+        }
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Sticky Top Lookbook Switcher: Concept A | B | C  +  Light | Dark -->
+  <header class="top-bar">
+    <div class="top-bar-inner">
+      <div class="brand-lockup">
+        <svg class="orbit-logo" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+          <ellipse cx="18" cy="18" rx="15" ry="7.2" stroke="var(--text-primary)" stroke-width="2" />
+          <circle cx="18" cy="18" r="5.2" fill="var(--text-primary)" />
+          <circle cx="30.8" cy="18" r="3" fill="var(--accent)" />
+        </svg>
+        <strong>UniVerse</strong>
+        <span>R2 Bold Architecture</span>
+      </div>
+
+      <div class="switcher-group" role="group" aria-label="Choose bold architectural concept">
+        <button type="button" class="sw-btn" data-set-concept="monolith" data-label="A · Transit Monolith" aria-pressed="true">A · Transit Monolith</button>
+        <button type="button" class="sw-btn" data-set-concept="orbit" data-label="B · Spatial Orbit" aria-pressed="false">B · Spatial Orbit</button>
+        <button type="button" class="sw-btn" data-set-concept="press" data-label="C · Academic Press" aria-pressed="false">C · Academic Press</button>
+      </div>
+
+      <div class="bar-right">
+        <div class="switcher-group" role="group" aria-label="Choose light or dark mode">
+          <button type="button" class="mode-btn" data-set-mode="light" aria-pressed="true">
+            <i class="ph ph-sun" aria-hidden="true"></i>
+            <span>Light</span>
+          </button>
+          <button type="button" class="mode-btn" data-set-mode="dark" aria-pressed="false">
+            <i class="ph ph-moon" aria-hidden="true"></i>
+            <span>Dark</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="stage-shell">
+    <!-- =======================================================================
+         CONCEPT A: KINETIC TRANSIT MONOLITH (Swiss Departure × TE Hardware)
+    ======================================================================= -->
+    <div class="concept-canvas" data-canvas="monolith">
+      <section class="monolith-hero" aria-label="Concept A public departure board">
+        <div class="mono-coord-strip">
+          <span>LU · DEPT. OF <span class="acronym">CSE</span> · SYLHET</span>
+          <span>ENGINE: OR-TOOLS <span class="acronym">CP-SAT</span> 2.0 · R1&ndash;R16</span>
+          <span>MODE: ILLUSTRATIVE PREVIEW</span>
+        </div>
+
+        <div class="mono-masthead">
+          <h1>Automate <span class="signal-mark">every classroom</span> on campus</h1>
+          <div class="mono-mast-right">
+            <p>Ingest departmental Course Distribution workbooks, faculty off-days, and lab pools into a conflict-checked campus routine without manual spreadsheet clashes.</p>
+            <div class="mono-cta-row">
+              <button type="button" class="btn-cta" data-open-signin>
+                <i class="ph ph-sign-in" aria-hidden="true"></i>
+                <span>Admin Sign In</span>
+              </button>
+              <a href="#admin-monolith" class="btn-ghost">Inspect Admin Console</a>
+            </div>
+            <div class="mono-android-note">
+              <i class="ph ph-device-mobile" aria-hidden="true"></i>
+              <span>Students &amp; Faculty: use the <strong>UniVerse Android App</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="departure-board-wrap">
+          <table class="departure-table" aria-label="Kinetic departure board preview">
+            <thead id="monolith-thead"></thead>
+            <tbody id="monolith-tbody"></tbody>
+          </table>
+        </div>
+
+        <!-- Teenage Engineering Floating Hardware Command Dock -->
+        <div class="hardware-dock-bay">
+          <div class="hardware-dock" role="toolbar" aria-label="Hardware routine rule switches">
+            <div class="dock-keys">
+              <button type="button" class="dock-key" data-act="jummah" aria-pressed="true"><span class="key-led" aria-hidden="true"></span><span>JUMMAH P4 LOCK</span></button>
+              <button type="button" class="dock-key" data-act="r7" aria-pressed="true"><span class="key-led" aria-hidden="true"></span><span>R7: EBH THU&ndash;FRI OFF</span></button>
+              <button type="button" class="dock-key" data-act="slots" aria-pressed="false"><span class="key-led" aria-hidden="true"></span><span>R15: 7-SLOT GRID</span></button>
+              <button type="button" class="dock-key" data-act="lens-section" aria-pressed="true"><span>58 B+C</span></button>
+              <button type="button" class="dock-key" data-act="lens-faculty" aria-pressed="false"><span>EBH</span></button>
+              <button type="button" class="dock-key" data-act="lens-room" aria-pressed="false"><span>ACL-1</span></button>
+            </div>
+            <div id="monolith-readout" class="dock-readout">
+              <span class="led-dot" aria-hidden="true"></span>
+              <span>0 CLASHES · 6/6 RULES · 184 MS</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mono-footnote">
+          <span>ILLUSTRATIVE PREVIEW · CURATED LEADING UNIVERSITY CSE FIXTURES</span>
+          <span>PUBLISHED ROUTINES REQUIRE DEPARTMENTAL APPROVAL</span>
+        </div>
+      </section>
+
+      <div id="admin-monolith" class="section-divider-head">
+        <h2>Concept A: Departure-Board Admin Console (/admin/*)</h2>
+        <p>Exposed coordinate rails, monochrome ink controls, vermilion exception markers, and docked provenance inspector</p>
+      </div>
+      <div id="admin-slot-monolith"></div>
+    </div>
+
+    <!-- =======================================================================
+         CONCEPT B: SPATIAL ORBIT ENGINE (3D Perspective × Precision Instrument)
+    ======================================================================= -->
+    <div class="concept-canvas" data-canvas="orbit" hidden>
+      <section class="orbit-hero" aria-label="Concept B spatial 3D orbit engine">
+        <div class="orbit-hero-head">
+          <span class="orbit-pill-tag">
+            <i class="ph ph-planet" aria-hidden="true"></i>
+            <span>Leading University <span class="acronym">CSE</span> · Automated Routine Engine</span>
+          </span>
+          <h1>Turn course workbooks into an orbital campus timetable</h1>
+          <p>Watch real departmental inputs route through UniVerse&rsquo;s <span class="acronym">OR</span>-Tools <span class="acronym">CP-SAT</span> constraint core into an organized weekly schedule, then flatten directly into a 2D workbench.</p>
+          <div class="orbit-head-actions">
+            <button type="button" class="btn-cta" data-open-signin>
+              <i class="ph ph-sign-in" aria-hidden="true"></i>
+              <span>Open Admin Console</span>
+            </button>
+            <button type="button" id="toggle-3d-btn" class="btn-ghost is-active" aria-pressed="true">
+              <i class="ph ph-cube" aria-hidden="true"></i>
+              <span id="toggle-3d-label">3D Perspective Active · Flatten to 2D</span>
+            </button>
+            <span class="mono-android-note" style="padding-inline: 8px;">
+              <i class="ph ph-device-mobile" aria-hidden="true"></i>
+              <span>Students &amp; Teachers: <strong>UniVerse Android App</strong></span>
+            </span>
+          </div>
+        </div>
+
+        <div class="orbit-fluted-stage">
+          <div class="orbit-chamber">
+            <div class="orbit-control-rail" role="toolbar" aria-label="Spatial orbit constraint switches">
+              <div class="orbit-toggles">
+                <button type="button" class="orbit-chip" data-act="jummah" aria-pressed="true"><span class="orbit-chip-dot" aria-hidden="true"></span><span>Friday P4 Jummah</span></button>
+                <button type="button" class="orbit-chip" data-act="r7" aria-pressed="true"><span class="orbit-chip-dot" aria-hidden="true"></span><span>R7: EBH Thu&ndash;Fri off</span></button>
+                <button type="button" class="orbit-chip" data-act="slots" aria-pressed="false"><span class="orbit-chip-dot" aria-hidden="true"></span><span>R15: 7-Slot (19:00 OL)</span></button>
+              </div>
+              <div class="orbit-toggles">
+                <button type="button" class="orbit-chip" data-act="lens-section" aria-pressed="true"><span>Batch 58 B+C</span></button>
+                <button type="button" class="orbit-chip" data-act="lens-faculty" aria-pressed="false"><span>Faculty EBH</span></button>
+                <button type="button" class="orbit-chip" data-act="lens-room" aria-pressed="false"><span>Lab ACL-1</span></button>
+              </div>
+            </div>
+
+            <!-- Interactive 3D Convergence Pipeline -->
+            <div id="orbit-pipeline" class="orbit-pipeline is-3d">
+              <div class="orbit-inputs-col">
+                <div class="input-card">
+                  <strong><i class="ph ph-file-xls" aria-hidden="true"></i><span>Course_Dist_Sp26.xlsx</span></strong>
+                  <span>Cols A&ndash;L · 796 weekly slots</span>
+                </div>
+                <div class="input-card">
+                  <strong><i class="ph ph-calendar-x" aria-hidden="true"></i><span>R7 Faculty Off-Days</span></strong>
+                  <span>56 faculty · EBH Thu&ndash;Fri</span>
+                </div>
+                <div class="input-card">
+                  <strong><i class="ph ph-buildings" aria-hidden="true"></i><span>Room &amp; Lab Pools</span></strong>
+                  <span>RAB/RKB · ACL-1..4 · ECL</span>
+                </div>
+              </div>
+
+              <div class="orbit-core-col" aria-hidden="true">
+                <svg width="108" height="22" viewBox="0 0 108 22" fill="none">
+                  <path d="M2 11H106" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="3 3" />
+                  <circle cx="102" cy="11" r="3" fill="var(--accent)" />
+                </svg>
+                <div class="orbit-core-ring">
+                  <strong>CP-SAT</strong>
+                  <span id="orbit-core-state">6/6 OK</span>
+                </div>
+                <svg width="108" height="22" viewBox="0 0 108 22" fill="none">
+                  <path d="M2 11H106" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="3 3" />
+                  <circle cx="102" cy="11" r="3" fill="var(--accent)" />
+                </svg>
+              </div>
+
+              <div class="orbit-plane-wrap">
+                <div class="orbit-plane">
+                  <table class="orbit-plane-table" aria-label="3D perspective timetable plane">
+                    <thead id="orbit-thead"></thead>
+                    <tbody id="orbit-tbody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="orbit-stage-foot">
+              <span id="orbit-readout" class="mono">0 clashes · 6/6 committee rules satisfied · 184 ms</span>
+              <span>Illustrative engine preview (curated fixtures) · Live publishing requires Admin authorization</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div id="admin-orbit" class="section-divider-head">
+        <h2>Concept B: Calm 2D Spatial Operations Console (/admin/*)</h2>
+        <p>Completely flat 2D instrument surface inheriting Orbit telemetry, dissolved readiness ledger, and docked inspector</p>
+      </div>
+      <div id="admin-slot-orbit"></div>
+    </div>
+
+    <!-- =======================================================================
+         CONCEPT C: AVANT-GARDE ACADEMIC PRESS (MIT/Pentagram Monograph)
+    ======================================================================= -->
+    <div class="concept-canvas" data-canvas="press" hidden>
+      <article class="press-sheet" aria-label="Concept C editorial monograph front page">
+        <div class="press-masthead">
+          <strong>Leading University · Department of <span class="acronym">CSE</span></strong>
+          <span class="press-meta-center">ROUTINE AUTOMATION MONOGRAPH · SPRING 2026 · CP-SAT 2.0</span>
+          <div class="press-mast-actions">
+            <button type="button" class="btn-cta is-sm" data-open-signin>Admin Sign In</button>
+          </div>
+        </div>
+
+        <div class="press-front">
+          <div class="press-manifesto">
+            <h1>One engine. <em>Every classroom</em> at Leading University</h1>
+            <p>UniVerse transforms departmental Course Distribution spreadsheets, R1&ndash;R16 committee regulations, faculty off-days, and specialized laboratory pools into an auditable weekly campus register.</p>
+          </div>
+
+          <aside class="press-colophon">
+            <div class="proof-strip" aria-label="Departmental routine scale">
+              <div class="proof-item"><span class="proof-num tabular">796</span><span class="proof-label">Active weekly slots</span></div>
+              <div class="proof-item"><span class="proof-num tabular">16</span><span class="proof-label">Committee rules (R1&ndash;R16)</span></div>
+              <div class="proof-item"><span class="proof-num tabular">7-Day</span><span class="proof-label">Campus teaching grid</span></div>
+              <div class="proof-item"><span class="proof-num tabular">30</span><span class="proof-label">Rooms &amp; <span class="acronym">ACL/ECL</span> labs</span></div>
+            </div>
+            <div class="press-android-colophon">
+              <strong>For Students &amp; Faculty</strong>
+              Web v1 serves Routine Committee Administrators. Daily schedules, room lookups, and cancellation alerts live in the <strong>UniVerse Android App</strong>.
+            </div>
+          </aside>
+        </div>
+
+        <!-- Inline Editorial Constraint Ledger -->
+        <div class="press-ledger-grid">
+          <div class="press-margin-rail">
+            <h2 class="press-rail-title">Interactive Constraint Ledger</h2>
+            <div class="press-check-list" role="toolbar" aria-label="Editorial ledger rule switches">
+              <button type="button" class="press-check-btn" data-act="jummah" aria-pressed="true">
+                <span>01 · Friday P4 Jummah</span>
+                <span class="press-state-mark">LOCKED</span>
+              </button>
+              <button type="button" class="press-check-btn" data-act="r7" aria-pressed="true">
+                <span>02 · R7 EBH Thu&ndash;Fri Off</span>
+                <span class="press-state-mark">BOUND</span>
+              </button>
+              <button type="button" class="press-check-btn" data-act="slots" aria-pressed="false">
+                <span>03 · R15 7-Slot Grid</span>
+                <span class="press-state-mark">6-SLOT</span>
+              </button>
+            </div>
+
+            <div class="press-lens-row" role="group" aria-label="Editorial register lens">
+              <span class="mono" style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">04 · VIEW REGISTER BY</span>
+              <button type="button" class="press-lens-btn" data-act="lens-section" aria-pressed="true">Section · Batch 58 B+C</button>
+              <button type="button" class="press-lens-btn" data-act="lens-faculty" aria-pressed="false">Faculty · EBH (Permanent)</button>
+              <button type="button" class="press-lens-btn" data-act="lens-room" aria-pressed="false">Laboratory · ACL-1</button>
+            </div>
+
+            <p style="font-size: 11.5px; color: var(--text-muted); margin-top: auto;">
+              Illustrative engine preview using curated Leading University <span class="acronym">CSE</span> fixtures. Published schedules require committee sign-off.
+            </p>
+          </div>
+
+          <div class="press-register-wrap">
+            <div class="press-register-meta">
+              <strong id="press-readout">0 clashes · 6/6 committee rules satisfied</strong>
+              <span id="press-meta-right" class="mono" style="color: var(--text-muted);">Batch 58 B+C · 6 slots/day · 184 ms</span>
+            </div>
+            <table class="press-table" aria-label="Editorial timetable ledger">
+              <thead id="press-thead"></thead>
+              <tbody id="press-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </article>
+
+      <div id="admin-press" class="section-divider-head">
+        <h2>Concept C: Academic Register Admin Console (/admin/*)</h2>
+        <p>Hairline publication geometry, dissolved 4-stage readiness ledger, and high-legibility 2D matrix + provenance register</p>
+      </div>
+      <div id="admin-slot-press"></div>
+    </div>
+  </main>
+
+  <!-- Native <dialog> Right-Edge Slide-Over Admin Sign-In Sheet (Per modern-web-guidance) -->
+  <dialog id="admin-signin-dialog" class="signin-sheet" closedby="any" aria-labelledby="signin-sheet-title">
+    <div class="dialog-panel">
+      <div class="dialog-top">
+        <div>
+          <h2 id="signin-sheet-title">Administrator Console</h2>
+          <p>Sign in with your whitelisted Leading University <span class="acronym">CSE</span> routine committee credentials.</p>
+        </div>
+        <button type="button" id="close-signin-btn" class="btn-ghost is-xs" aria-label="Close sign in sheet">
+          <i class="ph ph-x" aria-hidden="true"></i>
+        </button>
+      </div>
+
+      <form id="signin-form" class="field-stack" novalidate>
+        <div class="field-row">
+          <label for="dl-email">Institutional Email</label>
+          <input id="dl-email" class="text-field" type="email" value="committee.cse@lus.ac.bd" autofocus />
+        </div>
+        <div class="field-row">
+          <label for="dl-pass">Password</label>
+          <input id="dl-pass" class="text-field" type="password" value="••••••••••••" />
+        </div>
+        <button type="submit" class="btn-cta">
+          <i class="ph ph-sign-in" aria-hidden="true"></i>
+          <span>Sign in via Supabase PKCE</span>
+        </button>
+        <div id="dialog-feedback" class="dialog-feedback" role="status" aria-live="polite">
+          <i class="ph ph-shield-check" aria-hidden="true"></i>
+          <span>Lookbook preview only: live auth verifies admin role in <code>public.profiles</code> / <code>whitelists</code>.</span>
+        </div>
+      </form>
+    </div>
+
+    <div class="dialog-footer-companion">
+      <i class="ph ph-device-mobile" aria-hidden="true" style="font-size: 20px; color: var(--accent); margin-top: 2px;"></i>
+      <div>
+        <strong>Student or Faculty Member?</strong>
+        <span>Web v1 is dedicated to Administrators. Download or open the <strong>UniVerse Android App</strong> for daily class routines, room lookups, and cancellation alerts.</span>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    (() => {
+      const htmlEl = document.documentElement;
+
+      // =========================================================================
+      // 1. INSTANT 1-FRAME CONCEPT & LIGHT/DARK THEME SWITCHING
+      // =========================================================================
+      const state = {
+        concept: "monolith", // "monolith" | "orbit" | "press"
+        mode: "light",       // "light" | "dark"
+        jummah: true,
+        r7Enforced: true,
+        slots: 6,
+        lens: "section",     // "section" | "faculty" | "room"
+        is3D: true,
+        selectedOpsId: "ops-1",
+        opsQuery: "",
+        opsCat: "all",
+        d5Allowed: false,
+        opsErrMode: "idle"
+      };
+
+      function instantSwitch(fn) {
+        htmlEl.classList.add("theme-switching");
+        fn();
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => htmlEl.classList.remove("theme-switching"));
+        });
+      }
+
+      const conceptBtns = document.querySelectorAll("[data-set-concept]");
+      const modeBtns = document.querySelectorAll("[data-set-mode]");
+      const canvases = document.querySelectorAll("[data-canvas]");
+
+      function applyConceptAndMode() {
+        instantSwitch(() => {
+          htmlEl.setAttribute("data-concept", state.concept);
+          htmlEl.setAttribute("data-mode", state.mode);
+          conceptBtns.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.setConcept === state.concept)));
+          modeBtns.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.setMode === state.mode)));
+          canvases.forEach(c => {
+            c.hidden = c.dataset.canvas !== state.concept;
+          });
+        });
+        mountActiveAdminConsole();
+      }
+
+      conceptBtns.forEach(btn => btn.addEventListener("click", () => {
+        state.concept = btn.dataset.setConcept;
+        applyConceptAndMode();
+      }));
+      modeBtns.forEach(btn => btn.addEventListener("click", () => {
+        state.mode = btn.dataset.setMode;
+        applyConceptAndMode();
+      }));
+
+      // =========================================================================
+      // 2. SHARED LEADING UNIVERSITY CSE ROUTINE ENGINE FIXTURE MODEL
+      // =========================================================================
+      const PERIODS = [
+        { idx: 1, code: "P1", time: "08:50" },
+        { idx: 2, code: "P2", time: "10:05" },
+        { idx: 3, code: "P3", time: "11:20" },
+        { idx: 4, code: "P4", time: "13:10" },
+        { idx: 5, code: "P5", time: "14:25" },
+        { idx: 6, code: "P6", time: "15:40" },
+        { idx: 7, code: "P7 OL", time: "19:00" }
+      ];
+      const DAYS = ["Sun", "Mon", "Tue", "Thu", "Fri"];
+
+      function computeSandbox() {
+        const { jummah, r7Enforced, slots, lens } = state;
+        if (lens === "section") {
+          const rows = [
+            { id: "c-3101a", day: "Sun", p: 1, code: "CSE-3101", sub: "EBH · RAB-302", cat: "joint" },
+            { id: "c-3102a", day: "Sun", p: 2, code: "CSE-3102", sub: "MSR · ACL-1", cat: "lab" },
+            { id: "c-3105a", day: "Mon", p: 1, code: "CSE-3105", sub: "KJH · RAB-304", cat: "theory" },
+            {
+              id: "c-3101b",
+              day: r7Enforced ? "Mon" : "Thu",
+              p: 2,
+              code: "CSE-3101",
+              sub: r7Enforced ? "EBH · RAB-302" : "EBH · R7 Conflict",
+              cat: r7Enforced ? "joint" : "block"
+            },
+            { id: "c-3201a", day: "Tue", p: 2, code: "CSE-3201", sub: "SPJ (SUST) · RKB-401", cat: "joint" },
+            { id: "c-3106a", day: "Tue", p: 3, code: "CSE-3106", sub: "SAB · ACL-2", cat: "lab" },
+            { id: "c-eee", day: "Thu", p: 4, code: "EEE-2101", sub: "MRI · ECL-1", cat: "lab" },
+            {
+              id: "c-3202a",
+              day: "Fri",
+              p: jummah ? (slots === 7 ? 7 : 5) : 4,
+              code: "CSE-3202",
+              sub: slots === 7 && jummah ? "MSR · Online Lab" : "MSR · ACL-1",
+              cat: "lab"
+            },
+            { id: "c-3105b", day: "Fri", p: 2, code: "CSE-3105", sub: "KJH · RAB-304", cat: "theory" }
+          ];
+          if (jummah) rows.push({ id: "c-jum", day: "Fri", p: 4, code: "JUMMAH", sub: "Hard Block · P4", cat: "block" });
+          if (slots === 7) rows.push({ id: "c-ol", day: "Mon", p: 7, code: "CSE-3201", sub: "SPJ · Online P7", cat: "theory" });
+          return rows;
+        }
+        if (lens === "faculty") {
+          const rows = [
+            { id: "c-3101a", day: "Sun", p: 1, code: "CSE-3101", sub: "58 B+C · RAB-302", cat: "joint" },
+            { id: "c-4101a", day: "Sun", p: 3, code: "CSE-4101", sub: "56 A · RAB-306", cat: "theory" },
+            {
+              id: "c-3101b",
+              day: r7Enforced ? "Mon" : "Thu",
+              p: 2,
+              code: "CSE-3101",
+              sub: r7Enforced ? "58 B+C · RAB-302" : "R7 Off-Day Violation",
+              cat: r7Enforced ? "joint" : "block"
+            },
+            { id: "c-4101b", day: "Tue", p: 1, code: "CSE-4101", sub: "56 A · RAB-306", cat: "theory" },
+            { id: "c-4102", day: "Tue", p: 4, code: "CSE-4102", sub: "56 A · ACL-3", cat: "lab" }
+          ];
+          if (r7Enforced) rows.push({ id: "c-r7thu", day: "Thu", p: 1, code: "OFF-DAY", sub: "EBH · R7 Bound", cat: "block" });
+          if (jummah) rows.push({ id: "c-jum", day: "Fri", p: 4, code: "JUMMAH", sub: "Hard Block · P4", cat: "block" });
+          if (slots === 7) rows.push({ id: "c-ol", day: "Tue", p: 7, code: "CSE-4101", sub: "Makeup · Online", cat: "theory" });
+          return rows;
+        }
+        const rows = [
+          { id: "c-3102a", day: "Sun", p: 2, code: "CSE-3102", sub: "58 B · MSR", cat: "lab" },
+          { id: "c-3102c", day: "Sun", p: 3, code: "CSE-3102", sub: "58 C · MSR", cat: "lab" },
+          { id: "c-2204a", day: "Mon", p: 4, code: "CSE-2204", sub: "59 A · SAB", cat: "lab" },
+          { id: "c-1202", day: "Tue", p: 2, code: "CSE-1202", sub: "61 B · AFZ", cat: "lab" },
+          { id: "c-2204b", day: "Thu", p: 2, code: "CSE-2204", sub: "59 B · SAB", cat: "lab" },
+          {
+            id: "c-3202a",
+            day: "Fri",
+            p: jummah ? (slots === 7 ? 7 : 5) : 4,
+            code: "CSE-3202",
+            sub: "58 C · MSR",
+            cat: "lab"
+          }
+        ];
+        if (jummah) rows.push({ id: "c-jum", day: "Fri", p: 4, code: "JUMMAH", sub: "Campus Block", cat: "block" });
+        return rows;
+      }
+
+      function catIcon(cat) {
+        return cat === "block" ? "ph-lock-simple" : cat === "lab" ? "ph-desktop" : cat === "joint" ? "ph-users" : "ph-book-open";
+      }
+
+      function statusSummary() {
+        if (!state.r7Enforced) return { ok: false, short: "1 R7 CLASH", text: "1 R7 off-day conflict flagged (EBH scheduled Thursday)" };
+        if (!state.jummah) return { ok: false, short: "P4 UNLOCKED", text: "Friday P4 Jummah block disabled · CSE-3202 overlaps prayer window" };
+        return { ok: true, short: "6/6 OK", text: "0 clashes · 6/6 committee rules satisfied" };
+      }
+
+      function renderAllPublicStages() {
+        const periods = PERIODS.slice(0, state.slots);
+        const cells = computeSandbox();
+        const map = new Map(cells.map(c => [`${c.day}-${c.p}`, c]));
+        const stat = statusSummary();
+        const lensLabel = state.lens === "section" ? "Batch 58 B+C" : state.lens === "faculty" ? "Faculty EBH" : "Lab ACL-1";
+
+        // Sync all action buttons across all 3 concepts
+        document.querySelectorAll("[data-act]").forEach(btn => {
+          const act = btn.dataset.act;
+          if (act === "jummah") {
+            btn.setAttribute("aria-pressed", String(state.jummah));
+            const m = btn.querySelector(".press-state-mark");
+            if (m) m.textContent = state.jummah ? "LOCKED" : "OPEN";
+          } else if (act === "r7") {
+            btn.setAttribute("aria-pressed", String(state.r7Enforced));
+            const m = btn.querySelector(".press-state-mark");
+            if (m) m.textContent = state.r7Enforced ? "BOUND" : "CLASH";
+          } else if (act === "slots") {
+            btn.setAttribute("aria-pressed", String(state.slots === 7));
+            const m = btn.querySelector(".press-state-mark");
+            if (m) m.textContent = state.slots === 7 ? "7-SLOT" : "6-SLOT";
+          } else if (act.startsWith("lens-")) {
+            btn.setAttribute("aria-pressed", String(act === `lens-${state.lens}`));
+          }
+        });
+
+        // A. Monolith Departure Board
+        document.getElementById("monolith-thead").innerHTML =
+          `<tr><th class="ruler-day">DAY / P</th>${periods.map(p => `<th class="${p.idx === 2 ? "is-now-col" : ""}">${p.code} · ${p.time}${p.idx === 2 ? " · LIVE" : ""}</th>`).join("")}</tr>`;
+        document.getElementById("monolith-tbody").innerHTML = DAYS.map(d => {
+          const tds = periods.map(p => {
+            const c = map.get(`${d}-${p.idx}`);
+            if (!c) return `<td><div class="departure-empty">${d.toUpperCase()}-${p.idx}</div></td>`;
+            return `<td><div class="departure-tile cat-${c.cat}" style="view-transition-name: m-${c.id}"><div class="ops-c-top"><span>${c.code}</span><i class="ph ${catIcon(c.cat)}" aria-hidden="true"></i></div><div class="ops-c-mid">${c.sub}</div></div></td>`;
+          }).join("");
+          return `<tr><td class="ruler-row">${d.toUpperCase()}</td>${tds}</tr>`;
+        }).join("");
+        const mRead = document.getElementById("monolith-readout");
+        mRead.className = `dock-readout ${stat.ok ? "" : "is-err"}`;
+        mRead.innerHTML = `<span class="led-dot ${stat.ok ? "" : "is-signal"}" aria-hidden="true"></span><span>${stat.text.toUpperCase()} · 184 MS</span>`;
+
+        // B. Spatial Orbit 3D Plane
+        document.getElementById("orbit-thead").innerHTML =
+          `<tr><th class="d-c">DAY</th>${periods.map(p => `<th>${p.code}<br/><span style="opacity:0.75">${p.time}</span></th>`).join("")}</tr>`;
+        document.getElementById("orbit-tbody").innerHTML = DAYS.map(d => {
+          const tds = periods.map(p => {
+            const c = map.get(`${d}-${p.idx}`);
+            if (!c) return `<td><div class="orbit-empty"></div></td>`;
+            return `<td><div class="orbit-cell cat-${c.cat}" style="view-transition-name: o-${c.id}"><div class="ops-c-top"><span>${c.code}</span><i class="ph ${catIcon(c.cat)}" aria-hidden="true"></i></div><div class="ops-c-mid">${c.sub}</div></div></td>`;
+          }).join("");
+          return `<tr><td class="d-l">${d}</td>${tds}</tr>`;
+        }).join("");
+        document.getElementById("orbit-core-state").textContent = stat.short;
+        document.getElementById("orbit-readout").textContent = `${stat.text} · ${lensLabel} · ${state.slots} slots/day · 184 ms`;
+
+        // C. Academic Press Editorial Ledger
+        document.getElementById("press-thead").innerHTML =
+          `<tr><th class="p-day">Day</th>${periods.map(p => `<th>${p.code} · ${p.time}</th>`).join("")}</tr>`;
+        document.getElementById("press-tbody").innerHTML = DAYS.map(d => {
+          const tds = periods.map(p => {
+            const c = map.get(`${d}-${p.idx}`);
+            if (!c) return `<td><div class="press-slot-empty">&mdash;</div></td>`;
+            return `<td><div class="press-slot cat-${c.cat}" style="view-transition-name: p-${c.id}"><div class="ops-c-top"><span>${c.code}</span><i class="ph ${catIcon(c.cat)}" aria-hidden="true"></i></div><div class="ops-c-mid">${c.sub}</div></div></td>`;
+          }).join("");
+          return `<tr><td class="p-day-cell">${d}</td>${tds}</tr>`;
+        }).join("");
+        document.getElementById("press-readout").textContent = stat.text;
+        document.getElementById("press-readout").style.color = stat.ok ? "var(--text-primary)" : "var(--sem-alert-ink)";
+        document.getElementById("press-meta-right").textContent = `${lensLabel} · ${state.slots} slots/day · 184 ms`;
+      }
+
+      function runPublicUpdate(mutator) {
+        const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (document.startViewTransition && !reduced) {
+          document.startViewTransition(() => {
+            mutator();
+            renderAllPublicStages();
+          });
+        } else {
+          mutator();
+          renderAllPublicStages();
+        }
+      }
+
+      document.querySelectorAll("[data-act]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const act = btn.dataset.act;
+          runPublicUpdate(() => {
+            if (act === "jummah") state.jummah = !state.jummah;
+            else if (act === "r7") state.r7Enforced = !state.r7Enforced;
+            else if (act === "slots") state.slots = state.slots === 6 ? 7 : 6;
+            else if (act.startsWith("lens-")) state.lens = act.replace("lens-", "");
+          });
+        });
+      });
+
+      // Concept B: Flatten to 2D Workbench Toggle
+      const toggle3dBtn = document.getElementById("toggle-3d-btn");
+      const toggle3dLabel = document.getElementById("toggle-3d-label");
+      const orbitPipeline = document.getElementById("orbit-pipeline");
+      toggle3dBtn.addEventListener("click", () => {
+        state.is3D = !state.is3D;
+        orbitPipeline.classList.toggle("is-3d", state.is3D);
+        toggle3dBtn.classList.toggle("is-active", state.is3D);
+        toggle3dBtn.setAttribute("aria-pressed", String(state.is3D));
+        toggle3dLabel.textContent = state.is3D ? "3D Perspective Active · Flatten to 2D" : "Flat 2D Workbench · Restore 3D View";
+      });
+
+      // =========================================================================
+      // 3. NATIVE <dialog> SIGN-IN SLIDE-OVER (Per modern-web-guidance `dialog`)
+      // =========================================================================
+      const signinDialog = document.getElementById("admin-signin-dialog");
+      const closeSigninBtn = document.getElementById("close-signin-btn");
+      const signinForm = document.getElementById("signin-form");
+      const dialogFeedback = document.getElementById("dialog-feedback");
+
+      document.querySelectorAll("[data-open-signin]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          dialogFeedback.classList.remove("is-shown");
+          signinDialog.showModal();
+        });
+      });
+      closeSigninBtn.addEventListener("click", () => signinDialog.close("close"));
+      signinForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        dialogFeedback.classList.add("is-shown");
+      });
+      // Fallback for browsers without native closedby="any"
+      if (!("closedBy" in HTMLDialogElement.prototype)) {
+        let pressedOut = false;
+        const isOut = (e) => {
+          const r = signinDialog.getBoundingClientRect();
+          return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+        };
+        signinDialog.addEventListener("pointerdown", e => { pressedOut = isOut(e); });
+        signinDialog.addEventListener("pointerup", e => { if (pressedOut && isOut(e)) signinDialog.close("backdrop"); });
+      }
+
+      // =========================================================================
+      // 4. ADMIN OPERATIONS CONSOLE (Mounted cleanly inside active concept!)
+      // =========================================================================
+      const OPS_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+      const OPS_PERIODS = PERIODS.slice(0, 6);
+      const OPS_SLOTS = [
+        { id: "ops-1", day: "Sunday", p: 1, code: "CSE-3101", title: "Design & Analysis of Algorithms", cat: "joint", catLabel: "Joint B+C", batch: "Batch 58 B+C", faculty: "EBH", role: "Asst. Prof. · Permanent", room: "RAB-302", bldg: "Ragib Ali Bldg.", ref: "Row 14 · Col A–L", rules: [{ l: "R1 Section 2-day weekend", s: "base" }, { l: "Joint B+C atomic lock", s: "ovr" }, { l: "R7 EBH off-days (Thu–Fri)", s: "base" }] },
+        { id: "ops-2", day: "Sunday", p: 2, code: "CSE-3102", title: "Algorithms Sessional", cat: "lab", catLabel: "Lab", batch: "Batch 58 B", faculty: "MSR", role: "Lecturer · Permanent", room: "ACL-1", bldg: "Academic Comp. Lab", ref: "Row 15 · Col A–L", rules: [{ l: "R12 Sessional 2 classes/wk", s: "base" }, { l: "R14 Active CSE Lab pool", s: "base" }] },
+        { id: "ops-3", day: "Sunday", p: 4, code: "CSE-3105", title: "Software Engineering", cat: "theory", catLabel: "Theory", batch: "Batch 58 B", faculty: "KJH", role: "Asst. Prof. & Head", room: "RAB-304", bldg: "Ragib Ali Bldg.", ref: "Row 18 · Col A–L", rules: [{ l: "R3 Zero 2-slot section gaps", s: "base" }, { l: "R7 KJH off-days (Fri–Sat)", s: "base" }] },
+        { id: "ops-4", day: "Monday", p: 1, code: "CSE-3201", title: "Computer Networks", cat: "joint", catLabel: "Joint B+C", batch: "Batch 58 B+C", faculty: "SPJ", role: "Adjunct · SUST", room: "RKB-401", bldg: "Rabeya Khatun Bldg.", ref: "Row 22 · Col A–L", rules: [{ l: "R9 SUST half-day compact", s: "ovr" }, { l: "R6 Adjunct distinct cap", s: "base" }] },
+        { id: "ops-5", day: "Monday", p: 2, code: "CSE-3101", title: "Design & Analysis of Algorithms", cat: "joint", catLabel: "Joint B+C", batch: "Batch 58 B+C", faculty: "EBH", role: "Asst. Prof. · Permanent", room: "RAB-302", bldg: "Ragib Ali Bldg.", ref: "Row 14 · Col A–L", rules: [{ l: "Joint B+C atomic lock", s: "ovr" }, { l: "R7 EBH off-days (Thu–Fri)", s: "base" }] },
+        { id: "ops-6", day: "Monday", p: 5, code: "CSE-3106", title: "Software Engineering Lab", cat: "lab", catLabel: "Lab", batch: "Batch 58 B", faculty: "SAB", role: "Asst. Prof. · Permanent", room: "ACL-2", bldg: "Academic Comp. Lab", ref: "Row 19 · Col A–L", rules: [{ l: "R12 Consecutive same-lab", s: "base" }, { l: "R7 SAB off-days (Fri–Sat)", s: "base" }] },
+        { id: "ops-7", day: "Tuesday", p: 2, code: "CSE-3202", title: "Computer Networks Lab", cat: "lab", catLabel: "Lab", batch: "Batch 58 C", faculty: "MSR", role: "Lecturer · Permanent", room: "ACL-1", bldg: "Academic Comp. Lab", ref: "Row 23 · Col A–L", rules: [{ l: "R12 Sessional 2 classes/wk", s: "base" }, { l: "R14 Active CSE Lab pool", s: "base" }] },
+        { id: "ops-8", day: "Tuesday", p: 3, code: "CSE-3105", title: "Software Engineering", cat: "theory", catLabel: "Theory", batch: "Batch 58 B", faculty: "KJH", role: "Asst. Prof. & Head", room: "RAB-304", bldg: "Ragib Ali Bldg.", ref: "Row 18 · Col A–L", rules: [{ l: "R3 Zero 2-slot section gaps", s: "base" }, { l: "R15 6-slot printed grid", s: "base" }] },
+        { id: "ops-9", day: "Wednesday", p: 1, code: "GED-2103", title: "Technical Writing & Ethics", cat: "theory", catLabel: "Theory", batch: "Batch 58 B", faculty: "NSD", role: "Lecturer · English", room: "RKB-403", bldg: "Rabeya Khatun Bldg.", ref: "Row 29 · Col A–L", rules: [{ l: "R13 2-cr consecutive block", s: "base" }, { l: "R5 External dept window", s: "ovr" }] },
+        { id: "ops-10", day: "Wednesday", p: 2, code: "GED-2103", title: "Technical Writing & Ethics", cat: "theory", catLabel: "Theory", batch: "Batch 58 B", faculty: "NSD", role: "Lecturer · English", room: "RKB-403", bldg: "Rabeya Khatun Bldg.", ref: "Row 29 · Col A–L", rules: [{ l: "R13 Same-room consecutive", s: "base" }, { l: "R5 External dept window", s: "ovr" }] },
+        { id: "ops-11", day: "Thursday", p: 4, code: "EEE-2101", title: "Digital Logic Lab", cat: "lab", catLabel: "Lab", batch: "Batch 58 B", faculty: "MRI", role: "Asst. Prof. · EEE", room: "ECL-1", bldg: "Shared EEE Lab", ref: "Row 33 · Col A–L", rules: [{ l: "R10 Shared ECL lab window", s: "ovr" }, { l: "R3 Zero 2-slot gaps", s: "base" }] },
+        { id: "ops-12", day: "Friday", p: 4, code: "JUMMAH", title: "Friday Prayer Hard Block", cat: "block", catLabel: "Hard Block", batch: "All Campus Cohorts", faculty: "Policy", role: "Campus-Wide Constraint", room: "All Rooms", bldg: "Leading University", ref: "config.json · friday_no_p4", rules: [{ l: "friday_no_p4 = true", s: "hard" }, { l: "Zero relaxation (D6)", s: "hard" }] }
+      ];
+
+      function mountActiveAdminConsole() {
+        ["monolith", "orbit", "press"].forEach(k => {
+          const slot = document.getElementById(`admin-slot-${k}`);
+          if (k !== state.concept) slot.innerHTML = "";
+        });
+
+        const host = document.getElementById(`admin-slot-${state.concept}`);
+        const consoleTitle = state.concept === "monolith"
+          ? "Departure Operations Desk"
+          : state.concept === "orbit"
+          ? "Spatial Routine Console"
+          : "Academic Operations Register";
+
+        host.innerHTML = `
+          <div class="admin-frame">
+            <div class="admin-layout">
+              <aside class="admin-rail" aria-label="Administrator console navigation">
+                <div>
+                  <div class="rail-head">
+                    <svg class="orbit-logo" viewBox="0 0 36 36" fill="none" aria-hidden="true" style="width: 22px; height: 22px;">
+                      <ellipse cx="18" cy="18" rx="15" ry="7.2" stroke="var(--text-primary)" stroke-width="2.2" />
+                      <circle cx="18" cy="18" r="5" fill="var(--text-primary)" />
+                      <circle cx="30.8" cy="18" r="2.8" fill="var(--accent)" />
+                    </svg>
+                    <div><strong>UniVerse Admin</strong><span>Leading Univ. · <span class="acronym">CSE</span></span></div>
+                  </div>
+                  <div class="rail-nav">
+                    <button type="button" class="rail-btn is-on"><i class="ph ph-compass" aria-hidden="true"></i><span>Command Center</span></button>
+                    <button type="button" class="rail-btn"><i class="ph ph-calendar-blank" aria-hidden="true"></i><span>Routine Matrix</span></button>
+                    <button type="button" class="rail-btn"><i class="ph ph-table" aria-hidden="true"></i><span>Course Distribution</span></button>
+                    <button type="button" class="rail-btn"><i class="ph ph-buildings" aria-hidden="true"></i><span>Room &amp; Lab Pools</span></button>
+                    <button type="button" class="rail-btn"><i class="ph ph-users-three" aria-hidden="true"></i><span>Faculty &amp; Off-Days</span></button>
+                    <button type="button" class="rail-btn"><i class="ph ph-sliders-horizontal" aria-hidden="true"></i><span>Time Grid &amp; R1&ndash;R16</span></button>
+                  </div>
+                </div>
+                <div class="rail-foot">
+                  <div class="rail-mono-avatar" aria-hidden="true">KJ</div>
+                  <div><strong style="display:block;">KJH · Chair</strong><span class="mono" style="font-size:11px; color: var(--text-muted);">Staging · oqwvxpl</span></div>
+                </div>
+              </aside>
+
+              <div class="admin-workspace">
+                <div class="admin-header">
+                  <h3>${consoleTitle}</h3>
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <div class="engine-badge"><span class="led-dot" aria-hidden="true"></span><span>CP-SAT v2.0.0 · <span class="mono">142 ms</span></span></div>
+                    <button type="button" class="btn-cta is-sm"><i class="ph ph-play" aria-hidden="true"></i><span>Run Solver</span></button>
+                  </div>
+                </div>
+
+                <div class="admin-content">
+                  <div class="guard-banner" role="alert">
+                    <div style="display:flex; align-items:center; gap:9px;">
+                      <i class="ph ph-warning-circle" aria-hidden="true" style="font-size: 17px;"></i>
+                      <span><strong>Production guard engaged:</strong> <code>timetable_rooms</code> and <code>timetable_faculty</code> have 0 rows. Seed baseline pools before calling <code>publish_routine</code>.</span>
+                    </div>
+                    <button type="button" class="btn-ghost is-xs">Inspect Baseline</button>
+                  </div>
+
+                  <div class="readiness-ledger">
+                    <div class="ledger-head">
+                      <h4>4-Stage Routine Readiness Checklist</h4>
+                      <span class="mono" style="font-size: 11.5px; color: var(--text-muted);">Spring 2026 · 2 of 4 stages ready</span>
+                    </div>
+                    <div class="ledger-row">
+                      <span class="mono" style="color: var(--text-muted);">01</span>
+                      <div><strong>Room &amp; Lab Pools</strong><div class="ledger-sub"><span>RAB &amp; RKB theory halls, ACL-1..4, shared ECL windows (R10/R14)</span></div></div>
+                      <span class="ledger-val is-alert">0 / 30 seeded</span>
+                      <div class="ledger-hover-act"><button type="button" class="btn-ghost is-xs">Seed Rooms</button></div>
+                    </div>
+                    <div class="ledger-row">
+                      <span class="mono" style="color: var(--text-muted);">02</span>
+                      <div><strong>Faculty Roster &amp; Off-Days</strong><div class="ledger-sub"><span>Permanent R7 bounds (2&ndash;3 off-days), Adjunct R6, SUST compact</span></div></div>
+                      <span class="ledger-val is-alert">0 / 56 seeded</span>
+                      <div class="ledger-hover-act"><button type="button" class="btn-ghost is-xs">Review R7</button></div>
+                    </div>
+                    <div class="ledger-row">
+                      <span class="mono" style="color: var(--text-muted);">03</span>
+                      <div><strong>Course Distribution &amp; Time Grid</strong><div class="ledger-sub"><span class="filename-mid" title="CSE_Course_Distribution_Spring_2026_Final_v4.xlsx"><span>CSE_Course_Distribution_Spring_2026_Final_v4</span>.xlsx</span><span class="mono">SHA 9f4c8a&hellip;e21b</span></div></div>
+                      <span class="ledger-val">6-slot · Jummah on</span>
+                      <div class="ledger-hover-act"><button type="button" class="btn-ghost is-xs">Inspect A&ndash;L</button></div>
+                    </div>
+                    <div class="ledger-row">
+                      <span class="mono" style="color: var(--text-muted);">04</span>
+                      <div><strong>Active Routine Publication</strong><div class="ledger-sub"><span>Single-teacher pre-publish guard · Storage archive <code>timetables/</code></span></div></div>
+                      <span class="ledger-val">v2026.2 · Draft</span>
+                      <div class="ledger-hover-act"><button type="button" class="btn-ghost is-xs">Export XLSX</button></div>
+                    </div>
+                  </div>
+
+                  <div class="ops-workbench">
+                    <div class="ops-bar" role="toolbar" aria-label="Operational matrix filter toolbar">
+                      <div class="ops-bar-left">
+                        <div class="ops-search-wrap">
+                          <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+                          <input id="active-ops-search" class="ops-search" type="search" value="${state.opsQuery}" placeholder="Search code, faculty, room" aria-label="Search operational timetable" />
+                        </div>
+                        <button type="button" class="btn-ghost is-xs ${state.opsCat === "all" ? "is-active" : ""}" data-ops-cat="all">All</button>
+                        <button type="button" class="btn-ghost is-xs ${state.opsCat === "theory" ? "is-active" : ""}" data-ops-cat="theory">Theory</button>
+                        <button type="button" class="btn-ghost is-xs ${state.opsCat === "lab" ? "is-active" : ""}" data-ops-cat="lab">Lab</button>
+                        <button type="button" class="btn-ghost is-xs ${state.opsCat === "joint" ? "is-active" : ""}" data-ops-cat="joint">Joint B+C</button>
+                        <button type="button" class="btn-ghost is-xs ${state.opsCat === "block" ? "is-active" : ""}" data-ops-cat="block">Hard Blocks</button>
+                      </div>
+                      <div style="display:flex; align-items:center; gap:10px;">
+                        <span id="active-ops-count" class="mono" style="font-size: 11.5px; color: var(--text-secondary);"></span>
+                        <button type="button" id="active-ops-err-btn" class="btn-ghost is-xs ${state.opsErrMode === "err" ? "is-active" : ""}">
+                          <i class="ph ph-plugs-connected" aria-hidden="true"></i><span>Test Recovery</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div id="active-ops-recovery" class="ops-recovery ${state.opsErrMode === "err" ? "is-err" : state.opsErrMode === "ok" ? "is-ok" : ""}" role="alert">
+                      <span id="active-ops-rec-msg"><strong>Engine timeout after 90s</strong> (Render cold start). Local rule selection preserved.</span>
+                      <button type="button" id="active-ops-retry" class="btn-ghost is-xs">Retry Connection</button>
+                    </div>
+
+                    <div class="ops-split">
+                      <div id="active-ops-grid" class="ops-grid-scroll"></div>
+                      <aside id="active-ops-inspector" class="ops-inspector" aria-label="Slot provenance inspector"></aside>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>`;
+
+        bindAdminEvents();
+        renderOpsGridAndInspector();
+      }
+
+      function bindAdminEvents() {
+        const searchEl = document.getElementById("active-ops-search");
+        if (searchEl) {
+          searchEl.addEventListener("input", e => {
+            state.opsQuery = e.target.value;
+            renderOpsGridAndInspector();
+          });
+        }
+        document.querySelectorAll("[data-ops-cat]").forEach(btn => {
+          btn.addEventListener("click", () => {
+            state.opsCat = btn.dataset.opsCat;
+            document.querySelectorAll("[data-ops-cat]").forEach(b => b.classList.toggle("is-active", b === btn));
+            renderOpsGridAndInspector();
+          });
+        });
+        const errBtn = document.getElementById("active-ops-err-btn");
+        const recBox = document.getElementById("active-ops-recovery");
+        const recMsg = document.getElementById("active-ops-rec-msg");
+        const retryBtn = document.getElementById("active-ops-retry");
+        if (errBtn && recBox) {
+          errBtn.addEventListener("click", () => {
+            state.opsErrMode = state.opsErrMode === "err" ? "idle" : "err";
+            recMsg.innerHTML = "<strong>Engine timeout after 90s</strong> (Render cold start). Local selection and D5 override preserved.";
+            retryBtn.style.display = "inline-flex";
+            recBox.className = `ops-recovery ${state.opsErrMode === "err" ? "is-err" : ""}`;
+            errBtn.classList.toggle("is-active", state.opsErrMode === "err");
+          });
+          retryBtn.addEventListener("click", () => {
+            state.opsErrMode = "ok";
+            recMsg.innerHTML = "<strong>Reconnected to CP-SAT v2.0.0</strong> (136 ms). Zero draft edits lost.";
+            retryBtn.style.display = "none";
+            recBox.className = "ops-recovery is-ok";
+            errBtn.classList.remove("is-active");
+          });
+        }
+      }
+
+      function renderOpsGridAndInspector() {
+        const gridHost = document.getElementById("active-ops-grid");
+        const inspHost = document.getElementById("active-ops-inspector");
+        const countEl = document.getElementById("active-ops-count");
+        if (!gridHost || !inspHost) return;
+
+        const q = state.opsQuery.trim().toLowerCase();
+        const filtered = OPS_SLOTS.filter(s => {
+          if (state.opsCat !== "all" && s.cat !== state.opsCat) return false;
+          if (!q) return true;
+          return `${s.code} ${s.title} ${s.faculty} ${s.room} ${s.batch}`.toLowerCase().includes(q);
+        });
+        countEl.textContent = `Showing ${filtered.length} of ${OPS_SLOTS.length} slots`;
+
+        if (filtered.length === 0) {
+          gridHost.innerHTML = `
+            <div style="padding: 36px 16px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px; color: var(--text-secondary);">
+              <i class="ph ph-funnel-x" aria-hidden="true" style="font-size: 24px;"></i>
+              <strong>No slots match the active filter</strong>
+              <button type="button" id="ops-reset-btn" class="btn-ghost is-xs">Clear filters</button>
+            </div>`;
+          document.getElementById("ops-reset-btn").addEventListener("click", () => {
+            state.opsQuery = "";
+            state.opsCat = "all";
+            mountActiveAdminConsole();
+          });
+        } else {
+          const smap = new Map(filtered.map(s => [`${s.day}-${s.p}`, s]));
+          const thead = `<tr><th class="d-col">Day</th>${OPS_PERIODS.map(p => `<th class="mono">${p.code} · ${p.time}</th>`).join("")}</tr>`;
+          const tbody = OPS_DAYS.map(day => {
+            const cells = OPS_PERIODS.map(p => {
+              const s = smap.get(`${day}-${p.idx}`);
+              if (!s) return `<td><div class="ops-cell-empty">&middot;</div></td>`;
+              const sel = s.id === state.selectedOpsId ? "is-selected" : "";
+              return `
+                <td>
+                  <button type="button" class="ops-cell cat-${s.cat} ${sel}" data-pick-ops="${s.id}" aria-pressed="${s.id === state.selectedOpsId}">
+                    <div class="ops-c-top"><span>${s.code}</span><i class="ph ${catIcon(s.cat)}" aria-hidden="true"></i></div>
+                    <div class="ops-c-mid">${s.batch}</div>
+                    <div class="ops-c-bot"><span>${s.faculty}</span><span>${s.room}</span></div>
+                  </button>
+                </td>`;
+            }).join("");
+            return `<tr><td class="d-cell">${day.slice(0, 3)}</td>${cells}</tr>`;
+          }).join("");
+          gridHost.innerHTML = `<table class="ops-matrix" aria-label="2D operational timetable matrix"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+          gridHost.querySelectorAll("[data-pick-ops]").forEach(btn => {
+            btn.addEventListener("click", () => {
+              state.selectedOpsId = btn.dataset.pickOps;
+              renderOpsGridAndInspector();
+            });
+          });
+        }
+
+        const sel = OPS_SLOTS.find(s => s.id === state.selectedOpsId) || OPS_SLOTS[0];
+        const rulesHtml = sel.rules.map(r => {
+          const cls = r.s === "hard" ? "is-hard" : r.s === "ovr" ? "is-override" : "";
+          const tag = r.s === "hard" ? "Hard Rule" : r.s === "ovr" ? "Override" : "Baseline";
+          return `<div class="insp-rule ${cls}"><span>${r.l}</span><span class="mono">${tag}</span></div>`;
+        }).join("");
+
+        inspHost.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+            <span class="mono cat-${sel.cat}" style="padding:2px 7px; border:1px solid currentColor; font-size:11px; font-weight:600;">${sel.catLabel}</span>
+            <span class="mono" style="font-size:11px; color:var(--text-muted);">${sel.day.slice(0, 3)} · P${sel.p}</span>
+          </div>
+          <div>
+            <h4 class="insp-title">${sel.code} · ${sel.title}</h4>
+            <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">${sel.batch}</div>
+          </div>
+          <div>
+            <div class="insp-kv"><span style="color:var(--text-muted)">Faculty</span><span><span class="mono">${sel.faculty}</span> · ${sel.role}</span></div>
+            <div class="insp-kv"><span style="color:var(--text-muted)">Room</span><span><span class="mono">${sel.room}</span> · ${sel.bldg}</span></div>
+            <div class="insp-kv"><span style="color:var(--text-muted)">Source</span><span class="mono">${sel.ref}</span></div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <span style="font-size:11.5px; font-weight:600; color:var(--text-secondary);">Committee Trace (Checkbox Off = Gray)</span>
+            ${rulesHtml}
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px; padding-top:6px; border-top:1px solid var(--border);">
+            <button type="button" id="active-d5-btn" class="btn-ghost is-xs ${state.d5Allowed ? "is-active" : ""}" aria-pressed="${state.d5Allowed}" style="justify-content:space-between; width:100%;">
+              <span>D5: Allow 2-cr lab across break</span>
+              <span class="mono">${state.d5Allowed ? "ON" : "OFF"}</span>
+            </button>
+          </div>`;
+
+        document.getElementById("active-d5-btn").addEventListener("click", () => {
+          state.d5Allowed = !state.d5Allowed;
+          renderOpsGridAndInspector();
+        });
+      }
+
+      // Initial render
+      renderAllPublicStages();
+      mountActiveAdminConsole();
+    })();
+  </script>
+</body>
+</html>

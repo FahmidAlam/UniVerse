@@ -1,0 +1,130 @@
+/* ============================================================================
+   UniVerse Academic Ledger — Light-First Design System Tokens
+   ============================================================================
+   Every OKLCH value is mathematically mapped and sRGB-gamut verified against
+   WCAG 2.1 AA over its actual opaque light surface pair.
+   Color mixing strictly uses `color-mix(in oklab, ...)` to prevent hue drift.
+   ============================================================================ */
+
+:root {
+  color-scheme: light;
+
+  /* 1. Surfaces (Warm Archival Neutrals, Hue 86) */
+  --bg-canvas: oklch(0.946 0.008 86);
+  --bg-surface: oklch(0.974 0.006 86);
+  --bg-elevated: oklch(0.996 0.002 86);
+  --surface-hover: oklch(0.960 0.007 86);
+  --surface-active: oklch(0.934 0.009 86);
+
+  /* 2. Typography Ink Hierarchy */
+  --ink-primary: oklch(0.205 0.012 75);
+  --ink-secondary: oklch(0.415 0.012 78);
+  --ink-muted: oklch(0.510 0.010 80);
+
+  /* 3. Primary Charcoal Ink Actions */
+  --action-primary: oklch(0.220 0.012 75);
+  --action-primary-hover: oklch(0.275 0.014 75);
+  --action-primary-active: oklch(0.180 0.010 75);
+  --action-primary-ink: oklch(0.988 0.003 86);
+
+  /* 4. Provisional Institutional Accent (Deep Botanical Pine — H=158) */
+  --accent-pine: oklch(0.395 0.076 158);
+  --accent-pine-hover: oklch(0.345 0.078 158);
+  --accent-pine-soft: oklch(0.942 0.018 156);
+  --accent-pine-ink: oklch(0.990 0.003 95);
+  --accent-pine-border: oklch(0.395 0.076 158 / 0.28);
+
+  /* 5. Borders & Focus Boundaries */
+  --border-subtle: oklch(0.205 0.012 75 / 0.12);
+  --border-strong: oklch(0.205 0.012 75 / 0.22);
+  --border-control: oklch(0.575 0.012 80);
+  --focus-ring: oklch(0.395 0.076 158);
+
+  /* 6. Semantic Academic Schedule Categories (4 Distinct Hues + Bars) */
+  --sem-theory-bg: oklch(0.950 0.018 245);
+  --sem-theory-ink: oklch(0.335 0.078 248);
+  --sem-theory-bar: oklch(0.495 0.095 248);
+  --sem-theory-border: oklch(0.495 0.095 248 / 0.28);
+
+  --sem-lab-bg: oklch(0.944 0.022 158);
+  --sem-lab-ink: oklch(0.335 0.062 158);
+  --sem-lab-bar: oklch(0.450 0.088 158);
+  --sem-lab-border: oklch(0.450 0.088 158 / 0.28);
+
+  --sem-joint-bg: oklch(0.954 0.028 80);
+  --sem-joint-ink: oklch(0.380 0.085 65);
+  --sem-joint-bar: oklch(0.560 0.115 70);
+  --sem-joint-border: oklch(0.560 0.115 70 / 0.28);
+
+  --sem-conflict-bg: oklch(0.946 0.020 24);
+  --sem-conflict-ink: oklch(0.415 0.145 25);
+  --sem-conflict-bar: oklch(0.530 0.165 25);
+  --sem-conflict-border: oklch(0.530 0.165 25 / 0.28);
+
+  --sem-neutral-bg: oklch(0.960 0.007 86);
+  --sem-neutral-ink: oklch(0.415 0.012 78);
+
+  /* 7. Four Light-Mode Depth Properties */
+  --highlight-top: inset 0 1px 0 oklch(1 0 0 / 0.85);
+  --surface-sheen: linear-gradient(180deg, oklch(1 0.001 86), oklch(0.985 0.004 86));
+  --shadow-sheet:
+    0 1px 2px oklch(0.205 0.012 75 / 0.06),
+    0 6px 18px oklch(0.205 0.012 75 / 0.05);
+  --shadow-popover:
+    0 2px 6px oklch(0.205 0.012 75 / 0.08),
+    0 14px 32px oklch(0.205 0.012 75 / 0.10);
+
+  /* 8. Typography Stacks */
+  --font-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* 9. Radii */
+  --r-sheet: 12px;
+  --r-card: 10px;
+  --r-control: 7px;
+  --r-pill: 999px;
+
+  /* 10. Motion Contract */
+  --dur-press: 100ms;
+  --dur-in: 190ms;
+  --dur-out: 150ms;
+  --dur-popover: 165ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --ink-secondary: oklch(0.320 0.012 78);
+    --ink-muted: oklch(0.360 0.012 78);
+    --border-subtle: oklch(0.205 0.012 75 / 0.30);
+    --border-strong: oklch(0.205 0.012 75 / 0.48);
+    --border-control: oklch(0.205 0.012 75);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-press: 0ms;
+    --dur-in: 0ms;
+    --dur-out: 0ms;
+    --dur-popover: 0ms;
+  }
+}
+
+@media (forced-colors: active) {
+  :root {
+    --bg-canvas: Canvas;
+    --bg-surface: Canvas;
+    --bg-elevated: Canvas;
+    --ink-primary: CanvasText;
+    --ink-secondary: CanvasText;
+    --ink-muted: GrayText;
+    --action-primary: ButtonFace;
+    --action-primary-ink: ButtonText;
+    --border-subtle: ButtonBorder;
+    --border-control: ButtonBorder;
+    --focus-ring: Highlight;
+  }
+}

@@ -10,11 +10,12 @@ This document provides a comprehensive, complete index of all folders and files 
 |---|---|
 | `.agents/` | Repository-local agent skills, UI/UX design guidelines, and implementation governance for pair-programming agents. |
 | `android/` | Android native runner, Gradle build scripts, AndroidManifest permissions, and native splash configuration. |
+| `apps/web/` | Standalone React 19 + TypeScript + Vite web application (Administrator Operations Console, public institutional `/`, and student/teacher mobile-app guidance) under **UniVerse Academic Ledger**. |
 | `assets/` | Static application assets including app icons, vectors, and illustrative graphics. |
-| `docs/` | Authoritative master plans, phase design specs, visual review galleries, and committee policy audits. |
+| `docs/` | Authoritative master plans, web-separation architecture docs, phase design specs, visual review galleries, and committee policy audits. |
 | `engine/` | Python OR-Tools CP-SAT timetable constraint solver, workbook parser, Excel renderer, and FastAPI microservice. |
-| `ios/` | iOS native runner and Xcode workspace (currently deferred per project constraints). |
-| `lib/` | Main Flutter application source code organized by feature-first architecture (`core/`, `features/`, `shared/`). |
+| `ios/` | iOS native runner and Xcode workspace (compatibility continuously preserved for deep links/auth/backend; active new iOS feature expansion deferred). |
+| `lib/` | Main Flutter mobile application source code organized by feature-first architecture (`core/`, `features/`, `shared/`). |
 | `linux/` / `macos/` / `windows/` | Flutter desktop platform configurations and native runner entrypoints. |
 | `new genarated routine/` | Archive of generated Excel routine workbooks produced during development and testing. |
 | `supabase/` | Supabase Postgres SQL migrations, pgTAP tests, seed datasets, and Deno TypeScript edge functions. |
@@ -418,18 +419,85 @@ This document provides a comprehensive, complete index of all folders and files 
 ## 📖 Governance, Skills & Documentation
 
 ### Agent Skills (`.agents/skills/`)
-- `.agents/skills/universe-visual-design-system/` — Governs Obsidian Orbit visual tokens, surface hierarchy, and dark/orange palette restraint.
-- `.agents/skills/flutter-interaction-motion/` — Governs micro-interactions, `AppMotion` durations, press compression, and reduced-motion stops.
-- `.agents/skills/flutter-web-responsive-ui/` — Governs desktop-first web breakpoints ($1440$, $1280$, $1024$, $920$, $860$, $768$, $390\text{px}$).
+- `.agents/skills/universe-visual-design-system/` — Governs Flutter mobile Obsidian Orbit visual tokens, surface hierarchy, and dark/orange palette restraint.
+- `.agents/skills/flutter-interaction-motion/` — Governs Flutter mobile micro-interactions, `AppMotion` durations, press compression, and reduced-motion stops.
+- `.agents/skills/flutter-web-responsive-ui/` — Governs Flutter responsive breakpoints ($1440$, $1280$, $1024$, $920$, $860$, $768$, $390\text{px}$).
 - `.agents/skills/universe-ux-principles/` — Governs product-level UX reasoning, academic task clarity, honest progress feedback, and Service Recovery Paradox.
 - `.agents/skills/accessibility-performance/` — Governs WCAG AA/AAA contrast ratios, keyboard focus traversal, and widget rebuild minimization.
-- `.agents/skills/visual-ui-qa/` — Governs visual review, screenshot comparison protocols, and multi-viewport golden inspection.
+- `.agents/skills/visual-ui-qa/` — Governs visual review, screenshot comparison protocols, and multi-viewport inspection.
 - `.agents/skills/universe-implementation/` — Master implementation skill coordinating specialist roles and execution gates.
+- `.agents/skills/react-web-academic-design-system/` — Governs **UniVerse Academic Ledger** OKLCH design tokens, typography (`Source Serif 4`, `IBM Plex Sans`, `IBM Plex Mono`), opaque-sRGB WCAG AA verification, and tabular ergonomics for `apps/web/`.
+- `.agents/skills/react-web-motion-and-craft/` — Governs restrained Motion/CSS animations, `prefers-reduced-motion`, user-controlled illustrative public timetable, and error recovery in `apps/web/`.
+- `.agents/skills/react-admin-backend-contracts/` — Governs Supabase Auth/RLS/RPC, FastAPI CP-SAT contracts, public `/` isolation, and persistence truth for `apps/web/`.
 
 ### Documentation Files (`docs/`)
-- `docs/implementation/UniVerse_Implementation_Master_Plan_v1_1.md` — Authoritative master roadmap across all project phases.
+- `docs/architecture/WEB_ARCHITECTURE_DESIGN_BLUEPRINT.md` — Authoritative target architecture and **UniVerse Academic Ledger** design specification for separated React Web + Flutter Mobile.
+- `docs/architecture/WEB_SOURCE_VERIFICATION_REPORT.md` — Evidence-based repository audit reconciling existing `apps/web/`, `lib/`, `engine/`, and `supabase/` reality.
+- `docs/architecture/WEB_IMPLEMENTATION_ROADMAP.md` — Phased migration and delivery roadmap from Phase 0 readiness through Track 1/Track 2 web rollout and dual-client verification.
+- `docs/architecture/WEB_PHASE_0_COMPATIBILITY_AND_AUDIT_ADDENDUM.md` — Live npm dependency compatibility matrix, Phase 0 `send-push`/avatar/iOS audits, and owner-ready Supabase SQL diagnostic packet.
+- `docs/implementation/UniVerse_Implementation_Master_Plan_v1_1.md` — Authoritative master roadmap across core platform/engine/database phases.
 - `docs/implementation/phase_0_redesign_baseline_and_decisions.md` — Phase 0 decisions settling technical architecture and design constraints.
 - `docs/implementation/phase_1_information_architecture_and_navigation.md` — Phase 1 admin web extension and role navigation documentation.
+
+---
+
+## 🌐 Standalone React Web Application (`apps/web/`)
+
+> **Status:** Early Phase 0/1 foundation exists on disk (built on the superseded Spatial Orbit prototype; target migration to **UniVerse Academic Ledger** begins after Phase 0 readiness sign-off).
+
+```text
+apps/web/
+├── .env.example
+├── .gitignore
+├── index.html
+├── package.json
+├── package-lock.json
+├── tsconfig.json
+├── tsconfig.app.json
+├── tsconfig.node.json
+├── vite.config.ts
+└── src/
+    ├── App.tsx
+    ├── main.tsx
+    ├── vite-env.d.ts
+    ├── features/
+    │   ├── admin/
+    │   │   ├── AdminShell.tsx
+    │   │   ├── pages/
+    │   │   │   ├── AdminDashboardPage.tsx
+    │   │   │   └── AdminRouteStubPage.tsx
+    │   │   └── services/
+    │   │       └── adminDashboardService.ts
+    │   ├── auth/
+    │   │   ├── AuthProvider.tsx
+    │   │   ├── PublicAuthLayout.tsx
+    │   │   ├── components/
+    │   │   │   └── AndroidCompanionStrip.tsx
+    │   │   └── pages/
+    │   │       ├── AccessRequiredPage.tsx
+    │   │       ├── ForgotPasswordPage.tsx
+    │   │       ├── LandingPage.tsx
+    │   │       ├── LoginPage.tsx
+    │   │       └── ResetPasswordPage.tsx
+    │   └── onboarding/
+    │       ├── components/
+    │       │   └── SpatialOrbitStage.tsx
+    │       └── data/
+    │           └── routineFixtures.ts
+    ├── services/
+    │   ├── engineHealth.ts
+    │   └── supabase.ts
+    └── shared/
+        ├── components/
+        │   ├── EngineHealthBadge.tsx
+        │   ├── OrbitMark.tsx
+        │   └── ThemeSwitcher.tsx
+        └── theme/
+            └── ThemeProvider.tsx
+    └── styles/
+        ├── app.css
+        └── tokens.css
+```
 - `docs/implementation/phase_2_visual_identity_and_design_system.md` — Phase 2 Obsidian Orbit token specifications and shared widget documentation.
 - `docs/implementation/phase_3_first_impression_onboarding_and_auth.md` — Phase 3/3.5 onboarding, authentication, and showcase documentation.
 - `docs/implementation/phase_4_core_student_and_teacher_experiences.md` — Phase 4 adaptive student/teacher dashboards, routine matrix/agenda, and surgical class management documentation.
