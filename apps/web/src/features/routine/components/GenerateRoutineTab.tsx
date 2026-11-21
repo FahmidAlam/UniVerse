@@ -516,7 +516,7 @@ export function GenerateRoutineTab({
             className="flex flex-col gap-1 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2.5 no-underline hover:bg-[var(--surface-hover)]"
           >
             <span className="text-[11.5px] text-[var(--ink-secondary)]">
-              Settings Row (id=1)
+              Timetable Settings
             </span>
             <span className="font-mono-tabular text-[14px] font-semibold text-[var(--ink-primary)]">
               {counts?.hasSettings ? "Configured" : "Missing"}
@@ -1036,10 +1036,7 @@ export function GenerateRoutineTab({
                   <div key={item.key} className="px-3.5 py-2 text-[12px]">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium text-[var(--ink-primary)]">
-                        {item.label}{" "}
-                        <code className="font-mono-tabular text-[11px] text-[var(--ink-muted)]">
-                          ({item.key})
-                        </code>
+                        {item.label}
                       </span>
                       <Badge
                         tone={item.count > 0 ? "conflict" : "lab"}
@@ -1196,11 +1193,9 @@ export function GenerateRoutineTab({
               role="alert"
               className="rounded-[var(--r-control)] border border-[var(--sem-conflict-border)] bg-[var(--sem-conflict-bg)] p-3 text-[12.5px] text-[var(--sem-conflict-ink)]"
             >
-              <strong>Permanent Table Replacement (F-21):</strong>{" "}
-              <code className="font-mono-tabular">publish_routine()</code>{" "}
-              atomically wipes all prior{" "}
-              <code className="font-mono-tabular">public.routines</code> rows
-              and activates this schedule for students and faculty.
+              <strong>Permanent Schedule Replacement:</strong> Publishing
+              atomically replaces all prior active schedule rows and syncs this
+              routine to student and faculty apps.
             </div>
 
             <div className="grid grid-cols-2 gap-3 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
@@ -1254,9 +1249,9 @@ export function GenerateRoutineTab({
             {publishStep !== "idle" && (
               <ol className="space-y-1.5 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 text-[12px]">
                 {[
-                  { id: "uploading", label: "1. Upload .xlsx to timetables bucket" },
-                  { id: "publishing", label: "2. Atomic publish_routine() RPC" },
-                  { id: "recording", label: "3. Record timetable_runs & broadcast" },
+                  { id: "uploading", label: "1. Upload .xlsx workbook artifact" },
+                  { id: "publishing", label: "2. Apply atomic schedule update" },
+                  { id: "recording", label: "3. Record run audit log & broadcast" },
                 ].map((s) => (
                   <li key={s.id} className="flex items-center justify-between">
                     <span>{s.label}</span>

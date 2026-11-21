@@ -322,11 +322,7 @@ export function ManagePublishedTab() {
           <Info size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
           <span>
             Manual edits update live student and teacher schedules immediately
-            without creating a new{" "}
-            <code className="font-mono-tabular font-semibold">
-              routine_versions
-            </code>{" "}
-            archive.
+            without creating a new version snapshot.
           </span>
         </div>
         {activeVersionQuery.data?.semester_label && (

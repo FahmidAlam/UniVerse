@@ -233,7 +233,7 @@ export function TimetableSettingsPage() {
           ? String(persisted.fixed_sessions_per_week)
           : "",
       );
-      toast.success("Saved timetable settings (row id=1)");
+      toast.success("Saved timetable settings");
     },
     onError: (err) => {
       toast.error("Could not save timetable settings", {
@@ -720,7 +720,9 @@ export function TimetableSettingsPage() {
                               />
                             </td>
                             <td className="py-2.5 pr-3">
-                              <Badge tone="theory">On-Campus</Badge>
+                              <span className="text-[12px] text-[var(--ink-muted)]">
+                                On-Campus
+                              </span>
                             </td>
                             <td className="py-2.5 text-right">
                               <Switch

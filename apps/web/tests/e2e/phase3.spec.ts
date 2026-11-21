@@ -8,8 +8,30 @@ const SCREENSHOT_DIR = path.resolve(
   SPEC_DIR,
   "../../../../docs/screenshots/web_phase_3",
 );
+const PHASE4_SCREENSHOT_DIR = path.resolve(
+  SPEC_DIR,
+  "../../../../docs/screenshots/web_phase_4",
+);
 
 fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
+fs.mkdirSync(PHASE4_SCREENSHOT_DIR, { recursive: true });
+
+async function saveScreenshot(
+  page: Page,
+  targetPath: string,
+  fullPage = true,
+) {
+  const buf = await page.screenshot({ fullPage });
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      fs.writeFileSync(targetPath, buf);
+      return;
+    } catch (err) {
+      if (attempt === 3) throw err;
+      await page.waitForTimeout(250);
+    }
+  }
+}
 
 function attachWatchers(page: Page, isExpected404Active: () => boolean) {
   const pageErrors: string[] = [];
@@ -297,6 +319,13 @@ test.describe("UniVerse Academic Ledger — Phase 3 Operational Routine Console 
       .getByTestId("sticky-dirty-bar")
       .getByRole("button", { name: "Save Settings" })
       .click();
+    // Phase 3 Fix #8: On-Campus renders as muted plain text (zero repetitive theory badges)
+    await expect(page.getByText("On-Campus", { exact: true }).first()).toBeVisible();
+    await saveScreenshot(
+      page,
+      path.join(PHASE4_SCREENSHOT_DIR, "04_p3_fix_settings_table_1440x900.png"),
+      true,
+    );
 
     // Seed 1 Room + 1 Faculty in dev preview so Generate preflight passes baseline guard
     await page
@@ -330,6 +359,11 @@ test.describe("UniVerse Academic Ledger — Phase 3 Operational Routine Console 
         .locator("main")
         .getByRole("heading", { name: "Operational Routine Matrix" }),
     ).toBeVisible();
+    // Phase 3 Fix #2 & Fix #7: zero duplicate topbar Generate Routine CTA + unclipped search placeholder
+    await expect(page.getByRole("link", { name: "Generate Routine" })).toHaveCount(1);
+    await expect(
+      page.getByPlaceholder("Search course, teacher, room (/)"),
+    ).toBeVisible();
     await expect(page.getByTestId("matrix-docked-inspector")).toHaveCount(0);
 
     // Unclipped Section | Faculty | Room lens labels
@@ -349,10 +383,16 @@ test.describe("UniVerse Academic Ledger — Phase 3 Operational Routine Console 
     ).toBeVisible();
 
     await expectNoHorizontalOverflow(page, "Routine Grid Section 1440x900");
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "01_routine_grid_section_1440x900.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(
+      page,
+      path.join(SCREENSHOT_DIR, "01_routine_grid_section_1440x900.png"),
+      true,
+    );
+    await saveScreenshot(
+      page,
+      path.join(PHASE4_SCREENSHOT_DIR, "02_p3_fix_grid_header_1440x900.png"),
+      true,
+    );
 
     // Click slot -> opens 360px docked inspector, verify [X] and Esc close
     await page.getByTestId("matrix-slot-prev-1").click();
@@ -396,6 +436,9 @@ test.describe("UniVerse Academic Ledger — Phase 3 Operational Routine Console 
     await page.getByRole("tab", { name: "Manage Published" }).click();
     await expect(page).toHaveURL(/\/admin\/routine\?tab=manage/);
     await expect(page.getByTestId("f23-manual-edit-disclosure")).toBeVisible();
+    await expect(page.getByTestId("f23-manual-edit-disclosure")).not.toContainText(
+      "routine_versions",
+    );
 
     // Open Add Slot -> trigger live clash warning against Sunday 08:50 EBH / RAB-302 / 58-B+C
     await page.getByRole("button", { name: /Add Slot/i }).click();
@@ -471,11 +514,13 @@ test.describe("UniVerse Academic Ledger — Phase 3 Operational Routine Console 
       page.getByRole("button", { name: "Publish to Active Routine" }),
     ).toBeDisabled();
 
-    // Expand 20-counter validation diagnostic ledger
+    // Expand 20-counter validation diagnostic ledger (Fix #4: zero raw key suffixes)
+    await expect(page.locator("main")).not.toContainText("Settings Row (id=1)");
     await page
       .getByRole("button", { name: /20-Counter Validation Diagnostic Ledger/i })
       .click();
     await expect(page.getByText("Missing Courses")).toBeVisible();
+    await expect(page.locator("main")).not.toContainText("(missing_courses)");
 
     // 3c. Clean single-teacher solve -> Inspect in 2D Grid -> Guarded 3-Step Publish
     engineScenario = "clean-done";
@@ -513,14 +558,27 @@ test.describe("UniVerse Academic Ledger — Phase 3 Operational Routine Console 
     // --- 4. UPLOAD ROUTINE GATED TAB (?tab=upload) ---
     await page.getByRole("tab", { name: /Upload Routine/i }).click();
     await expect(page).toHaveURL(/\/admin\/routine\?tab=upload/);
+    await expect(
+      page.getByRole("tab", { name: /Upload Routine/i }),
+    ).toHaveAttribute("aria-selected", "true");
+    await expect(
+      page.getByRole("tab", { name: /Generate Routine/i }),
+    ).toHaveAttribute("aria-selected", "false");
     await expect(page.getByTestId("upload-gated-card")).toContainText(
       "Gated · Phase 3B",
     );
     await expect(page.locator('main input[type="file"]')).toHaveCount(0);
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "06_routine_upload_gated_1440x900.png"),
-      fullPage: true,
-    });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await saveScreenshot(
+      page,
+      path.join(SCREENSHOT_DIR, "06_routine_upload_gated_1440x900.png"),
+      true,
+    );
+    await saveScreenshot(
+      page,
+      path.join(PHASE4_SCREENSHOT_DIR, "01_p3_fix_upload_tab_1440x900.png"),
+      true,
+    );
 
     // --- 5. RESPONSIVE TABLET (1024x768) & MOBILE (390x844) ---
     await page.setViewportSize({ width: 1024, height: 768 });
@@ -528,20 +586,31 @@ test.describe("UniVerse Academic Ledger — Phase 3 Operational Routine Console 
       waitUntil: "networkidle",
     });
     await expectNoHorizontalOverflow(page, "Routine Grid 1024x768");
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "07_routine_grid_1024x768.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(
+      page,
+      path.join(SCREENSHOT_DIR, "07_routine_grid_1024x768.png"),
+      true,
+    );
 
     await page.setViewportSize({ width: 390, height: 844 });
     // Clear manual view choice by switching to Compact List explicitly or verifying single-axis readability
     await page.getByRole("button", { name: "Compact List", exact: true }).click();
     await expect(page.getByTestId("routine-compact-list")).toBeVisible();
+    await expect(page.getByTestId("routine-compact-list")).not.toContainText(
+      "Note",
+    );
     await expectNoHorizontalOverflow(page, "Routine Grid 390x844");
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "08_routine_grid_390x844.png"),
-      fullPage: true,
-    });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await saveScreenshot(
+      page,
+      path.join(SCREENSHOT_DIR, "08_routine_grid_390x844.png"),
+      true,
+    );
+    await saveScreenshot(
+      page,
+      path.join(PHASE4_SCREENSHOT_DIR, "03_p3_fix_mobile_list_390x844.png"),
+      true,
+    );
 
     expect(remoteRequests).toEqual([]);
     expect(pageErrors).toEqual([]);

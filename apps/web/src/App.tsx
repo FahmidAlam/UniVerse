@@ -24,6 +24,7 @@ import { ManageUsersPage } from "@/features/admin/pages/ManageUsersPage";
 import { TimetableSettingsPage } from "@/features/admin/pages/TimetableSettingsPage";
 import { AdminRoutinePage } from "@/features/routine/pages/AdminRoutinePage";
 import { TimetableGridPage } from "@/features/routine/pages/TimetableGridPage";
+import { SchedulingWorkbenchPage } from "@/features/scheduling/pages/SchedulingWorkbenchPage";
 import { AuthProvider, useAuth } from "@/features/auth/AuthProvider";
 import { PublicAuthLayout } from "@/features/auth/PublicAuthLayout";
 import { AccessRequiredPage } from "@/features/auth/pages/AccessRequiredPage";
@@ -89,6 +90,7 @@ const LIVE_CAPABILITY_PATHS = new Set([
   "/admin/dashboard",
   "/admin/routine",
   "/admin/timetable/grid",
+  "/admin/scheduling",
   "/admin/timetable/rooms",
   "/admin/timetable/faculty",
   "/admin/timetable/course-eligibility",
@@ -147,6 +149,10 @@ export function App() {
                       element={<TimetableGridPage />}
                     />
                     <Route
+                      path="scheduling"
+                      element={<SchedulingWorkbenchPage />}
+                    />
+                    <Route
                       path="timetable/rooms"
                       element={<ManageRoomsPage />}
                     />
@@ -189,7 +195,9 @@ export function App() {
               </Routes>
             </BrowserRouter>
             <Toaster
-              position="bottom-right"
+              position="bottom-left"
+              closeButton
+              duration={3500}
               toastOptions={{
                 style: {
                   background: "var(--bg-elevated)",

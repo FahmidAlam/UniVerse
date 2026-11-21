@@ -252,25 +252,23 @@ export function assessBaselineConfigForPublish(
   if (counts.activeRooms === 0) {
     blockingReasons.push(
       counts.rooms === 0
-        ? "0 rooms configured in timetable_rooms."
-        : "0 active rooms enabled in timetable_rooms.",
+        ? "0 rooms configured in Room Pools."
+        : "0 active rooms enabled in Room Pools.",
     );
   }
   if (counts.activeFaculty === 0) {
     blockingReasons.push(
       counts.faculty === 0
-        ? "0 faculty members configured in timetable_faculty."
-        : "0 active faculty members enabled in timetable_faculty.",
+        ? "0 faculty members configured in the Faculty roster."
+        : "0 active faculty members enabled in the Faculty roster.",
     );
   }
   if (!counts.hasSettings) {
-    blockingReasons.push(
-      "Singleton timetable_settings row (id = 1) has not been saved yet.",
-    );
+    blockingReasons.push("Timetable Settings have not been saved yet.");
   }
   if (counts.eligibility === 0) {
     warnings.push(
-      "0 course eligibility records configured (timetable_course_eligibility); solver eligibility checks are relaxed until rules are added.",
+      "0 course eligibility rules configured; faculty qualification checks are relaxed until rules are added.",
     );
   }
 

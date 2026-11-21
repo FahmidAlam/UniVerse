@@ -29,7 +29,7 @@ describe("Centralized CapabilityRegistry contract", () => {
   it("marks Scheduling Workbench & Track 1 upload as fail-closed-gate", () => {
     const workbench = getCapabilityByPath("/admin/scheduling");
     expect(workbench?.status).toBe("fail-closed-gate");
-    expect(workbench?.sidebarBadge).toBe("LOCKED");
+    expect(workbench?.sidebarBadge).toBe("GATED");
 
     const upload = SUBFEATURE_CAPABILITIES.find(
       (s) => s.id === "track1.workbook-upload",

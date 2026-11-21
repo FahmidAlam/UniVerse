@@ -91,10 +91,10 @@ export function AdminRoutinePage() {
                 aria-selected={active}
                 onClick={() => selectTab(id)}
                 className={cn(
-                  "inline-flex h-9 items-center gap-2 rounded-[var(--r-control)] border px-3 text-[13px] font-medium whitespace-nowrap transition-colors",
+                  "inline-flex h-9 items-center gap-2 rounded-[var(--r-control)] border px-3 text-[13px] whitespace-nowrap transition-colors",
                   active
-                    ? "border-[var(--ink-primary)] bg-[var(--ink-primary)] text-[var(--action-primary-ink)]"
-                    : "border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]",
+                    ? "border-[var(--action-primary)] bg-[var(--action-primary)] font-semibold text-[var(--action-primary-ink)] shadow-[inset_0_1px_0_oklch(1_0_0_/_0.14)]"
+                    : "border-[var(--border-subtle)] bg-[var(--bg-elevated)] font-medium text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]",
                 )}
               >
                 <Icon size={15} aria-hidden="true" />
@@ -110,10 +110,10 @@ export function AdminRoutinePage() {
                 {badge && (
                   <span
                     className={cn(
-                      "font-mono-tabular rounded px-1.5 py-[1px] text-[10px]",
+                      "font-mono-tabular rounded border px-1.5 py-[1px] text-[10px] font-semibold",
                       active
-                        ? "bg-[var(--bg-elevated)]/20 text-[var(--action-primary-ink)]"
-                        : "bg-[var(--bg-canvas)] text-[var(--ink-muted)]",
+                        ? "border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--sem-joint-ink)]"
+                        : "border-[var(--sem-joint-border)] bg-[var(--sem-joint-bg)] text-[var(--sem-joint-ink)]",
                     )}
                   >
                     {badge}

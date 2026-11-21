@@ -21,8 +21,9 @@ import {
   X,
 } from "@phosphor-icons/react";
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
-import { useState, type ComponentType } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/Badge";
 import {
   Dialog,
@@ -176,7 +177,8 @@ function SidebarContent({
                         <span className="truncate text-[12.5px]">{cap.label}</span>
                       </span>
                       {(cap.sidebarBadge === "LOCKED" ||
-                        cap.sidebarBadge === "STAGED") && (
+                        cap.sidebarBadge === "STAGED" ||
+                        cap.sidebarBadge === "GATED") && (
                         <Badge
                           tone={
                             cap.status === "fail-closed-gate"
@@ -214,6 +216,14 @@ function SidebarContent({
   );
 }
 
+const COMPACT_MOBILE_TITLES: Record<string, string> = {
+  "admin.routine-grid": "Routine Matrix",
+  "admin.eligibility": "Course Eligibility",
+  "admin.scheduling": "Workbench",
+  "admin.settings": "Settings",
+  "admin.routine": "Routine Console",
+};
+
 /**
  * Light-first UniVerse Academic Ledger Admin Shell.
  * Fixed left rail on >=1100px, single-row 52px header bar, single Account Popover.
@@ -225,8 +235,25 @@ export function AdminShell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
+  useEffect(() => {
+    toast.dismiss();
+  }, [location.pathname]);
+
   const currentCap = getCapabilityByPath(location.pathname);
   const pageTitle = currentCap?.pageTitle ?? "Routine Command Center";
+  const mobilePageTitle =
+    (currentCap ? COMPACT_MOBILE_TITLES[currentCap.id] : undefined) ??
+    pageTitle;
+  const pageOwnsRoutinePrimaryCta =
+    location.pathname.startsWith("/admin/routine") ||
+    location.pathname.startsWith("/admin/timetable/grid") ||
+    location.pathname.startsWith("/admin/scheduling");
+  const topbarSectionTitle =
+    currentCap?.id === "admin.routine-grid"
+      ? "Track 1 · Weekly Matrix"
+      : currentCap?.id === "admin.routine"
+        ? "Track 1 · Operational Console"
+        : pageTitle;
 
   return (
     <div
@@ -242,8 +269,8 @@ export function AdminShell() {
 
       {/* Main Fluid Workspace */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Single-Row 52px Top Instrument Bar */}
-        <header className="sticky top-0 z-30 flex h-[52px] items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 sm:px-6">
+        {/* Single-Row 52px Top Instrument Bar (non-sticky so scrolled fullPage captures never slice page headings) */}
+        <header className="relative z-20 flex h-[52px] shrink-0 items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 sm:px-6">
           <div className="flex min-w-0 items-center gap-2.5">
             <Dialog open={drawerOpen} onOpenChange={setDrawerOpen}>
               <DialogTrigger asChild>
@@ -274,9 +301,12 @@ export function AdminShell() {
               </DialogContent>
             </Dialog>
 
-            <h1 className="truncate font-sans text-[15.5px] font-semibold leading-tight tracking-[-0.015em] text-[var(--ink-primary)] sm:text-[19px]">
-              {pageTitle}
-            </h1>
+            <span className="truncate font-sans text-[15px] font-semibold leading-tight tracking-[-0.015em] text-[var(--ink-primary)] sm:hidden">
+              {mobilePageTitle}
+            </span>
+            <span className="hidden truncate font-sans text-[17px] font-semibold leading-tight tracking-[-0.015em] text-[var(--ink-primary)] sm:inline">
+              {topbarSectionTitle}
+            </span>
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
@@ -298,14 +328,16 @@ export function AdminShell() {
               <EngineHealthBadge />
             </div>
 
-            <Link
-              to="/admin/routine?tab=generate"
-              className="btn-primary !h-[36px] !px-3.5 !text-[12.5px] no-underline"
-            >
-              <Play size={14} aria-hidden="true" />
-              <span className="hidden sm:inline">Generate Routine</span>
-              <span className="sm:hidden">Generate</span>
-            </Link>
+            {!pageOwnsRoutinePrimaryCta && (
+              <Link
+                to="/admin/routine?tab=generate"
+                className="btn-primary !h-[36px] !px-3.5 !text-[12.5px] no-underline"
+              >
+                <Play size={14} aria-hidden="true" />
+                <span className="hidden sm:inline">Generate Routine</span>
+                <span className="sm:hidden">Generate</span>
+              </Link>
+            )}
 
             {/* Single Account Popover */}
             <DropdownMenu>

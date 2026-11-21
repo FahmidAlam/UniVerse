@@ -35,7 +35,7 @@ export interface CapabilityDescriptor {
   status: CapabilityStatus;
   implementedInPhase1A: boolean;
   plannedPhaseLabel: string;
-  sidebarBadge?: "LOCKED" | "STAGED" | "READ-ONLY";
+  sidebarBadge?: "LOCKED" | "STAGED" | "GATED" | "READ-ONLY";
   summary: string;
   governanceNote: string;
   /** Internal architectural contract reference for engineering verification (not UI wallpaper). */
@@ -100,13 +100,13 @@ export const CAPABILITY_REGISTRY: readonly CapabilityDescriptor[] = [
     iconKey: "workbench",
     status: "fail-closed-gate",
     implementedInPhase1A: false,
-    plannedPhaseLabel: "Track 2 · Gates A–D Locked",
-    sidebarBadge: "LOCKED",
+    plannedPhaseLabel: "Phase 4B · Track 2 Workbench",
+    sidebarBadge: "GATED",
     summary:
-      "Guided workbook distribution editor and correction ledger. Remains locked until institutional schema governance and validation gates A–D are approved.",
-    governanceNote: "Fail-closed until Track 2 Gates A–D sign-off.",
+      "5-stage committee workbook distribution ledger, R1–R16 policy studio, preflight readiness, CP-SAT solve, and candidate diff/publish workbench (live mode gated per Gate A–D; Design Preview available).",
+    governanceNote: "Fail-closed in live mode until Track 2 Gates A–D verify cleanly.",
     backendContract:
-      "course_distribution_sources, course_distribution_revisions, RPC append_course_distribution_correction",
+      "course_distribution_sources, course_distribution_revisions(revision_version), RPC read_course_distribution_revision, RPC append_course_distribution_correction",
   },
   {
     id: "admin.rooms",

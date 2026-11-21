@@ -35,11 +35,8 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/Dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/Tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
+import { useHorizontalScrollCue } from "@/core/hooks/useHorizontalScrollCue";
 import { useWorkspaceShortcuts } from "@/core/hooks/useWorkspaceShortcuts";
 import { ClockTime } from "@/core/utils/clockTime";
 import { matchesJointSection, RoomIdentity } from "@/core/utils/roomIdentity";
@@ -178,6 +175,11 @@ export function AcademicTimetableMatrix() {
   const prefersReducedMotion = useReducedMotion() ?? false;
   const searchInputRef = useRef<HTMLInputElement>(null);
   const matrixScrollRef = useRef<HTMLDivElement>(null);
+  const {
+    hasRightOverflow: hasMatrixRightOverflow,
+    onScroll: handleMatrixScroll,
+    maskStyle: matrixScrollMaskStyle,
+  } = useHorizontalScrollCue(matrixScrollRef);
 
   const {
     lens,
@@ -1133,7 +1135,7 @@ export function AcademicTimetableMatrix() {
 
         {/* Search, cmdk Entity Filter, Service Toggle & Freshness */}
         <div className="flex flex-wrap items-center gap-2.5">
-          <div className="relative min-w-[210px] flex-1">
+          <div className="relative min-w-[230px] flex-1">
             <MagnifyingGlass
               size={15}
               className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink-muted)]"
@@ -1145,7 +1147,7 @@ export function AcademicTimetableMatrix() {
               aria-label="Search routine slots"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search course, faculty, room, batch (/) ..."
+              placeholder="Search course, teacher, room (/)"
               className="h-[36px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] pl-9 pr-3 text-[13px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--ink-primary)] focus:outline-none"
             />
           </div>
@@ -1275,6 +1277,9 @@ export function AcademicTimetableMatrix() {
             <div className="ledger-card overflow-hidden">
               <div
                 ref={matrixScrollRef}
+                onScroll={handleMatrixScroll}
+                data-scroll-cue-right={hasMatrixRightOverflow ? "true" : "false"}
+                style={matrixScrollMaskStyle}
                 className={cn(
                   "overflow-x-auto",
                   shouldVirtualize && "max-h-[72dvh] overflow-y-auto",
@@ -1358,7 +1363,11 @@ export function AcademicTimetableMatrix() {
                                 >
                                   {entry.day}{" "}
                                   <span className="font-mono-tabular ml-1.5 text-[11px] font-normal text-[var(--ink-muted)]">
-                                    ({entry.slotCount} slots)
+                                    (
+                                    {entry.slotCount === 1
+                                      ? "1 slot"
+                                      : `${entry.slotCount} slots`}
+                                    )
                                   </span>
                                 </td>
                               </tr>
@@ -1396,7 +1405,11 @@ export function AcademicTimetableMatrix() {
                               >
                                 {entry.day}{" "}
                                 <span className="font-mono-tabular ml-1.5 text-[11px] font-normal text-[var(--ink-muted)]">
-                                  ({entry.slotCount} slots)
+                                  (
+                                  {entry.slotCount === 1
+                                    ? "1 slot"
+                                    : `${entry.slotCount} slots`}
+                                  )
                                 </span>
                               </td>
                             </tr>
@@ -1441,22 +1454,36 @@ export function AcademicTimetableMatrix() {
               className="ledger-card divide-y divide-[var(--border-subtle)] overflow-hidden"
             >
               {filteredRows.map((row) => {
-                const overrideNote = getSlotOverrideTooltip(row);
+                const isSharedFaculty = requiresSharedTeacherStorage(row);
+                const roomTone = row.section.includes("+")
+                  ? "joint"
+                  : isLabCourse(row)
+                    ? "lab"
+                    : "theory";
+                const courseFlagLabel = row.is_service
+                  ? "Service"
+                  : isSharedFaculty
+                    ? "Co-Taught"
+                    : null;
+
                 return (
                   <button
                     key={row.id}
                     type="button"
                     onClick={() => setInspector({ kind: "view", row })}
-                    className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--surface-hover)] sm:grid-cols-[110px_118px_minmax(0,1fr)_auto]"
+                    className="flex w-full flex-col gap-1.5 px-4 py-3 text-left transition-colors hover:bg-[var(--surface-hover)] sm:grid sm:grid-cols-[110px_118px_minmax(0,1fr)_auto] sm:items-center sm:gap-3"
                   >
-                    <span className="font-mono-tabular text-[12px] font-semibold text-[var(--ink-primary)]">
-                      {row.day}
-                    </span>
-                    <span className="font-mono-tabular text-[12px] text-[var(--ink-secondary)] whitespace-nowrap">
-                      {ClockTime.toHm(row.time_start)}–
-                      {ClockTime.toHm(row.time_end)}
-                    </span>
-                    <div className="col-span-2 min-w-0 sm:col-span-1">
+                    <div className="flex items-center justify-between gap-2 sm:contents">
+                      <span className="font-mono-tabular text-[12px] font-semibold text-[var(--ink-primary)]">
+                        {row.day}
+                      </span>
+                      <span className="font-mono-tabular text-[12px] text-[var(--ink-secondary)] whitespace-nowrap">
+                        {ClockTime.toHm(row.time_start)}–
+                        {ClockTime.toHm(row.time_end)}
+                      </span>
+                    </div>
+
+                    <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-mono-tabular font-semibold text-[var(--ink-primary)] whitespace-nowrap">
                           {row.subject_code}
@@ -1464,27 +1491,31 @@ export function AcademicTimetableMatrix() {
                         <span className="truncate text-[13px] text-[var(--ink-secondary)]">
                           {row.subject}
                         </span>
-                        {overrideNote && (
-                          <Badge tone="joint" mono>
-                            Note
+                        {courseFlagLabel && (
+                          <Badge tone={row.is_service ? "neutral" : "joint"} mono>
+                            {courseFlagLabel}
                           </Badge>
                         )}
                       </div>
-                      <div className="mt-0.5 text-[12px] text-[var(--ink-muted)]">
-                        Batch {row.batch}-{row.section} ·{" "}
-                        {row.teacher_code ?? "TBA"}
+                      <div className="mt-1 flex items-center justify-between gap-2 sm:mt-0.5">
+                        <span className="truncate text-[12px] text-[var(--ink-muted)]">
+                          Batch {row.batch}-{row.section} ·{" "}
+                          {row.teacher_code ?? "TBA"}
+                        </span>
+                        <Badge
+                          tone={roomTone}
+                          mono
+                          className="shrink-0 whitespace-nowrap sm:hidden"
+                        >
+                          {row.room}
+                        </Badge>
                       </div>
                     </div>
+
                     <Badge
-                      tone={
-                        row.section.includes("+")
-                          ? "joint"
-                          : isLabCourse(row)
-                            ? "lab"
-                            : "theory"
-                      }
+                      tone={roomTone}
                       mono
-                      className="justify-self-end whitespace-nowrap"
+                      className="hidden justify-self-end whitespace-nowrap sm:inline-flex"
                     >
                       {row.room}
                     </Badge>
@@ -1514,7 +1545,7 @@ export function AcademicTimetableMatrix() {
                       }
                 }
                 transition={{ duration: 0.19, ease: [0.16, 1, 0.3, 1] }}
-                className="ledger-sheet sticky top-[68px] flex max-h-[calc(100dvh-84px)] flex-col overflow-hidden"
+                className="ledger-sheet sticky top-4 flex max-h-[calc(100dvh-32px)] flex-col overflow-hidden"
               >
                 <div className="flex items-start justify-between gap-3 border-b border-[var(--border-subtle)] px-4 py-3.5">
                   <div className="min-w-0">

@@ -25,6 +25,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
+import { useHorizontalScrollCue } from "@/core/hooks/useHorizontalScrollCue";
 import { cn } from "@/lib/utils";
 
 const LEDGER_FEATURES = tableFeatures({
@@ -117,6 +118,11 @@ export function DataLedgerTable<T extends RowData>({
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const scrollParentRef = useRef<HTMLDivElement>(null);
+  const {
+    hasRightOverflow,
+    onScroll: handleTableScroll,
+    maskStyle: scrollMaskStyle,
+  } = useHorizontalScrollCue(scrollParentRef, [data.length, columns.length]);
 
   const mutableData = useMemo(() => [...data], [data]);
 
@@ -311,6 +317,9 @@ export function DataLedgerTable<T extends RowData>({
       <div className="ledger-card overflow-hidden">
         <div
           ref={scrollParentRef}
+          onScroll={handleTableScroll}
+          data-scroll-cue-right={hasRightOverflow ? "true" : "false"}
+          style={scrollMaskStyle}
           className={cn(
             "overflow-x-auto",
             shouldVirtualize ? "max-h-[560px] overflow-y-auto" : undefined,

@@ -11,6 +11,20 @@ const SCREENSHOT_DIR = path.resolve(
 
 fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
 
+async function saveScreenshot(page: Page, filename: string, fullPage = true) {
+  const buf = await page.screenshot({ fullPage });
+  const target = path.join(SCREENSHOT_DIR, filename);
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      fs.writeFileSync(target, buf);
+      return;
+    } catch (err) {
+      if (attempt === 3) throw err;
+      await page.waitForTimeout(250);
+    }
+  }
+}
+
 function attachWatchers(page: Page) {
   const pageErrors: string[] = [];
   const consoleErrors: string[] = [];
@@ -143,10 +157,7 @@ test.describe("UniVerse Academic Ledger — Phase 2A Fixes & Sub-Phase 2B E2E", 
     expect(dirtyRulesBox!.y).toBeGreaterThan(serviceBox!.y + serviceBox!.height);
 
     await page.evaluate(() => window.scrollTo(0, 0));
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "07_settings_rules_1440x900.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "07_settings_rules_1440x900.png", true);
 
     expect(remoteRequests).toEqual([]);
     expect(pageErrors).toEqual([]);
@@ -207,10 +218,7 @@ test.describe("UniVerse Academic Ledger — Phase 2A Fixes & Sub-Phase 2B E2E", 
     ).toBeVisible();
 
     await expectNoHorizontalOverflow(page, "Users 1440x900");
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "01_users_1440x900.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "01_users_1440x900.png", true);
 
     // --- 2. CAMPUS BROADCAST ---
     await page
@@ -232,10 +240,7 @@ test.describe("UniVerse Academic Ledger — Phase 2A Fixes & Sub-Phase 2B E2E", 
     ).toBeVisible();
 
     await expectNoHorizontalOverflow(page, "Broadcast 1440x900");
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "02_broadcast_1440x900.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "02_broadcast_1440x900.png", true);
 
     // --- 3. ACADEMIC RESOURCES ---
     await page
@@ -259,10 +264,7 @@ test.describe("UniVerse Academic Ledger — Phase 2A Fixes & Sub-Phase 2B E2E", 
     ).toBeVisible();
 
     await expectNoHorizontalOverflow(page, "Resources 1440x900");
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "03_resources_1440x900.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "03_resources_1440x900.png", true);
 
     // --- 4. MY PROFILE (F-30 zero avatar upload) ---
     await page
@@ -276,10 +278,7 @@ test.describe("UniVerse Academic Ledger — Phase 2A Fixes & Sub-Phase 2B E2E", 
     await expect(page.getByText("Committee Chair Updated")).toBeVisible();
 
     await expectNoHorizontalOverflow(page, "Profile 1440x900");
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "04_profile_1440x900.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "04_profile_1440x900.png", true);
 
     // --- 5. RESPONSIVE TABLET (1024x768) & MOBILE (390x844) ---
     await page.setViewportSize({ width: 1024, height: 768 });
@@ -289,10 +288,7 @@ test.describe("UniVerse Academic Ledger — Phase 2A Fixes & Sub-Phase 2B E2E", 
       .getByRole("link", { name: "User Whitelist" })
       .click();
     await expectNoHorizontalOverflow(page, "Users 1024x768");
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "05_users_1024x768.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "05_users_1024x768.png", true);
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole("button", { name: "Open navigation sidebar" }).click();
@@ -301,10 +297,7 @@ test.describe("UniVerse Academic Ledger — Phase 2A Fixes & Sub-Phase 2B E2E", 
       .getByRole("link", { name: "Campus Broadcast" })
       .click();
     await expectNoHorizontalOverflow(page, "Broadcast 390x844");
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "08_broadcast_390x844.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "08_broadcast_390x844.png", true);
 
     expect(remoteRequests).toEqual([]);
     expect(pageErrors).toEqual([]);
