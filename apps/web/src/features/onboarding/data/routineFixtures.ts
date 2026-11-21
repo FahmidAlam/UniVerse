@@ -38,8 +38,8 @@ export const PERIODS_ALL: readonly PeriodDef[] = [
   { idx: 3, code: "P3", time: "11:20" },
   { idx: 4, code: "P4", time: "13:10" },
   { idx: 5, code: "P5", time: "14:25" },
-  { idx: 6, code: "P6", time: "15:40" },
-  { idx: 7, code: "P7 OL", time: "19:00" },
+  { idx: 6, code: "P6", time: "15:50" },
+  { idx: 7, code: "P7", time: "17:10" },
 ] as const;
 
 export const SANDBOX_DAYS = ["Sun", "Mon", "Tue", "Thu", "Fri"] as const;
@@ -125,7 +125,7 @@ export function buildSandboxSlots(cfg: SandboxConfig): SandboxSlot[] {
         period: jummah ? (slots === 7 ? 7 : 5) : 4,
         code: "CSE-3202",
         actorOrGroup: "MSR",
-        room: slots === 7 && jummah ? "Online" : "ACL-1",
+        room: "ACL-1",
         category: "lab",
       },
       {
@@ -157,7 +157,7 @@ export function buildSandboxSlots(cfg: SandboxConfig): SandboxSlot[] {
         period: 7,
         code: "CSE-3201",
         actorOrGroup: "SPJ",
-        room: "Online P7",
+        room: "RAB-304",
         category: "theory",
       });
     }
@@ -243,7 +243,7 @@ export function buildSandboxSlots(cfg: SandboxConfig): SandboxSlot[] {
         period: 7,
         code: "CSE-4101",
         actorOrGroup: "Makeup 56 A",
-        room: "Online P7",
+        room: "RAB-306",
         category: "theory",
       });
     }

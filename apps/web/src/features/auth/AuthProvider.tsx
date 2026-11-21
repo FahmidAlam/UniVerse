@@ -85,6 +85,16 @@ function isNotWhitelistedError(err: unknown): boolean {
   );
 }
 
+function isDuplicateProfileError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const rec = err as { code?: string; status?: number; message?: string };
+  return (
+    rec.code === "23505" ||
+    rec.status === 409 ||
+    (rec.message?.toLowerCase().includes("duplicate key") ?? false)
+  );
+}
+
 function readInitialDevPreviewFlag(canUse: boolean): boolean {
   if (!canUse || typeof window === "undefined") return false;
   try {
@@ -131,6 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const recoveryTimerRef = useRef<number | null>(null);
+  const inFlightGateRef = useRef<Map<string, Promise<void>>>(new Map());
 
   const clearRecoveryTimer = useCallback(() => {
     if (recoveryTimerRef.current) {
@@ -156,106 +167,137 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [clearRecoveryTimer, updateStatus]);
 
   const resolveAdminGate = useCallback(
-    async (user: User) => {
+    (user: User): Promise<void> => {
       if (!supabase) {
         updateStatus("unauthenticated");
-        return;
+        return Promise.resolve();
       }
 
-      setDeniedReason(null);
-      setDeniedRole(null);
-      setAuthError(null);
+      const existing = inFlightGateRef.current.get(user.id);
+      if (existing) return existing;
 
-      try {
-        const { data: existingProfile, error: profErr } = await supabase
-          .from("profiles")
-          .select("id, email, role, name, department, teacher_code")
-          .eq("id", user.id)
-          .maybeSingle();
+      const task = (async () => {
+        setDeniedReason(null);
+        setDeniedRole(null);
+        setAuthError(null);
 
-        if (profErr) throw profErr;
+        try {
+          const { data: existingProfile, error: profErr } = await supabase!
+            .from("profiles")
+            .select("id, email, role, name, department, teacher_code")
+            .eq("id", user.id)
+            .maybeSingle();
 
-        if (existingProfile) {
-          if (existingProfile.role === "admin") {
+          if (profErr) throw profErr;
+
+          if (existingProfile) {
+            if (existingProfile.role === "admin") {
+              setProfile(existingProfile as AdminProfile);
+              updateStatus("authenticated");
+              return;
+            }
             setProfile(existingProfile as AdminProfile);
-            updateStatus("authenticated");
+            setDeniedReason("non_admin_role");
+            setDeniedRole(String(existingProfile.role ?? "member"));
+            updateStatus("accessDenied");
             return;
           }
-          setProfile(existingProfile as AdminProfile);
-          setDeniedReason("non_admin_role");
-          setDeniedRole(String(existingProfile.role ?? "member"));
-          updateStatus("accessDenied");
-          return;
-        }
 
-        const emailLower = (user.email ?? "").trim().toLowerCase();
-        if (!emailLower) {
-          setDeniedReason("not_whitelisted");
-          updateStatus("accessDenied");
-          return;
-        }
-
-        const { data: wlRow, error: wlErr } = await supabase
-          .from("whitelists")
-          .select("email, role, name, department, teacher_code, designation")
-          .ilike("email", emailLower)
-          .eq("role", "admin")
-          .maybeSingle();
-
-        if (wlErr) throw wlErr;
-
-        if (!wlRow) {
-          setDeniedReason("not_whitelisted");
-          updateStatus("accessDenied");
-          return;
-        }
-
-        const fullName =
-          (typeof wlRow.name === "string" && wlRow.name.trim()) ||
-          (typeof user.user_metadata?.full_name === "string" &&
-            user.user_metadata.full_name.trim()) ||
-          emailLower.split("@")[0] ||
-          "Administrator";
-
-        const { data: inserted, error: insertErr } = await supabase
-          .from("profiles")
-          .insert({
-            id: user.id,
-            email: emailLower,
-            role: "admin",
-            name: fullName,
-            department: wlRow.department ?? "CSE",
-            teacher_code: wlRow.teacher_code ?? null,
-            designation: wlRow.designation ?? null,
-            courses: [],
-          })
-          .select("id, email, role, name, department, teacher_code")
-          .single();
-
-        if (insertErr) {
-          if (isNotWhitelistedError(insertErr)) {
+          const emailLower = (user.email ?? "").trim().toLowerCase();
+          if (!emailLower) {
             setDeniedReason("not_whitelisted");
             updateStatus("accessDenied");
             return;
           }
-          throw insertErr;
-        }
 
-        setProfile(inserted as AdminProfile);
-        updateStatus("authenticated");
-      } catch (err) {
-        if (isNotWhitelistedError(err)) {
-          setDeniedReason("not_whitelisted");
-          updateStatus("accessDenied");
-          return;
+          const { data: wlRow, error: wlErr } = await supabase!
+            .from("whitelists")
+            .select("email, role, name, department, teacher_code, designation")
+            .ilike("email", emailLower)
+            .eq("role", "admin")
+            .maybeSingle();
+
+          if (wlErr) throw wlErr;
+
+          if (!wlRow) {
+            setDeniedReason("not_whitelisted");
+            updateStatus("accessDenied");
+            return;
+          }
+
+          const fullName =
+            (typeof wlRow.name === "string" && wlRow.name.trim()) ||
+            (typeof user.user_metadata?.full_name === "string" &&
+              user.user_metadata.full_name.trim()) ||
+            emailLower.split("@")[0] ||
+            "Administrator";
+
+          const { data: inserted, error: insertErr } = await supabase!
+            .from("profiles")
+            .insert({
+              id: user.id,
+              email: emailLower,
+              role: "admin",
+              name: fullName,
+              department: wlRow.department ?? "CSE",
+              teacher_code: wlRow.teacher_code ?? null,
+              designation: wlRow.designation ?? null,
+              courses: [],
+            })
+            .select("id, email, role, name, department, teacher_code")
+            .single();
+
+          if (insertErr) {
+            if (isNotWhitelistedError(insertErr)) {
+              setDeniedReason("not_whitelisted");
+              updateStatus("accessDenied");
+              return;
+            }
+            if (isDuplicateProfileError(insertErr)) {
+              const { data: recoveredProfile, error: recoveryErr } =
+                await supabase!
+                  .from("profiles")
+                  .select("id, email, role, name, department, teacher_code")
+                  .eq("id", user.id)
+                  .maybeSingle();
+              if (recoveryErr) throw recoveryErr;
+              if (recoveredProfile) {
+                if (recoveredProfile.role === "admin") {
+                  setProfile(recoveredProfile as AdminProfile);
+                  updateStatus("authenticated");
+                  return;
+                }
+                setProfile(recoveredProfile as AdminProfile);
+                setDeniedReason("non_admin_role");
+                setDeniedRole(String(recoveredProfile.role ?? "member"));
+                updateStatus("accessDenied");
+                return;
+              }
+            }
+            throw insertErr;
+          }
+
+          setProfile(inserted as AdminProfile);
+          updateStatus("authenticated");
+        } catch (err) {
+          if (isNotWhitelistedError(err)) {
+            setDeniedReason("not_whitelisted");
+            updateStatus("accessDenied");
+            return;
+          }
+          setAuthError(
+            err instanceof Error
+              ? err.message
+              : "Unable to verify administrator authorization.",
+          );
+          updateStatus("error");
         }
-        setAuthError(
-          err instanceof Error
-            ? err.message
-            : "Unable to verify administrator authorization.",
-        );
-        updateStatus("error");
-      }
+      })().finally(() => {
+        inFlightGateRef.current.delete(user.id);
+      });
+
+      inFlightGateRef.current.set(user.id, task);
+      return task;
     },
     [updateStatus],
   );

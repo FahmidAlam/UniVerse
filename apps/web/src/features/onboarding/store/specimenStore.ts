@@ -7,6 +7,17 @@ import {
 
 export type SpecimenViewMode = "matrix" | "list";
 
+export function getInitialSpecimenViewMode(): SpecimenViewMode {
+  if (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(max-width: 767px)").matches
+  ) {
+    return "list";
+  }
+  return "matrix";
+}
+
 interface SpecimenStoreState {
   config: SandboxConfig;
   viewMode: SpecimenViewMode;
@@ -20,7 +31,7 @@ interface SpecimenStoreState {
 
 export const useSpecimenStore = create<SpecimenStoreState>((set) => ({
   config: INITIAL_SPECIMEN_CONFIG,
-  viewMode: "matrix",
+  viewMode: getInitialSpecimenViewMode(),
   toggleJummah: (next) =>
     set((s) => ({ config: { ...s.config, jummah: next } })),
   toggleR7: (next) =>
@@ -31,5 +42,8 @@ export const useSpecimenStore = create<SpecimenStoreState>((set) => ({
     set((s) => ({ config: { ...s.config, lens } })),
   setViewMode: (viewMode) => set({ viewMode }),
   resetSpecimen: () =>
-    set({ config: INITIAL_SPECIMEN_CONFIG, viewMode: "matrix" }),
+    set({
+      config: INITIAL_SPECIMEN_CONFIG,
+      viewMode: getInitialSpecimenViewMode(),
+    }),
 }));

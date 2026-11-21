@@ -10,9 +10,10 @@
 
 These five visual QA and housekeeping refinements from Sub-Phase 1A review will be folded into the opening commit of Phase 2 before building new CRUD routes:
 
-1. **Readiness Primary CTAs Always Visible (`AdminDashboardPage.tsx`):**
+1. **Readiness Primary CTAs Always Visible (`AdminDashboardPage.tsx`) & First-Login `409` Race Guard (`AuthProvider.tsx`):**
    - Remove `.row-reveal-action` from the 4 primary checklist action links (`Configure Rooms`, `Manage Faculty`, `Set Eligibility`, `Open Operations`) in [`apps/web/src/features/admin/pages/AdminDashboardPage.tsx`](../../apps/web/src/features/admin/pages/AdminDashboardPage.tsx) (`line 413`) so they render at full `1.0` opacity and contrast across both desktop and touch viewports.
    - Reserve `.row-reveal-action` (hover/`focus-within` reveal in [`app.css`](../../apps/web/src/styles/app.css)) strictly for secondary row actions (`Edit`, `Copy`, `Delete`, `Inspect`) inside dense Phase 2 data tables.
+   - Fold in the **Sub-Phase 1B first-login `409 Conflict` race fix** (`AuthProvider.tsx`): deduplicate concurrent `resolveAdminGate(user)` promises per `user.id` (`inFlightGateRef`) and recover cleanly on PostgreSQL `23505` / HTTP `409` duplicate profile inserts by re-selecting `public.profiles`.
 
 2. **Sidebar Rail Width, Badge Restraint & Profile Reclassification:**
    - Remove visible `READ-ONLY` sidebar badges by dropping `sidebarBadge: "READ-ONLY"` on `admin.routine-grid` in [`capabilityRegistry.ts`](../../apps/web/src/core/capabilities/capabilityRegistry.ts) and rendering sidebar pills in [`AdminShell.tsx`](../../apps/web/src/features/admin/AdminShell.tsx) **only** for `LOCKED` (`fail-closed-gate`) and `STAGED` (`staged-no-db`) entries.
@@ -90,7 +91,7 @@ Every Phase 2 screen enforces one uniform Academic Ledger interaction contract (
 
 ## 4. Screen-by-Screen Contracts & Verified PostgreSQL Column Bindings
 
-> **F-18 Schema Safety Rule:** Every Supabase `.select()`, `.insert()`, `.update()`, and `.upsert()` call in Phase 2 binds **strictly** to the verified production 18-table baseline columns documented in `20261021214512_reconstructed_baseline.sql` / `F-20`. Optional staging migration `20261022140809` columns (`timetable_rooms.{campus,features}` and `timetable_faculty.home_department_id`) may ONLY be queried/written if explicitly detected via capability/environment probe on a target project confirmed to include those columns (e.g. `oqwvxplteqtlrhktsplj`); **never** emit Flutter's 11 non-DB Phase A fields (`classification`, `building_and_floor`, `in_active_semester_pool`, `bound_course_codes`, `declared_window_matrix`, `employment_type`, `is_sust_adjunct`, `sust_compactness_mode`, `is_external_guest`, `has_external_block`, `slot_matrix`).
+> **F-18 Schema Safety Rule:** Every Supabase `.select()`, `.insert()`, `.update()`, and `.upsert()` call in Phase 2 binds **strictly** to the **8 guaranteed baseline PostgreSQL columns** on `timetable_rooms` and `timetable_faculty` documented in `20261021214512_reconstructed_baseline.sql` / `F-20` across both staging and production. Do **not** run noisy HTTP 400 column probes for staging-only columns (`timetable_rooms.{campus,features}` and `timetable_faculty.home_department_id`), deferring those cleanly to Phase 4A; and **never** emit Flutter's 11 non-DB Phase A fields (`classification`, `building_and_floor`, `in_active_semester_pool`, `bound_course_codes`, `declared_window_matrix`, `employment_type`, `is_sust_adjunct`, `sust_compactness_mode`, `is_external_guest`, `has_external_block`, `slot_matrix`).
 
 ### Route Governance Summary
 
@@ -120,8 +121,7 @@ Every Phase 2 screen enforces one uniform Academic Ledger interaction contract (
 
 ### 2. `/admin/timetable/rooms` — Room & Lab Pools
 - **Verified DB Columns (`public.timetable_rooms`):**
-  - Baseline (guaranteed): `id` (`uuid PK`), `name` (`text not null unique`), `building` (`text | null`), `is_lab` (`boolean default false`), `is_gallery` (`boolean default false`), `capacity` (`integer | null`), `is_active` (`boolean default true`), `dept` (`text | null`).
-  - Conditional (`20261022140809` present on staging `oqwvxplteqtlrhktsplj` only): `campus`, `features`.
+  - Strictly the 8 baseline columns: `id` (`uuid PK`), `name` (`text not null unique`), `building` (`text | null`), `is_lab` (`boolean default false`), `is_gallery` (`boolean default false`), `capacity` (`integer | null`), `is_active` (`boolean default true`), `dept` (`text | null`). *(Staging-only `campus`/`features` deferred to Phase 4A without HTTP 400 column probing.)*
 - **Layout & Interactions:**
   - 55/45 Master-Detail table & docked inspector (`Add Room` CTA, search by name/building/dept, upfront filter counts: `All`, `Labs`, `Gallery`, `Active`, `Inactive`, bulk Activate/Deactivate/Delete).
   - Hover copy on room `name`; inactive rows dimmed via `--ink-muted`.
@@ -130,10 +130,9 @@ Every Phase 2 screen enforces one uniform Academic Ledger interaction contract (
 
 ### 3. `/admin/timetable/faculty` — Faculty Roster & Off-Day Bounds
 - **Verified DB Columns (`public.timetable_faculty`):**
-  - Baseline (guaranteed): `id` (`uuid PK`), `acronym` (`text not null unique`), `full_name` (`text | null`), `dept` (`text | null`), `designation` (`text | null`), `off_days` (`text[] not null default '{}'`), `is_active` (`boolean default true`), `courses` (`text[] not null default '{}'`).
-  - Conditional (`20261022140809` staging only): `home_department_id`.
+  - Strictly the 8 baseline columns: `id` (`uuid PK`), `acronym` (`text not null unique`), `full_name` (`text | null`), `dept` (`text | null`), `designation` (`text | null`), `off_days` (`text[] not null default '{}'`), `is_active` (`boolean default true`), `courses` (`text[] not null default '{}'`). *(Staging-only `home_department_id` deferred to Phase 4A without HTTP 400 column probing.)*
 - **Layout & Interactions:**
-  - Filter chips with upfront counts (`All`, `Permanent`, `Active`, `Inactive`, `R7 Flagged`), search by acronym/name/course code, 55/45 inspector with 7-day interactive off-day selector (`Sunday`–`Saturday`), `designation` selector (`Professor`, `Associate Professor`, `Assistant Professor`, `Senior Lecturer`, `Lecturer`), `dept` selector, and course code tag editor (`courses text[]`).
+  - Filter chips strictly backed by schema columns with upfront counts (`All`, `Active`, `Inactive`, `R7 Off-Day Advisory`, plus Department selector — omitting any non-DB `Permanent` chip), search by acronym/name/course code, `55/45` inspector with 7-day interactive off-day selector (`Sunday`–`Saturday`), `designation` selector (`Professor`, `Associate Professor`, `Assistant Professor`, `Senior Lecturer`, `Lecturer`), `dept` selector, and course code tag editor (`courses text[]`).
   - **R7 Advisory Indicator:** Highlights rows whose `off_days.length` falls outside `2..3` days (`R7 Bound`), cleanly explaining that committee policy expects 2–3 weekly off-days for permanent faculty while still permitting verified exceptions.
 - **Zod Validation:** `acronym` uppercase alphanumeric (`2..10` chars), `off_days` subset of `Sunday..Saturday`, `courses` array of normalized uppercase course codes. Strictly excludes non-DB keys (`slot_matrix`, `employment_type`, etc.).
 - **Honest Staged Notice:** Explicit disclosure inside inspector that R4 external service blocks, R5 adjunct guest declared windows, and R9 SUST compactness flags remain `staged-no-db` pending schema support (`F-18`).
@@ -151,12 +150,12 @@ Every Phase 2 screen enforces one uniform Academic Ledger interaction contract (
 - **Verified DB Columns (`public.timetable_settings` singleton `id = 1`):**
   - `id` (`integer PK`, `CHECK (id = 1)`), `semester_label` (`text | null`), `working_days` (`text[] | null`), `periods` (`jsonb not null`, `{ idx, label, start, end, col }[]`), `weeks_in_term` (`integer not null default 14`, `1..52`), `fixed_sessions_per_week` (`integer | null default 2`, `0..7`), `friday_no_p4` (`boolean not null default true`), `blocked_periods` (`jsonb not null default '{}'`), `online_periods` (`jsonb not null default '[7]'`), `allow_online_periods` (`boolean not null default false`), `excluded_periods` (`jsonb not null default '[]'`), `semester_map` (`jsonb not null default '{}'`), `service_scope` (`text not null default 'resource_only'`), `weights` (`jsonb not null`).
 - **3-Tab Structure (Matching Flutter Phase B3 Parity):**
-  1. **Tab 1 — Term Clock & R15 Grid:** `semester_label`, `weeks_in_term` (`1..52`), `fixed_sessions_per_week` (`0–7` with clear notice that `0` / empty restores term-ratio derivation), `working_days` (`Sunday`–`Saturday`), R15 slot toggle (`6-Slot` vs `7-Slot` manipulating `online_periods` / `allow_online_periods`), editable period timeline (`D`, `E`, `F`, `H`, `I`, `J`, `K`, preserving `col` key for engine workbook parity), and explicit `semester_map` (`batch -> study semester`) JSON/pair rows + `excluded_periods`.
+  1. **Tab 1 — Term Clock & R15 Grid:** `semester_label`, `weeks_in_term` (`1..52`), `fixed_sessions_per_week` (`0–7` with clear notice that `0` / empty restores term-ratio derivation), `working_days` (`Sunday`–`Saturday`), R15 regular daily on-campus slot toggle (`6-Slot Grid` vs `7-Slot Grid`, defaulting to 7 regular `P1–P7` on-campus slots, decoupled cleanly from the separate `Allow Online Slot` configuration card managing `allow_online_periods` / `online_periods`), editable period timeline (`D`, `E`, `F`, `H`, `I`, `J`, `K`, preserving `col` key for engine workbook parity), and explicit `semester_map` (`batch -> study semester`) JSON/pair rows + `excluded_periods`.
   2. **Tab 2 — Committee Rules & Blocked Slots:** Authoritative interactive **Friday P4 Jummah Hard Block** control updating both `friday_no_p4` and `blocked_periods["Friday"]`, visual per-day/per-period block grid (`blocked_periods`), `service_scope` toggle (`'resource_only'` vs `'ignore'`), plus concise read-only policy ledger explaining enforced solver rules `R1–R14`.
   3. **Tab 3 — Optimization Weights:** Preset selector (`Balanced Departmental`, `Compact Cohorts`, `Faculty Off-Day Focus`) + numeric inputs (`spread`, `late_slot`, `compactness`, `different_days`) matching solver defaults `{"spread": 2, "late_slot": 1, "compactness": 3, "different_days": 8}`.
 - **ClockTime 24h Parity (`ClockTime.normalize` + `repairSequence`):**
   - TypeScript port of `ClockTime` (`apps/web/src/core/utils/clockTime.ts`) normalizing inputs cleanly to strict `HH:MM` (matching `engine/render.py` `h, m = hhmm.split(":")` requirement in `clock_time.dart:83-86`!) and enforcing strictly increasing non-overlapping slot times (`start < end` and `period[i].start >= period[i-1].end`).
-- **Sticky Dirty Bar:** Single full-width sticky bottom bar inside workspace showing unsaved delta badge, `Discard Changes`, and `Save Settings` (`id = 1` update).
+- **Sticky Dirty Bar:** Single full-width sticky bottom bar inside workspace showing unsaved delta badge, `Discard Changes`, and `Save Settings` (`.upsert({ id: 1, ... }, { onConflict: "id" })` so empty staging with `0` rows persists safely alongside populated production).
 
 ### 6. `/admin/users` — Directory, Whitelists & Admin Invites
 - **Verified Backend Contracts:**

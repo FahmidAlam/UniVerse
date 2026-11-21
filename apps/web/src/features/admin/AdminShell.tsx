@@ -2,11 +2,13 @@ import {
   BookOpen,
   Buildings,
   CalendarBlank,
+  CaretDown,
   ChalkboardTeacher,
   Compass,
   FolderSimple,
   GridFour,
   List,
+  MagnifyingGlass,
   Megaphone,
   Play,
   ShieldCheck,
@@ -28,6 +30,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/Dialog";
+import { CommandPalette } from "@/components/ui/CommandPalette";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/Tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -131,7 +139,7 @@ function SidebarContent({
                     (cap.path !== "/admin/dashboard" &&
                       location.pathname.startsWith(`${cap.path}/`));
 
-                  return (
+                  const navLink = (
                     <NavLink
                       key={cap.id}
                       to={cap.path}
@@ -165,25 +173,37 @@ function SidebarContent({
                           }
                           aria-hidden={true}
                         />
-                        <span className="truncate">{cap.label}</span>
+                        <span className="truncate text-[12.5px]">{cap.label}</span>
                       </span>
-                      {cap.sidebarBadge && (
+                      {(cap.sidebarBadge === "LOCKED" ||
+                        cap.sidebarBadge === "STAGED") && (
                         <Badge
                           tone={
                             cap.status === "fail-closed-gate"
                               ? "joint"
-                              : cap.status === "read-only"
-                                ? "pine"
-                                : "neutral"
+                              : "neutral"
                           }
                           mono
-                          className="px-1.5 py-[1px] text-[9px]"
+                          className="shrink-0 px-1.5 py-[1px] text-[10px]"
                         >
                           {cap.sidebarBadge}
                         </Badge>
                       )}
                     </NavLink>
                   );
+
+                  if (cap.label !== cap.pageTitle && cap.id === "admin.scheduling") {
+                    return (
+                      <Tooltip key={cap.id}>
+                        <TooltipTrigger asChild>{navLink}</TooltipTrigger>
+                        <TooltipContent side="right">
+                          {cap.pageTitle}
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  }
+
+                  return navLink;
                 })}
               </div>
             );
@@ -203,6 +223,7 @@ export function AdminShell() {
   const navigate = useNavigate();
   const { profile, isDevPreview, signOut } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const currentCap = getCapabilityByPath(location.pathname);
   const pageTitle = currentCap?.pageTitle ?? "Routine Command Center";
@@ -212,8 +233,8 @@ export function AdminShell() {
       className="flex min-h-dvh bg-[var(--bg-surface)] text-[var(--ink-primary)]"
       data-testid="admin-shell-academic-ledger"
     >
-      {/* Desktop Left Navigation Rail (264px matching drawer so active bold badges never truncate) */}
-      <aside className="hidden w-[264px] shrink-0 border-r border-[var(--border-subtle)] min-[1100px]:block">
+      {/* Desktop Left Navigation Rail (restored 240px light-first ledger rail) */}
+      <aside className="hidden w-[240px] shrink-0 border-r border-[var(--border-subtle)] min-[1100px]:block">
         <div className="sticky top-0 h-dvh">
           <SidebarContent layoutGroupId="desktop-admin-nav" />
         </div>
@@ -259,6 +280,20 @@ export function AdminShell() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              aria-label="Quick navigate (Ctrl+K)"
+              data-testid="cmdk-trigger-btn"
+              className="hidden h-[34px] items-center gap-2 rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-2.5 text-[12px] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)] md:inline-flex"
+            >
+              <MagnifyingGlass size={14} aria-hidden="true" />
+              <span className="hidden lg:inline">Jump</span>
+              <kbd className="rounded border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1 py-0.5 font-mono-tabular text-[10px] text-[var(--ink-muted)]">
+                ⌘K
+              </kbd>
+            </button>
+
             <div className="hidden sm:block">
               <EngineHealthBadge />
             </div>
@@ -279,11 +314,16 @@ export function AdminShell() {
                   type="button"
                   aria-label="Administrator account menu"
                   data-testid="admin-account-menu-btn"
-                  className="inline-flex h-[36px] items-center gap-2 rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-2.5 text-[12px] font-semibold text-[var(--ink-primary)] hover:bg-[var(--surface-hover)]"
+                  className="inline-flex h-[36px] items-center gap-1.5 rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-2.5 text-[12px] font-semibold text-[var(--ink-primary)] hover:bg-[var(--surface-hover)]"
                 >
                   <span className="font-mono-tabular">
                     {initialsFrom(profile?.name ?? "AD")}
                   </span>
+                  <CaretDown
+                    size={12}
+                    aria-hidden="true"
+                    className="text-[var(--ink-secondary)]"
+                  />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -324,6 +364,8 @@ export function AdminShell() {
           <Outlet />
         </main>
       </div>
+
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
     </div>
   );
 }

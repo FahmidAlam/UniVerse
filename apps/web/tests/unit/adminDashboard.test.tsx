@@ -19,6 +19,8 @@ function makeCounts(
     timetableFaculty: 0,
     timetableCourseEligibility: 0,
     activeVersionLabel: "Spring 2026 · v2026.2",
+    batchLoadSummary: [],
+    roomCategorySummary: [],
     checkedAt: "2026-11-21T14:00:00.000Z",
     source: "dev-preview",
     ...overrides,
@@ -84,6 +86,31 @@ describe("Backend-derived AdminDashboardView (Phase 1A honesty & async states)",
     expect(document.body.textContent).toContain("142 eligibility records");
   });
 
+  it("dynamically enumerates only missing baseline stages in the warning alert", () => {
+    render(
+      <MemoryRouter>
+        <AdminDashboardView
+          data={makeCounts({
+            source: "supabase",
+            timetableRooms: 30,
+            timetableFaculty: 76,
+            timetableCourseEligibility: 0,
+            routines: 796,
+          })}
+          isLoading={false}
+          isFetching={false}
+          isError={false}
+          onRefresh={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    const warnText = screen.getByTestId("empty-eligibility-warning").textContent ?? "";
+    expect(warnText).toContain("0 course eligibility links");
+    expect(warnText).not.toContain("0 room pools");
+    expect(warnText).not.toContain("0 faculty profiles");
+  });
+
   it("handles filter-empty state with upfront filter counts and 1-click reset", () => {
     render(
       <MemoryRouter>
@@ -143,5 +170,68 @@ describe("Backend-derived AdminDashboardView (Phase 1A honesty & async states)",
     );
     fireEvent.click(screen.getByRole("button", { name: /Retry Refresh/i }));
     expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders honest chart empty states when batchLoadSummary & roomCategorySummary are empty and populated states when provided", () => {
+    if (typeof globalThis.ResizeObserver === "undefined") {
+      globalThis.ResizeObserver = class ResizeObserver {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      };
+    }
+
+    const { rerender } = render(
+      <MemoryRouter>
+        <AdminDashboardView
+          data={makeCounts()}
+          isLoading={false}
+          isFetching={false}
+          isError={false}
+          onRefresh={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("dashboard-batch-load-chart").textContent).toContain(
+      "No active routine slots published yet.",
+    );
+    expect(
+      screen.getByTestId("dashboard-room-breakdown-chart").textContent,
+    ).toContain("0 rooms configured in baseline inventory.");
+
+    rerender(
+      <MemoryRouter>
+        <AdminDashboardView
+          data={makeCounts({
+            batchLoadSummary: [
+              { batch: "60", slots: 18 },
+              { batch: "61", slots: 16 },
+            ],
+            roomCategorySummary: [
+              { category: "Lecture", active: 12, inactive: 2, total: 14 },
+              { category: "Lab", active: 6, inactive: 0, total: 6 },
+            ],
+          })}
+          isLoading={false}
+          isFetching={false}
+          isError={false}
+          onRefresh={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByTestId("dashboard-batch-load-chart").textContent,
+    ).not.toContain("No active routine slots published yet.");
+    expect(
+      screen.getByTestId("dashboard-room-breakdown-chart").textContent,
+    ).not.toContain("0 rooms configured in baseline inventory.");
+    expect(document.body.textContent).toContain(
+      "Weekly Published Slot Load by Batch",
+    );
+    expect(document.body.textContent).toContain(
+      "Configured Room Inventory Breakdown",
+    );
   });
 });

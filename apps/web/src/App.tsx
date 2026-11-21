@@ -13,7 +13,15 @@ import { TooltipProvider } from "@/components/ui/Tooltip";
 import { CAPABILITY_REGISTRY } from "@/core/capabilities";
 import { AdminShell } from "@/features/admin/AdminShell";
 import { AdminDashboardPage } from "@/features/admin/pages/AdminDashboardPage";
+import { AdminProfilePage } from "@/features/admin/pages/AdminProfilePage";
 import { AdminRouteStubPage } from "@/features/admin/pages/AdminRouteStubPage";
+import { CampusBroadcastPage } from "@/features/admin/pages/CampusBroadcastPage";
+import { ManageCourseEligibilityPage } from "@/features/admin/pages/ManageCourseEligibilityPage";
+import { ManageFacultyPage } from "@/features/admin/pages/ManageFacultyPage";
+import { ManageResourcesPage } from "@/features/admin/pages/ManageResourcesPage";
+import { ManageRoomsPage } from "@/features/admin/pages/ManageRoomsPage";
+import { ManageUsersPage } from "@/features/admin/pages/ManageUsersPage";
+import { TimetableSettingsPage } from "@/features/admin/pages/TimetableSettingsPage";
 import { AuthProvider, useAuth } from "@/features/auth/AuthProvider";
 import { PublicAuthLayout } from "@/features/auth/PublicAuthLayout";
 import { AccessRequiredPage } from "@/features/auth/pages/AccessRequiredPage";
@@ -75,8 +83,20 @@ function PublicRouteGuard() {
   return <PublicAuthLayout />;
 }
 
+const PHASE_2_LIVE_PATHS = new Set([
+  "/admin/dashboard",
+  "/admin/timetable/rooms",
+  "/admin/timetable/faculty",
+  "/admin/timetable/course-eligibility",
+  "/admin/timetable/settings",
+  "/admin/users",
+  "/admin/broadcast",
+  "/admin/resources",
+  "/admin/profile",
+]);
+
 const STUB_CAPABILITIES = CAPABILITY_REGISTRY.filter(
-  (cap) => cap.path !== "/admin/dashboard",
+  (cap) => !PHASE_2_LIVE_PATHS.has(cap.path),
 );
 
 export function App() {
@@ -114,6 +134,32 @@ export function App() {
                       path="dashboard"
                       element={<AdminDashboardPage />}
                     />
+                    <Route
+                      path="timetable/rooms"
+                      element={<ManageRoomsPage />}
+                    />
+                    <Route
+                      path="timetable/faculty"
+                      element={<ManageFacultyPage />}
+                    />
+                    <Route
+                      path="timetable/course-eligibility"
+                      element={<ManageCourseEligibilityPage />}
+                    />
+                    <Route
+                      path="timetable/settings"
+                      element={<TimetableSettingsPage />}
+                    />
+                    <Route path="users" element={<ManageUsersPage />} />
+                    <Route
+                      path="broadcast"
+                      element={<CampusBroadcastPage />}
+                    />
+                    <Route
+                      path="resources"
+                      element={<ManageResourcesPage />}
+                    />
+                    <Route path="profile" element={<AdminProfilePage />} />
                     {STUB_CAPABILITIES.map((cap) => {
                       const subPath = cap.path.replace(/^\/admin\//, "");
                       return (

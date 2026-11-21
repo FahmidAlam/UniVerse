@@ -35,11 +35,15 @@ describe("Centralized CapabilityRegistry contract", () => {
       (s) => s.id === "track1.workbook-upload",
     );
     expect(upload?.status).toBe("fail-closed-gate");
+    expect(upload?.label).toBe("Rendered Routine Upload");
+    expect(upload?.badgeLabel).toBe("Gated · Phase 3B");
   });
 
-  it("marks Routine Matrix and Profile cleanly as read-only", () => {
-    expect(getCapabilityById("admin.routine-grid")?.status).toBe("read-only");
-    expect(getCapabilityById("admin.profile")?.status).toBe("read-only");
+  it("marks Routine Matrix as read-only without READ-ONLY sidebar pill and marks Profile live-persisted", () => {
+    const grid = getCapabilityById("admin.routine-grid");
+    expect(grid?.status).toBe("read-only");
+    expect(grid?.sidebarBadge).toBeUndefined();
+    expect(getCapabilityById("admin.profile")?.status).toBe("live-persisted");
   });
 
   it("keeps Dashboard active as live-persisted in Phase 1A and splits groups evenly", () => {

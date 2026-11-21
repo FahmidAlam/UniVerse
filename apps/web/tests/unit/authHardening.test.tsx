@@ -286,3 +286,136 @@ describe("AuthProvider statusRef closure guard against SIGNED_IN during password
     );
   });
 });
+
+describe("Sub-Phase 1B first-login 409 conflict & concurrent gate deduplication", () => {
+  it("deduplicates concurrent INITIAL_SESSION and SIGNED_IN events and recovers cleanly from 23505/409 profile insert conflict", async () => {
+    vi.resetModules();
+
+    let authCallback:
+      | ((event: string, session: { user: { id: string; email: string } } | null) => void)
+      | null = null;
+
+    let profileSelectCalls = 0;
+    const profileInsertSpy = vi.fn();
+
+    const recoveredAdmin = {
+      id: "u-admin-1",
+      email: "admin@lus.ac.bd",
+      role: "admin",
+      name: "Dept Admin",
+      department: "CSE",
+      teacher_code: null,
+    };
+
+    vi.doMock("@/services/supabase", () => ({
+      isSupabaseConfigured: true,
+      extractAndScrubInviteHash: () => null,
+      adoptInviteSession: vi.fn(),
+      mapFriendlyAuthError: (m: string) => m,
+      supabase: {
+        auth: {
+          getSession: vi.fn().mockResolvedValue({
+            data: {
+              session: {
+                user: { id: "u-admin-1", email: "admin@lus.ac.bd" },
+              },
+            },
+            error: null,
+          }),
+          onAuthStateChange: vi.fn((cb) => {
+            authCallback = cb;
+            return { data: { subscription: { unsubscribe: vi.fn() } } };
+          }),
+          signOut: vi.fn().mockResolvedValue({}),
+        },
+        from: (table: string) => {
+          if (table === "whitelists") {
+            return {
+              select: () => ({
+                ilike: () => ({
+                  eq: () => ({
+                    maybeSingle: async () => ({
+                      data: {
+                        email: "admin@lus.ac.bd",
+                        role: "admin",
+                        name: "Dept Admin",
+                        department: "CSE",
+                        teacher_code: null,
+                        designation: null,
+                      },
+                      error: null,
+                    }),
+                  }),
+                }),
+              }),
+            };
+          }
+
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: async () => {
+                  profileSelectCalls += 1;
+                  if (profileSelectCalls === 1) {
+                    return { data: null, error: null };
+                  }
+                  return { data: recoveredAdmin, error: null };
+                },
+              }),
+            }),
+            insert: (payload: unknown) => {
+              profileInsertSpy(payload);
+              return {
+                select: () => ({
+                  single: async () => ({
+                    data: null,
+                    error: {
+                      code: "23505",
+                      status: 409,
+                      message:
+                        "duplicate key value violates unique constraint profiles_pkey",
+                    },
+                  }),
+                }),
+              };
+            },
+          };
+        },
+      },
+    }));
+
+    const mod = await import("@/features/auth/AuthProvider");
+
+    function Probe() {
+      const { status, profile } = mod.useAuth();
+      return (
+        <div>
+          <span data-testid="race-status">{status}</span>
+          <span data-testid="race-email">{profile?.email ?? ""}</span>
+        </div>
+      );
+    }
+
+    render(
+      <mod.AuthProvider>
+        <Probe />
+      </mod.AuthProvider>,
+    );
+
+    await act(async () => {
+      authCallback?.("SIGNED_IN", {
+        user: { id: "u-admin-1", email: "admin@lus.ac.bd" },
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(profileInsertSpy).toHaveBeenCalledTimes(1);
+    expect(profileSelectCalls).toBeGreaterThanOrEqual(2);
+    expect(screen.getByTestId("race-status").textContent).toBe("authenticated");
+    expect(screen.getByTestId("race-email").textContent).toBe("admin@lus.ac.bd");
+
+    vi.doUnmock("@/services/supabase");
+  });
+});

@@ -126,7 +126,7 @@ All pairs below were programmatically converted via `OKLCH -> OKLab -> Linear sR
   - Interactive user constraint controls (`36px` bar, wrapping cleanly at `< 768px`):
     - **Jummah Block (`Fri P4`) toggle:** Locks/unlocks Friday Period 4 Jummah prayer hard block across all batches.
     - **R7 Faculty Off-Day (`EBH Thu–Fri`) toggle:** Moves EBH sections cleanly to valid `Sun–Wed` windows or surfaces a live conflict notice.
-    - **R15 Grid (`6-Slot` vs `7-Slot + Online P7`) toggle:** Adds/removes the evening P7 column (`19:00–20:20 Online`).
+    - **R15 Grid (`6-Slot` vs `7-Slot`) toggle:** Switches regular on-campus daily slots between `P1–P6` and `P1–P7` cleanly (independent of any separate optional online slot).
     - **Lens Switcher (`Section` / `Faculty` / `Room`)** & **View Switch (`Matrix` ↔ `Compact List`)**, with an interactive corner-triangle override indicator (`58-B+C` joint lab override) displaying an explanation tooltip on hover/focus.
 - **`MobileCompanionStrip` (Below Hero):** Dedicated light-paper ledger band explaining clearly that **Students & Teachers use the UniVerse Flutter Mobile app on Android and iOS** for daily live routines, date-scoped cancellation alerts, teacher lookup, and live room availability, keeping browser workflows focused on Administrators.
 

@@ -1,5 +1,17 @@
 import { isSupabaseConfigured, supabase } from "@/services/supabase";
 
+export interface BatchLoadDatum {
+  batch: string;
+  slots: number;
+}
+
+export interface RoomCategoryDatum {
+  category: string;
+  active: number;
+  inactive: number;
+  total: number;
+}
+
 export interface AdminDashboardCounts {
   profiles: number;
   routines: number;
@@ -10,6 +22,8 @@ export interface AdminDashboardCounts {
   activeVersionLabel: string | null;
   checkedAt: string;
   source: "supabase" | "dev-preview";
+  batchLoadSummary: BatchLoadDatum[];
+  roomCategorySummary: RoomCategoryDatum[];
 }
 
 export function getDevPreviewCounts(): AdminDashboardCounts {
@@ -23,6 +37,15 @@ export function getDevPreviewCounts(): AdminDashboardCounts {
     activeVersionLabel: "Spring 2026 · v2026.2",
     checkedAt: new Date().toISOString(),
     source: "dev-preview",
+    batchLoadSummary: [
+      { batch: "Batch 56", slots: 92 },
+      { batch: "Batch 57", slots: 114 },
+      { batch: "Batch 58", slots: 138 },
+      { batch: "Batch 59", slots: 142 },
+      { batch: "Batch 60", slots: 156 },
+      { batch: "Batch 61", slots: 154 },
+    ],
+    roomCategorySummary: [],
   };
 }
 
@@ -35,10 +58,55 @@ async function countTable(table: string): Promise<number> {
   return count ?? 0;
 }
 
+export function aggregateBatchLoad(
+  rows: ReadonlyArray<{ batch?: unknown; is_active?: unknown }>,
+): BatchLoadDatum[] {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    if (row.is_active === false) continue;
+    const rawBatch =
+      typeof row.batch === "string" && row.batch.trim().length > 0
+        ? row.batch.trim()
+        : "Unassigned";
+    counts.set(rawBatch, (counts.get(rawBatch) ?? 0) + 1);
+  }
+  return Array.from(counts.entries())
+    .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+    .map(([batch, slots]) => ({ batch, slots }));
+}
+
+export function aggregateRoomCategories(
+  rows: ReadonlyArray<{
+    is_lab?: unknown;
+    is_gallery?: unknown;
+    is_active?: unknown;
+  }>,
+): RoomCategoryDatum[] {
+  if (rows.length === 0) return [];
+  const buckets: Record<"Theory Rooms" | "Labs" | "Galleries", RoomCategoryDatum> = {
+    "Theory Rooms": { category: "Theory Rooms", active: 0, inactive: 0, total: 0 },
+    Labs: { category: "Labs", active: 0, inactive: 0, total: 0 },
+    Galleries: { category: "Galleries", active: 0, inactive: 0, total: 0 },
+  };
+  for (const r of rows) {
+    const bucket = r.is_lab
+      ? buckets.Labs
+      : r.is_gallery
+        ? buckets.Galleries
+        : buckets["Theory Rooms"];
+    if (r.is_active === false) {
+      bucket.inactive += 1;
+    } else {
+      bucket.active += 1;
+    }
+    bucket.total += 1;
+  }
+  return [buckets["Theory Rooms"], buckets.Labs, buckets.Galleries];
+}
+
 /**
- * Queries live production/staging Supabase counts matching `AdminService.counts()`
- * (`profiles`, `routines`, `notifications`, `timetable_rooms`, `timetable_course_eligibility`,
- * plus `timetable_faculty` and active `routine_versions`).
+ * Queries live production/staging Supabase counts matching `AdminService.counts()`,
+ * plus compact chart aggregates strictly derived from `routines` and `timetable_rooms`.
  */
 export async function fetchAdminDashboardCounts(
   isDevPreview: boolean,
@@ -55,6 +123,8 @@ export async function fetchAdminDashboardCounts(
     timetableFaculty,
     timetableCourseEligibility,
     activeVerResp,
+    routinesLoadResp,
+    roomsSummaryResp,
   ] = await Promise.all([
     countTable("profiles"),
     countTable("routines"),
@@ -69,10 +139,18 @@ export async function fetchAdminDashboardCounts(
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase.from("routines").select("batch, is_active").eq("is_active", true),
+    supabase.from("timetable_rooms").select("is_lab, is_gallery, is_active"),
   ]);
 
   if (activeVerResp.error) {
     throw new Error(`routine_versions: ${activeVerResp.error.message}`);
+  }
+  if (routinesLoadResp.error) {
+    throw new Error(`routines: ${routinesLoadResp.error.message}`);
+  }
+  if (roomsSummaryResp.error) {
+    throw new Error(`timetable_rooms: ${roomsSummaryResp.error.message}`);
   }
 
   return {
@@ -88,5 +166,7 @@ export async function fetchAdminDashboardCounts(
         : null,
     checkedAt: new Date().toISOString(),
     source: "supabase",
+    batchLoadSummary: aggregateBatchLoad(routinesLoadResp.data ?? []),
+    roomCategorySummary: aggregateRoomCategories(roomsSummaryResp.data ?? []),
   };
 }

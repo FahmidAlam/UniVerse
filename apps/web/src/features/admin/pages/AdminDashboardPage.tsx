@@ -9,6 +9,16 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/Badge";
 import {
@@ -96,6 +106,51 @@ function buildReadinessStages(data: AdminDashboardCounts): ReadinessStageRow[] {
   ];
 }
 
+function BatchLoadTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: ReadonlyArray<{ value?: number }>;
+  label?: string;
+}) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="ledger-popover px-3 py-2 text-[12px]">
+      <div className="font-semibold text-[var(--ink-primary)]">{label}</div>
+      <div className="font-mono-tabular mt-0.5 text-[var(--accent-pine)]">
+        {payload[0]?.value ?? 0} active weekly slots
+      </div>
+    </div>
+  );
+}
+
+function RoomBreakdownTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: ReadonlyArray<{ name?: string; value?: number }>;
+  label?: string;
+}) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="ledger-popover px-3 py-2 text-[12px]">
+      <div className="font-semibold text-[var(--ink-primary)]">{label}</div>
+      {payload.map((entry) => (
+        <div
+          key={entry.name}
+          className="font-mono-tabular mt-0.5 text-[var(--ink-secondary)]"
+        >
+          {entry.name}: {entry.value ?? 0}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export interface AdminDashboardViewProps {
   data?: AdminDashboardCounts;
   isLoading: boolean;
@@ -114,6 +169,10 @@ export function AdminDashboardView({
   onRefresh,
 }: AdminDashboardViewProps) {
   const [stageFilter, setStageFilter] = useState<ReadinessFilter>("all");
+  const [hoveredBatchIndex, setHoveredBatchIndex] = useState<number | null>(
+    null,
+  );
+  const [hoveredRoomIndex, setHoveredRoomIndex] = useState<number | null>(null);
 
   const stages = useMemo(
     () => (data ? buildReadinessStages(data) : []),
@@ -135,8 +194,8 @@ export function AdminDashboardView({
         <div className="h-[52px] animate-pulse rounded-[var(--r-card)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)]" />
         <div className="h-[290px] animate-pulse rounded-[var(--r-card)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)]" />
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="h-[170px] animate-pulse rounded-[var(--r-card)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)]" />
-          <div className="h-[170px] animate-pulse rounded-[var(--r-card)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)]" />
+          <div className="h-[240px] animate-pulse rounded-[var(--r-card)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)]" />
+          <div className="h-[240px] animate-pulse rounded-[var(--r-card)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)]" />
         </div>
       </div>
     );
@@ -169,10 +228,13 @@ export function AdminDashboardView({
   }
 
   const hasEmptyEligibility = data.timetableCourseEligibility === 0;
-  const hasMissingBaseline =
-    data.timetableRooms === 0 ||
-    data.timetableFaculty === 0 ||
-    hasEmptyEligibility;
+  const missingParts: string[] = [];
+  if (data.timetableRooms === 0) missingParts.push("0 room pools");
+  if (data.timetableFaculty === 0) missingParts.push("0 faculty profiles");
+  if (data.timetableCourseEligibility === 0) {
+    missingParts.push("0 course eligibility links");
+  }
+  const hasMissingBaseline = missingParts.length > 0;
 
   const isBrandNewWorkspace =
     data.routines === 0 &&
@@ -221,11 +283,8 @@ export function AdminDashboardView({
                   : "Departmental configuration incomplete"}
               </strong>
               <p className="mt-0.5 text-[12.5px]">
-                Current counts show {data.timetableRooms} room pools,{" "}
-                {data.timetableFaculty} faculty profiles, and{" "}
-                {data.timetableCourseEligibility} course eligibility links.
-                Complete all three baseline stages before publishing a new
-                semester schedule.
+                Missing baseline setup: {missingParts.join(", ")}. Complete all
+                three baseline stages before publishing a new semester schedule.
               </p>
             </div>
           </div>
@@ -302,7 +361,7 @@ export function AdminDashboardView({
         </div>
       </div>
 
-      {/* 4-Stage Routine Readiness Checklist (Dissolved 1px Ledger Rows + Upfront Counts) */}
+      {/* 4-Stage Routine Readiness Checklist (Primary Action CTAs always full contrast at rest) */}
       <section
         aria-labelledby="readiness-heading"
         className="ledger-card overflow-hidden"
@@ -373,7 +432,7 @@ export function AdminDashboardView({
             {visibleStages.map((stage) => (
               <div
                 key={stage.step}
-                className="group grid grid-cols-[24px_24px_minmax(0,1fr)_auto] items-center gap-3 px-5 py-3.5 transition-colors hover:bg-[var(--surface-hover)] sm:grid-cols-[24px_24px_minmax(0,1fr)_170px_150px]"
+                className="grid grid-cols-[24px_24px_minmax(0,1fr)_auto] items-center gap-3 px-5 py-3.5 transition-colors hover:bg-[var(--surface-hover)] sm:grid-cols-[24px_24px_minmax(0,1fr)_170px_150px]"
               >
                 <span className="font-mono-tabular text-[12px] text-[var(--ink-muted)]">
                   {stage.step}
@@ -410,7 +469,7 @@ export function AdminDashboardView({
                 >
                   {stage.countLabel}
                 </div>
-                <div className="row-reveal-action col-span-4 flex justify-end sm:col-span-1">
+                <div className="col-span-4 flex justify-end sm:col-span-1">
                   <Link
                     to={stage.actionTo}
                     className="btn-secondary !h-[32px] !px-3 !text-[12px] no-underline"
@@ -422,6 +481,195 @@ export function AdminDashboardView({
             ))}
           </div>
         )}
+      </section>
+
+      {/* Backend-Derived Recharts v3 Operational Analytics */}
+      <section
+        aria-label="Departmental load and room breakdown charts"
+        className="grid grid-cols-1 gap-4 md:grid-cols-2"
+      >
+        <div
+          data-testid="dashboard-batch-load-chart"
+          className="ledger-card flex flex-col gap-3 p-4"
+        >
+          <div className="flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2.5">
+            <div>
+              <h2 className="text-[14px] font-semibold text-[var(--ink-primary)]">
+                Weekly Published Slot Load by Batch
+              </h2>
+              <p className="text-[12px] text-[var(--ink-secondary)]">
+                Active weekly allocations across cohorts
+              </p>
+            </div>
+            <Link
+              to="/admin/timetable/settings"
+              className="text-[12px] font-medium text-[var(--accent-pine)] no-underline hover:underline"
+            >
+              Grid Settings
+            </Link>
+          </div>
+
+          {data.batchLoadSummary.length === 0 ? (
+            <div className="flex h-[210px] items-center justify-center rounded-[var(--r-control)] border border-dashed border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 text-center text-[13px] text-[var(--ink-muted)]">
+              No active routine slots published yet.
+            </div>
+          ) : (
+            <div className="h-[210px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={data.batchLoadSummary}
+                  margin={{ top: 8, right: 8, left: -16, bottom: 4 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="var(--border-subtle)"
+                  />
+                  <XAxis
+                    dataKey="batch"
+                    axisLine={{ stroke: "var(--border-subtle)" }}
+                    tickLine={false}
+                    tick={{ fontSize: 11.5, fill: "var(--ink-muted)" }}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    axisLine={{ stroke: "var(--border-subtle)" }}
+                    tickLine={false}
+                    tick={{ fontSize: 11.5, fill: "var(--ink-muted)" }}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "var(--surface-hover)" }}
+                    content={<BatchLoadTooltip />}
+                  />
+                  <Bar
+                    dataKey="slots"
+                    isAnimationActive={false}
+                    radius={[0, 0, 0, 0]}
+                    onMouseEnter={(_, idx) => setHoveredBatchIndex(idx)}
+                    onMouseLeave={() => setHoveredBatchIndex(null)}
+                  >
+                    {data.batchLoadSummary.map((entry, idx) => (
+                      <Cell
+                        key={entry.batch}
+                        fill="var(--accent-pine)"
+                        fillOpacity={
+                          hoveredBatchIndex === null || hoveredBatchIndex === idx
+                            ? 1
+                            : 0.34
+                        }
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
+        <div
+          data-testid="dashboard-room-breakdown-chart"
+          className="ledger-card flex flex-col gap-3 p-4"
+        >
+          <div className="flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2.5">
+            <div>
+              <h2 className="text-[14px] font-semibold text-[var(--ink-primary)]">
+                Configured Room Inventory Breakdown
+              </h2>
+              <p className="text-[12px] text-[var(--ink-secondary)]">
+                Active vs. inactive rooms across physical types
+              </p>
+            </div>
+            <Link
+              to="/admin/timetable/rooms"
+              className="text-[12px] font-medium text-[var(--accent-pine)] no-underline hover:underline"
+            >
+              Manage Rooms
+            </Link>
+          </div>
+
+          {data.roomCategorySummary.length === 0 ? (
+            <div className="flex h-[210px] flex-col items-center justify-center gap-2 rounded-[var(--r-control)] border border-dashed border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 text-center text-[13px] text-[var(--ink-muted)]">
+              <span>0 rooms configured in baseline inventory.</span>
+              <Link
+                to="/admin/timetable/rooms"
+                className="text-[12.5px] font-medium text-[var(--accent-pine)] no-underline hover:underline"
+              >
+                Open Room &amp; Lab Pools
+              </Link>
+            </div>
+          ) : (
+            <div className="h-[210px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={data.roomCategorySummary}
+                  margin={{ top: 8, right: 8, left: -16, bottom: 4 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="var(--border-subtle)"
+                  />
+                  <XAxis
+                    dataKey="category"
+                    axisLine={{ stroke: "var(--border-subtle)" }}
+                    tickLine={false}
+                    tick={{ fontSize: 11.5, fill: "var(--ink-muted)" }}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    axisLine={{ stroke: "var(--border-subtle)" }}
+                    tickLine={false}
+                    tick={{ fontSize: 11.5, fill: "var(--ink-muted)" }}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "var(--surface-hover)" }}
+                    content={<RoomBreakdownTooltip />}
+                  />
+                  <Bar
+                    dataKey="active"
+                    name="Active"
+                    isAnimationActive={false}
+                    radius={[0, 0, 0, 0]}
+                    onMouseEnter={(_, idx) => setHoveredRoomIndex(idx)}
+                    onMouseLeave={() => setHoveredRoomIndex(null)}
+                  >
+                    {data.roomCategorySummary.map((entry, idx) => (
+                      <Cell
+                        key={`${entry.category}-active`}
+                        fill="var(--sem-theory-bar)"
+                        fillOpacity={
+                          hoveredRoomIndex === null || hoveredRoomIndex === idx
+                            ? 1
+                            : 0.34
+                        }
+                      />
+                    ))}
+                  </Bar>
+                  <Bar
+                    dataKey="inactive"
+                    name="Inactive"
+                    isAnimationActive={false}
+                    radius={[0, 0, 0, 0]}
+                    onMouseEnter={(_, idx) => setHoveredRoomIndex(idx)}
+                    onMouseLeave={() => setHoveredRoomIndex(null)}
+                  >
+                    {data.roomCategorySummary.map((entry, idx) => (
+                      <Cell
+                        key={`${entry.category}-inactive`}
+                        fill="var(--ink-muted)"
+                        fillOpacity={
+                          hoveredRoomIndex === null || hoveredRoomIndex === idx
+                            ? 0.72
+                            : 0.25
+                        }
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Operational Totals + Separate Track 2 Scheduling Workbench Status */}
@@ -492,7 +740,7 @@ export function AdminDashboardView({
                   }
                   mono
                 >
-                  {formatCapabilityStatusLabel(cap.status)}
+                  {cap.badgeLabel ?? formatCapabilityStatusLabel(cap.status)}
                 </Badge>
               </div>
             ))}

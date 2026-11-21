@@ -5,16 +5,45 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/Tooltip";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { checkEngineHealth } from "@/services/engineHealth";
 
 export function EngineHealthBadge() {
+  const { isDevPreview } = useAuth();
   const { data, isFetching, refetch } = useQuery({
     queryKey: ["engine-health-root"],
     queryFn: checkEngineHealth,
+    enabled: !isDevPreview,
     refetchOnWindowFocus: true,
     refetchInterval: 60_000,
     retry: false,
   });
+
+  if (isDevPreview) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="inline-flex h-[34px] items-center gap-2 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2.5 text-[12px] text-[var(--ink-secondary)]">
+            <span
+              className="h-2 w-2 rounded-full bg-[var(--accent-pine)]"
+              aria-hidden="true"
+            />
+            <span className="font-mono-tabular whitespace-nowrap">
+              Engine · Preview
+            </span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>
+          <div className="font-semibold text-[var(--ink-primary)]">
+            Disconnected local preview
+          </div>
+          <div className="mt-1 text-[11.5px] text-[var(--ink-secondary)]">
+            Live FastAPI solver polling is disabled in local preview mode.
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
 
   const status = data?.status ?? "cold-start";
   const dotColor =

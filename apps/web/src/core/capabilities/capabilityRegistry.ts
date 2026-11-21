@@ -86,7 +86,6 @@ export const CAPABILITY_REGISTRY: readonly CapabilityDescriptor[] = [
     status: "read-only",
     implementedInPhase1A: false,
     plannedPhaseLabel: "Read-Only Inspector",
-    sidebarBadge: "READ-ONLY",
     summary:
       "Full-canvas weekly routine grid filterable by batch section, faculty acronym, and room.",
     governanceNote: "Read-only inspection of published semester allocations.",
@@ -95,7 +94,7 @@ export const CAPABILITY_REGISTRY: readonly CapabilityDescriptor[] = [
   {
     id: "admin.scheduling",
     path: "/admin/scheduling",
-    label: "Scheduling Workbench",
+    label: "Workbench",
     pageTitle: "5-Stage Scheduling Workbench",
     group: "operations",
     iconKey: "workbench",
@@ -158,14 +157,14 @@ export const CAPABILITY_REGISTRY: readonly CapabilityDescriptor[] = [
     id: "admin.settings",
     path: "/admin/timetable/settings",
     label: "Timetable Settings",
-    pageTitle: "Timetable Policy Settings",
+    pageTitle: "Timetable Settings",
     group: "configuration",
     iconKey: "settings",
     status: "live-persisted",
     implementedInPhase1A: false,
     plannedPhaseLabel: "Configuration Phase",
     summary:
-      "Configure working days, period durations, 6-slot vs 7-slot online reserve schedules, and Friday prayer blocks.",
+      "Configure working days, period durations, 6-slot vs 7-slot regular daily clocks, optional online slot, and Friday prayer blocks.",
     governanceNote: "Departmental scheduling policy baseline.",
     backendContract: "timetable_settings (singleton)",
   },
@@ -253,12 +252,12 @@ export const CAPABILITY_REGISTRY: readonly CapabilityDescriptor[] = [
     pageTitle: "Administrator Profile",
     group: "directory",
     iconKey: "profile",
-    status: "read-only",
+    status: "live-persisted",
     implementedInPhase1A: false,
-    plannedPhaseLabel: "Account Overview",
+    plannedPhaseLabel: "Sub-Phase 2B Live Profile",
     summary:
-      "Review your administrator identity, department affiliation, and session recovery options.",
-    governanceNote: "Read-only account & session view.",
+      "Inspect your administrator account metadata and update permitted departmental profile details.",
+    governanceNote: "Editable own profile record (excluding avatar uploads).",
     backendContract: "profiles (own row)",
   },
 ] as const;
@@ -267,14 +266,16 @@ export interface SecondaryFeatureCapability {
   id: string;
   label: string;
   status: CapabilityStatus;
+  badgeLabel?: string;
   summary: string;
 }
 
 export const SUBFEATURE_CAPABILITIES: readonly SecondaryFeatureCapability[] = [
   {
     id: "track1.workbook-upload",
-    label: "Automated Distribution Workbook Upload",
+    label: "Rendered Routine Upload",
     status: "fail-closed-gate",
+    badgeLabel: "Gated · Phase 3B",
     summary: "Locked pending server upload endpoint verification.",
   },
   {

@@ -30,12 +30,6 @@ export function LandingPage() {
           <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.48fr)] lg:gap-7 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.38fr)] xl:gap-10">
             {/* Editorial Copy Column */}
             <div className="flex flex-col gap-5">
-              <div className="flex items-center gap-2 font-mono-tabular text-[11.5px] font-medium tracking-[0.04em] text-[var(--ink-muted)] uppercase">
-                <span>01</span>
-                <span className="h-px w-5 bg-[var(--border-subtle)]" aria-hidden="true" />
-                <span>Leading University CSE</span>
-              </div>
-
               <h1 className="font-serif-editorial text-[clamp(2rem,3.6vw,2.75rem)] font-semibold leading-[1.10] tracking-[-0.025em] text-[var(--ink-primary)]">
                 Academic routine administration for Leading University CSE
               </h1>

@@ -7,7 +7,7 @@ import {
   WarningCircle,
 } from "@phosphor-icons/react";
 import { motion } from "motion/react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Switch } from "@/components/ui/Switch";
 import {
@@ -23,6 +23,7 @@ import {
   type ScheduleCategory,
 } from "@/features/onboarding/data/routineFixtures";
 import {
+  getInitialSpecimenViewMode,
   useSpecimenStore,
   type SpecimenViewMode,
 } from "@/features/onboarding/store/specimenStore";
@@ -101,7 +102,28 @@ export function AcademicLedgerPreview({ compact = false }: { compact?: boolean }
     config.r7Enforced &&
     config.slots === 6 &&
     config.lens === "section" &&
-    viewMode === "matrix";
+    viewMode === getInitialSpecimenViewMode();
+
+  const scrollWrapRef = useRef<HTMLDivElement>(null);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  useEffect(() => {
+    const el = scrollWrapRef.current;
+    if (!el || viewMode !== "matrix") {
+      setCanScrollRight(false);
+      return;
+    }
+    const updateFade = () => {
+      setCanScrollRight(el.scrollWidth - el.clientWidth - el.scrollLeft > 4);
+    };
+    updateFade();
+    el.addEventListener("scroll", updateFade, { passive: true });
+    window.addEventListener("resize", updateFade);
+    return () => {
+      el.removeEventListener("scroll", updateFade);
+      window.removeEventListener("resize", updateFade);
+    };
+  }, [viewMode, periods.length]);
 
   return (
     <section
@@ -181,7 +203,7 @@ export function AcademicLedgerPreview({ compact = false }: { compact?: boolean }
             >
               {([6, 7] as const).map((slotCount) => {
                 const active = config.slots === slotCount;
-                const label = slotCount === 6 ? "6-Slot" : "7-Slot + P7";
+                const label = slotCount === 6 ? "6-Slot" : "7-Slot";
                 return (
                   <button
                     key={slotCount}
@@ -296,7 +318,20 @@ export function AcademicLedgerPreview({ compact = false }: { compact?: boolean }
       {/* Main Preview Content */}
       <div className="bg-[var(--bg-elevated)] p-3 sm:p-4">
         {viewMode === "matrix" ? (
-          <div className="overflow-x-auto pb-1">
+          <div
+            ref={scrollWrapRef}
+            style={
+              canScrollRight
+                ? {
+                    maskImage:
+                      "linear-gradient(to right, black calc(100% - 22px), transparent)",
+                    WebkitMaskImage:
+                      "linear-gradient(to right, black calc(100% - 22px), transparent)",
+                  }
+                : undefined
+            }
+            className="overflow-x-auto pb-1"
+          >
             <table className="w-full min-w-[540px] border-collapse text-left">
               <thead>
                 <tr className="border-b border-[var(--border-subtle)]">

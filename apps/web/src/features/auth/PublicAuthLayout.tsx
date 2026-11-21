@@ -68,7 +68,7 @@ export function PublicAuthLayout() {
                 className="btn-secondary !h-[34px] !px-3 !text-[12.5px] no-underline"
               >
                 <ArrowLeft size={14} aria-hidden="true" />
-                <span>Back to Specimen</span>
+                <span>Back to Home</span>
               </Link>
             )}
           </nav>
@@ -87,12 +87,6 @@ export function PublicAuthLayout() {
                 aria-label="Departmental administration context"
                 className="ledger-paper-grain order-2 flex flex-col gap-5 rounded-[var(--r-sheet)] border border-[var(--border-subtle)] bg-[var(--bg-canvas)] p-6 sm:p-7 lg:order-1"
               >
-                <div className="flex items-center gap-2 font-mono-tabular text-[11px] font-medium tracking-[0.04em] text-[var(--ink-muted)] uppercase">
-                  <span>01</span>
-                  <span className="h-px w-4 bg-[var(--border-subtle)]" aria-hidden="true" />
-                  <span>Routine Committee Portal</span>
-                </div>
-
                 <div>
                   <h2 className="font-serif-editorial text-[26px] font-semibold leading-[1.18] tracking-[-0.02em] text-[var(--ink-primary)]">
                     Leading University Department of CSE

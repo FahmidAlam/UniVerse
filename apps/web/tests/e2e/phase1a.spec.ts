@@ -45,6 +45,20 @@ function attachErrorAndNetworkWatchers(page: Page) {
   return { pageErrors, consoleErrors, remoteRequests };
 }
 
+async function saveScreenshot(page: Page, filename: string, fullPage: boolean) {
+  const buf = await page.screenshot({ fullPage });
+  const target = path.join(SCREENSHOT_DIR, filename);
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      fs.writeFileSync(target, buf);
+      return;
+    } catch (err) {
+      if (attempt === 3) throw err;
+      await page.waitForTimeout(250);
+    }
+  }
+}
+
 async function expectNoHorizontalOverflow(page: Page, contextLabel: string) {
   const metrics = await page.evaluate(() => ({
     scrollWidth: document.documentElement.scrollWidth,
@@ -82,10 +96,7 @@ test.describe("UniVerse Academic Ledger — Sub-Phase 1A E2E & Visual Verificati
     expect(headerDesktop?.height ?? 999).toBeLessThanOrEqual(64);
     await expectNoHorizontalOverflow(page, "Landing 1440x900");
 
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "01_landing_1440x900.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "01_landing_1440x900.png", true);
 
     // 2. Verify zero automatic background loop & verify user-driven toggles update UI
     const previewSection = page.locator(
@@ -98,8 +109,8 @@ test.describe("UniVerse Academic Ledger — Sub-Phase 1A E2E & Visual Verificati
     await page.getByRole("button", { name: "Faculty" }).click();
     await expect(page.getByText("Faculty EBH", { exact: true })).toBeVisible();
 
-    await page.getByRole("button", { name: "7-Slot + P7" }).click();
-    await expect(page.getByText("P7 OL")).toBeVisible();
+    await page.getByRole("button", { name: "7-Slot" }).click();
+    await expect(page.getByText("P7", { exact: true })).toBeVisible();
 
     await page.getByLabel("Friday P4 Jummah Lock").click();
     await expect(page.getByText("Rule conflict")).toBeVisible();
@@ -110,28 +121,19 @@ test.describe("UniVerse Academic Ledger — Sub-Phase 1A E2E & Visual Verificati
     // 3. Tablet 1024x768 responsive verification
     await page.setViewportSize({ width: 1024, height: 768 });
     await expectNoHorizontalOverflow(page, "Landing 1024x768");
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "02_landing_1024x768.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "02_landing_1024x768.png", true);
 
     // 4. Mobile 390x844 responsive verification (single-row <=56px header, zero overflow)
     await page.setViewportSize({ width: 390, height: 844 });
     const headerMobile = await page.locator("header").boundingBox();
     expect(headerMobile?.height ?? 999).toBeLessThanOrEqual(60);
     await expectNoHorizontalOverflow(page, "Landing 390x844");
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "03_landing_390x844.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "03_landing_390x844.png", true);
 
     // Mobile compact list toggle screenshot
     await page.getByRole("button", { name: "List" }).click();
     await expectNoHorizontalOverflow(page, "Landing List View 390x844");
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "04_landing_list_390x844.png"),
-      fullPage: false,
-    });
+    await saveScreenshot(page, "04_landing_list_390x844.png", false);
 
     expect(remoteRequests).toEqual([]);
     expect(pageErrors).toEqual([]);
@@ -162,10 +164,7 @@ test.describe("UniVerse Academic Ledger — Sub-Phase 1A E2E & Visual Verificati
     expect(loginBody).not.toContain("Supabase PKCE");
     expect(loginBody).not.toContain("No .env.local detected");
     await expectNoHorizontalOverflow(page, "Login 1440x900");
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "05_login_1440x900.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "05_login_1440x900.png", true);
 
     // Trigger zod validation cleanly
     await page
@@ -192,10 +191,7 @@ test.describe("UniVerse Academic Ledger — Sub-Phase 1A E2E & Visual Verificati
     expect(authAsideBox!.y).toBeLessThan(contextPanelBox!.y);
     expect(emailBox!.y + emailBox!.height).toBeLessThan(844);
 
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "06_login_390x844.png"),
-      fullPage: false,
-    });
+    await saveScreenshot(page, "06_login_390x844.png", false);
 
     // Reset Password live 4-item checklist
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -211,10 +207,7 @@ test.describe("UniVerse Academic Ledger — Sub-Phase 1A E2E & Visual Verificati
       page.locator('[data-testid="password-requirements-checklist"] li[data-met="true"]'),
     ).toHaveCount(4);
 
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "07_reset_password_1440x900.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "07_reset_password_1440x900.png", true);
 
     // Forgot Password check
     await page.goto("/forgot-password", { waitUntil: "networkidle" });
@@ -267,19 +260,20 @@ test.describe("UniVerse Academic Ledger — Sub-Phase 1A E2E & Visual Verificati
     expect(dashboardText).not.toContain("public.routines");
 
     await expectNoHorizontalOverflow(page, "Admin Dashboard 1440x900");
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "08_admin_dashboard_1440x900.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "08_admin_dashboard_1440x900.png", true);
 
     // Exercise upfront filter counts (`Ready (1)` filters to Stage 04; `All (4)` restores all 4)
     await page.getByRole("button", { name: "Ready (1)" }).click();
-    await expect(page.getByText("Room & Lab Pools")).toBeHidden();
+    await expect(
+      page.getByText("Room & Lab Pools", { exact: true }),
+    ).toBeHidden();
     await expect(
       page.getByText("Active Routine & Publication"),
     ).toBeVisible();
     await page.getByRole("button", { name: "All (4)" }).click();
-    await expect(page.getByText("Room & Lab Pools")).toBeVisible();
+    await expect(
+      page.getByText("Room & Lab Pools", { exact: true }),
+    ).toBeVisible();
 
     // Open single Account Popover & inspect Admin badge
     await page.getByTestId("admin-account-menu-btn").click();
@@ -292,18 +286,12 @@ test.describe("UniVerse Academic Ledger — Sub-Phase 1A E2E & Visual Verificati
       page.getByRole("button", { name: "Open navigation sidebar" }),
     ).toBeVisible();
     await expectNoHorizontalOverflow(page, "Admin Dashboard 1024x768");
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "09_admin_dashboard_1024x768.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "09_admin_dashboard_1024x768.png", true);
 
     // 390x844 mobile admin check
     await page.setViewportSize({ width: 390, height: 844 });
     await expectNoHorizontalOverflow(page, "Admin Dashboard 390x844");
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "10_admin_dashboard_390x844.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "10_admin_dashboard_390x844.png", true);
 
     // Fail-closed Scheduling Workbench stub verification
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -312,13 +300,7 @@ test.describe("UniVerse Academic Ledger — Sub-Phase 1A E2E & Visual Verificati
       page.getByRole("heading", { level: 2, name: "5-Stage Scheduling Workbench" }),
     ).toBeVisible();
     await expect(page.locator("main").getByText("Locked · Gates A–D")).toBeVisible();
-    await page.screenshot({
-      path: path.join(
-        SCREENSHOT_DIR,
-        "11_admin_scheduling_locked_1440x900.png",
-      ),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "11_admin_scheduling_locked_1440x900.png", true);
 
     expect(pageErrors).toEqual([]);
     expect(consoleErrors).toEqual([]);
