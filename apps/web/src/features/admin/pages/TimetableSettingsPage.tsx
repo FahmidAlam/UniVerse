@@ -457,36 +457,6 @@ export function TimetableSettingsPage() {
                 );
               })}
             </div>
-
-            {isDirty && (
-              <div className="flex items-center gap-2">
-                <span className="text-[12px] font-medium text-[var(--sem-joint-ink)]">
-                  Unsaved policy edits
-                </span>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={saveMutation.isPending}
-                  onClick={() => setDiscardDialogOpen(true)}
-                >
-                  Discard
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  disabled={saveMutation.isPending}
-                  onClick={() => {
-                    if (validationError) {
-                      toast.error(validationError);
-                      return;
-                    }
-                    saveMutation.mutate(draft);
-                  }}
-                >
-                  Save Settings
-                </Button>
-              </div>
-            )}
           </div>
 
           {validationError && (

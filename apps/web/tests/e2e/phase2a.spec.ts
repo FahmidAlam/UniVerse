@@ -11,6 +11,20 @@ const SCREENSHOT_DIR = path.resolve(
 
 fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
 
+async function saveScreenshot(page: Page, filename: string, fullPage = true) {
+  const buf = await page.screenshot({ fullPage });
+  const target = path.join(SCREENSHOT_DIR, filename);
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      fs.writeFileSync(target, buf);
+      return;
+    } catch (err) {
+      if (attempt === 3) throw err;
+      await page.waitForTimeout(250);
+    }
+  }
+}
+
 function attachWatchers(page: Page) {
   const pageErrors: string[] = [];
   const consoleErrors: string[] = [];
@@ -127,10 +141,7 @@ test.describe("UniVerse Academic Ledger — Sub-Phase 2A E2E & Visual QA", () =>
     ).toContainText("0 rooms configured in baseline inventory.");
 
     await expectNoHorizontalOverflow(page, "Dashboard 1440x900");
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "01_dashboard_1440x900.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "01_dashboard_1440x900.png");
 
     // 4. Dashboard Feature Governance ledger shows "Rendered Routine Upload" / "Gated · Phase 3B"
     await expect(page.getByText("Rendered Routine Upload")).toBeVisible();
@@ -177,10 +188,7 @@ test.describe("UniVerse Academic Ledger — Sub-Phase 2A E2E & Visual QA", () =>
       page.locator("table").getByText("RAB-302", { exact: true }),
     ).toBeVisible();
 
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "02_rooms_inspector_1440x900.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "02_rooms_inspector_1440x900.png");
 
     // Close inspector with Escape, add ACL-1 Lab
     await page.keyboard.press("Escape");
@@ -204,10 +212,7 @@ test.describe("UniVerse Academic Ledger — Sub-Phase 2A E2E & Visual QA", () =>
     await page.getByLabel("Select all visible rows").click();
 
     await expectNoHorizontalOverflow(page, "Rooms 1440x900");
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "03_rooms_ledger_1440x900.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "03_rooms_ledger_1440x900.png");
 
     // --- 2. FACULTY (Zero Permanent chip, `/` shortcut, R7 off-day advisory) ---
     await page
@@ -236,10 +241,7 @@ test.describe("UniVerse Academic Ledger — Sub-Phase 2A E2E & Visual QA", () =>
     await expect(page.getByLabel("Search faculty")).toBeFocused();
 
     await expectNoHorizontalOverflow(page, "Faculty 1440x900");
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "04_faculty_1440x900.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "04_faculty_1440x900.png");
 
     // --- 3. COURSE ELIGIBILITY (cmdk Combobox selectors) ---
     await page
@@ -267,10 +269,7 @@ test.describe("UniVerse Academic Ledger — Sub-Phase 2A E2E & Visual QA", () =>
     ).toBeVisible();
 
     await expectNoHorizontalOverflow(page, "Eligibility 1440x900");
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "05_eligibility_1440x900.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "05_eligibility_1440x900.png");
 
     // --- 4. TIMETABLE SETTINGS (3 tabs, 7-slot toggle, Jummah lock, weights, sticky dirty + discard modal) ---
     await page
@@ -296,10 +295,7 @@ test.describe("UniVerse Academic Ledger — Sub-Phase 2A E2E & Visual QA", () =>
     await page.getByRole("button", { name: "Cancel" }).click();
 
     await page.evaluate(() => window.scrollTo(0, 0));
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "06_settings_clock_1440x900.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "06_settings_clock_1440x900.png");
 
     await page
       .getByRole("tab", { name: /Committee Rules & Blocked Slots/i })
@@ -312,10 +308,7 @@ test.describe("UniVerse Academic Ledger — Sub-Phase 2A E2E & Visual QA", () =>
     ).toContainText("Jummah");
 
     await page.evaluate(() => window.scrollTo(0, 0));
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "07_settings_rules_1440x900.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "07_settings_rules_1440x900.png");
 
     await page.getByRole("tab", { name: /Optimization Weights/i }).click();
     await page.getByRole("button", { name: "Strict Off-Day & Spread" }).click();
@@ -355,20 +348,14 @@ test.describe("UniVerse Academic Ledger — Sub-Phase 2A E2E & Visual QA", () =>
     await palette.getByPlaceholder(/Jump to rooms/i).fill("Timetable Settings");
     await palette.locator('[cmdk-item]').first().click();
     await expectNoHorizontalOverflow(page, "Settings 1024x768");
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "08_settings_1024x768.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "08_settings_1024x768.png");
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.keyboard.press("Control+k");
     await palette.getByPlaceholder(/Jump to rooms/i).fill("Room Pools");
     await palette.locator('[cmdk-item]').first().click();
     await expectNoHorizontalOverflow(page, "Rooms 390x844");
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "09_rooms_390x844.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "09_rooms_390x844.png");
 
     // Verify detail inspector renders as modal dialog on < 1024px mobile
     await page.getByRole("button", { name: /Add Room/i }).click();

@@ -98,8 +98,8 @@ Every Phase 2 screen enforces one uniform Academic Ledger interaction contract (
 | Route | Capability Status | Supabase / Edge Target | Notes |
 |---|---|---|---|
 | `/admin/dashboard` | `live-persisted` | Counts + `routines`, `timetable_rooms`, `routine_versions` | Phase 1A polish + Recharts v3 operational load charts & deep links. |
-| `/admin/timetable/rooms` | `live-persisted` | `public.timetable_rooms` | Production 8 columns (`campus`/`features` conditional). |
-| `/admin/timetable/faculty` | `live-persisted` | `public.timetable_faculty` | Production 8 columns (`home_department_id` conditional). |
+| `/admin/timetable/rooms` | `live-persisted` | `public.timetable_rooms` | Production 8 baseline columns (strictly pinned; zero non-DB probes). |
+| `/admin/timetable/faculty` | `live-persisted` | `public.timetable_faculty` | Production 8 baseline columns (strictly pinned; zero non-DB probes). |
 | `/admin/timetable/course-eligibility` | `live-persisted` | `public.timetable_course_eligibility` + `routines` codes | `cmdk` selector; solves `F-20` `0` eligibility setup. |
 | `/admin/timetable/settings` | `live-persisted` | `public.timetable_settings` (`id = 1`) | 3-tab Phase B3 studio + `ClockTime` 24h validation. |
 | `/admin/users` | `live-persisted` | `public.profiles`, `public.whitelists`, `invite-admin` | Directory, whitelist CRUD, & invite modal. |

@@ -360,7 +360,7 @@ export function AdminShell() {
         </header>
 
         {/* Main Workspace Canvas */}
-        <main className="mx-auto w-full max-w-[1220px] flex-1 p-4 sm:p-6">
+        <main className="mx-auto w-full min-w-0 max-w-[1220px] flex-1 p-4 sm:p-6">
           <Outlet />
         </main>
       </div>

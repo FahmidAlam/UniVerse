@@ -363,25 +363,59 @@ function normalizeFetchedSettings(
   };
 }
 
-export function toSettingsUpsertPayload(
-  settings: TimetableSettingsRecord,
-): TimetableSettingsRecord {
-  const normalizedPeriods = settings.periods.map((p, idx) => {
-    const start = ClockTime.toHm(ClockTime.normalizeOr(p.start));
-    const end = ClockTime.toHm(ClockTime.normalizeOr(p.end));
-    const periodIdx = p.idx || idx + 1;
+/**
+ * Ensures every period in `periods` has unique integer `idx`, unique uppercase
+ * workbook `col` (never colliding with break column `G`), and 24h `HH:MM` clocks
+ * compatible with both `engine/solver.py` and `engine/render.py`.
+ */
+export function ensureSolverSafePeriods(
+  periods: readonly PeriodDefinition[],
+): PeriodDefinition[] {
+  const usedIdx = new Set<number>();
+  const usedCols = new Set<string>(["G"]);
+  const fallbackRegularCols = [...REGULAR_PERIOD_COLS, "M", "N", "O"];
+
+  const repaired = ClockTime.repairSequence(
+    periods.map((p) => ({
+      ...p,
+      start: ClockTime.toHm(ClockTime.normalizeOr(p.start)),
+      end: ClockTime.toHm(ClockTime.normalizeOr(p.end)),
+    })),
+  );
+
+  return repaired.map((p, i) => {
+    let idx = Number.isInteger(p.idx) && p.idx > 0 ? p.idx : i + 1;
+    while (usedIdx.has(idx)) idx += 1;
+    usedIdx.add(idx);
+
+    let col = (p.col ?? "").trim().toUpperCase();
+    if (!/^[A-Z]+$/.test(col) || col === "A" || col === "B" || col === "C" || usedCols.has(col)) {
+      if (idx >= ONLINE_SLOT_IDX && !usedCols.has(ONLINE_SLOT_COL)) {
+        col = ONLINE_SLOT_COL;
+      } else {
+        col =
+          fallbackRegularCols.find((c) => !usedCols.has(c)) ??
+          `P${idx}`;
+      }
+    }
+    usedCols.add(col);
+
+    const start = ClockTime.toHm(p.start);
+    const end = ClockTime.toHm(p.end);
     return {
-      idx: periodIdx,
+      idx,
       start,
       end,
       label: `${start}-${end}`,
-      col:
-        p.col ||
-        (periodIdx >= ONLINE_SLOT_IDX
-          ? ONLINE_SLOT_COL
-          : (REGULAR_PERIOD_COLS[idx] ?? "K")),
+      col,
     };
   });
+}
+
+export function toSettingsUpsertPayload(
+  settings: TimetableSettingsRecord,
+): TimetableSettingsRecord {
+  const normalizedPeriods = ensureSolverSafePeriods(settings.periods);
 
   const periodError = ClockTime.validateMonotonicPeriods(normalizedPeriods);
   if (periodError) {

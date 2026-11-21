@@ -68,11 +68,11 @@ export const CAPABILITY_REGISTRY: readonly CapabilityDescriptor[] = [
     iconKey: "routine",
     status: "live-persisted",
     implementedInPhase1A: false,
-    plannedPhaseLabel: "Next Operational Phase",
+    plannedPhaseLabel: "Phase 3A Active",
     summary:
-      "Manage published timetable slots, inspect active semester revisions, and launch schedule generation.",
+      "Manage published timetable slots, inspect the 2D weekly matrix, and launch CP-SAT schedule generation.",
     governanceNote:
-      "Workbook upload automation remains gated until server upload verification completes.",
+      "Track 1 operational console active; rendered .xlsx upload remains gated pending Phase 3B.",
     backendContract:
       "POST /api/timetable/generate, GET /api/timetable/status|result|download/{job_id}, RPC publish_routine, storage bucket timetables",
   },
@@ -85,10 +85,10 @@ export const CAPABILITY_REGISTRY: readonly CapabilityDescriptor[] = [
     iconKey: "matrix",
     status: "read-only",
     implementedInPhase1A: false,
-    plannedPhaseLabel: "Read-Only Inspector",
+    plannedPhaseLabel: "Phase 3A Active · Inspector",
     summary:
-      "Full-canvas weekly routine grid filterable by batch section, faculty acronym, and room.",
-    governanceNote: "Read-only inspection of published semester allocations.",
+      "Full-canvas 2D weekly routine grid filterable by batch section, faculty acronym, and room.",
+    governanceNote: "Interactive 2D matrix over published or candidate semester allocations.",
     backendContract: "routines, routine_versions",
   },
   {

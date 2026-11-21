@@ -22,6 +22,8 @@ import { ManageResourcesPage } from "@/features/admin/pages/ManageResourcesPage"
 import { ManageRoomsPage } from "@/features/admin/pages/ManageRoomsPage";
 import { ManageUsersPage } from "@/features/admin/pages/ManageUsersPage";
 import { TimetableSettingsPage } from "@/features/admin/pages/TimetableSettingsPage";
+import { AdminRoutinePage } from "@/features/routine/pages/AdminRoutinePage";
+import { TimetableGridPage } from "@/features/routine/pages/TimetableGridPage";
 import { AuthProvider, useAuth } from "@/features/auth/AuthProvider";
 import { PublicAuthLayout } from "@/features/auth/PublicAuthLayout";
 import { AccessRequiredPage } from "@/features/auth/pages/AccessRequiredPage";
@@ -83,8 +85,10 @@ function PublicRouteGuard() {
   return <PublicAuthLayout />;
 }
 
-const PHASE_2_LIVE_PATHS = new Set([
+const LIVE_CAPABILITY_PATHS = new Set([
   "/admin/dashboard",
+  "/admin/routine",
+  "/admin/timetable/grid",
   "/admin/timetable/rooms",
   "/admin/timetable/faculty",
   "/admin/timetable/course-eligibility",
@@ -96,7 +100,7 @@ const PHASE_2_LIVE_PATHS = new Set([
 ]);
 
 const STUB_CAPABILITIES = CAPABILITY_REGISTRY.filter(
-  (cap) => !PHASE_2_LIVE_PATHS.has(cap.path),
+  (cap) => !LIVE_CAPABILITY_PATHS.has(cap.path),
 );
 
 export function App() {
@@ -133,6 +137,14 @@ export function App() {
                     <Route
                       path="dashboard"
                       element={<AdminDashboardPage />}
+                    />
+                    <Route
+                      path="routine"
+                      element={<AdminRoutinePage />}
+                    />
+                    <Route
+                      path="timetable/grid"
+                      element={<TimetableGridPage />}
                     />
                     <Route
                       path="timetable/rooms"
