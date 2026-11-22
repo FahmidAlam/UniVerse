@@ -70,6 +70,9 @@ function recomputePreviewContextAndReadiness(
       return {
         ...item,
         isResolved: !row19Pending,
+        title: row19Pending
+          ? "Unassigned Lab Instructor on Row 19 (CSE-2202)"
+          : "Lab Instructor Assigned on Row 19 (CSE-2202)",
         description: row19Pending
           ? 'Course CSE-2202 Section A has "Pending teacher declaration". Designate a lab instructor in Stage 1 before solving.'
           : `Course CSE-2202 Section A assigned to "${getEffectiveColumnValue(row19!, "I")}".`,

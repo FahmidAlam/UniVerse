@@ -64,7 +64,7 @@ const EngineStatusSchema = z.object({
   progress: z.number().default(0),
   stats: z.record(z.string(), z.unknown()).optional(),
   validation: z.record(z.string(), z.unknown()).optional(),
-  source_contract: z.record(z.string(), z.unknown()).optional(),
+  source_contract: z.record(z.string(), z.unknown()).optional().nullable(),
   error: z.string().optional().nullable(),
 });
 
@@ -108,10 +108,12 @@ const EngineResultSchema = z.object({
       revision: z.number(),
       invalidated_artifacts: z.array(z.string()).default([]),
     })
-    .passthrough(),
+    .passthrough()
+    .optional()
+    .nullable(),
   report: z
     .object({
-      source_contract: z.record(z.string(), z.unknown()).optional(),
+      source_contract: z.record(z.string(), z.unknown()).optional().nullable(),
       cohorts: z.array(z.string()).default([]),
       meta: z.record(z.string(), z.unknown()).default({}),
       excluded: z.array(z.record(z.string(), z.unknown())).default([]),

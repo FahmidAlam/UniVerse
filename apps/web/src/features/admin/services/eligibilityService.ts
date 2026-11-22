@@ -200,6 +200,102 @@ export async function bulkSetEligibilityStatus(
   }
 }
 
+export interface FacultyCourseAssignmentDraft {
+  courseCode: string;
+  checked: boolean;
+  priority: number | null;
+}
+
+export function buildFacultyBatchUpsertPayloads(
+  acronym: string,
+  drafts: readonly FacultyCourseAssignmentDraft[],
+): EligibilityWritePayload[] {
+  const cleanAcronym = acronym.trim().toUpperCase();
+  if (!cleanAcronym) return [];
+  const seen = new Set<string>();
+  const payloads: EligibilityWritePayload[] = [];
+  for (const d of drafts) {
+    if (!d.checked) continue;
+    const code = d.courseCode.trim().toUpperCase();
+    if (!code || seen.has(code)) continue;
+    seen.add(code);
+    payloads.push(
+      toEligibilityWritePayload({
+        acronym: cleanAcronym,
+        course_code: code,
+        is_eligible: true,
+        priority: d.priority,
+      }),
+    );
+  }
+  return payloads;
+}
+
+export async function batchSaveFacultyEligibility(
+  acronym: string,
+  drafts: readonly FacultyCourseAssignmentDraft[],
+  existingRecordsForFaculty: readonly CourseEligibilityRecord[],
+  isDevPreview: boolean,
+): Promise<void> {
+  const cleanAcronym = acronym.trim().toUpperCase();
+  const upsertPayloads = buildFacultyBatchUpsertPayloads(cleanAcronym, drafts);
+  const checkedCodes = new Set(upsertPayloads.map((p) => p.course_code));
+  const idsToDelete = existingRecordsForFaculty
+    .filter((r) => !checkedCodes.has(r.course_code.trim().toUpperCase()))
+    .map((r) => r.id);
+
+  if (isDevPreview || !isSupabaseConfigured || !supabase) {
+    const now = new Date().toISOString();
+    if (idsToDelete.length > 0) {
+      for (let i = devPreviewEligibilityStore.length - 1; i >= 0; i--) {
+        if (idsToDelete.includes(devPreviewEligibilityStore[i]!.id)) {
+          devPreviewEligibilityStore.splice(i, 1);
+        }
+      }
+    }
+    for (const payload of upsertPayloads) {
+      const idx = devPreviewEligibilityStore.findIndex(
+        (r) =>
+          r.acronym === payload.acronym && r.course_code === payload.course_code,
+      );
+      if (idx !== -1) {
+        devPreviewEligibilityStore[idx] = {
+          ...devPreviewEligibilityStore[idx]!,
+          ...payload,
+          updated_at: now,
+        };
+      } else {
+        devPreviewEligibilityStore.push({
+          id: `preview-elig-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          ...payload,
+          created_at: now,
+          updated_at: now,
+        });
+      }
+    }
+    return;
+  }
+
+  if (upsertPayloads.length > 0) {
+    const { error: upsertError } = await supabase
+      .from("timetable_course_eligibility")
+      .upsert(upsertPayloads, { onConflict: "acronym,course_code" });
+    if (upsertError) {
+      throw new Error(upsertError.message);
+    }
+  }
+
+  if (idsToDelete.length > 0) {
+    const { error: delError } = await supabase
+      .from("timetable_course_eligibility")
+      .delete()
+      .in("id", idsToDelete);
+    if (delError) {
+      throw new Error(delError.message);
+    }
+  }
+}
+
 export async function deleteEligibilityRecords(
   ids: readonly string[],
   isDevPreview: boolean,

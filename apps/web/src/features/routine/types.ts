@@ -188,13 +188,13 @@ export interface EngineValidation {
   lab_theory_pairs?: number;
   lab_theory_adjacent?: number;
   details?: Record<string, Array<Record<string, unknown>>>;
-  source_contract?: EngineSourceContract;
+  source_contract?: EngineSourceContract | null;
   ok: boolean;
   [key: string]: unknown;
 }
 
 export interface EngineReport {
-  source_contract: EngineSourceContract;
+  source_contract?: EngineSourceContract | null;
   cohorts: string[];
   meta: Record<string, unknown>;
   excluded: Array<Record<string, unknown>>;
@@ -208,7 +208,7 @@ export interface EngineStatusResponse {
   progress: number;
   stats?: EngineStats;
   validation?: EngineValidation;
-  source_contract?: EngineSourceContract;
+  source_contract?: EngineSourceContract | null;
   error?: string;
 }
 
@@ -218,7 +218,7 @@ export interface EngineResultResponse {
   service_rows: RoutineRow[];
   stats: EngineStats;
   validation: EngineValidation;
-  source_contract: EngineSourceContract;
+  source_contract?: EngineSourceContract | null;
   report: EngineReport;
   has_workbook: boolean;
 }

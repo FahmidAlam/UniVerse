@@ -173,6 +173,7 @@ export function AdminDashboardView({
     null,
   );
   const [hoveredRoomIndex, setHoveredRoomIndex] = useState<number | null>(null);
+  const [hoveredDayIndex, setHoveredDayIndex] = useState<number | null>(null);
 
   const stages = useMemo(
     () => (data ? buildReadinessStages(data) : []),
@@ -305,6 +306,109 @@ export function AdminDashboardView({
               <span>Inspect Baseline</span>
             </Link>
           </div>
+        </div>
+      )}
+
+      {/* Routine Lifecycle Workflow Strip */}
+      <section
+        aria-label="Routine lifecycle workflow"
+        data-testid="dashboard-lifecycle-strip"
+        className="ledger-card grid grid-cols-1 divide-y divide-[var(--border-subtle)] overflow-hidden md:grid-cols-4 md:divide-x md:divide-y-0"
+      >
+        {[
+          {
+            step: "01",
+            label: "Configure Baseline",
+            sub: `${data.timetableRooms} rooms · ${data.timetableFaculty} faculty · ${data.timetableCourseEligibility} elig`,
+            done:
+              data.timetableRooms > 0 &&
+              data.timetableFaculty > 0 &&
+              data.timetableCourseEligibility > 0,
+            to: "/admin/timetable/rooms",
+          },
+          {
+            step: "02",
+            label: "Manage / Generate",
+            sub: "Track 1 CP-SAT solver & slot editor",
+            done: data.routines > 0,
+            to: "/admin/routine?tab=generate",
+          },
+          {
+            step: "03",
+            label: "Validate & Review",
+            sub: "20-counter ledger & 2D matrix",
+            done: data.routines > 0,
+            to: "/admin/timetable/grid?from=dashboard",
+          },
+          {
+            step: "04",
+            label: "Active Schedule",
+            sub: data.activeVersionLabel ?? `${data.routines} live slots`,
+            done: data.routines > 0,
+            to: "/admin/routine?tab=manage",
+          },
+        ].map((item) => (
+          <Link
+            key={item.step}
+            to={item.to}
+            className="flex items-start justify-between gap-2.5 px-4 py-3 text-left no-underline transition-colors hover:bg-[var(--surface-hover)]"
+          >
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono-tabular text-[11px] font-semibold text-[var(--ink-muted)]">
+                  {item.step}
+                </span>
+                <span className="truncate text-[13px] font-semibold text-[var(--ink-primary)]">
+                  {item.label}
+                </span>
+              </div>
+              <div className="font-mono-tabular mt-0.5 truncate text-[11.5px] text-[var(--ink-secondary)]">
+                {item.sub}
+              </div>
+            </div>
+            {item.done ? (
+              <CheckCircle
+                size={15}
+                weight="fill"
+                className="mt-0.5 shrink-0 text-[var(--accent-pine)]"
+                aria-hidden="true"
+              />
+            ) : (
+              <ArrowRight
+                size={14}
+                className="mt-0.5 shrink-0 text-[var(--ink-muted)]"
+                aria-hidden="true"
+              />
+            )}
+          </Link>
+        ))}
+      </section>
+
+      {/* Live R7 Off-Day Advisory Link */}
+      {(data.r7AdvisoryCount ?? 0) > 0 && (
+        <div
+          role="status"
+          data-testid="dashboard-r7-advisory-link"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-card)] border border-[var(--sem-joint-border)] bg-[var(--sem-joint-bg)] px-4 py-2.5 text-[12.5px] text-[var(--sem-joint-ink)]"
+        >
+          <div className="flex items-center gap-2">
+            <WarningCircle size={16} className="shrink-0" aria-hidden="true" />
+            <span>
+              <strong className="font-semibold">
+                {data.r7AdvisoryCount} active faculty{" "}
+                {data.r7AdvisoryCount === 1 ? "member has" : "members have"} an R7
+                off-day advisory
+              </strong>{" "}
+              (fewer than 2 or more than 3 declared off-days).
+            </span>
+          </div>
+          <Link
+            to="/admin/timetable/faculty?filter=r7"
+            className="btn-secondary !h-[30px] !px-2.5 !text-[12px] no-underline"
+          >
+            <span>Inspect R7 Faculty</span>
+            <ArrowRight size={13} aria-hidden="true" />
+          </Link>
         </div>
       )}
 
@@ -661,6 +765,86 @@ export function AdminDashboardView({
                           hoveredRoomIndex === null || hoveredRoomIndex === idx
                             ? 0.72
                             : 0.25
+                        }
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section aria-label="Weekly slot distribution by day">
+        <div
+          data-testid="dashboard-daily-load-chart"
+          className="ledger-card flex flex-col gap-3 p-4"
+        >
+          <div className="flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2.5">
+            <div>
+              <h2 className="text-[14px] font-semibold text-[var(--ink-primary)]">
+                Weekly Published Slot Load by Day
+              </h2>
+              <p className="text-[12px] text-[var(--ink-secondary)]">
+                Active slots distributed across Sun–Sat
+              </p>
+            </div>
+            <Link
+              to="/admin/timetable/grid?from=dashboard"
+              className="text-[12px] font-medium text-[var(--accent-pine)] no-underline hover:underline"
+            >
+              Open Matrix
+            </Link>
+          </div>
+
+          {(data.dailySlotLoadSummary ?? []).length === 0 ? (
+            <div className="flex h-[210px] items-center justify-center rounded-[var(--r-control)] border border-dashed border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 text-center text-[13px] text-[var(--ink-muted)]">
+              No active routine slots published yet.
+            </div>
+          ) : (
+            <div className="h-[210px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={data.dailySlotLoadSummary}
+                  margin={{ top: 8, right: 8, left: -16, bottom: 4 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="var(--border-subtle)"
+                  />
+                  <XAxis
+                    dataKey="shortDay"
+                    axisLine={{ stroke: "var(--border-subtle)" }}
+                    tickLine={false}
+                    tick={{ fontSize: 11.5, fill: "var(--ink-muted)" }}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    axisLine={{ stroke: "var(--border-subtle)" }}
+                    tickLine={false}
+                    tick={{ fontSize: 11.5, fill: "var(--ink-muted)" }}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "var(--surface-hover)" }}
+                    content={<BatchLoadTooltip />}
+                  />
+                  <Bar
+                    dataKey="slots"
+                    isAnimationActive={false}
+                    radius={[0, 0, 0, 0]}
+                    onMouseEnter={(_, idx) => setHoveredDayIndex(idx)}
+                    onMouseLeave={() => setHoveredDayIndex(null)}
+                  >
+                    {(data.dailySlotLoadSummary ?? []).map((entry, idx) => (
+                      <Cell
+                        key={entry.day}
+                        fill="var(--sem-lab-bar)"
+                        fillOpacity={
+                          hoveredDayIndex === null || hoveredDayIndex === idx
+                            ? 1
+                            : 0.34
                         }
                       />
                     ))}

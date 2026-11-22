@@ -318,14 +318,17 @@ export function PolicyStudioStage({
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge tone={overridden ? "joint" : "lab"} mono>
-                            {overridden ? (
+                          {overridden ? (
+                            <Badge tone="joint" mono>
                               <SlidersHorizontal size={11} aria-hidden="true" />
-                            ) : (
-                              <CheckCircle size={11} weight="fill" aria-hidden="true" />
-                            )}
-                            <span>{overridden ? "Override Active" : "Baseline"}</span>
-                          </Badge>
+                              <span>Override Active</span>
+                            </Badge>
+                          ) : (
+                            <span className="font-mono-tabular inline-flex items-center gap-1 text-[11px] font-medium text-[var(--ink-muted)]">
+                              <CheckCircle size={12} aria-hidden="true" />
+                              <span>Baseline</span>
+                            </span>
+                          )}
                           {overridden && (
                             <button
                               type="button"

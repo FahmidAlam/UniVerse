@@ -1,4 +1,5 @@
 import {
+  ArrowLeft,
   ArrowsClockwise,
   CalendarBlank,
   ListBullets,
@@ -15,6 +16,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   LedgerEmptyState,
@@ -169,9 +171,29 @@ function resolvePeriodIdx(
   return containing?.idx ?? null;
 }
 
-export function AcademicTimetableMatrix() {
+export interface AcademicTimetableMatrixProps {
+  /** Optional read-only candidate rows (e.g., Stage 5 Design Preview) bypassing live Supabase queries. */
+  overrideRows?: readonly RoutineRow[];
+  /** Optional label displayed in candidate preview mode. */
+  overrideSourceLabel?: string;
+}
+
+const BACK_LINK_BY_ORIGIN: Record<string, { label: string; to: string }> = {
+  rooms: { label: "Back to Room Pools", to: "/admin/timetable/rooms" },
+  faculty: { label: "Back to Faculty", to: "/admin/timetable/faculty" },
+  courses: { label: "Back to Courses", to: "/admin/timetable/courses" },
+  batches: { label: "Back to Batches & Sections", to: "/admin/timetable/batches" },
+  dashboard: { label: "Back to Dashboard", to: "/admin/dashboard" },
+};
+
+export function AcademicTimetableMatrix({
+  overrideRows,
+  overrideSourceLabel,
+}: AcademicTimetableMatrixProps = {}) {
+  const isOverrideMode = Boolean(overrideRows);
   const { isDevPreview } = useAuth();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   const prefersReducedMotion = useReducedMotion() ?? false;
   const searchInputRef = useRef<HTMLInputElement>(null);
   const matrixScrollRef = useRef<HTMLDivElement>(null);
@@ -203,6 +225,30 @@ export function AcademicTimetableMatrix() {
   );
   const [inspector, setInspector] = useState<InspectorState | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<RoutineRow | null>(null);
+
+  // Apply cross-screen deep-link parameters (?lens=&entity=&day=&search=) in live/operational mode
+  const urlLens = searchParams.get("lens");
+  const urlEntity = searchParams.get("entity");
+  const urlDay = searchParams.get("day");
+  const urlSearch = searchParams.get("search");
+  const urlFrom = searchParams.get("from");
+  const backOrigin = urlFrom ? BACK_LINK_BY_ORIGIN[urlFrom] ?? null : null;
+
+  useEffect(() => {
+    if (isOverrideMode) return;
+    if (urlLens === "section" || urlLens === "faculty" || urlLens === "room") {
+      setLens(urlLens);
+    }
+    if (urlEntity !== null) {
+      setEntityFilter(urlEntity);
+    }
+    if (urlDay !== null) {
+      setSelectedDay(urlDay);
+    }
+    if (urlSearch !== null) {
+      setSearchQuery(urlSearch);
+    }
+  }, [isOverrideMode, setLens, setSelectedDay, urlDay, urlEntity, urlLens, urlSearch]);
 
   const [isExpandedDesktop, setIsExpandedDesktop] = useState(() =>
     typeof window !== "undefined" && typeof window.matchMedia === "function"
@@ -249,33 +295,42 @@ export function AcademicTimetableMatrix() {
   const routinesQuery = useQuery({
     queryKey: ["admin-routines", isDevPreview],
     queryFn: () => fetchRoutines(isDevPreview),
+    enabled: !isOverrideMode,
     retry: false,
   });
 
   const activeVersionQuery = useQuery({
     queryKey: ["admin-routine-active-version", isDevPreview],
     queryFn: () => fetchActiveRoutineVersion(isDevPreview),
+    enabled: !isOverrideMode,
     retry: false,
   });
 
   const settingsQuery = useQuery({
     queryKey: ["admin-timetable-settings", isDevPreview],
     queryFn: () => fetchTimetableSettings(isDevPreview),
+    enabled: !isOverrideMode,
     retry: false,
   });
 
-  const settings = settingsQuery.data;
+  const settings = isOverrideMode ? undefined : settingsQuery.data;
 
-  const hasCandidate = Boolean(candidateResult);
-  const effectiveSource =
-    activeSource === "candidate" && hasCandidate ? "candidate" : "live";
+  const hasCandidate = Boolean(candidateResult) || isOverrideMode;
+  const effectiveSource = isOverrideMode
+    ? "candidate"
+    : activeSource === "candidate" && candidateResult
+      ? "candidate"
+      : "live";
 
   const sourceRows = useMemo<RoutineRow[]>(() => {
+    if (isOverrideMode && overrideRows) {
+      return [...overrideRows];
+    }
     if (effectiveSource === "candidate" && candidateResult) {
       return [...candidateResult.rows, ...candidateResult.service_rows];
     }
     return routinesQuery.data ?? [];
-  }, [candidateResult, effectiveSource, routinesQuery.data]);
+  }, [candidateResult, effectiveSource, isOverrideMode, overrideRows, routinesQuery.data]);
 
   const activeSourceRows = useMemo(
     () => sourceRows.filter((r) => r.is_active !== false),
@@ -616,11 +671,11 @@ export function AcademicTimetableMatrix() {
     setInspector({ kind: "quick-add", prefill });
   };
 
-  if (routinesQuery.isLoading || settingsQuery.isLoading) {
+  if (!isOverrideMode && (routinesQuery.isLoading || settingsQuery.isLoading)) {
     return <LedgerTableSkeleton rows={6} label="Loading academic timetable" />;
   }
 
-  if (routinesQuery.isError) {
+  if (!isOverrideMode && routinesQuery.isError) {
     return (
       <LedgerErrorRecovery
         title="Could not load routine schedule"
@@ -1079,7 +1134,23 @@ export function AcademicTimetableMatrix() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {hasCandidate && candidateResult && (
+            {!isOverrideMode && backOrigin && (
+              <Link
+                to={backOrigin.to}
+                className="btn-secondary !h-[32px] !px-2.5 !text-[12px] no-underline"
+              >
+                <ArrowLeft size={13} aria-hidden="true" />
+                <span>{backOrigin.label}</span>
+              </Link>
+            )}
+
+            {isOverrideMode && overrideSourceLabel && (
+              <Badge tone="joint" mono>
+                {overrideSourceLabel}
+              </Badge>
+            )}
+
+            {!isOverrideMode && hasCandidate && candidateResult && (
               <div
                 role="group"
                 aria-label="Schedule data source"
@@ -1117,19 +1188,21 @@ export function AcademicTimetableMatrix() {
               </div>
             )}
 
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={routinesQuery.isFetching}
-              onClick={() => void routinesQuery.refetch()}
-            >
-              <ArrowsClockwise
-                size={14}
-                className={routinesQuery.isFetching ? "animate-spin" : undefined}
-                aria-hidden="true"
-              />
-              <span>Refresh</span>
-            </Button>
+            {!isOverrideMode && (
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={routinesQuery.isFetching}
+                onClick={() => void routinesQuery.refetch()}
+              >
+                <ArrowsClockwise
+                  size={14}
+                  className={routinesQuery.isFetching ? "animate-spin" : undefined}
+                  aria-hidden="true"
+                />
+                <span>Refresh</span>
+              </Button>
+            )}
           </div>
         </div>
 

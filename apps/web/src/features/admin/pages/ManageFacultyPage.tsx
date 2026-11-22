@@ -1,5 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  ArrowRight,
+  CaretDown,
   ChalkboardTeacher,
   Info,
   MagnifyingGlass,
@@ -10,8 +12,9 @@ import {
   X,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 import {
@@ -21,7 +24,6 @@ import {
   LedgerTableSkeleton,
   StagedFeatureNotice,
 } from "@/components/ui/AsyncStates";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
@@ -93,11 +95,21 @@ function toFormValues(fac: TimetableFacultyRecord | null): FacultyFormValues {
 export function ManageFacultyPage() {
   const { isDevPreview } = useAuth();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<FacultyFilter>("all");
+  const [filter, setFilter] = useState<FacultyFilter>(() =>
+    searchParams.get("filter") === "r7" ? "r7-advisory" : "all",
+  );
+  const [availabilityOpen, setAvailabilityOpen] = useState(true);
   const [deptFilter, setDeptFilter] = useState<string>("all");
+
+  useEffect(() => {
+    if (searchParams.get("filter") === "r7") {
+      setFilter("r7-advisory");
+    }
+  }, [searchParams]);
   const [courseInput, setCourseInput] = useState("");
   const [selectedId, setSelectedId] = useState<string | "new" | null>(null);
   const [pendingSelectId, setPendingSelectId] = useState<
@@ -349,17 +361,48 @@ export function ManageFacultyPage() {
       accessor: (f) => f.off_days.length,
       cell: (f) => {
         const outsideR7 = isR7OffDayOutsideBounds(f.off_days);
-        const label =
-          f.off_days.length > 0
-            ? f.off_days.map((d) => d.slice(0, 3)).join(", ")
-            : "None";
+        const offSet = new Set(f.off_days);
         return (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="font-mono-tabular text-[12px]">{label}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <div
+              data-testid="faculty-offday-strip"
+              role="img"
+              aria-label={
+                f.off_days.length > 0
+                  ? `Off-days: ${f.off_days.join(", ")}`
+                  : "No declared off-days"
+              }
+              className={cn(
+                "inline-flex items-center gap-0.5 rounded-[5px] p-0.5",
+                outsideR7
+                  ? "border border-[var(--sem-conflict-border)] bg-[var(--sem-conflict-bg)]/40"
+                  : "border border-[var(--border-subtle)] bg-[var(--bg-surface)]",
+              )}
+            >
+              {ACADEMIC_WEEK_DAYS.map((day) => {
+                const isOff = offSet.has(day);
+                return (
+                  <span
+                    key={day}
+                    title={`${day}: ${isOff ? "Off-day" : "Available"}`}
+                    className={cn(
+                      "font-mono-tabular inline-flex h-[18px] w-[18px] items-center justify-center rounded-[3px] text-[10px] font-semibold",
+                      isOff
+                        ? outsideR7
+                          ? "bg-[var(--sem-conflict-bg)] text-[var(--sem-conflict-ink)]"
+                          : "bg-[var(--ink-primary)] text-[var(--action-primary-ink)]"
+                        : "text-[var(--ink-muted)]",
+                    )}
+                  >
+                    {day.charAt(0)}
+                  </span>
+                );
+              })}
+            </div>
             {outsideR7 && (
-              <Badge tone="joint" mono>
-                R7 Advisory ({f.off_days.length})
-              </Badge>
+              <span className="font-mono-tabular text-[11px] font-medium text-[var(--sem-conflict-ink)]">
+                R7 ({f.off_days.length})
+              </span>
             )}
           </div>
         );
@@ -426,6 +469,60 @@ export function ManageFacultyPage() {
             backends. Edits remain local to this browser session.
           </span>
         </div>
+      )}
+
+      {/* Collapsible Weekly Faculty Availability Strip (Sun-Sat) */}
+      {faculty.length > 0 && (
+        <section
+          data-testid="faculty-weekly-availability-strip"
+          className="ledger-card overflow-hidden"
+        >
+          <button
+            type="button"
+            onClick={() => setAvailabilityOpen((v) => !v)}
+            aria-expanded={availabilityOpen}
+            className="flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-[12px] font-semibold text-[var(--ink-primary)] hover:bg-[var(--surface-hover)]"
+          >
+            <span>
+              Weekly Active Faculty Availability (
+              {faculty.filter((f) => f.is_active).length} active)
+            </span>
+            <CaretDown
+              size={13}
+              aria-hidden="true"
+              className={cn(
+                "text-[var(--ink-muted)] transition-transform",
+                !availabilityOpen && "-rotate-90",
+              )}
+            />
+          </button>
+          {availabilityOpen && (
+            <div className="grid grid-cols-4 gap-px border-t border-[var(--border-subtle)] bg-[var(--border-subtle)] sm:grid-cols-7">
+              {ACADEMIC_WEEK_DAYS.map((day) => {
+                const activeFac = faculty.filter((f) => f.is_active);
+                const avail = activeFac.filter(
+                  (f) => !f.off_days.includes(day),
+                ).length;
+                return (
+                  <div
+                    key={day}
+                    className="flex flex-col items-center justify-center bg-[var(--bg-elevated)] px-2 py-2"
+                  >
+                    <span className="font-mono-tabular text-[10.5px] font-semibold text-[var(--ink-muted)] uppercase">
+                      {day.slice(0, 3)}
+                    </span>
+                    <span className="font-mono-tabular text-[13.5px] font-semibold text-[var(--ink-primary)]">
+                      {avail}
+                      <span className="text-[11px] font-normal text-[var(--ink-muted)]">
+                        /{activeFac.length}
+                      </span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
       )}
 
       {/* Uniform 36px Schema-Backed Toolbar (No non-DB Permanent chip) */}
@@ -590,6 +687,22 @@ export function ManageFacultyPage() {
             className="flex flex-col gap-4"
             noValidate
           >
+            {selectedId && selectedId !== "new" && selectedFaculty && (
+              <div className="flex items-center justify-between gap-2 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-3 py-2">
+                <span className="font-mono-tabular text-[12px] text-[var(--ink-secondary)]">
+                  Inspect weekly teaching slots
+                </span>
+                <Link
+                  to={`/admin/timetable/grid?lens=faculty&entity=${encodeURIComponent(selectedFaculty.acronym)}&from=faculty`}
+                  data-testid="view-faculty-schedule-link"
+                  className="inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--accent-pine)] no-underline hover:underline"
+                >
+                  <span>View Teaching Schedule</span>
+                  <ArrowRight size={13} aria-hidden="true" />
+                </Link>
+              </div>
+            )}
+
             {saveMutation.isError && (
               <div
                 role="alert"

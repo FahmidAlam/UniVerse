@@ -6,7 +6,7 @@ import {
   WarningCircle,
   X,
 } from "@phosphor-icons/react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -16,24 +16,13 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/Dialog";
-import { ClockTime } from "@/core/utils/clockTime";
-import { ACADEMIC_WEEK_DAYS } from "@/features/admin/services/facultyService";
+import { AcademicTimetableMatrix } from "@/features/routine/components/AcademicTimetableMatrix";
 import {
   PREVIEW_CANDIDATE_DIFF,
   PREVIEW_CANDIDATE_ROWS,
 } from "@/features/scheduling/data/schedulingPreviewFixtures";
 import { useSchedulingWorkbenchStore } from "@/features/scheduling/store/schedulingWorkbenchStore";
 import type { GateStatusInfo, WorkbenchMode } from "@/features/scheduling/types";
-import { cn } from "@/lib/utils";
-
-const CANDIDATE_PERIODS = [
-  { idx: 1, label: "P1", time: "08:50–09:40" },
-  { idx: 2, label: "P2", time: "09:50–10:40" },
-  { idx: 3, label: "P3", time: "10:50–11:40" },
-  { idx: 4, label: "P4", time: "12:00–12:50" },
-  { idx: 5, label: "P5", time: "13:00–13:50" },
-  { idx: 6, label: "P6", time: "13:55–14:45" },
-] as const;
 
 export function ReviewDiffPublishStage({
   mode,
@@ -50,13 +39,7 @@ export function ReviewDiffPublishStage({
     simulatePreviewPublish,
   } = useSchedulingWorkbenchStore();
 
-  const [selectedDay, setSelectedDay] = useState<string>("Sunday");
   const [publishOpen, setPublishOpen] = useState(false);
-
-  const dayRows = useMemo(
-    () => PREVIEW_CANDIDATE_ROWS.filter((r) => r.day === selectedDay),
-    [selectedDay],
-  );
 
   if (mode === "live" && !gateD.unlocked) {
     return (
@@ -142,14 +125,14 @@ export function ReviewDiffPublishStage({
         </div>
 
         <Button
-          variant="primary"
+          variant="secondary"
           size="md"
           disabled={!canSimulatePublish}
           data-testid="open-publish-gate-btn"
           onClick={() => setPublishOpen(true)}
         >
           <UploadSimple size={15} aria-hidden="true" />
-          <span>Confirm &amp; Publish Preview</span>
+          <span>Preview Publish Flow (Simulated)</span>
         </Button>
       </section>
 
@@ -173,138 +156,23 @@ export function ReviewDiffPublishStage({
         </div>
       )}
 
-      {/* Embedded Candidate Matrix Preview */}
-      <section className="ledger-card space-y-3 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+      {/* Embedded Candidate 7-Day Matrix Preview (Reusing Real AcademicTimetableMatrix) */}
+      <section className="space-y-3" data-testid="stage5-candidate-matrix">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
           <div>
             <h2 className="text-[15px] font-semibold text-[var(--ink-primary)]">
-              Candidate 2D Routine Matrix (Preview Sample)
+              Candidate 2D Routine Matrix (7-Day Preview)
             </h2>
             <p className="text-[12.5px] text-[var(--ink-secondary)]">
-              Inspect scheduled placements across day tabs prior to confirmation.
+              Inspect scheduled 75-minute placements across Section, Faculty, and Room lenses with Friday P4 Jummah Lock.
             </p>
-          </div>
-          <div
-            role="tablist"
-            aria-label="Filter candidate day"
-            className="flex flex-wrap gap-1"
-          >
-            {ACADEMIC_WEEK_DAYS.slice(0, 4).map((day) => {
-              const active = selectedDay === day;
-              return (
-                <button
-                  key={day}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setSelectedDay(day)}
-                  className={cn(
-                    "font-mono-tabular h-[30px] rounded-[6px] border px-2.5 text-[11.5px]",
-                    active
-                      ? "border-[var(--action-primary)] bg-[var(--action-primary)] font-semibold text-[var(--action-primary-ink)]"
-                      : "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--ink-secondary)]",
-                  )}
-                >
-                  {day.slice(0, 3)}
-                </button>
-              );
-            })}
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-[var(--r-control)] border border-[var(--border-subtle)]">
-          <table className="w-full border-collapse text-left">
-            <thead className="border-b border-[var(--border-subtle)] bg-[var(--bg-canvas)]">
-              <tr>
-                <th className="px-3 py-2 text-[11px] font-semibold text-[var(--ink-muted)] uppercase">
-                  Cohort
-                </th>
-                {CANDIDATE_PERIODS.map((p) => (
-                  <th
-                    key={p.idx}
-                    className={cn(
-                      "min-w-[132px] border-l border-[var(--border-subtle)] px-2.5 py-2 text-[11px]",
-                      p.idx === 5 &&
-                        "border-l-[3px] border-l-[var(--border-strong)]",
-                    )}
-                  >
-                    <div className="font-mono-tabular font-semibold text-[var(--ink-primary)]">
-                      {p.label}
-                    </div>
-                    <div className="font-mono-tabular text-[10px] font-normal text-[var(--ink-muted)]">
-                      {p.time}
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--border-subtle)] bg-[var(--bg-elevated)]">
-              {Array.from(
-                new Set(dayRows.map((r) => `${r.batch}-${r.section}`)),
-              ).map((cohort) => (
-                <tr key={cohort}>
-                  <th
-                    scope="row"
-                    className="font-mono-tabular px-3 py-2.5 text-[12px] font-semibold text-[var(--ink-primary)] whitespace-nowrap"
-                  >
-                    Batch {cohort}
-                  </th>
-                  {CANDIDATE_PERIODS.map((p) => {
-                    const hit = dayRows.find(
-                      (r) =>
-                        `${r.batch}-${r.section}` === cohort &&
-                        r.period === p.idx,
-                    );
-                    if (!hit) {
-                      return (
-                        <td
-                          key={p.idx}
-                          className={cn(
-                            "border-l border-[var(--border-subtle)] p-2",
-                            p.idx === 5 &&
-                              "border-l-[3px] border-l-[var(--border-strong)]",
-                          )}
-                        />
-                      );
-                    }
-                    const slotCls = hit.section.includes("+")
-                      ? "slot-joint"
-                      : hit.is_lab
-                        ? "slot-lab"
-                        : "slot-theory";
-                    return (
-                      <td
-                        key={p.idx}
-                        className={cn(
-                          "border-l border-[var(--border-subtle)] p-1.5",
-                          p.idx === 5 &&
-                            "border-l-[3px] border-l-[var(--border-strong)]",
-                        )}
-                      >
-                        <div className={cn("rounded-[5px] px-2 py-1.5", slotCls)}>
-                          <div className="font-mono-tabular text-[11.5px] font-semibold">
-                            {hit.subject_code}
-                          </div>
-                          <div className="font-mono-tabular flex justify-between text-[10.5px]">
-                            <span>
-                              {(hit.teachers ?? [hit.teacher_code ?? "TBA"]).join(
-                                " / ",
-                              )}
-                            </span>
-                            <span>{hit.room}</span>
-                          </div>
-                          <div className="font-mono-tabular text-[10px] opacity-80">
-                            {ClockTime.toHm(hit.time_start)}
-                          </div>
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <AcademicTimetableMatrix
+          overrideRows={PREVIEW_CANDIDATE_ROWS}
+          overrideSourceLabel="Simulated Candidate · Batch 58–61"
+        />
       </section>
 
       {/* Candidate vs Active Diff Ledger */}

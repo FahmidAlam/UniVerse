@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { LedgerTableSkeleton } from "@/components/ui/AsyncStates";
@@ -35,6 +36,7 @@ function resolveStage(raw: string | null): WorkbenchStageId {
 
 export function SchedulingWorkbenchPage() {
   const { isDevPreview } = useAuth();
+  const prefersReducedMotion = useReducedMotion() ?? false;
   const [searchParams, setSearchParams] = useSearchParams();
   const activeStage = resolveStage(searchParams.get("stage"));
   const [highlightRow, setHighlightRow] = useState<number | null>(null);
@@ -216,7 +218,16 @@ export function SchedulingWorkbenchPage() {
           label="Verifying Track 2 distribution capability gates"
         />
       ) : (
-        <>
+        <motion.div
+          key={activeStage}
+          initial={prefersReducedMotion ? false : { opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={
+            prefersReducedMotion
+              ? { duration: 0 }
+              : { duration: 0.15, ease: [0.16, 1, 0.3, 1] }
+          }
+        >
           {activeStage === "distribution" && (
             <DistributionLedgerStage
               mode={mode}
@@ -256,7 +267,7 @@ export function SchedulingWorkbenchPage() {
           {activeStage === "review" && (
             <ReviewDiffPublishStage mode={mode} gateD={liveGates.gateD} />
           )}
-        </>
+        </motion.div>
       )}
     </div>
   );

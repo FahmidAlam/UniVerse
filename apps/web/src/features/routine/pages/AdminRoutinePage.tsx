@@ -1,10 +1,12 @@
 import {
+  ArrowUpRight,
   GridFour,
   ListChecks,
   LockSimple,
   Play,
   UploadSimple,
 } from "@phosphor-icons/react";
+import { motion, useReducedMotion } from "motion/react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/Badge";
 import { AcademicTimetableMatrix } from "@/features/routine/components/AcademicTimetableMatrix";
@@ -42,6 +44,7 @@ export function AdminRoutinePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = resolveRoutineTab(searchParams.get("tab"));
   const { solverPhase, setActiveSource } = useRoutineOperationsStore();
+  const prefersReducedMotion = useReducedMotion() ?? false;
 
   const selectTab = (tab: RoutineTabId) => {
     setSearchParams({ tab }, { replace: false });
@@ -123,20 +126,41 @@ export function AdminRoutinePage() {
             );
           })}
         </div>
+
+        {activeTab === "grid" && (
+          <Link
+            to="/admin/timetable/grid"
+            className="btn-secondary !h-[34px] !px-3 !text-[12px] no-underline"
+          >
+            <span>Full-Screen Matrix</span>
+            <ArrowUpRight size={14} aria-hidden="true" />
+          </Link>
+        )}
       </div>
 
       {/* Lazy-Mounted Active Tab Content */}
-      {activeTab === "grid" && <AcademicTimetableMatrix />}
-      {activeTab === "manage" && <ManagePublishedTab />}
-      {activeTab === "generate" && (
-        <GenerateRoutineTab
-          onInspectInGrid={() => {
-            setActiveSource("candidate");
-            selectTab("grid");
-          }}
-        />
-      )}
-      {activeTab === "upload" && <UploadRoutineGatedTab />}
+      <motion.div
+        key={activeTab}
+        initial={prefersReducedMotion ? false : { opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={
+          prefersReducedMotion
+            ? { duration: 0 }
+            : { duration: 0.15, ease: [0.16, 1, 0.3, 1] }
+        }
+      >
+        {activeTab === "grid" && <AcademicTimetableMatrix />}
+        {activeTab === "manage" && <ManagePublishedTab />}
+        {activeTab === "generate" && (
+          <GenerateRoutineTab
+            onInspectInGrid={() => {
+              setActiveSource("candidate");
+              selectTab("grid");
+            }}
+          />
+        )}
+        {activeTab === "upload" && <UploadRoutineGatedTab />}
+      </motion.div>
     </div>
   );
 }

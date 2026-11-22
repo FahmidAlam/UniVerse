@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  ArrowRight,
   Buildings,
   Desktop,
   Info,
@@ -11,6 +12,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 import {
@@ -214,6 +216,38 @@ export function ManageRoomsPage() {
     },
   });
 
+  const toggleRoomActiveMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean; name: string }) =>
+      bulkSetRoomsActive([id], isActive, isDevPreview),
+    onMutate: async ({ id, isActive }) => {
+      const qKey = ["admin-timetable-rooms", isDevPreview];
+      await queryClient.cancelQueries({ queryKey: qKey });
+      const previous = queryClient.getQueryData<TimetableRoomRecord[]>(qKey);
+      if (previous) {
+        queryClient.setQueryData<TimetableRoomRecord[]>(
+          qKey,
+          previous.map((r) => (r.id === id ? { ...r, is_active: isActive } : r)),
+        );
+      }
+      return { previous, qKey };
+    },
+    onError: (err, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(ctx.qKey, ctx.previous);
+      }
+      toast.error("Could not update room status", {
+        description: err instanceof Error ? err.message : "Database write failed.",
+      });
+    },
+    onSuccess: (_data, vars) => {
+      void queryClient.invalidateQueries({ queryKey: ["admin-timetable-rooms"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-dashboard-counts"] });
+      toast.success(
+        `${vars.name} marked ${vars.isActive ? "active" : "inactive"}`,
+      );
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (ids: string[]) => deleteRooms(ids, isDevPreview),
     onSuccess: (_, ids) => {
@@ -244,6 +278,40 @@ export function ManageRoomsPage() {
       gallery,
       active,
       inactive,
+    };
+  }, [rooms]);
+
+  const poolSummary = useMemo(() => {
+    let theoryCount = 0;
+    let theorySeats = 0;
+    let labCount = 0;
+    let labSeats = 0;
+    let galleryCount = 0;
+    let gallerySeats = 0;
+    let inactiveCount = 0;
+
+    for (const r of rooms) {
+      const cap = r.capacity ?? 0;
+      if (!r.is_active) inactiveCount += 1;
+      if (r.is_lab) {
+        labCount += 1;
+        labSeats += cap;
+      } else if (r.is_gallery) {
+        galleryCount += 1;
+        gallerySeats += cap;
+      } else {
+        theoryCount += 1;
+        theorySeats += cap;
+      }
+    }
+    return {
+      theoryCount,
+      theorySeats,
+      labCount,
+      labSeats,
+      galleryCount,
+      gallerySeats,
+      inactiveCount,
     };
   }, [rooms]);
 
@@ -329,14 +397,33 @@ export function ManageRoomsPage() {
       header: "Pool Status",
       accessor: (r) => (r.is_active ? "Active" : "Inactive"),
       cell: (r) => (
-        <span
-          className={cn(
-            "font-mono-tabular text-[12px] font-medium",
-            r.is_active ? "text-[var(--sem-lab-ink)]" : "text-[var(--ink-muted)]",
-          )}
+        <div
+          className="flex items-center gap-2"
+          onClick={(e) => e.stopPropagation()}
         >
-          {r.is_active ? "Active" : "Inactive"}
-        </span>
+          <Switch
+            checked={r.is_active}
+            aria-label={`Toggle ${r.name} active`}
+            disabled={toggleRoomActiveMutation.isPending}
+            onCheckedChange={(checked) =>
+              toggleRoomActiveMutation.mutate({
+                id: r.id,
+                name: r.name,
+                isActive: checked,
+              })
+            }
+          />
+          <span
+            className={cn(
+              "font-mono-tabular text-[12px] font-medium",
+              r.is_active
+                ? "text-[var(--ink-primary)]"
+                : "text-[var(--ink-muted)]",
+            )}
+          >
+            {r.is_active ? "Active" : "Inactive"}
+          </span>
+        </div>
       ),
     },
   ];
@@ -376,6 +463,30 @@ export function ManageRoomsPage() {
           <span>
             Illustrative preview — disconnected from live Supabase &amp; FastAPI
             backends. Edits remain local to this browser session.
+          </span>
+        </div>
+      )}
+
+      {/* Pool Capacity Summary Strip */}
+      {rooms.length > 0 && (
+        <div
+          data-testid="rooms-capacity-strip"
+          className="ledger-card flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2.5 text-[12px]"
+        >
+          <span className="font-mono-tabular text-[var(--ink-primary)]">
+            <strong>Theory:</strong> {poolSummary.theoryCount} rooms ·{" "}
+            {poolSummary.theorySeats} seats
+          </span>
+          <span className="font-mono-tabular text-[var(--ink-primary)]">
+            <strong>Labs:</strong> {poolSummary.labCount} rooms ·{" "}
+            {poolSummary.labSeats} seats
+          </span>
+          <span className="font-mono-tabular text-[var(--ink-primary)]">
+            <strong>Galleries:</strong> {poolSummary.galleryCount} rooms ·{" "}
+            {poolSummary.gallerySeats} seats
+          </span>
+          <span className="font-mono-tabular text-[var(--ink-muted)]">
+            Inactive: {poolSummary.inactiveCount}
           </span>
         </div>
       )}
@@ -525,6 +636,22 @@ export function ManageRoomsPage() {
             className="flex flex-col gap-4"
             noValidate
           >
+            {selectedId && selectedId !== "new" && selectedRoom && (
+              <div className="flex items-center justify-between gap-2 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-3 py-2">
+                <span className="font-mono-tabular text-[12px] text-[var(--ink-secondary)]">
+                  Inspect weekly placements
+                </span>
+                <Link
+                  to={`/admin/timetable/grid?lens=room&entity=${encodeURIComponent(selectedRoom.name)}&from=rooms`}
+                  data-testid="view-room-schedule-link"
+                  className="inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--accent-pine)] no-underline hover:underline"
+                >
+                  <span>View Room Schedule</span>
+                  <ArrowRight size={13} aria-hidden="true" />
+                </Link>
+              </div>
+            )}
+
             {saveMutation.isError && (
               <div
                 role="alert"

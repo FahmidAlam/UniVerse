@@ -178,21 +178,26 @@ export function PreflightReadinessStage({
                     <span className="font-mono-tabular text-[11px] font-semibold text-[var(--ink-muted)] uppercase">
                       {item.category}
                     </span>
-                    <Badge
-                      tone={
-                        isBlocker ? "conflict" : isWarning ? "joint" : "lab"
-                      }
-                      mono
-                    >
-                      {isBlocker
-                        ? "Blocker"
-                        : isWarning
-                          ? "Advisory"
-                          : "Verified"}
-                    </Badge>
+                    {isBlocker ? (
+                      <Badge tone="conflict" mono>
+                        Blocker
+                      </Badge>
+                    ) : isWarning ? (
+                      <Badge tone="joint" mono>
+                        Advisory
+                      </Badge>
+                    ) : (
+                      <span className="font-mono-tabular text-[11px] font-medium text-[var(--ink-muted)]">
+                        Ready
+                      </span>
+                    )}
                   </div>
                   <div className="text-[13.5px] font-semibold text-[var(--ink-primary)]">
-                    {item.title}
+                    {item.isResolved &&
+                    item.id === "chk-teacher-pending" &&
+                    item.title.startsWith("Unassigned")
+                      ? "Lab Instructor Assigned on Row 19 (CSE-2202)"
+                      : item.title}
                   </div>
                   <p className="text-[12.5px] text-[var(--ink-secondary)]">
                     {item.description}

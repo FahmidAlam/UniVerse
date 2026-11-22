@@ -1,4 +1,8 @@
-import { isSupabaseConfigured, supabase } from "@/services/supabase";
+import {
+  getSupabaseConfig,
+  isSupabaseConfigured,
+  supabase,
+} from "@/services/supabase";
 import type { GateStatusInfo, SchedulingGateState } from "@/features/scheduling/types";
 
 export interface LiveGateProbeInput {
@@ -106,9 +110,55 @@ function isMissingFunctionOrSchemaError(err: {
 }
 
 /**
+ * Inspects PostgREST OpenAPI root schema (`GET /rest/v1/`) for RPC path presence
+ * without invoking PL/pgSQL functions with nil UUIDs (which raise P0002 -> HTTP 500).
+ */
+async function probeRpcPathsViaOpenApi(): Promise<{
+  readRpcAvailable: boolean;
+  appendRpcAvailable: boolean;
+} | null> {
+  const { url, anonKey } = getSupabaseConfig();
+  if (!url || !anonKey || typeof fetch !== "function") return null;
+
+  try {
+    const sessionRes = supabase ? await supabase.auth.getSession() : null;
+    const accessToken = sessionRes?.data?.session?.access_token;
+    const headers: Record<string, string> = {
+      Accept: "application/openapi+json",
+      apikey: anonKey,
+    };
+    if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`;
+    }
+
+    const res = await fetch(`${url.replace(/\/+$/, "")}/rest/v1/`, {
+      method: "GET",
+      headers,
+    });
+    if (!res.ok) return null;
+
+    const spec = (await res.json()) as { paths?: Record<string, unknown> } | null;
+    const paths = spec?.paths;
+    if (!paths || typeof paths !== "object") return null;
+
+    return {
+      readRpcAvailable: Boolean(paths["/rpc/read_course_distribution_revision"]),
+      appendRpcAvailable: Boolean(
+        paths["/rpc/append_course_distribution_correction"],
+      ),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Live capability probe against Supabase Track 2 distribution schema (`20261106130000`).
- * Never mutates data: queries `course_distribution_revisions(revision_version)` and probes
- * RPC signatures with nil UUID to verify function presence without altering rows.
+ * Never mutates data and never invokes RPCs with nil UUIDs: queries
+ * `course_distribution_revisions(id, revision_version, status)` +
+ * `course_distribution_sources(id, scheduling_scope_id)` and checks PostgREST OpenAPI
+ * RPC exposure (falling back to `read_course_distribution_revision` only when a real
+ * revision ID exists).
  */
 export async function probeLiveSchedulingCapabilities(
   isDevPreview: boolean,
@@ -130,41 +180,34 @@ export async function probeLiveSchedulingCapabilities(
   let appendRpcAvailable = false;
 
   try {
-    const revQuery = await supabase
-      .from("course_distribution_revisions")
-      .select("id, revision_version, status")
-      .limit(1);
+    const [revQuery, srcQuery] = await Promise.all([
+      supabase
+        .from("course_distribution_revisions")
+        .select("id, revision_version, status")
+        .limit(1),
+      supabase
+        .from("course_distribution_sources")
+        .select("id, scheduling_scope_id")
+        .limit(1),
+    ]);
 
-    if (!revQuery.error) {
+    if (!revQuery.error && !srcQuery.error) {
       scopeReadAuthorized = true;
       revisionRowExists = (revQuery.data ?? []).length > 0;
     }
 
-    const nilUuid = "00000000-0000-0000-0000-000000000000";
-    const readProbe = await supabase.rpc("read_course_distribution_revision", {
-      target_revision: nilUuid,
-    });
-    // Expect P0002 (Unknown revision) or 42501 when the function + schema exist;
-    // only PGRST202/42883/42P01 means the RPC or schema contract is missing.
-    if (!isMissingFunctionOrSchemaError(readProbe.error)) {
-      readRpcAvailable = true;
-    }
-
-    const appendProbe = await supabase.rpc(
-      "append_course_distribution_correction",
-      {
-        target_revision: nilUuid,
-        expected_revision_version: 0,
-        target_row: 6,
-        target_column: "I",
-        prior_formula: null,
-        prior_cached_value: null,
-        next_effective_value: null,
-        reason: "capability-probe",
-      },
-    );
-    if (!isMissingFunctionOrSchemaError(appendProbe.error)) {
-      appendRpcAvailable = true;
+    const openApiResult = await probeRpcPathsViaOpenApi();
+    if (openApiResult) {
+      readRpcAvailable = openApiResult.readRpcAvailable;
+      appendRpcAvailable = openApiResult.appendRpcAvailable;
+    } else if (!revQuery.error && revQuery.data && revQuery.data[0]) {
+      const realRevisionId = String(revQuery.data[0].id);
+      const readProbe = await supabase.rpc("read_course_distribution_revision", {
+        target_revision: realRevisionId,
+      });
+      if (!isMissingFunctionOrSchemaError(readProbe.error)) {
+        readRpcAvailable = true;
+      }
     }
   } catch {
     return ALL_GATES_LOCKED_STATE;

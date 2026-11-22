@@ -1,7 +1,14 @@
+import { ACADEMIC_WEEK_DAYS } from "@/features/admin/services/facultyService";
 import { isSupabaseConfigured, supabase } from "@/services/supabase";
 
 export interface BatchLoadDatum {
   batch: string;
+  slots: number;
+}
+
+export interface DailySlotLoadDatum {
+  day: string;
+  shortDay: string;
   slots: number;
 }
 
@@ -24,6 +31,8 @@ export interface AdminDashboardCounts {
   source: "supabase" | "dev-preview";
   batchLoadSummary: BatchLoadDatum[];
   roomCategorySummary: RoomCategoryDatum[];
+  dailySlotLoadSummary?: DailySlotLoadDatum[];
+  r7AdvisoryCount?: number;
 }
 
 export function getDevPreviewCounts(): AdminDashboardCounts {
@@ -46,7 +55,50 @@ export function getDevPreviewCounts(): AdminDashboardCounts {
       { batch: "Batch 61", slots: 154 },
     ],
     roomCategorySummary: [],
+    dailySlotLoadSummary: [
+      { day: "Sunday", shortDay: "Sun", slots: 138 },
+      { day: "Monday", shortDay: "Mon", slots: 142 },
+      { day: "Tuesday", shortDay: "Tue", slots: 134 },
+      { day: "Wednesday", shortDay: "Wed", slots: 128 },
+      { day: "Thursday", shortDay: "Thu", slots: 118 },
+      { day: "Friday", shortDay: "Fri", slots: 48 },
+      { day: "Saturday", shortDay: "Sat", slots: 88 },
+    ],
+    r7AdvisoryCount: 0,
   };
+}
+
+export function aggregateDailySlotLoad(
+  rows: ReadonlyArray<{ day?: unknown; is_active?: unknown }>,
+): DailySlotLoadDatum[] {
+  const activeRows = rows.filter((r) => r.is_active !== false);
+  if (activeRows.length === 0) return [];
+  const counts = new Map<string, number>();
+  for (const d of ACADEMIC_WEEK_DAYS) counts.set(d, 0);
+  for (const row of activeRows) {
+    if (typeof row.day === "string" && counts.has(row.day)) {
+      counts.set(row.day, (counts.get(row.day) ?? 0) + 1);
+    }
+  }
+  return ACADEMIC_WEEK_DAYS.map((day) => ({
+    day,
+    shortDay: day.slice(0, 3),
+    slots: counts.get(day) ?? 0,
+  }));
+}
+
+export function countR7Advisories(
+  rows: ReadonlyArray<{ off_days?: unknown; is_active?: unknown }>,
+): number {
+  let count = 0;
+  for (const r of rows) {
+    if (r.is_active === false) continue;
+    const offDays = Array.isArray(r.off_days) ? r.off_days : [];
+    if (offDays.length < 2 || offDays.length > 3) {
+      count += 1;
+    }
+  }
+  return count;
 }
 
 async function countTable(table: string): Promise<number> {
@@ -125,6 +177,7 @@ export async function fetchAdminDashboardCounts(
     activeVerResp,
     routinesLoadResp,
     roomsSummaryResp,
+    facultySummaryResp,
   ] = await Promise.all([
     countTable("profiles"),
     countTable("routines"),
@@ -139,8 +192,9 @@ export async function fetchAdminDashboardCounts(
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
-    supabase.from("routines").select("batch, is_active").eq("is_active", true),
+    supabase.from("routines").select("batch, day, is_active").eq("is_active", true),
     supabase.from("timetable_rooms").select("is_lab, is_gallery, is_active"),
+    supabase.from("timetable_faculty").select("off_days, is_active"),
   ]);
 
   if (activeVerResp.error) {
@@ -151,6 +205,9 @@ export async function fetchAdminDashboardCounts(
   }
   if (roomsSummaryResp.error) {
     throw new Error(`timetable_rooms: ${roomsSummaryResp.error.message}`);
+  }
+  if (facultySummaryResp.error) {
+    throw new Error(`timetable_faculty: ${facultySummaryResp.error.message}`);
   }
 
   return {
@@ -168,5 +225,7 @@ export async function fetchAdminDashboardCounts(
     source: "supabase",
     batchLoadSummary: aggregateBatchLoad(routinesLoadResp.data ?? []),
     roomCategorySummary: aggregateRoomCategories(roomsSummaryResp.data ?? []),
+    dailySlotLoadSummary: aggregateDailySlotLoad(routinesLoadResp.data ?? []),
+    r7AdvisoryCount: countR7Advisories(facultySummaryResp.data ?? []),
   };
 }

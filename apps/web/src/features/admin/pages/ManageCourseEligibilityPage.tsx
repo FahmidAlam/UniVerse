@@ -36,12 +36,14 @@ import { StickyDirtyBar } from "@/components/ui/StickyDirtyBar";
 import { Switch } from "@/components/ui/Switch";
 import { useWorkspaceShortcuts } from "@/core/hooks/useWorkspaceShortcuts";
 import {
+  batchSaveFacultyEligibility,
   bulkSetEligibilityStatus,
   deleteEligibilityRecords,
   fetchDynamicCourseOptions,
   fetchEligibilityRecords,
   upsertEligibilityRecord,
   type CourseEligibilityRecord,
+  type FacultyCourseAssignmentDraft,
 } from "@/features/admin/services/eligibilityService";
 import { fetchFaculty } from "@/features/admin/services/facultyService";
 import { useAuth } from "@/features/auth/AuthProvider";
@@ -98,6 +100,15 @@ export function ManageCourseEligibilityPage() {
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<EligibilityFilter>("all");
+  const [viewMode, setViewMode] = useState<"ledger" | "by-faculty">("ledger");
+  const [assignFacultyAcronym, setAssignFacultyAcronym] = useState("");
+  const [assignCourseSearch, setAssignCourseSearch] = useState("");
+  const [customCourses, setCustomCourses] = useState<string[]>([]);
+  const [newCustomCourse, setNewCustomCourse] = useState("");
+  const [assignDrafts, setAssignDrafts] = useState<
+    Record<string, { checked: boolean; priority: number | null }>
+  >({});
+  const [assignDirty, setAssignDirty] = useState(false);
   const [selectedId, setSelectedId] = useState<string | "new" | null>(null);
   const [pendingSelectId, setPendingSelectId] = useState<
     string | "new" | null | undefined
@@ -455,6 +466,94 @@ export function ManageCourseEligibilityPage() {
     [bulkStatusMutation, deleteMutation.isPending],
   );
 
+  const coverageSummary = useMemo(() => {
+    const activeFaculty = facultyList.filter((f) => f.is_active);
+    const eligibleAcronyms = new Set(
+      records.filter((r) => r.is_eligible).map((r) => r.acronym.toUpperCase()),
+    );
+    const eligibleFacultyCount = activeFaculty.filter((f) =>
+      eligibleAcronyms.has(f.acronym.toUpperCase()),
+    ).length;
+
+    const coveredCourseCodes = new Set(
+      records.filter((r) => r.is_eligible).map((r) => r.course_code.toUpperCase()),
+    );
+    const totalCoursesCount = courseOptionsRaw.length;
+    const coveredCoursesCount = courseOptionsRaw.filter((c) =>
+      coveredCourseCodes.has(c.code.toUpperCase()),
+    ).length;
+
+    return {
+      eligibleFacultyCount,
+      activeFacultyCount: activeFaculty.length,
+      coveredCoursesCount,
+      totalCoursesCount,
+    };
+  }, [courseOptionsRaw, facultyList, records]);
+
+  const allAssignableCourses = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of courseOptionsRaw) {
+      map.set(c.code.toUpperCase(), c.title);
+    }
+    for (const raw of customCourses) {
+      const code = raw.trim().toUpperCase();
+      if (code && !map.has(code)) map.set(code, code);
+    }
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([code, title]) => ({ code, title }));
+  }, [courseOptionsRaw, customCourses]);
+
+  const selectFacultyForBatch = (acronym: string) => {
+    const clean = acronym.trim().toUpperCase();
+    setAssignFacultyAcronym(clean);
+    const nextDrafts: Record<string, { checked: boolean; priority: number | null }> = {};
+    for (const r of records) {
+      if (r.acronym.toUpperCase() === clean && r.is_eligible) {
+        nextDrafts[r.course_code.toUpperCase()] = {
+          checked: true,
+          priority: r.priority,
+        };
+      }
+    }
+    setAssignDrafts(nextDrafts);
+    setAssignDirty(false);
+  };
+
+  const batchAssignMutation = useMutation({
+    mutationFn: async () => {
+      if (!assignFacultyAcronym) return;
+      const existingForFaculty = records.filter(
+        (r) => r.acronym.toUpperCase() === assignFacultyAcronym.toUpperCase(),
+      );
+      const drafts: FacultyCourseAssignmentDraft[] = Object.entries(assignDrafts).map(
+        ([courseCode, st]) => ({
+          courseCode,
+          checked: st.checked,
+          priority: st.priority,
+        }),
+      );
+      await batchSaveFacultyEligibility(
+        assignFacultyAcronym,
+        drafts,
+        existingForFaculty,
+        isDevPreview,
+      );
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin-timetable-eligibility"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-dashboard-counts"] });
+      setAssignDirty(false);
+      toast.success(`Saved eligibility assignments for ${assignFacultyAcronym}`);
+    },
+    onError: (err) => {
+      toast.error("Batch eligibility save failed", {
+        description: err instanceof Error ? err.message : "Database write failed.",
+      });
+    },
+  });
+
   const filterChips: Array<{ id: EligibilityFilter; label: string; count: number }> = [
     { id: "all", label: "All", count: counts.all },
     { id: "eligible", label: "Eligible", count: counts.eligible },
@@ -475,16 +574,261 @@ export function ManageCourseEligibilityPage() {
           </p>
         </div>
 
-        <Button
-          variant="primary"
-          size="md"
-          onClick={() => openInspector("new")}
-        >
-          <Plus size={15} aria-hidden="true" />
-          <span>Add Rule</span>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div
+            role="group"
+            aria-label="Eligibility view mode"
+            className="inline-flex h-[36px] items-center rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] p-0.5"
+          >
+            <button
+              type="button"
+              aria-pressed={viewMode === "ledger"}
+              onClick={() => setViewMode("ledger")}
+              className={cn(
+                "h-[30px] rounded-[5px] px-3 text-[12.5px] font-medium transition-colors",
+                viewMode === "ledger"
+                  ? "bg-[var(--action-primary)] font-semibold text-[var(--action-primary-ink)]"
+                  : "text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
+              )}
+            >
+              Flat Ledger
+            </button>
+            <button
+              type="button"
+              aria-pressed={viewMode === "by-faculty"}
+              data-testid="eligibility-assign-by-faculty-tab"
+              onClick={() => setViewMode("by-faculty")}
+              className={cn(
+                "h-[30px] rounded-[5px] px-3 text-[12.5px] font-medium transition-colors",
+                viewMode === "by-faculty"
+                  ? "bg-[var(--action-primary)] font-semibold text-[var(--action-primary-ink)]"
+                  : "text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
+              )}
+            >
+              Assign by Faculty
+            </button>
+          </div>
+
+          <Button
+            variant="primary"
+            size="md"
+            onClick={() => {
+              setViewMode("ledger");
+              openInspector("new");
+            }}
+          >
+            <Plus size={15} aria-hidden="true" />
+            <span>Add Rule</span>
+          </Button>
+        </div>
       </header>
 
+      {/* Live Coverage Summary Strip */}
+      <div
+        data-testid="eligibility-coverage-strip"
+        className="ledger-card flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2.5 text-[12px]"
+      >
+        <span className="font-mono-tabular text-[var(--ink-primary)]">
+          <strong>Eligible faculty:</strong>{" "}
+          {coverageSummary.eligibleFacultyCount} /{" "}
+          {coverageSummary.activeFacultyCount} active
+        </span>
+        <span className="font-mono-tabular text-[var(--ink-primary)]">
+          <strong>Courses covered:</strong>{" "}
+          {coverageSummary.coveredCoursesCount} /{" "}
+          {coverageSummary.totalCoursesCount} derived courses
+        </span>
+      </div>
+
+      {viewMode === "by-faculty" ? (
+        <section
+          data-testid="eligibility-by-faculty-panel"
+          className="ledger-card space-y-4 p-5"
+        >
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-[300px_minmax(0,1fr)]">
+            <div className="space-y-1.5">
+              <label
+                htmlFor="assign-faculty-combobox"
+                className="block text-[12.5px] font-semibold text-[var(--ink-primary)]"
+              >
+                Select Faculty Member
+              </label>
+              <CommandCombobox
+                id="assign-faculty-combobox"
+                value={assignFacultyAcronym}
+                onChange={selectFacultyForBatch}
+                options={facultyComboboxOptions}
+                placeholder="Choose faculty..."
+                searchPlaceholder="Search faculty acronym or name..."
+                emptyLabel="No faculty found."
+              />
+              <p className="text-[12px] text-[var(--ink-secondary)]">
+                Check courses this instructor can teach and optionally set
+                priority (1 = highest).
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative flex-1 min-w-[200px]">
+                  <MagnifyingGlass
+                    size={15}
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink-muted)]"
+                    aria-hidden="true"
+                  />
+                  <input
+                    type="search"
+                    value={assignCourseSearch}
+                    onChange={(e) => setAssignCourseSearch(e.target.value)}
+                    placeholder="Filter derived courses..."
+                    aria-label="Filter derived courses"
+                    className="h-[36px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] pl-8 pr-3 text-[13px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent-pine)]"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    value={newCustomCourse}
+                    onChange={(e) => setNewCustomCourse(e.target.value)}
+                    placeholder="Add code (e.g. CSE-4101)"
+                    aria-label="Add custom course code"
+                    className="font-mono-tabular h-[36px] w-[170px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-2.5 text-[12.5px] text-[var(--ink-primary)] uppercase focus:border-[var(--accent-pine)]"
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      const code = newCustomCourse.trim().toUpperCase();
+                      if (!code) return;
+                      setCustomCourses((prev) =>
+                        prev.includes(code) ? prev : [...prev, code],
+                      );
+                      if (assignFacultyAcronym) {
+                        setAssignDrafts((prev) => ({
+                          ...prev,
+                          [code]: { checked: true, priority: prev[code]?.priority ?? null },
+                        }));
+                        setAssignDirty(true);
+                      }
+                      setNewCustomCourse("");
+                    }}
+                  >
+                    Add
+                  </Button>
+                </div>
+              </div>
+
+              {!assignFacultyAcronym ? (
+                <div className="rounded-[var(--r-control)] border border-dashed border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-8 text-center text-[13px] text-[var(--ink-muted)]">
+                  Choose a faculty member on the left to batch-assign course
+                  eligibility.
+                </div>
+              ) : allAssignableCourses.length === 0 ? (
+                <div className="rounded-[var(--r-control)] border border-dashed border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-8 text-center text-[13px] text-[var(--ink-muted)]">
+                  No derived courses yet. Add a custom course code above to
+                  begin.
+                </div>
+              ) : (
+                <div className="divide-y divide-[var(--border-subtle)] rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)]">
+                  {allAssignableCourses
+                    .filter((c) => {
+                      const q = assignCourseSearch.trim().toLowerCase();
+                      if (!q) return true;
+                      return (
+                        c.code.toLowerCase().includes(q) ||
+                        c.title.toLowerCase().includes(q)
+                      );
+                    })
+                    .map((c) => {
+                      const draft = assignDrafts[c.code] ?? {
+                        checked: false,
+                        priority: null,
+                      };
+                      return (
+                        <div
+                          key={c.code}
+                          className="flex flex-wrap items-center justify-between gap-3 px-3.5 py-2.5"
+                        >
+                          <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5">
+                            <input
+                              type="checkbox"
+                              checked={draft.checked}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setAssignDrafts((prev) => ({
+                                  ...prev,
+                                  [c.code]: {
+                                    checked,
+                                    priority: prev[c.code]?.priority ?? null,
+                                  },
+                                }));
+                                setAssignDirty(true);
+                              }}
+                              className="h-4 w-4 accent-[var(--accent-pine)]"
+                            />
+                            <span className="font-mono-tabular text-[12.5px] font-semibold text-[var(--ink-primary)]">
+                              {c.code}
+                            </span>
+                            {c.title !== c.code && (
+                              <span className="truncate text-[12.5px] text-[var(--ink-secondary)]">
+                                {c.title}
+                              </span>
+                            )}
+                          </label>
+
+                          <div className="flex items-center gap-2">
+                            <label
+                              htmlFor={`prio-${c.code}`}
+                              className="text-[11.5px] text-[var(--ink-muted)]"
+                            >
+                              Priority
+                            </label>
+                            <input
+                              id={`prio-${c.code}`}
+                              type="number"
+                              min={1}
+                              max={5}
+                              disabled={!draft.checked}
+                              value={draft.priority ?? ""}
+                              placeholder="—"
+                              onChange={(e) => {
+                                const raw = e.target.value.trim();
+                                const parsed =
+                                  raw === "" ? null : Number.parseInt(raw, 10);
+                                setAssignDrafts((prev) => ({
+                                  ...prev,
+                                  [c.code]: {
+                                    checked: prev[c.code]?.checked ?? true,
+                                    priority:
+                                      parsed !== null && Number.isFinite(parsed)
+                                        ? Math.min(5, Math.max(1, parsed))
+                                        : null,
+                                  },
+                                }));
+                                setAssignDirty(true);
+                              }}
+                              className="font-mono-tabular h-[30px] w-[58px] rounded-[5px] border border-[var(--border-control)] bg-[var(--bg-surface)] px-2 text-center text-[12px] text-[var(--ink-primary)] disabled:opacity-50"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <StickyDirtyBar
+            isDirty={assignDirty && Boolean(assignFacultyAcronym)}
+            isSaving={batchAssignMutation.isPending}
+            message={`Unsaved eligibility assignments for ${assignFacultyAcronym}`}
+            onDiscard={() => selectFacultyForBatch(assignFacultyAcronym)}
+            onSave={() => batchAssignMutation.mutate()}
+          />
+        </section>
+      ) : (
+        <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div
           role="tablist"
@@ -779,6 +1123,8 @@ export function ManageCourseEligibilityPage() {
           </form>
         }
       />
+        </>
+      )}
 
       <ConfirmDialog
         open={pendingSelectId !== undefined}

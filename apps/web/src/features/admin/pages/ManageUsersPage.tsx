@@ -837,7 +837,10 @@ export function ManageUsersPage() {
                     <button
                       type="button"
                       aria-label={`Edit whitelist ${w.email}`}
-                      onClick={() => openWhitelistInspector(w.email)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openWhitelistInspector(w.email);
+                      }}
                       className="flex h-7 w-7 items-center justify-center rounded-[5px] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]"
                     >
                       <PencilSimple size={14} aria-hidden="true" />
@@ -845,7 +848,10 @@ export function ManageUsersPage() {
                     <button
                       type="button"
                       aria-label={`Delete whitelist ${w.email}`}
-                      onClick={() => setDeleteWhitelistTarget([w.email])}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteWhitelistTarget([w.email]);
+                      }}
                       className="flex h-7 w-7 items-center justify-center rounded-[5px] text-[var(--sem-conflict-ink)] hover:bg-[var(--sem-conflict-bg)]"
                     >
                       <Trash size={14} aria-hidden="true" />

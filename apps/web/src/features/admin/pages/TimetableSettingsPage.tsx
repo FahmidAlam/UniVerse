@@ -8,6 +8,7 @@ import {
   WarningCircle,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -152,6 +153,7 @@ const WEIGHT_LABELS: ReadonlyArray<{
 export function TimetableSettingsPage() {
   const { isDevPreview } = useAuth();
   const queryClient = useQueryClient();
+  const prefersReducedMotion = useReducedMotion() ?? false;
 
   const [activeTab, setActiveTab] = useState<SettingsTabId>("clock");
   const [draft, setDraft] = useState<TimetableSettingsRecord | null>(null);
@@ -473,6 +475,16 @@ export function TimetableSettingsPage() {
             </div>
           )}
 
+          <motion.div
+            key={activeTab}
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={
+              prefersReducedMotion
+                ? { duration: 0 }
+                : { duration: 0.15, ease: [0.16, 1, 0.3, 1] }
+            }
+          >
           {activeTab === "clock" && (
             <div className="space-y-4">
               <section className="ledger-card grid gap-4 p-5 md:grid-cols-3">
@@ -662,6 +674,90 @@ export function TimetableSettingsPage() {
                   </div>
                 </div>
 
+                {/* Visual Daily Period Timeline Strip */}
+                <div
+                  data-testid="settings-daily-timeline-strip"
+                  className="rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-canvas)]/65 p-3"
+                >
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-[11.5px]">
+                    <span className="font-semibold text-[var(--ink-primary)]">
+                      Daily Slot Timeline (Click a slot to edit its clock)
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-[var(--ink-muted)]">
+                      {draft.friday_no_p4 && (
+                        <span className="font-mono-tabular text-[var(--sem-conflict-ink)]">
+                          Fri P4 Jummah Lock
+                        </span>
+                      )}
+                      {draft.allow_online_periods && onlinePeriod && (
+                        <span className="font-mono-tabular text-[var(--sem-joint-ink)]">
+                          Online P{onlinePeriod.idx} ({onlinePeriod.col})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-stretch gap-1.5">
+                    {regularPeriods.map((period) => {
+                      const isExcluded = draft.excluded_periods.includes(
+                        period.idx,
+                      );
+                      return (
+                        <div key={period.idx} className="contents">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const input = document.getElementById(
+                                `period-start-${period.idx}`,
+                              );
+                              input?.scrollIntoView({
+                                behavior: "smooth",
+                                block: "center",
+                              });
+                              input?.focus();
+                            }}
+                            className={cn(
+                              "flex min-w-[82px] flex-1 flex-col items-start rounded-[5px] border px-2.5 py-1.5 text-left transition-colors hover:border-[var(--accent-pine)]",
+                              isExcluded
+                                ? "border-dashed border-[var(--border-subtle)] bg-[var(--bg-surface)] opacity-60"
+                                : "border-[var(--border-subtle)] bg-[var(--bg-elevated)]",
+                            )}
+                          >
+                            <span className="font-mono-tabular text-[11.5px] font-semibold text-[var(--ink-primary)]">
+                              P{period.idx} · {period.col}
+                            </span>
+                            <span className="font-mono-tabular text-[10.5px] text-[var(--ink-muted)]">
+                              {period.start}–{period.end}
+                            </span>
+                          </button>
+                          {period.idx === 3 && (
+                            <div
+                              className="flex flex-col items-center justify-center rounded-[5px] border border-dashed border-[var(--border-strong)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-center"
+                              title="Midday Break (Workbook Column G)"
+                            >
+                              <span className="font-mono-tabular text-[10.5px] font-semibold text-[var(--ink-secondary)]">
+                                Break
+                              </span>
+                              <span className="font-mono-tabular text-[10px] text-[var(--ink-muted)]">
+                                Col G
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {draft.allow_online_periods && onlinePeriod && (
+                      <div className="flex min-w-[92px] flex-col items-start rounded-[5px] border border-[var(--sem-joint-border)] bg-[var(--sem-joint-bg)] px-2.5 py-1.5 text-left">
+                        <span className="font-mono-tabular text-[11.5px] font-semibold text-[var(--sem-joint-ink)]">
+                          P{onlinePeriod.idx} · {onlinePeriod.col}
+                        </span>
+                        <span className="font-mono-tabular text-[10.5px] text-[var(--sem-joint-ink)]">
+                          {onlinePeriod.start}–{onlinePeriod.end}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse text-left text-[13px]">
                     <thead>
@@ -691,6 +787,7 @@ export function TimetableSettingsPage() {
                             </td>
                             <td className="py-2.5 pr-3">
                               <input
+                                id={`period-start-${period.idx}`}
                                 type="text"
                                 aria-label={`Period ${period.idx} start time`}
                                 value={period.start}
@@ -1152,6 +1249,18 @@ export function TimetableSettingsPage() {
                       <p className="mt-1 text-[12px] text-[var(--ink-secondary)]">
                         {item.hint}
                       </p>
+                      <div
+                        data-testid={`weight-bar-${item.key}`}
+                        className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-[var(--bg-surface)]"
+                        aria-hidden="true"
+                      >
+                        <div
+                          className="h-full bg-[var(--accent-pine)] transition-[width] duration-150"
+                          style={{
+                            width: `${Math.min(100, Math.round((val / 20) * 100))}%`,
+                          }}
+                        />
+                      </div>
                       <input
                         id={`weight-${item.key}`}
                         type="range"
@@ -1183,6 +1292,7 @@ export function TimetableSettingsPage() {
               </div>
             </section>
           )}
+          </motion.div>
 
           <StickyDirtyBar
             docked

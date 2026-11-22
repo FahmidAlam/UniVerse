@@ -12,6 +12,7 @@ import {
   Megaphone,
   Play,
   ShieldCheck,
+  SidebarSimple,
   SignOut,
   SlidersHorizontal,
   Table,
@@ -20,6 +21,7 @@ import {
   UsersFour,
   X,
 } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { useEffect, useState, type ComponentType } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -51,16 +53,25 @@ import {
   type CapabilityGroup,
   type CapabilityIconKey,
 } from "@/core/capabilities";
+import { fetchAdminDashboardCounts } from "@/features/admin/services/adminDashboardService";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { cn } from "@/lib/utils";
 import { EngineHealthBadge } from "@/shared/components/EngineHealthBadge";
 import { LedgerMark } from "@/shared/components/LedgerMark";
+
+const SIDEBAR_STORAGE_KEY = "universe-sidebar-collapsed";
 
 const GROUP_ORDER: readonly CapabilityGroup[] = [
   "operations",
   "configuration",
   "directory",
 ];
+
+const NAV_TOOLTIP_BY_ID: Record<string, string> = {
+  "admin.routine": "Manage published slots, inspect matrix, and run CP-SAT solver",
+  "admin.routine-grid": "Full-screen 2D weekly timetable grid by section, faculty, or room",
+  "admin.scheduling": "5-Stage Scheduling Workbench",
+};
 
 const ICON_BY_KEY: Record<
   CapabilityIconKey,
@@ -93,125 +104,315 @@ function initialsFrom(name: string): string {
   return `${parts[0]![0]}${parts[1]![0]}`.toUpperCase();
 }
 
+function readInitialCollapsed(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
 function SidebarContent({
   onNavigate,
   layoutGroupId,
+  collapsed = false,
+  onToggleCollapse,
+  attentionCounts,
 }: {
   onNavigate?: () => void;
   layoutGroupId: string;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+  attentionCounts?: Record<string, number | undefined>;
 }) {
   const location = useLocation();
   const prefersReducedMotion = useReducedMotion() ?? false;
+  const activeCap = getCapabilityByPath(location.pathname);
+
+  const [collapsedGroups, setCollapsedGroups] = useState<
+    Record<CapabilityGroup, boolean>
+  >({
+    operations: false,
+    configuration: false,
+    directory: false,
+  });
+
+  // Automatically keep the active route's group expanded
+  useEffect(() => {
+    if (!activeCap) return;
+    setCollapsedGroups((prev) =>
+      prev[activeCap.group] ? { ...prev, [activeCap.group]: false } : prev,
+    );
+  }, [activeCap]);
+
+  const toggleGroup = (group: CapabilityGroup) => {
+    setCollapsedGroups((prev) => ({ ...prev, [group]: !prev[group] }));
+  };
 
   return (
-    <div className="flex h-full flex-col bg-[var(--bg-canvas)] px-2.5 py-3.5">
-      <Link
-        to="/admin/dashboard"
-        onClick={onNavigate}
-        className="flex items-center gap-2.5 border-b border-[var(--border-subtle)] px-1.5 pb-3 text-[var(--ink-primary)] no-underline"
+    <div
+      className={cn(
+        "flex h-full flex-col bg-[var(--bg-canvas)] py-3.5",
+        collapsed ? "px-2" : "px-2.5",
+      )}
+    >
+      <div
+        className={cn(
+          "flex items-center border-b border-[var(--border-subtle)] pb-3",
+          collapsed ? "justify-center px-0" : "justify-between gap-1.5 px-1.5",
+        )}
       >
-        <LedgerMark size={26} />
-        <div className="min-w-0">
-          <div className="font-serif-editorial text-[16px] font-semibold leading-tight tracking-[-0.015em]">
-            UniVerse Admin
-          </div>
-          <div className="text-[11px] text-[var(--ink-secondary)]">
-            Leading University · <span className="acronym-sc">cse</span>
-          </div>
-        </div>
-      </Link>
+        <Link
+          to="/admin/dashboard"
+          onClick={onNavigate}
+          aria-label="UniVerse Admin Dashboard"
+          className="flex min-w-0 items-center gap-2.5 text-[var(--ink-primary)] no-underline"
+        >
+          <LedgerMark size={26} />
+          {!collapsed && (
+            <div className="min-w-0">
+              <div className="truncate font-serif-editorial text-[16px] font-semibold leading-tight tracking-[-0.015em]">
+                UniVerse Admin
+              </div>
+              <div className="truncate text-[11px] text-[var(--ink-secondary)]">
+                Leading University · <span className="acronym-sc">cse</span>
+              </div>
+            </div>
+          )}
+        </Link>
+
+        {onToggleCollapse && !collapsed && (
+          <Tooltip delayDuration={200}>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                data-testid="sidebar-collapse-toggle"
+                aria-label="Collapse sidebar ([)"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--r-control)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]"
+              >
+                <SidebarSimple size={16} aria-hidden="true" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              Collapse sidebar ([)
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
 
       <LayoutGroup id={layoutGroupId}>
         <nav
           aria-label="Administrator navigation"
-          className="mt-4 flex flex-1 flex-col gap-5 overflow-y-auto pr-0.5"
+          className={cn(
+            "mt-3.5 flex flex-1 flex-col overflow-y-auto pr-0.5",
+            collapsed ? "gap-3" : "gap-4",
+          )}
         >
-          {GROUP_ORDER.map((group) => {
+          {GROUP_ORDER.map((group, groupIdx) => {
             const items = getCapabilitiesByGroup(group);
+            const isGroupCollapsed = !collapsed && collapsedGroups[group];
+            const firstStagedIdx =
+              group === "configuration"
+                ? items.findIndex((c) => c.status === "staged-no-db")
+                : -1;
+
             return (
               <div key={group} className="flex flex-col gap-0.5">
-                <div className="px-2 pb-1 text-[11px] font-semibold tracking-[0.04em] text-[var(--ink-muted)] uppercase">
-                  {CAPABILITY_GROUP_LABELS[group]}
-                </div>
-                {items.map((cap) => {
-                  const Icon = ICON_BY_KEY[cap.iconKey];
-                  const isActive =
-                    location.pathname === cap.path ||
-                    (cap.path !== "/admin/dashboard" &&
-                      location.pathname.startsWith(`${cap.path}/`));
-
-                  const navLink = (
-                    <NavLink
-                      key={cap.id}
-                      to={cap.path}
-                      onClick={onNavigate}
+                {collapsed ? (
+                  groupIdx > 0 && (
+                    <div
+                      className="mx-auto my-1 h-px w-7 bg-[var(--border-subtle)]"
+                      aria-hidden="true"
+                    />
+                  )
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(group)}
+                    aria-expanded={!isGroupCollapsed}
+                    className="flex items-center justify-between rounded-[4px] px-2 py-1 text-left text-[11px] font-semibold tracking-[0.04em] text-[var(--ink-muted)] uppercase hover:bg-[var(--surface-hover)] hover:text-[var(--ink-secondary)]"
+                  >
+                    <span>{CAPABILITY_GROUP_LABELS[group]}</span>
+                    <CaretDown
+                      size={12}
+                      aria-hidden="true"
                       className={cn(
-                        "relative flex min-h-[36px] items-center justify-between gap-1.5 rounded-[var(--r-control)] px-2 text-[12.5px] no-underline transition-colors",
-                        isActive
-                          ? "border border-[var(--border-subtle)] bg-[var(--bg-elevated)] font-semibold text-[var(--ink-primary)] shadow-[var(--highlight-top)]"
-                          : "border border-transparent font-medium text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]",
+                        !prefersReducedMotion &&
+                          "transition-transform duration-[180ms] ease-[cubic-bezier(0.16,1,0.3,1)]",
+                        isGroupCollapsed && "-rotate-90",
                       )}
-                    >
-                      {isActive && (
-                        <motion.span
-                          layoutId={`${layoutGroupId}-active-rail`}
-                          transition={
-                            prefersReducedMotion
-                              ? { duration: 0 }
-                              : { duration: 0.18, ease: [0.16, 1, 0.3, 1] }
-                          }
-                          className="absolute bottom-[7px] left-0 top-[7px] w-[3px] rounded-r-[3px] bg-[var(--accent-pine)]"
-                          aria-hidden="true"
-                        />
-                      )}
-                      <span className="flex min-w-0 items-center gap-2">
-                        <Icon
-                          size={18}
-                          className={
+                    />
+                  </button>
+                )}
+
+                <div
+                  className={cn(
+                    "grid",
+                    !prefersReducedMotion &&
+                      "transition-[grid-template-rows] duration-[180ms] ease-[cubic-bezier(0.16,1,0.3,1)]",
+                    isGroupCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]",
+                  )}
+                >
+                  <div className="flex min-h-0 flex-col gap-0.5 overflow-hidden">
+                    {items.map((cap, idx) => {
+                      const Icon = ICON_BY_KEY[cap.iconKey];
+                      const isActive =
+                        location.pathname === cap.path ||
+                        (cap.path !== "/admin/dashboard" &&
+                          location.pathname.startsWith(`${cap.path}/`));
+                      const zeroCount = attentionCounts?.[cap.id];
+                      const needsAttention = zeroCount === 0;
+
+                      const navLink = (
+                        <NavLink
+                          to={cap.path}
+                          onClick={onNavigate}
+                          aria-label={cap.label}
+                          className={cn(
+                            "relative flex items-center rounded-[var(--r-control)] text-[12.5px] no-underline transition-colors",
+                            collapsed
+                              ? "mx-auto h-[40px] w-[40px] justify-center px-0"
+                              : "min-h-[36px] justify-between gap-1.5 px-2",
                             isActive
-                              ? "shrink-0 text-[var(--accent-pine)]"
-                              : "shrink-0 text-[var(--ink-secondary)]"
-                          }
-                          aria-hidden={true}
-                        />
-                        <span className="truncate text-[12.5px]">{cap.label}</span>
-                      </span>
-                      {(cap.sidebarBadge === "LOCKED" ||
-                        cap.sidebarBadge === "STAGED" ||
-                        cap.sidebarBadge === "GATED") && (
-                        <Badge
-                          tone={
-                            cap.status === "fail-closed-gate"
-                              ? "joint"
-                              : "neutral"
-                          }
-                          mono
-                          className="shrink-0 px-1.5 py-[1px] text-[10px]"
+                              ? "border border-[var(--border-subtle)] bg-[var(--bg-elevated)] font-semibold text-[var(--ink-primary)] shadow-[var(--highlight-top)]"
+                              : "border border-transparent font-medium text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]",
+                          )}
                         >
-                          {cap.sidebarBadge}
-                        </Badge>
-                      )}
-                    </NavLink>
-                  );
+                          {isActive && (
+                            <motion.span
+                              layoutId={`${layoutGroupId}-active-rail`}
+                              transition={
+                                prefersReducedMotion
+                                  ? { duration: 0 }
+                                  : { duration: 0.18, ease: [0.16, 1, 0.3, 1] }
+                              }
+                              className="absolute bottom-[7px] left-0 top-[7px] w-[3px] rounded-r-[3px] bg-[var(--accent-pine)]"
+                              aria-hidden="true"
+                            />
+                          )}
+                          <span
+                            className={cn(
+                              "flex min-w-0 items-center",
+                              collapsed ? "justify-center" : "gap-2",
+                            )}
+                          >
+                            <Icon
+                              size={collapsed ? 20 : 18}
+                              className={
+                                isActive
+                                  ? "shrink-0 text-[var(--accent-pine)]"
+                                  : "shrink-0 text-[var(--ink-secondary)]"
+                              }
+                              aria-hidden={true}
+                            />
+                            {!collapsed && (
+                              <span className="truncate text-[12.5px]">
+                                {cap.label}
+                              </span>
+                            )}
+                          </span>
 
-                  if (cap.label !== cap.pageTitle && cap.id === "admin.scheduling") {
-                    return (
-                      <Tooltip key={cap.id}>
-                        <TooltipTrigger asChild>{navLink}</TooltipTrigger>
-                        <TooltipContent side="right">
-                          {cap.pageTitle}
-                        </TooltipContent>
-                      </Tooltip>
-                    );
-                  }
+                          {collapsed && needsAttention && (
+                            <span
+                              className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[var(--sem-joint-bar)]"
+                              aria-hidden="true"
+                            />
+                          )}
 
-                  return navLink;
-                })}
+                          {!collapsed && needsAttention && (
+                            <span
+                              title="0 baseline rows configured"
+                              className="font-mono-tabular inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--sem-joint-ink)]"
+                            >
+                              <span
+                                className="h-1.5 w-1.5 rounded-full bg-[var(--sem-joint-bar)]"
+                                aria-hidden="true"
+                              />
+                              <span>0</span>
+                            </span>
+                          )}
+
+                          {!collapsed &&
+                            (cap.sidebarBadge === "LOCKED" ||
+                              cap.sidebarBadge === "STAGED" ||
+                              cap.sidebarBadge === "GATED") && (
+                              <Badge
+                                tone={
+                                  cap.status === "fail-closed-gate"
+                                    ? "joint"
+                                    : "neutral"
+                                }
+                                mono
+                                className="shrink-0 px-1.5 py-[1px] text-[10px]"
+                              >
+                                {cap.sidebarBadge}
+                              </Badge>
+                            )}
+                        </NavLink>
+                      );
+
+                      const tooltipText = NAV_TOOLTIP_BY_ID[cap.id];
+                      const wrappedLink =
+                        collapsed || tooltipText ? (
+                          <Tooltip key={cap.id} delayDuration={200}>
+                            <TooltipTrigger asChild>{navLink}</TooltipTrigger>
+                            <TooltipContent side="right">
+                              <div className="flex items-center gap-1.5">
+                                <span>
+                                  {collapsed
+                                    ? cap.label
+                                    : tooltipText ?? cap.pageTitle}
+                                </span>
+                                {collapsed && cap.sidebarBadge && (
+                                  <span className="font-mono-tabular text-[10px] opacity-80">
+                                    · {cap.sidebarBadge}
+                                  </span>
+                                )}
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <div key={cap.id}>{navLink}</div>
+                        );
+
+                      if (!collapsed && firstStagedIdx > 0 && idx === firstStagedIdx) {
+                        return (
+                          <div key={cap.id} className="mt-1 border-t border-[var(--border-subtle)] pt-1.5">
+                            {wrappedLink}
+                          </div>
+                        );
+                      }
+
+                      return wrappedLink;
+                    })}
+                  </div>
+                </div>
               </div>
             );
           })}
         </nav>
       </LayoutGroup>
+
+      {onToggleCollapse && collapsed && (
+        <div className="mt-2 border-t border-[var(--border-subtle)] pt-2.5">
+          <Tooltip delayDuration={200}>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                data-testid="sidebar-collapse-toggle"
+                aria-label="Expand sidebar ([)"
+                className="mx-auto flex h-[40px] w-[40px] items-center justify-center rounded-[var(--r-control)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]"
+              >
+                <SidebarSimple size={20} aria-hidden="true" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Expand sidebar ([)</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
     </div>
   );
 }
@@ -226,18 +427,74 @@ const COMPACT_MOBILE_TITLES: Record<string, string> = {
 
 /**
  * Light-first UniVerse Academic Ledger Admin Shell.
- * Fixed left rail on >=1100px, single-row 52px header bar, single Account Popover.
+ * Collapsible left rail (240px <-> 68px) on >=1100px, single-row 52px header bar, single Account Popover.
  */
 export function AdminShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, isDevPreview, signOut } = useAuth();
+  const prefersReducedMotion = useReducedMotion() ?? false;
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(
+    readInitialCollapsed,
+  );
 
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(next));
+      } catch {
+        // Ignore storage quota errors
+      }
+      return next;
+    });
+  };
+
+  // Dismiss stale toasts when switching routes, ?tab=, or ?stage=
   useEffect(() => {
     toast.dismiss();
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
+
+  // `[` shortcut toggles desktop sidebar collapse when not typing in an input
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "[" || e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
+      if (
+        tag === "input" ||
+        tag === "textarea" ||
+        tag === "select" ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+      if (paletteOpen || drawerOpen) return;
+      e.preventDefault();
+      toggleSidebar();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [drawerOpen, paletteOpen]);
+
+  const overviewQuery = useQuery({
+    queryKey: ["admin-dashboard-counts", isDevPreview],
+    queryFn: () => fetchAdminDashboardCounts(isDevPreview),
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const attentionCounts: Record<string, number | undefined> | undefined =
+    overviewQuery.data
+      ? {
+          "admin.rooms": overviewQuery.data.timetableRooms,
+          "admin.faculty": overviewQuery.data.timetableFaculty,
+          "admin.course-eligibility":
+            overviewQuery.data.timetableCourseEligibility,
+        }
+      : undefined;
 
   const currentCap = getCapabilityByPath(location.pathname);
   const pageTitle = currentCap?.pageTitle ?? "Routine Command Center";
@@ -260,10 +517,24 @@ export function AdminShell() {
       className="flex min-h-dvh bg-[var(--bg-surface)] text-[var(--ink-primary)]"
       data-testid="admin-shell-academic-ledger"
     >
-      {/* Desktop Left Navigation Rail (restored 240px light-first ledger rail) */}
-      <aside className="hidden w-[240px] shrink-0 border-r border-[var(--border-subtle)] min-[1100px]:block">
+      {/* Desktop Left Navigation Rail (240px expanded <-> 68px compact icon rail) */}
+      <aside
+        data-testid="desktop-admin-sidebar"
+        data-collapsed={sidebarCollapsed ? "true" : "false"}
+        className={cn(
+          "hidden shrink-0 border-r border-[var(--border-subtle)] min-[1100px]:block",
+          !prefersReducedMotion &&
+            "transition-[width] duration-[180ms] ease-[cubic-bezier(0.16,1,0.3,1)]",
+          sidebarCollapsed ? "w-[68px]" : "w-[240px]",
+        )}
+      >
         <div className="sticky top-0 h-dvh">
-          <SidebarContent layoutGroupId="desktop-admin-nav" />
+          <SidebarContent
+            layoutGroupId="desktop-admin-nav"
+            collapsed={sidebarCollapsed}
+            onToggleCollapse={toggleSidebar}
+            attentionCounts={attentionCounts}
+          />
         </div>
       </aside>
 

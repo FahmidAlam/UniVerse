@@ -6,6 +6,10 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() ?? "";
 export const isSupabaseConfigured =
   SUPABASE_URL.length > 0 && SUPABASE_ANON_KEY.length > 0;
 
+export function getSupabaseConfig(): { url: string; anonKey: string } {
+  return { url: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY };
+}
+
 export const supabase: SupabaseClient | null = isSupabaseConfigured
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {

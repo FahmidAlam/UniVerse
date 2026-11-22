@@ -379,7 +379,7 @@ export function DistributionLedgerStage({
           return (
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="slot-override-corner font-mono-tabular inline-block rounded px-1.5 py-0.5 text-[var(--ink-primary)]">
+                <span className="font-mono-tabular inline-block rounded px-1.5 py-0.5 text-[var(--ink-primary)]">
                   {val}
                 </span>
               </TooltipTrigger>
@@ -412,12 +412,14 @@ export function DistributionLedgerStage({
           if (!rec.formulaL) {
             return <span className="font-mono-tabular">{val}</span>;
           }
+          const showCorner = Boolean(hasOverride || discrepancy);
           return (
             <Tooltip>
               <TooltipTrigger asChild>
                 <span
                   className={cn(
-                    "slot-override-corner font-mono-tabular inline-block rounded px-1.5 py-0.5",
+                    "font-mono-tabular inline-block rounded px-1.5 py-0.5",
+                    showCorner && "slot-override-corner",
                     discrepancy && !hasOverride
                       ? "bg-[var(--sem-joint-bg)] font-semibold text-[var(--sem-joint-ink)]"
                       : "text-[var(--ink-primary)]",
@@ -463,9 +465,9 @@ export function DistributionLedgerStage({
             );
           }
           return (
-            <Badge tone="lab" mono>
-              Verified
-            </Badge>
+            <span className="font-mono-tabular text-[11.5px] text-[var(--ink-muted)]">
+              Ready
+            </span>
           );
         },
       },
@@ -637,7 +639,7 @@ export function DistributionLedgerStage({
             Committee Review Option:{" "}
           </strong>
           Switch to isolated <strong>Design Preview</strong> to inspect the
-          reconciled 23-offering Course Distribution ledger, 16 policy pillars,
+          reconciled 23-offering Course Distribution ledger, 5 policy pillars (R1–R16),
           and preflight workflows without touching Supabase.
         </div>
 
@@ -1156,24 +1158,23 @@ export function DistributionLedgerStage({
                         <span className="font-mono-tabular text-[12.5px] font-semibold text-[var(--ink-primary)]">
                           Row {rec.row} · {rec.courseCode}
                         </span>
-                        <Badge
-                          tone={
-                            st === "conflict" || st === "pendingTeacher"
-                              ? "conflict"
-                              : st === "corrected"
-                                ? "joint"
-                                : "lab"
-                          }
-                          mono
-                        >
-                          {st === "conflict"
-                            ? "Conflict"
-                            : st === "pendingTeacher"
-                              ? "Pending"
-                              : st === "corrected"
-                                ? "Overlay"
-                                : "Verified"}
-                        </Badge>
+                        {st === "conflict" ? (
+                          <Badge tone="conflict" mono>
+                            Conflict
+                          </Badge>
+                        ) : st === "pendingTeacher" ? (
+                          <Badge tone="conflict" mono>
+                            Pending
+                          </Badge>
+                        ) : st === "corrected" ? (
+                          <Badge tone="joint" mono>
+                            Overlay
+                          </Badge>
+                        ) : (
+                          <span className="font-mono-tabular text-[11px] text-[var(--ink-muted)]">
+                            Ready
+                          </span>
+                        )}
                       </div>
                       <div className="truncate text-[12.5px] text-[var(--ink-secondary)]">
                         {rec.courseTitle}

@@ -21,6 +21,8 @@ import { ManageFacultyPage } from "@/features/admin/pages/ManageFacultyPage";
 import { ManageResourcesPage } from "@/features/admin/pages/ManageResourcesPage";
 import { ManageRoomsPage } from "@/features/admin/pages/ManageRoomsPage";
 import { ManageUsersPage } from "@/features/admin/pages/ManageUsersPage";
+import { StagedBatchesReferencePage } from "@/features/admin/pages/StagedBatchesReferencePage";
+import { StagedCoursesReferencePage } from "@/features/admin/pages/StagedCoursesReferencePage";
 import { TimetableSettingsPage } from "@/features/admin/pages/TimetableSettingsPage";
 import { AdminRoutinePage } from "@/features/routine/pages/AdminRoutinePage";
 import { TimetableGridPage } from "@/features/routine/pages/TimetableGridPage";
@@ -91,6 +93,8 @@ const LIVE_CAPABILITY_PATHS = new Set([
   "/admin/routine",
   "/admin/timetable/grid",
   "/admin/scheduling",
+  "/admin/timetable/courses",
+  "/admin/timetable/batches",
   "/admin/timetable/rooms",
   "/admin/timetable/faculty",
   "/admin/timetable/course-eligibility",
@@ -151,6 +155,14 @@ export function App() {
                     <Route
                       path="scheduling"
                       element={<SchedulingWorkbenchPage />}
+                    />
+                    <Route
+                      path="timetable/courses"
+                      element={<StagedCoursesReferencePage />}
+                    />
+                    <Route
+                      path="timetable/batches"
+                      element={<StagedBatchesReferencePage />}
                     />
                     <Route
                       path="timetable/rooms"

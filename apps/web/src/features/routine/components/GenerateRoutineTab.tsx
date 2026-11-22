@@ -361,7 +361,10 @@ export function GenerateRoutineTab({
       rows: candidateResult.rows,
       serviceRows: candidateResult.service_rows,
       profile: loadedProfile,
-      sourceContract: candidateResult.report.source_contract ?? candidateResult.source_contract,
+      sourceContract:
+        candidateResult.report.source_contract ??
+        candidateResult.source_contract ??
+        null,
       config: candidateConfigSnapshot,
       validation: candidateResult.validation,
     });
