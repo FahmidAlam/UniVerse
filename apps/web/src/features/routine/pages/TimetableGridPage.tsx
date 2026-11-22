@@ -5,7 +5,7 @@ import { AcademicTimetableMatrix } from "@/features/routine/components/AcademicT
 export function TimetableGridPage() {
   return (
     <div className="space-y-4">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-[var(--border-subtle)] pb-4">
+      <header className="no-print flex flex-wrap items-end justify-between gap-4 border-b border-[var(--border-subtle)] pb-4">
         <div>
           <h1 className="font-editorial text-[24px] font-semibold tracking-[-0.02em] text-[var(--ink-primary)]">
             Operational Routine Matrix

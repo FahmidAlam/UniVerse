@@ -117,7 +117,7 @@ export function SchedulingWorkbenchHeader({
         <div
           role="group"
           aria-label="Workbench data mode"
-          className="inline-flex h-[38px] items-center rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] p-0.5"
+          className="inline-flex h-[38px] items-center gap-0.5 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-0.5"
         >
           <button
             type="button"
@@ -125,13 +125,17 @@ export function SchedulingWorkbenchHeader({
             aria-pressed={!isPreview}
             onClick={() => onModeChange("live")}
             className={cn(
-              "inline-flex h-[32px] items-center gap-1.5 rounded-[5px] px-3 text-[12.5px] whitespace-nowrap transition-colors",
+              "inline-flex h-[32px] items-center gap-1.5 rounded-[5px] border px-3 text-[12.5px] whitespace-nowrap transition-colors",
               !isPreview
-                ? "bg-[var(--action-primary)] font-semibold text-[var(--action-primary-ink)]"
-                : "font-medium text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
+                ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)]"
+                : "border-transparent font-medium text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
             )}
           >
-            <ShieldCheck size={14} aria-hidden="true" />
+            <ShieldCheck
+              size={14}
+              className={!isPreview ? "text-[var(--accent-brand)]" : undefined}
+              aria-hidden="true"
+            />
             <span>Live Backend</span>
           </button>
           <button
@@ -140,13 +144,17 @@ export function SchedulingWorkbenchHeader({
             aria-pressed={isPreview}
             onClick={() => onModeChange("preview")}
             className={cn(
-              "inline-flex h-[32px] items-center gap-1.5 rounded-[5px] px-3 text-[12.5px] whitespace-nowrap transition-colors",
+              "inline-flex h-[32px] items-center gap-1.5 rounded-[5px] border px-3 text-[12.5px] whitespace-nowrap transition-colors",
               isPreview
-                ? "bg-[var(--sem-joint-bg)] font-semibold text-[var(--sem-joint-ink)]"
-                : "font-medium text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
+                ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)]"
+                : "border-transparent font-medium text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
             )}
           >
-            <Eye size={14} aria-hidden="true" />
+            <Eye
+              size={14}
+              className={isPreview ? "text-[var(--sem-joint-bar)]" : undefined}
+              aria-hidden="true"
+            />
             <span>Design Preview</span>
           </button>
         </div>
@@ -157,10 +165,10 @@ export function SchedulingWorkbenchHeader({
         <div
           role="status"
           data-testid="design-preview-watermark"
-          className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-card)] border border-[var(--sem-joint-border)] bg-[var(--sem-joint-bg)] px-4 py-2.5 text-[12.5px] text-[var(--sem-joint-ink)]"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-card)] border border-[var(--border-subtle)] border-l-[3px] border-l-[var(--sem-joint-bar)] bg-[var(--bg-elevated)] px-4 py-2.5 text-[12.5px] text-[var(--ink-secondary)]"
         >
-          <div className="flex items-center gap-2 font-mono-tabular font-semibold">
-            <Eye size={16} className="shrink-0" aria-hidden="true" />
+          <div className="flex items-center gap-2 font-mono-tabular font-semibold text-[var(--ink-primary)]">
+            <Eye size={16} className="shrink-0 text-[var(--sem-joint-bar)]" aria-hidden="true" />
             <span>
               SIMULATED PREVIEW · 23 CSE sample offerings · ZERO DATABASE WRITES
             </span>
@@ -189,16 +197,17 @@ export function SchedulingWorkbenchHeader({
                       ? "lab"
                       : "joint"
                 }
+                dot={false}
                 mono
                 data-testid={`gate-pill-${gate.code}`}
                 title={gate.reason}
               >
                 {isPreview ? (
-                  <Eye size={11} aria-hidden="true" />
+                  <Eye size={11} className="text-[var(--ink-muted)]" aria-hidden="true" />
                 ) : gate.unlocked ? (
-                  <CheckCircle size={11} weight="fill" aria-hidden="true" />
+                  <CheckCircle size={11} weight="fill" className="text-[var(--sem-lab-bar)]" aria-hidden="true" />
                 ) : (
-                  <LockSimple size={11} aria-hidden="true" />
+                  <LockSimple size={11} className="text-[var(--sem-joint-bar)]" aria-hidden="true" />
                 )}
                 <span>
                   Gate {gate.code}:{" "}
@@ -277,9 +286,9 @@ export function SchedulingWorkbenchHeader({
                 data-testid={`workbench-stage-${stage.id}`}
                 onClick={() => onSelectStage(stage.id)}
                 className={cn(
-                  "flex min-h-[38px] items-center justify-between gap-2 rounded-[var(--r-control)] border px-2.5 py-1.5 text-left text-[12.5px]",
+                  "flex min-h-[38px] items-center justify-between gap-2 rounded-[var(--r-control)] border px-2.5 py-1.5 text-left text-[12.5px] transition-colors",
                   active
-                    ? "border-[var(--action-primary)] bg-[var(--action-primary)] font-semibold text-[var(--action-primary-ink)] shadow-[inset_0_1px_0_oklch(1_0_0_/_0.14)]"
+                    ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)] shadow-[inset_0_-2px_0_var(--accent-brand)]"
                     : "border-[var(--border-subtle)] bg-[var(--bg-surface)] font-medium text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]",
                 )}
               >
@@ -288,7 +297,7 @@ export function SchedulingWorkbenchHeader({
                     className={cn(
                       "font-mono-tabular inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border text-[10px]",
                       active
-                        ? "border-current/40 bg-[var(--bg-elevated)]/15"
+                        ? "border-[var(--accent-brand)] bg-[var(--accent-brand-soft)] text-[var(--accent-brand)]"
                         : "border-[var(--border-control)] text-[var(--ink-muted)]",
                     )}
                   >
@@ -302,24 +311,12 @@ export function SchedulingWorkbenchHeader({
                 {gateLocked && (
                   <LockSimple
                     size={12}
-                    className={cn(
-                      "shrink-0",
-                      active
-                        ? "text-[var(--action-primary-ink)]"
-                        : "text-[var(--sem-joint-ink)]",
-                    )}
+                    className="shrink-0 text-[var(--sem-joint-bar)]"
                     aria-hidden="true"
                   />
                 )}
                 {showCriticalBadge && (
-                  <span
-                    className={cn(
-                      "font-mono-tabular shrink-0 rounded px-1.5 py-[1px] text-[10px] font-semibold",
-                      active
-                        ? "bg-[var(--bg-elevated)] text-[var(--sem-conflict-ink)]"
-                        : "bg-[var(--sem-conflict-bg)] text-[var(--sem-conflict-ink)]",
-                    )}
-                  >
+                  <span className="font-mono-tabular shrink-0 rounded bg-[var(--sem-conflict-bg)] px-1.5 py-[1px] text-[10px] font-semibold text-[var(--sem-conflict-ink)]">
                     {criticalReadinessCount}
                   </span>
                 )}

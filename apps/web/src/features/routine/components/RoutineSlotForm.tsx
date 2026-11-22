@@ -187,7 +187,7 @@ export function RoutineSlotForm({
                 onClick={() => handlePeriodPreset(p.idx)}
                 className={`font-mono-tabular h-7 rounded-[5px] border px-2 text-[11.5px] transition-colors ${
                   active
-                    ? "border-[var(--accent-pine)] bg-[var(--accent-pine-soft)] font-semibold text-[var(--accent-pine)]"
+                    ? "border-[var(--accent-brand)] bg-[var(--accent-brand-soft)] font-semibold text-[var(--accent-brand)]"
                     : "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)]"
                 }`}
               >
@@ -404,7 +404,7 @@ export function RoutineSlotForm({
             type="checkbox"
             checked={isService}
             onChange={(e) => setIsService(e.target.checked)}
-            className="h-4 w-4 accent-[var(--accent-pine)]"
+            className="h-4 w-4 accent-[var(--accent-brand)]"
           />
           <span>Service / GED course</span>
         </label>
@@ -413,7 +413,7 @@ export function RoutineSlotForm({
             type="checkbox"
             checked={isActive}
             onChange={(e) => setIsActive(e.target.checked)}
-            className="h-4 w-4 accent-[var(--accent-pine)]"
+            className="h-4 w-4 accent-[var(--accent-brand)]"
           />
           <span>Active slot</span>
         </label>

@@ -94,7 +94,7 @@ export function HoverCopyButton({
       className="row-reveal-action inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-[4px] border border-transparent text-[var(--ink-muted)] hover:border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:text-[var(--ink-primary)]"
     >
       {copied ? (
-        <Check size={13} className="text-[var(--accent-pine)]" aria-hidden="true" />
+        <Check size={13} className="text-[var(--accent-brand)]" aria-hidden="true" />
       ) : (
         <Copy size={13} aria-hidden="true" />
       )}
@@ -138,7 +138,7 @@ export function DataLedgerTable<T extends RowData>({
             aria-label="Select all visible rows"
             checked={table.getIsAllRowsSelected()}
             onChange={table.getToggleAllRowsSelectedHandler()}
-            className="h-4 w-4 cursor-pointer accent-[var(--accent-pine)]"
+            className="h-4 w-4 cursor-pointer accent-[var(--accent-brand)]"
           />
         ),
         cell: ({ row }) => (
@@ -148,7 +148,7 @@ export function DataLedgerTable<T extends RowData>({
             checked={row.getIsSelected()}
             onChange={row.getToggleSelectedHandler()}
             onClick={(e) => e.stopPropagation()}
-            className="h-4 w-4 cursor-pointer accent-[var(--accent-pine)]"
+            className="h-4 w-4 cursor-pointer accent-[var(--accent-brand)]"
           />
         ),
       });
@@ -243,7 +243,7 @@ export function DataLedgerTable<T extends RowData>({
           "group transition-colors",
           onRowClick ? "cursor-pointer" : undefined,
           isActiveSelection
-            ? "bg-[var(--accent-pine-soft)]/70"
+            ? "bg-[var(--accent-brand-soft)]/70"
             : "hover:bg-[var(--surface-hover)]",
           isInactive ? "text-[var(--ink-muted)]" : "text-[var(--ink-primary)]",
         )}
@@ -282,9 +282,9 @@ export function DataLedgerTable<T extends RowData>({
             animate={{ opacity: 1, y: 0 }}
             exit={prefersReducedMotion ? undefined : { opacity: 0, y: -4 }}
             transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-            className="flex flex-wrap items-center justify-between gap-2.5 rounded-[var(--r-card)] border border-[var(--accent-pine-border)] bg-[var(--accent-pine-soft)] px-4 py-2.5"
+            className="flex flex-wrap items-center justify-between gap-2.5 rounded-[var(--r-card)] border border-[var(--accent-brand-border)] bg-[var(--accent-brand-soft)] px-4 py-2.5"
           >
-            <div className="flex items-center gap-2.5 text-[12.5px] font-semibold text-[var(--accent-pine)]">
+            <div className="flex items-center gap-2.5 text-[12.5px] font-semibold text-[var(--accent-brand)]">
               <span className="font-mono-tabular">{selectedIds.length} selected</span>
               <button
                 type="button"

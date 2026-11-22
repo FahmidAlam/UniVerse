@@ -1,91 +1,115 @@
 /* ============================================================================
-   UniVerse Academic Ledger — Light-First Design System Tokens
+   UniVerse Academic Ledger — X-Grade Carbon Obsidian & Crisp Daylight Dual Theme
    ============================================================================
-   Every OKLCH value is mathematically mapped and sRGB-gamut verified against
-   WCAG 2.1 AA over its actual opaque light surface pair.
-   Color mixing strictly uses `color-mix(in oklab, ...)` to prevent hue drift.
+   Near-achromatic Carbon-Obsidian (Dark, C <= 0.008) & Crisp Daylight (Light)
+   paired with a WCAG-AA calibrated 10-step X-Azure Blue scale (H = 246°–248°).
+   - Light Mode: Crisp X-Daylight neutrals (~2% surface steps)
+   - Dark Mode: X "Lights Out" Carbon-Obsidian 4-layer elevation
+   - Zero navy cast, zero muddy sepia, zero Flutter orange, zero neon cyan
+   - Color mixing strictly uses `color-mix(in oklab, ...)` to prevent hue drift.
    ============================================================================ */
 
 :root {
   color-scheme: light;
 
-  /* 1. Surfaces (Warm Archival Neutrals, Hue 86) */
-  --bg-canvas: oklch(0.946 0.008 86);
-  --bg-surface: oklch(0.974 0.006 86);
-  --bg-elevated: oklch(0.996 0.002 86);
-  --surface-hover: oklch(0.960 0.007 86);
-  --surface-active: oklch(0.934 0.009 86);
+  /* 0. 10-Step X-Azure Brand Scale (H = 246°–248°) */
+  --brand-50: oklch(0.968 0.014 246);
+  --brand-100: oklch(0.930 0.032 246);
+  --brand-200: oklch(0.855 0.068 246);
+  --brand-300: oklch(0.715 0.132 245);
+  --brand-400: oklch(0.625 0.138 247);
+  --brand-500: oklch(0.550 0.140 248);
+  --brand-600: oklch(0.500 0.125 248);
+  --brand-700: oklch(0.445 0.118 248);
+  --brand-800: oklch(0.385 0.092 248);
+  --brand-900: oklch(0.245 0.055 248);
+  --brand-950: oklch(0.185 0.038 248);
 
-  /* 2. Typography Ink Hierarchy */
-  --ink-primary: oklch(0.205 0.012 75);
-  --ink-secondary: oklch(0.415 0.012 78);
-  --ink-muted: oklch(0.510 0.010 80);
+  /* 1. 4-Layer Crisp X-Daylight Neutral Surfaces (C <= 0.004) */
+  --bg-canvas: oklch(0.955 0.003 250);
+  --bg-surface: oklch(0.982 0.002 250);
+  --bg-elevated: oklch(1.000 0 0);
+  --bg-raised: oklch(0.966 0.003 250);
+  --surface-hover: oklch(0.942 0.004 250);
+  --surface-active: oklch(0.916 0.006 250);
 
-  /* 3. Primary Charcoal Ink Actions */
-  --action-primary: oklch(0.220 0.012 75);
-  --action-primary-hover: oklch(0.275 0.014 75);
-  --action-primary-active: oklch(0.180 0.010 75);
-  --action-primary-ink: oklch(0.988 0.003 86);
+  /* 2. Stepped X-Daylight Ink Hierarchy (All >= 5.0:1 AA) */
+  --ink-hero: oklch(0.165 0.010 250);
+  --ink-primary: oklch(0.180 0.010 250);
+  --ink-secondary: oklch(0.420 0.012 250);
+  --ink-muted: oklch(0.505 0.012 250);
 
-  /* 4. Provisional Institutional Accent (Deep Botanical Pine — H=158) */
-  --accent-pine: oklch(0.395 0.076 158);
-  --accent-pine-hover: oklch(0.345 0.078 158);
-  --accent-pine-soft: oklch(0.942 0.018 156);
-  --accent-pine-ink: oklch(0.990 0.003 95);
-  --accent-pine-border: oklch(0.395 0.076 158 / 0.28);
+  /* 3. Primary X-Azure Actions */
+  --action-primary: var(--brand-600);
+  --action-primary-hover: var(--brand-700);
+  --action-primary-active: var(--brand-800);
+  --action-primary-ink: oklch(1.000 0 0);
+
+  /* 4. Institutional Brand Accent */
+  --accent-brand: var(--brand-600);
+  --accent-brand-hover: var(--brand-700);
+  --accent-brand-soft: var(--brand-50);
+  --accent-brand-ink: oklch(1.000 0 0);
+  --accent-brand-border: oklch(0.500 0.162 248 / 0.28);
 
   /* 5. Borders & Focus Boundaries */
-  --border-subtle: oklch(0.205 0.012 75 / 0.12);
-  --border-strong: oklch(0.205 0.012 75 / 0.22);
-  --border-control: oklch(0.575 0.012 80);
-  --focus-ring: oklch(0.395 0.076 158);
+  --border-subtle: oklch(0.892 0.005 250);
+  --border-strong: oklch(0.810 0.008 250);
+  --border-control: oklch(0.550 0.010 250);
+  --focus-ring: var(--brand-500);
 
-  /* 6. Semantic Academic Schedule Categories (4 Distinct Hues + Bars) */
-  --sem-theory-bg: oklch(0.950 0.018 245);
-  --sem-theory-ink: oklch(0.335 0.078 248);
-  --sem-theory-bar: oklch(0.495 0.095 248);
-  --sem-theory-border: oklch(0.495 0.095 248 / 0.28);
+  /* 6. Perceptually Uniform OKLCH Chart Tokens (Light: L = 0.50–0.56) */
+  --chart-1: var(--brand-600);
+  --chart-2: oklch(0.520 0.088 210);
+  --chart-3: oklch(0.520 0.095 162);
+  --chart-4: oklch(0.560 0.110 76);
 
-  --sem-lab-bg: oklch(0.944 0.022 158);
-  --sem-lab-ink: oklch(0.335 0.062 158);
-  --sem-lab-bar: oklch(0.450 0.088 158);
-  --sem-lab-border: oklch(0.450 0.088 158 / 0.28);
+  /* 7. Semantic Academic Schedule Categories (4 Distinct Hues + Bars) */
+  --sem-theory-bg: oklch(0.954 0.014 246);
+  --sem-theory-ink: oklch(0.330 0.085 248);
+  --sem-theory-bar: oklch(0.500 0.125 248);
+  --sem-theory-border: oklch(0.500 0.125 248 / 0.28);
 
-  --sem-joint-bg: oklch(0.954 0.028 80);
-  --sem-joint-ink: oklch(0.380 0.085 65);
-  --sem-joint-bar: oklch(0.560 0.115 70);
-  --sem-joint-border: oklch(0.560 0.115 70 / 0.28);
+  --sem-lab-bg: oklch(0.950 0.018 162);
+  --sem-lab-ink: oklch(0.320 0.062 162);
+  --sem-lab-bar: oklch(0.460 0.088 162);
+  --sem-lab-border: oklch(0.460 0.088 162 / 0.28);
 
-  --sem-conflict-bg: oklch(0.946 0.020 24);
-  --sem-conflict-ink: oklch(0.415 0.145 25);
-  --sem-conflict-bar: oklch(0.530 0.165 25);
-  --sem-conflict-border: oklch(0.530 0.165 25 / 0.28);
+  --sem-joint-bg: oklch(0.955 0.024 80);
+  --sem-joint-ink: oklch(0.375 0.082 68);
+  --sem-joint-bar: oklch(0.560 0.112 72);
+  --sem-joint-border: oklch(0.560 0.112 72 / 0.28);
 
-  --sem-neutral-bg: oklch(0.960 0.007 86);
-  --sem-neutral-ink: oklch(0.415 0.012 78);
+  --sem-conflict-bg: oklch(0.948 0.020 20);
+  --sem-conflict-ink: oklch(0.410 0.140 22);
+  --sem-conflict-bar: oklch(0.530 0.160 22);
+  --sem-conflict-border: oklch(0.530 0.160 22 / 0.28);
 
-  /* 7. Four Light-Mode Depth Properties */
+  --sem-neutral-bg: oklch(0.966 0.003 250);
+  --sem-neutral-ink: oklch(0.420 0.012 250);
+
+  /* 8. Four Light-Mode Depth Properties */
   --highlight-top: inset 0 1px 0 oklch(1 0 0 / 0.85);
-  --surface-sheen: linear-gradient(180deg, oklch(1 0.001 86), oklch(0.985 0.004 86));
+  --surface-sheen: linear-gradient(180deg, oklch(1 0 0), oklch(0.985 0.002 250));
   --shadow-sheet:
-    0 1px 2px oklch(0.205 0.012 75 / 0.06),
-    0 6px 18px oklch(0.205 0.012 75 / 0.05);
+    0 1px 2px oklch(0.180 0.010 250 / 0.05),
+    0 6px 18px oklch(0.180 0.010 250 / 0.04);
   --shadow-popover:
-    0 2px 6px oklch(0.205 0.012 75 / 0.08),
-    0 14px 32px oklch(0.205 0.012 75 / 0.10);
+    0 2px 6px oklch(0.180 0.010 250 / 0.08),
+    0 14px 32px oklch(0.180 0.010 250 / 0.10);
 
-  /* 8. Typography Stacks */
+  /* 9. Typography Stacks */
   --font-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
   --font-sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  /* 9. Radii */
+  /* 10. Radii */
   --r-sheet: 12px;
   --r-card: 10px;
   --r-control: 7px;
   --r-pill: 999px;
 
-  /* 10. Motion Contract */
+  /* 11. Motion Contract */
   --dur-press: 100ms;
   --dur-in: 190ms;
   --dur-out: 150ms;
@@ -94,13 +118,95 @@
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* 1. 4-Layer X Carbon-Obsidian Surfaces (Near-Achromatic, C <= 0.006) */
+  --bg-canvas: oklch(0.080 0.002 250);
+  --bg-surface: oklch(0.138 0.003 250);
+  --bg-elevated: oklch(0.198 0.004 250);
+  --bg-raised: oklch(0.248 0.005 250);
+  --surface-hover: oklch(0.232 0.005 250);
+  --surface-active: oklch(0.278 0.006 250);
+
+  /* 2. Crisp X Neutral Ink Hierarchy (Verified >= 5.1:1 on ALL 4 Layers) */
+  --ink-hero: oklch(0.985 0.002 250);
+  --ink-primary: oklch(0.932 0.004 250);
+  --ink-secondary: oklch(0.790 0.006 250);
+  --ink-muted: oklch(0.705 0.008 250);
+
+  /* 3. Primary X-Azure Actions (#1476CB with #FFFFFF >= 4.8:1 AA) */
+  --action-primary: var(--brand-500);
+  --action-primary-hover: oklch(0.562 0.140 248);
+  --action-primary-active: var(--brand-600);
+  --action-primary-ink: oklch(1.000 0 0);
+
+  /* 4. X-Sky Accent (#38A1F3) */
+  --accent-brand: var(--brand-300);
+  --accent-brand-hover: var(--brand-200);
+  --accent-brand-soft: var(--brand-900);
+  --accent-brand-ink: oklch(0.080 0.002 250);
+  --accent-brand-border: oklch(0.715 0.150 245 / 0.34);
+
+  /* 5. Razor-Thin X Borders & Focus Boundaries */
+  --border-subtle: oklch(0.95 0.004 250 / 0.10);
+  --border-strong: oklch(0.95 0.004 250 / 0.18);
+  --border-control: oklch(0.560 0.008 250);
+  --focus-ring: var(--brand-300);
+
+  /* 6. Perceptually Uniform OKLCH Chart Tokens (Dark: L = 0.68–0.72) */
+  --chart-1: var(--brand-300);
+  --chart-2: oklch(0.690 0.110 205);
+  --chart-3: oklch(0.690 0.115 162);
+  --chart-4: oklch(0.740 0.115 76);
+
+  /* 7. Clean Dark Carbon-Glass Schedule Semantics (Zero Muddy Brown/Swamp Fills) */
+  --sem-theory-bg: oklch(0.222 0.016 246);
+  --sem-theory-ink: oklch(0.910 0.032 246);
+  --sem-theory-bar: oklch(0.715 0.150 245);
+  --sem-theory-border: oklch(0.715 0.150 245 / 0.30);
+
+  --sem-lab-bg: oklch(0.222 0.016 162);
+  --sem-lab-ink: oklch(0.910 0.034 162);
+  --sem-lab-bar: oklch(0.695 0.120 162);
+  --sem-lab-border: oklch(0.695 0.120 162 / 0.30);
+
+  --sem-joint-bg: oklch(0.228 0.018 76);
+  --sem-joint-ink: oklch(0.915 0.042 80);
+  --sem-joint-bar: oklch(0.760 0.125 76);
+  --sem-joint-border: oklch(0.760 0.125 76 / 0.32);
+
+  --sem-conflict-bg: oklch(0.228 0.028 22);
+  --sem-conflict-ink: oklch(0.910 0.045 22);
+  --sem-conflict-bar: oklch(0.685 0.160 22);
+  --sem-conflict-border: oklch(0.685 0.160 22 / 0.36);
+
+  --sem-neutral-bg: oklch(0.248 0.005 250);
+  --sem-neutral-ink: oklch(0.790 0.006 250);
+
+  /* 8. Pure-Black Alpha Dark Depth Properties & Top Rim Highlight */
+  --highlight-top: inset 0 1px 0 oklch(1 0 0 / 0.06);
+  --surface-sheen: linear-gradient(180deg, oklch(0.212 0.004 250), oklch(0.194 0.004 250));
+  --shadow-sheet: 0 1px 4px rgba(0, 0, 0, 0.45);
+  --shadow-popover:
+    0 16px 40px -8px rgba(0, 0, 0, 0.80),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
 @media (prefers-contrast: more) {
   :root {
-    --ink-secondary: oklch(0.320 0.012 78);
-    --ink-muted: oklch(0.360 0.012 78);
-    --border-subtle: oklch(0.205 0.012 75 / 0.30);
-    --border-strong: oklch(0.205 0.012 75 / 0.48);
-    --border-control: oklch(0.205 0.012 75);
+    --ink-secondary: oklch(0.310 0.012 250);
+    --ink-muted: oklch(0.360 0.012 250);
+    --border-subtle: oklch(0.180 0.010 250 / 0.30);
+    --border-strong: oklch(0.180 0.010 250 / 0.48);
+    --border-control: oklch(0.180 0.010 250);
+  }
+  :root[data-theme="dark"] {
+    --ink-secondary: oklch(0.855 0.005 250);
+    --ink-muted: oklch(0.770 0.006 250);
+    --border-subtle: oklch(0.95 0.004 250 / 0.24);
+    --border-strong: oklch(0.95 0.004 250 / 0.40);
+    --border-control: oklch(0.770 0.006 250);
   }
 }
 
@@ -118,6 +224,7 @@
     --bg-canvas: Canvas;
     --bg-surface: Canvas;
     --bg-elevated: Canvas;
+    --bg-raised: Canvas;
     --ink-primary: CanvasText;
     --ink-secondary: CanvasText;
     --ink-muted: GrayText;

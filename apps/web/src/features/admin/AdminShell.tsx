@@ -58,6 +58,7 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { cn } from "@/lib/utils";
 import { EngineHealthBadge } from "@/shared/components/EngineHealthBadge";
 import { LedgerMark } from "@/shared/components/LedgerMark";
+import { ThemeSwitcher } from "@/shared/theme/ThemeSwitcher";
 
 const SIDEBAR_STORAGE_KEY = "universe-sidebar-collapsed";
 
@@ -288,7 +289,7 @@ function SidebarContent({
                                   ? { duration: 0 }
                                   : { duration: 0.18, ease: [0.16, 1, 0.3, 1] }
                               }
-                              className="absolute bottom-[7px] left-0 top-[7px] w-[3px] rounded-r-[3px] bg-[var(--accent-pine)]"
+                              className="absolute bottom-[7px] left-0 top-[7px] w-[3px] rounded-r-[3px] bg-[var(--accent-brand)]"
                               aria-hidden="true"
                             />
                           )}
@@ -302,8 +303,8 @@ function SidebarContent({
                               size={collapsed ? 20 : 18}
                               className={
                                 isActive
-                                  ? "shrink-0 text-[var(--accent-pine)]"
-                                  : "shrink-0 text-[var(--ink-secondary)]"
+                                  ? "shrink-0 text-[var(--accent-brand)]"
+                                  : "shrink-0 text-[var(--ink-muted)]"
                               }
                               aria-hidden={true}
                             />
@@ -541,7 +542,10 @@ export function AdminShell() {
       {/* Main Fluid Workspace */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Single-Row 52px Top Instrument Bar (non-sticky so scrolled fullPage captures never slice page headings) */}
-        <header className="relative z-20 flex h-[52px] shrink-0 items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 sm:px-6">
+        <header
+          data-admin-topbar="true"
+          className="no-print relative z-20 flex h-[52px] shrink-0 items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 sm:px-6"
+        >
           <div className="flex min-w-0 items-center gap-2.5">
             <Dialog open={drawerOpen} onOpenChange={setDrawerOpen}>
               <DialogTrigger asChild>
@@ -598,6 +602,8 @@ export function AdminShell() {
             <div className="hidden sm:block">
               <EngineHealthBadge />
             </div>
+
+            <ThemeSwitcher compact />
 
             {!pageOwnsRoutinePrimaryCta && (
               <Link
@@ -663,7 +669,7 @@ export function AdminShell() {
         </header>
 
         {/* Main Workspace Canvas */}
-        <main className="mx-auto w-full min-w-0 max-w-[1220px] flex-1 p-4 sm:p-6">
+        <main className="mx-auto w-full min-w-0 max-w-[1920px] flex-1 p-4 sm:p-6">
           <Outlet />
         </main>
       </div>

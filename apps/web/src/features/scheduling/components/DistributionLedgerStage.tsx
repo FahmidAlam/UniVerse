@@ -130,6 +130,28 @@ export function DistributionLedgerStage({
   const [batchFilter, setBatchFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [density, setDensity] = useState<"comfortable" | "compact">(() => {
+    if (typeof window === "undefined") return "comfortable";
+    try {
+      return window.localStorage.getItem("universe-table-density") === "compact"
+        ? "compact"
+        : "comfortable";
+    } catch {
+      return "comfortable";
+    }
+  });
+  const handleDensityChange = (next: "comfortable" | "compact") => {
+    setDensity(next);
+    try {
+      window.localStorage.setItem("universe-table-density", next);
+    } catch {
+      // ignore storage errors
+    }
+  };
+  const cellPadClass =
+    density === "compact" ? "px-1.5 py-1.5 text-[12px]" : "px-2 py-2 text-[12.5px]";
+  const headerPadClass =
+    density === "compact" ? "px-1.5 py-2" : "px-2 py-2.5";
 
   // Inline audited correction form state
   const [isEditing, setIsEditing] = useState(false);
@@ -285,12 +307,14 @@ export function DistributionLedgerStage({
         accessorFn: (r) => r.courseTitle,
         header: () => "Title",
         cell: ({ row }) => (
-          <span
-            title={row.original.courseTitle}
-            className="block max-w-[200px] truncate text-[12.5px] text-[var(--ink-secondary)]"
-          >
-            {row.original.courseTitle}
-          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="block max-w-[140px] truncate text-[12.5px] text-[var(--ink-secondary)] xl:max-w-[190px]">
+                {row.original.courseTitle}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{row.original.courseTitle}</TooltipContent>
+          </Tooltip>
         ),
       },
       {
@@ -615,7 +639,7 @@ export function DistributionLedgerStage({
         className="ledger-card flex max-w-[760px] flex-col gap-4 p-6"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="font-mono-tabular text-[12px] font-medium text-[var(--accent-pine)]">
+          <span className="font-mono-tabular text-[12px] font-medium text-[var(--accent-brand)]">
             Track 2 · Gate A Fail-Closed Boundary
           </span>
           <Badge tone="joint" mono>
@@ -1033,7 +1057,7 @@ export function DistributionLedgerStage({
                   className={cn(
                     "font-mono-tabular h-[32px] rounded-[6px] border px-2.5 text-[12px] whitespace-nowrap transition-colors",
                     active
-                      ? "border-[var(--action-primary)] bg-[var(--action-primary)] font-semibold text-[var(--action-primary-ink)]"
+                      ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)] shadow-[inset_0_-2px_0_var(--accent-brand)]"
                       : "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)]",
                   )}
                 >
@@ -1106,6 +1130,30 @@ export function DistributionLedgerStage({
               </option>
             ))}
           </select>
+
+          <div
+            role="group"
+            aria-label="Table density"
+            data-testid="table-density-toggle"
+            className="inline-flex h-[36px] items-center rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] p-0.5"
+          >
+            {(["comfortable", "compact"] as const).map((modeVal) => (
+              <button
+                key={modeVal}
+                type="button"
+                aria-pressed={density === modeVal}
+                onClick={() => handleDensityChange(modeVal)}
+                className={cn(
+                  "h-[28px] rounded-[5px] border px-2.5 text-[11.5px] font-medium capitalize transition-colors",
+                  density === modeVal
+                    ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)]"
+                    : "border-transparent text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)]",
+                )}
+              >
+                {modeVal}
+              </button>
+            ))}
+          </div>
 
           <span className="font-mono-tabular ml-auto text-[12px] text-[var(--ink-muted)]">
             Showing {filteredRecords.length} of {records.length} offerings
@@ -1199,6 +1247,7 @@ export function DistributionLedgerStage({
                 <div
                   ref={tableScrollRef}
                   onScroll={handleTableScroll}
+                  data-testid="workbench-distribution-scroll"
                   data-scroll-cue-right={hasRightOverflow ? "true" : "false"}
                   style={scrollMaskStyle}
                   className={cn(
@@ -1210,14 +1259,17 @@ export function DistributionLedgerStage({
                     aria-label="Course Distribution Workbook Ledger"
                     className="w-full border-collapse text-left"
                   >
-                    <thead className="sticky top-0 z-10 border-b border-[var(--border-subtle)] bg-[var(--bg-canvas)]">
+                    <thead className="sticky top-0 z-10 border-b border-[var(--border-subtle)] bg-[var(--bg-raised)]">
                       {table.getHeaderGroups().map((hg) => (
                         <tr key={hg.id}>
                           {hg.headers.map((header) => (
                             <th
                               key={header.id}
                               scope="col"
-                              className="px-3 py-2.5 text-[11px] font-semibold tracking-[0.04em] text-[var(--ink-secondary)] uppercase whitespace-nowrap"
+                              className={cn(
+                                headerPadClass,
+                                "text-[11px] font-semibold tracking-[0.04em] text-[var(--ink-secondary)] uppercase whitespace-nowrap",
+                              )}
                             >
                               <button
                                 type="button"
@@ -1258,13 +1310,13 @@ export function DistributionLedgerStage({
                                 }
                                 className={cn(
                                   "cursor-pointer transition-colors hover:bg-[var(--surface-hover)]",
-                                  isSel && "bg-[var(--accent-pine-soft)]/55",
+                                  isSel && "bg-[var(--accent-brand-soft)]/55",
                                 )}
                               >
                                 {row.getAllCells().map((cell) => (
                                   <td
                                     key={cell.id}
-                                    className="px-3 py-2.5 text-[12.5px]"
+                                    className={cellPadClass}
                                   >
                                     <table.FlexRender cell={cell} />
                                   </td>
@@ -1300,7 +1352,7 @@ export function DistributionLedgerStage({
                               }
                               className={cn(
                                 "cursor-pointer transition-colors hover:bg-[var(--surface-hover)]",
-                                isSel && "bg-[var(--accent-pine-soft)]/55",
+                                isSel && "bg-[var(--accent-brand-soft)]/55",
                               )}
                             >
                               {row.getAllCells().map((cell) => (

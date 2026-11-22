@@ -30,6 +30,10 @@ import {
 import { useAuth } from "@/features/auth/AuthProvider";
 import { fetchBaselineConfigAndBuild } from "@/features/routine/services/buildEngineConfig";
 import {
+  buildCourseDistributionFile,
+  buildCourseDistributionXlsx,
+} from "@/features/routine/services/distributionXlsxBuilder";
+import {
   buildRoutineDraftPayload,
   parseGenerationProfile,
   verifyGenerationProfileSource,
@@ -51,6 +55,7 @@ import {
   findCoTeacherBlockers,
   inspectValidationCounters,
 } from "@/features/routine/services/validationGate";
+import { useDistributionDraftStore } from "@/features/routine/store/distributionDraftStore";
 import { useRoutineOperationsStore } from "@/features/routine/store/routineOperationsStore";
 import type { EngineJobState } from "@/features/routine/types";
 import { cn } from "@/lib/utils";
@@ -91,8 +96,10 @@ function stageIndexOf(state: EngineJobState | null): number {
 
 export function GenerateRoutineTab({
   onInspectInGrid,
+  onOpenDistributionSheet,
 }: {
   onInspectInGrid: () => void;
+  onOpenDistributionSheet?: () => void;
 }) {
   const { isDevPreview, profile } = useAuth();
   const queryClient = useQueryClient();
@@ -101,6 +108,13 @@ export function GenerateRoutineTab({
   const pollAbortRef = useRef<AbortController | null>(null);
 
   const {
+    rows: draftRows,
+    termLabel: draftTermLabel,
+  } = useDistributionDraftStore();
+
+  const {
+    generateInputMode,
+    setGenerateInputMode,
     selectedWorkbookName,
     selectedWorkbookSize,
     selectedWorkbookBytes,
@@ -263,10 +277,29 @@ export function GenerateRoutineTab({
   };
 
   const handleRunSolver = async () => {
-    if (!selectedWorkbookFile || !selectedWorkbookBytes) {
+    let activeFile: File | null = selectedWorkbookFile;
+    let activeBytes: Uint8Array | null = selectedWorkbookBytes;
+
+    if (generateInputMode === "sheet") {
+      if (draftRows.length === 0) {
+        toast.error("Add at least one offering to the Distribution Sheet first.");
+        return;
+      }
+      const safeTerm =
+        draftTermLabel.trim().replace(/[^A-Za-z0-9_-]+/g, "_") || "Draft";
+      activeBytes = buildCourseDistributionXlsx(draftRows, {
+        termLabel: draftTermLabel,
+      });
+      activeFile = buildCourseDistributionFile(
+        draftRows,
+        `Course_Distribution_${safeTerm}.xlsx`,
+        { termLabel: draftTermLabel },
+      );
+    } else if (!activeFile || !activeBytes) {
       toast.error("Select a Course Distribution .xlsx file first.");
       return;
     }
+
     if (profileError) {
       toast.error(profileError);
       return;
@@ -281,8 +314,8 @@ export function GenerateRoutineTab({
     try {
       let configObj: Record<string, unknown>;
       let semesterLabel: string | null = null;
-      if (loadedProfile) {
-        verifyGenerationProfileSource(loadedProfile, selectedWorkbookBytes);
+      if (loadedProfile && generateInputMode === "upload") {
+        verifyGenerationProfileSource(loadedProfile, activeBytes);
         configObj = loadedProfile.config as unknown as Record<string, unknown>;
         const rawSettings = configObj.settings as
           | Record<string, unknown>
@@ -295,12 +328,13 @@ export function GenerateRoutineTab({
         const assembled =
           baselineQuery.data ?? (await fetchBaselineConfigAndBuild(isDevPreview));
         configObj = assembled.config as unknown as Record<string, unknown>;
-        semesterLabel = assembled.config.settings.semester_label;
+        semesterLabel =
+          assembled.config.settings.semester_label || draftTermLabel;
       }
 
       const configJson = JSON.stringify(configObj);
       const { job_id } = await submitGenerationJob({
-        file: selectedWorkbookFile,
+        file: activeFile,
         configJson,
         signal: abortCtrl.signal,
       });
@@ -318,7 +352,8 @@ export function GenerateRoutineTab({
         result,
         configSnapshot: configObj,
         semesterLabel,
-        wasPrivatePreview: loadedProfile !== null,
+        wasPrivatePreview:
+          generateInputMode === "upload" && loadedProfile !== null,
       });
 
       toast.success("CP-SAT routine generation completed");
@@ -570,19 +605,91 @@ export function GenerateRoutineTab({
               Course Distribution Input
             </h2>
             <p className="mt-0.5 text-[12.5px] text-[var(--ink-secondary)]">
-              Upload a Leading University{" "}
-              <code className="font-mono-tabular">.xlsx</code> Course
-              Distribution workbook to run the CP-SAT solver (180s budget).
+              Generate directly from the in-browser Distribution Sheet or upload
+              a Leading University{" "}
+              <code className="font-mono-tabular">.xlsx</code> workbook (180s
+              budget).
             </p>
           </div>
-          {loadedProfile && (
-            <Badge tone="joint" mono>
-              <LockSimple size={12} aria-hidden="true" />
-              <span>PRIVATE PREVIEW ONLY · PUBLICATION BLOCKED</span>
-            </Badge>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {loadedProfile && generateInputMode === "upload" && (
+              <Badge tone="joint" mono>
+                <LockSimple size={12} aria-hidden="true" />
+                <span>PRIVATE PREVIEW ONLY · PUBLICATION BLOCKED</span>
+              </Badge>
+            )}
+            <div
+              role="group"
+              aria-label="Course distribution input source"
+              className="inline-flex rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-surface)] p-0.5"
+            >
+              <button
+                type="button"
+                data-testid="input-mode-sheet"
+                onClick={() => setGenerateInputMode("sheet")}
+                className={cn(
+                  "h-[30px] rounded-[calc(var(--r-control)-2px)] border px-2.5 text-[12px] font-medium transition-colors",
+                  generateInputMode === "sheet"
+                    ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)]"
+                    : "border-transparent text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
+                )}
+              >
+                In-App Distribution Sheet ({draftRows.length})
+              </button>
+              <button
+                type="button"
+                data-testid="input-mode-upload"
+                onClick={() => setGenerateInputMode("upload")}
+                className={cn(
+                  "h-[30px] rounded-[calc(var(--r-control)-2px)] border px-2.5 text-[12px] font-medium transition-colors",
+                  generateInputMode === "upload"
+                    ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)]"
+                    : "border-transparent text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
+                )}
+              >
+                Upload External .xlsx File
+              </button>
+            </div>
+          </div>
         </div>
 
+        {generateInputMode === "sheet" ? (
+          <div
+            data-testid="generate-from-sheet-summary"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-control)] border border-[var(--accent-brand-border)] bg-[var(--accent-brand-soft)]/50 px-4 py-4"
+          >
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-mono-tabular text-[13.5px] font-semibold text-[var(--ink-primary)]">
+                  {draftTermLabel} · {draftRows.length} offerings ready
+                </span>
+                <Badge tone="lab" mono>
+                  In-Memory OOXML .xlsx
+                </Badge>
+              </div>
+              <p className="text-[12.5px] text-[var(--ink-secondary)]">
+                Synthesizes a standards-compliant{" "}
+                <code className="font-mono-tabular">Course Distribution</code>{" "}
+                workbook in memory and submits directly to{" "}
+                <code className="font-mono-tabular">
+                  POST /api/timetable/generate
+                </code>
+                .
+              </p>
+            </div>
+            {onOpenDistributionSheet && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={onOpenDistributionSheet}
+              >
+                <span>Edit Sheet</span>
+              </Button>
+            )}
+          </div>
+        ) : (
+          <>
         {/* Accessible Drag & Drop / File Picker */}
         <div
           onDragOver={(e) => {
@@ -598,7 +705,7 @@ export function GenerateRoutineTab({
           className={cn(
             "flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-control)] border border-dashed px-4 py-4 transition-colors",
             isDraggingXlsx
-              ? "border-[var(--accent-pine)] bg-[var(--accent-pine-soft)]/60"
+              ? "border-[var(--accent-brand)] bg-[var(--accent-brand-soft)]/60"
               : "border-[var(--border-control)] bg-[var(--bg-surface)]",
           )}
         >
@@ -613,7 +720,7 @@ export function GenerateRoutineTab({
           />
 
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--accent-pine)]">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--accent-brand)]">
               <FileXls size={20} aria-hidden="true" />
             </div>
             <div className="min-w-0">
@@ -755,18 +862,28 @@ export function GenerateRoutineTab({
             </div>
           )}
         </div>
+          </>
+        )}
 
         <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
           <div className="font-mono-tabular text-[12px] text-[var(--ink-muted)]">
-            {loadedProfile
-              ? `Using rehearsal profile "${loadedProfile.label}" (${loadedProfile.provenance})`
-              : "Using live Supabase baseline rooms, faculty, eligibility & settings"}
+            {generateInputMode === "sheet"
+              ? `Using In-App Distribution Sheet (${draftRows.length} offerings) + live Supabase baseline config`
+              : loadedProfile
+                ? `Using rehearsal profile "${loadedProfile.label}" (${loadedProfile.provenance})`
+                : "Using live Supabase baseline rooms, faculty, eligibility & settings"}
           </div>
           <Button
             type="button"
             variant="primary"
             size="md"
-            disabled={!selectedWorkbookFile || isBusy || Boolean(profileError)}
+            data-testid="run-cpsat-solver-btn"
+            disabled={
+              isBusy ||
+              (generateInputMode === "sheet"
+                ? draftRows.length === 0
+                : !selectedWorkbookFile || Boolean(profileError))
+            }
             onClick={() => void handleRunSolver()}
           >
             {isBusy ? (
@@ -835,7 +952,7 @@ export function GenerateRoutineTab({
                     isCompleted
                       ? "border-[var(--sem-lab-border)] bg-[var(--sem-lab-bg)] text-[var(--sem-lab-ink)]"
                       : isCurrent
-                        ? "border-[var(--accent-pine)] bg-[var(--accent-pine-soft)] font-semibold text-[var(--accent-pine)]"
+                        ? "border-[var(--accent-brand)] bg-[var(--accent-brand-soft)] font-semibold text-[var(--accent-brand)]"
                         : "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--ink-muted)]",
                   )}
                 >
@@ -925,30 +1042,52 @@ export function GenerateRoutineTab({
           {/* Summary Stats */}
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-7">
             {[
-              { label: "OR-Tools", value: candidateResult.stats.status },
+              {
+                label: "OR-Tools",
+                value: candidateResult.stats?.status ?? "—",
+              },
               {
                 label: "Solve Time",
-                value: `${candidateResult.stats.solve_ms} ms`,
+                value:
+                  candidateResult.stats?.solve_ms != null
+                    ? `${candidateResult.stats.solve_ms} ms`
+                    : "—",
               },
               {
                 label: "CSE Meetings",
-                value: String(candidateResult.stats.meetings),
+                value:
+                  candidateResult.stats?.meetings != null
+                    ? String(candidateResult.stats.meetings)
+                    : String(candidateResult.rows.length),
               },
               {
                 label: "Service",
-                value: String(candidateResult.stats.service_meetings),
+                value:
+                  candidateResult.stats?.service_meetings != null
+                    ? String(candidateResult.stats.service_meetings)
+                    : String(candidateResult.service_rows.length),
               },
               {
                 label: "Cohorts",
-                value: String(candidateResult.stats.cohorts),
+                value:
+                  candidateResult.stats?.cohorts != null
+                    ? String(candidateResult.stats.cohorts)
+                    : "—",
               },
               {
                 label: "Teachers",
-                value: String(candidateResult.stats.teachers),
+                value:
+                  candidateResult.stats?.teachers != null
+                    ? String(candidateResult.stats.teachers)
+                    : "—",
               },
               {
                 label: "Lab Adjacent",
-                value: `${candidateResult.stats.lab_theory_adjacent}/${candidateResult.stats.lab_theory_pairs}`,
+                value:
+                  candidateResult.stats?.lab_theory_adjacent != null &&
+                  candidateResult.stats?.lab_theory_pairs != null
+                    ? `${candidateResult.stats.lab_theory_adjacent}/${candidateResult.stats.lab_theory_pairs}`
+                    : "—",
               },
             ].map((stat) => (
               <div
@@ -1214,7 +1353,7 @@ export function GenerateRoutineTab({
                 <div className="text-[11.5px] text-[var(--ink-muted)]">
                   Incoming Slots (CSE + Service)
                 </div>
-                <div className="font-mono-tabular text-[16px] font-semibold text-[var(--accent-pine)]">
+                <div className="font-mono-tabular text-[16px] font-semibold text-[var(--accent-brand)]">
                   {(candidateResult?.rows.length ?? 0) +
                     (candidateResult?.service_rows.length ?? 0)}
                 </div>
@@ -1243,7 +1382,7 @@ export function GenerateRoutineTab({
                 type="checkbox"
                 checked={notifyUsers}
                 onChange={(e) => setNotifyUsers(e.target.checked)}
-                className="h-4 w-4 accent-[var(--accent-pine)]"
+                className="h-4 w-4 accent-[var(--accent-brand)]"
               />
               <span>Notify students &amp; teachers via campus broadcast</span>
             </label>

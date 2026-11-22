@@ -77,16 +77,24 @@ function contrastRatio(fg: RgbColor, bg: RgbColor): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-function parseRootOklchTokens(cssSource: string): Record<string, RgbColor> {
-  const rootMatch = cssSource.match(/:root\s*\{([\s\S]*?)\n\}/);
-  if (!rootMatch) throw new Error("Missing :root token block in tokens.css");
-  const rootBody = rootMatch[1]!;
+function parseTokensFromBlock(
+  cssSource: string,
+  blockRegex: RegExp,
+  label: string,
+  baseScale: Record<string, RgbColor> = {},
+): Record<string, RgbColor> {
+  const matchBlock = cssSource.match(blockRegex);
+  if (!matchBlock) throw new Error(`Missing ${label} token block in tokens.css`);
+  const body = matchBlock[1]!;
 
-  const tokenRegex =
+  const oklchRegex =
     /(--[a-z0-9-]+)\s*:\s*oklch\(\s*([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)\s*\)\s*;/gi;
-  const parsed: Record<string, RgbColor> = {};
+  const varRegex =
+    /(--[a-z0-9-]+)\s*:\s*var\(\s*(--[a-z0-9-]+)\s*\)\s*;/gi;
 
-  for (const match of rootBody.matchAll(tokenRegex)) {
+  const parsed: Record<string, RgbColor> = { ...baseScale };
+
+  for (const match of body.matchAll(oklchRegex)) {
     const [, name, Lstr, Cstr, Hstr] = match;
     if (!name || !Lstr || !Cstr || !Hstr) continue;
     const { rgb, inGamut } = oklchToSrgb(
@@ -94,47 +102,93 @@ function parseRootOklchTokens(cssSource: string): Record<string, RgbColor> {
       Number.parseFloat(Cstr),
       Number.parseFloat(Hstr),
     );
-    expect(inGamut, `Token ${name} must fit inside sRGB gamut`).toBe(true);
+    expect(inGamut, `[${label}] Token ${name} must fit inside sRGB gamut`).toBe(true);
     parsed[name] = rgb;
   }
+
+  for (const match of body.matchAll(varRegex)) {
+    const [, name, refName] = match;
+    if (!name || !refName) continue;
+    const target = parsed[refName];
+    if (target) {
+      parsed[name] = target;
+    }
+  }
+
   return parsed;
 }
 
-describe("UniVerse Academic Ledger tokens.css WCAG 2.1 AA sRGB verification", () => {
+describe("UniVerse Academic Ledger tokens.css 4-layer dual-theme WCAG 2.1 AA sRGB verification", () => {
   const tokensPath = path.resolve(__dirname, "../../src/styles/tokens.css");
   const css = fs.readFileSync(tokensPath, "utf8");
-  const tokens = parseRootOklchTokens(css);
+  const lightTokens = parseTokensFromBlock(
+    css,
+    /:root\s*\{([\s\S]*?)\n\}/,
+    "light",
+  );
+  const darkTokens = parseTokensFromBlock(
+    css,
+    /:root\[data-theme="dark"\]\s*\{([\s\S]*?)\n\}/,
+    "dark",
+    lightTokens,
+  );
 
-  it("enforces single light-first design system with accessibility media rules and zero Spatial Orbit dark rules", () => {
-    expect(css).not.toContain('data-theme="dark"');
-    expect(css).not.toContain("--bg-dark");
+  it("enforces 4-layer X-Grade Carbon Obsidian & Crisp Daylight tokens with zero Obsidian Orbit or warm-sepia/teal carryover", () => {
+    expect(css).toContain(':root[data-theme="dark"]');
+    expect(css).toContain("--bg-raised");
+    expect(css).toContain("--brand-500");
+    expect(css).toContain("--brand-600");
+    expect(css).toContain("--chart-1");
+    expect(css).not.toContain("#0B0C0E");
+    expect(css).not.toContain("#FF7A00");
+    expect(css).not.toContain("--accent-pine");
     expect(css).toContain("@media (prefers-contrast: more)");
     expect(css).toContain("@media (forced-colors: active)");
     expect(css).toContain("@media (prefers-reduced-motion: reduce)");
+
+    // Verify Faculty declared off-day chip contrast in both themes (>= 4.5:1)
+    expect(
+      contrastRatio(lightTokens["--accent-brand"]!, lightTokens["--accent-brand-soft"]!),
+    ).toBeGreaterThanOrEqual(4.5);
+    expect(
+      contrastRatio(darkTokens["--accent-brand"]!, darkTokens["--accent-brand-soft"]!),
+    ).toBeGreaterThanOrEqual(4.5);
   });
 
   const requiredPairs: readonly [string, string, number, string][] = [
+    ["--ink-hero", "--bg-canvas", 4.5, "Hero text on canvas"],
+    ["--ink-hero", "--bg-surface", 4.5, "Hero text on surface"],
+    ["--ink-hero", "--bg-elevated", 4.5, "Hero text on elevated"],
+    ["--ink-hero", "--bg-raised", 4.5, "Hero text on raised"],
     ["--ink-primary", "--bg-canvas", 4.5, "Primary text on canvas"],
     ["--ink-primary", "--bg-surface", 4.5, "Primary text on surface"],
     ["--ink-primary", "--bg-elevated", 4.5, "Primary text on elevated"],
+    ["--ink-primary", "--bg-raised", 4.5, "Primary text on raised"],
     ["--ink-secondary", "--bg-canvas", 4.5, "Secondary text on canvas"],
     ["--ink-secondary", "--bg-surface", 4.5, "Secondary text on surface"],
     ["--ink-secondary", "--bg-elevated", 4.5, "Secondary text on elevated"],
+    ["--ink-secondary", "--bg-raised", 4.5, "Secondary text on raised"],
     ["--ink-muted", "--bg-canvas", 4.5, "Muted text on canvas"],
     ["--ink-muted", "--bg-surface", 4.5, "Muted text on surface"],
     ["--ink-muted", "--bg-elevated", 4.5, "Muted text on elevated"],
+    ["--ink-muted", "--bg-raised", 4.5, "Muted text on raised"],
     ["--action-primary-ink", "--action-primary", 4.5, "Primary button text"],
     ["--action-primary-ink", "--action-primary-hover", 4.5, "Primary hover button text"],
     ["--action-primary", "--bg-elevated", 3.0, "Primary button outline on elevated"],
-    ["--accent-pine", "--bg-canvas", 4.5, "Accent pine text on canvas"],
-    ["--accent-pine", "--bg-surface", 4.5, "Accent pine text on surface"],
-    ["--accent-pine", "--bg-elevated", 4.5, "Accent pine text on elevated"],
-    ["--accent-pine", "--accent-pine-soft", 4.5, "Accent pine text on soft wash"],
-    ["--accent-pine-ink", "--accent-pine", 4.5, "Accent pine pill text"],
+    ["--accent-brand", "--bg-canvas", 4.5, "Brand accent text on canvas"],
+    ["--accent-brand", "--bg-surface", 4.5, "Brand accent text on surface"],
+    ["--accent-brand", "--bg-elevated", 4.5, "Brand accent text on elevated"],
+    ["--accent-brand", "--bg-raised", 4.5, "Brand accent text on raised"],
+    ["--accent-brand", "--accent-brand-soft", 4.5, "Brand accent text on soft wash"],
     ["--focus-ring", "--bg-elevated", 3.0, "Focus ring on elevated"],
+    ["--focus-ring", "--bg-raised", 3.0, "Focus ring on raised"],
     ["--focus-ring", "--bg-canvas", 3.0, "Focus ring on canvas"],
     ["--border-control", "--bg-elevated", 3.0, "Control border on elevated"],
     ["--border-control", "--bg-surface", 3.0, "Control border on surface"],
+    ["--chart-1", "--bg-elevated", 3.0, "Chart 1 bar on elevated"],
+    ["--chart-2", "--bg-elevated", 3.0, "Chart 2 bar on elevated"],
+    ["--chart-3", "--bg-elevated", 3.0, "Chart 3 bar on elevated"],
+    ["--chart-4", "--bg-elevated", 3.0, "Chart 4 bar on elevated"],
     ["--sem-theory-ink", "--sem-theory-bg", 4.5, "Theory cell ink on fill"],
     ["--sem-theory-bar", "--bg-elevated", 3.0, "Theory accent bar on elevated"],
     ["--sem-lab-ink", "--sem-lab-bg", 4.5, "Lab cell ink on fill"],
@@ -146,14 +200,26 @@ describe("UniVerse Academic Ledger tokens.css WCAG 2.1 AA sRGB verification", ()
   ];
 
   it.each(requiredPairs)(
-    "%s on %s meets >= %s:1 (%s)",
+    "[Light] %s on %s meets >= %s:1 (%s)",
     (fgName, bgName, minRatio, description) => {
-      const fg = tokens[fgName];
-      const bg = tokens[bgName];
-      expect(fg, `Missing token ${fgName}`).toBeDefined();
-      expect(bg, `Missing token ${bgName}`).toBeDefined();
+      const fg = lightTokens[fgName];
+      const bg = lightTokens[bgName];
+      expect(fg, `Missing light token ${fgName}`).toBeDefined();
+      expect(bg, `Missing light token ${bgName}`).toBeDefined();
       const ratio = contrastRatio(fg!, bg!);
-      expect(ratio, `${description} (${ratio.toFixed(2)}:1)`).toBeGreaterThanOrEqual(minRatio);
+      expect(ratio, `[Light] ${description} (${ratio.toFixed(2)}:1)`).toBeGreaterThanOrEqual(minRatio);
+    },
+  );
+
+  it.each(requiredPairs)(
+    "[Dark] %s on %s meets >= %s:1 (%s)",
+    (fgName, bgName, minRatio, description) => {
+      const fg = darkTokens[fgName];
+      const bg = darkTokens[bgName];
+      expect(fg, `Missing dark token ${fgName}`).toBeDefined();
+      expect(bg, `Missing dark token ${bgName}`).toBeDefined();
+      const ratio = contrastRatio(fg!, bg!);
+      expect(ratio, `[Dark] ${description} (${ratio.toFixed(2)}:1)`).toBeGreaterThanOrEqual(minRatio);
     },
   );
 });

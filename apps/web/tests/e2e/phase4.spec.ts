@@ -189,6 +189,9 @@ test.describe("UniVerse Academic Ledger — Phase 4B 5-Stage Committee Schedulin
     // Stage 5: Review, Diff & Simulated Publish Gate
     await page.getByTestId("workbench-stage-review").click();
     await expect(page.getByTestId("artifact-freshness-card")).toBeVisible();
+    await expect(
+      page.getByTestId("stage5-candidate-matrix").locator("tbody tr").first(),
+    ).toBeVisible();
     await page.getByTestId("open-publish-gate-btn").click();
     await page.getByTestId("confirm-simulated-publish-btn").click();
     await expect(page.getByTestId("simulated-publish-outcome")).toContainText(

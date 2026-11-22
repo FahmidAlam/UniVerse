@@ -3,20 +3,20 @@ import type { HTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
 export const badgeVariants = cva(
-  "inline-flex items-center gap-1.5 rounded-[5px] border px-2 py-0.5 text-[11px] font-medium leading-[1.3] whitespace-nowrap",
+  "inline-flex items-center gap-1.5 rounded-[var(--r-pill)] border px-2.5 py-0.5 text-[11px] font-medium leading-[1.3] whitespace-nowrap",
   {
     variants: {
       tone: {
         neutral:
-          "border-[var(--border-subtle)] bg-[var(--sem-neutral-bg)] text-[var(--sem-neutral-ink)]",
+          "border-[var(--border-strong)] bg-[var(--bg-raised)] text-[var(--ink-secondary)]",
         pine:
-          "border-[var(--accent-pine-border)] bg-[var(--accent-pine-soft)] text-[var(--accent-pine)] font-semibold",
+          "border-[var(--border-strong)] bg-[var(--bg-raised)] text-[var(--ink-primary)]",
         theory:
-          "border-[var(--sem-theory-border)] bg-[var(--sem-theory-bg)] text-[var(--sem-theory-ink)]",
+          "border-[var(--border-strong)] bg-[var(--bg-raised)] text-[var(--ink-primary)]",
         lab:
-          "border-[var(--sem-lab-border)] bg-[var(--sem-lab-bg)] text-[var(--sem-lab-ink)]",
+          "border-[var(--border-strong)] bg-[var(--bg-raised)] text-[var(--ink-primary)]",
         joint:
-          "border-[var(--sem-joint-border)] bg-[var(--sem-joint-bg)] text-[var(--sem-joint-ink)]",
+          "border-[var(--border-strong)] bg-[var(--bg-raised)] text-[var(--ink-primary)]",
         conflict:
           "border-[var(--sem-conflict-border)] bg-[var(--sem-conflict-bg)] text-[var(--sem-conflict-ink)]",
       },
@@ -32,12 +32,44 @@ export const badgeVariants = cva(
   },
 );
 
+const DOT_TONE_CLASS: Record<
+  NonNullable<VariantProps<typeof badgeVariants>["tone"]>,
+  string | null
+> = {
+  neutral: null,
+  pine: "bg-[var(--accent-brand)]",
+  theory: "bg-[var(--sem-theory-bar)]",
+  lab: "bg-[var(--sem-lab-bar)]",
+  joint: "bg-[var(--sem-joint-bar)]",
+  conflict: "bg-[var(--sem-conflict-bar)]",
+};
+
 export interface BadgeProps
   extends HTMLAttributes<HTMLSpanElement>,
-    VariantProps<typeof badgeVariants> {}
+    VariantProps<typeof badgeVariants> {
+  dot?: boolean;
+}
 
-export function Badge({ className, tone, mono, ...props }: BadgeProps) {
+export function Badge({
+  className,
+  tone = "neutral",
+  mono,
+  dot,
+  children,
+  ...props
+}: BadgeProps) {
+  const dotColor = tone ? DOT_TONE_CLASS[tone] : null;
+  const showDot = (dot ?? Boolean(dotColor)) && dotColor !== null;
+
   return (
-    <span className={cn(badgeVariants({ tone, mono }), className)} {...props} />
+    <span className={cn(badgeVariants({ tone, mono }), className)} {...props}>
+      {showDot && (
+        <span
+          aria-hidden="true"
+          className={cn("h-1.5 w-1.5 shrink-0 rounded-full", dotColor)}
+        />
+      )}
+      {children}
+    </span>
   );
 }

@@ -129,8 +129,8 @@ export function StagedCoursesReferencePage() {
             </strong>
             <p className="mt-0.5 text-[12px]">
               Native course catalog creation and editing await canonical database
-              table promotion. Rows below are derived read-only from{" "}
-              <span className="font-mono-tabular">public.routines</span>.
+              table promotion. Rows below are derived read-only from the active
+              published routine.
             </p>
           </div>
         </div>
@@ -170,7 +170,7 @@ export function StagedCoursesReferencePage() {
               onClick={() => setTypeFilter(opt.id)}
               className={
                 typeFilter === opt.id
-                  ? "font-mono-tabular h-[34px] rounded-[var(--r-control)] border border-[var(--action-primary)] bg-[var(--action-primary)] px-3 text-[12px] font-semibold text-[var(--action-primary-ink)]"
+                  ? "font-mono-tabular h-[34px] rounded-[var(--r-control)] border border-[var(--border-strong)] bg-[var(--bg-raised)] px-3 text-[12px] font-semibold text-[var(--ink-primary)] shadow-[inset_0_-2px_0_var(--accent-brand)]"
                   : "font-mono-tabular h-[34px] rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-3 text-[12px] font-medium text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]"
               }
             >
@@ -192,7 +192,7 @@ export function StagedCoursesReferencePage() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search course or faculty... (/)"
             aria-label="Search derived courses"
-            className="h-[36px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] pl-8 pr-3 text-[13px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent-pine)]"
+            className="h-[36px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] pl-8 pr-3 text-[13px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent-brand)]"
           />
         </div>
       </div>
@@ -271,7 +271,7 @@ export function StagedCoursesReferencePage() {
                   <td className="px-4 py-2.5 text-right">
                     <Link
                       to={`/admin/timetable/grid?search=${encodeURIComponent(course.subjectCode)}&from=courses`}
-                      className="inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--accent-pine)] no-underline hover:underline whitespace-nowrap"
+                      className="inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--accent-brand)] no-underline hover:underline whitespace-nowrap"
                     >
                       <span>Inspect in Matrix</span>
                       <ArrowRight size={12} aria-hidden="true" />

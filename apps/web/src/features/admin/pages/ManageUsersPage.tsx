@@ -573,7 +573,7 @@ export function ManageUsersPage() {
           className={cn(
             "inline-flex h-9 items-center gap-2 rounded-[var(--r-control)] border px-3 text-[13px] font-medium transition-colors",
             tab === "directory"
-              ? "border-[var(--ink-primary)] bg-[var(--ink-primary)] text-[var(--bg-elevated)]"
+              ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)] shadow-[inset_0_-2px_0_var(--accent-brand)]"
               : "border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]",
           )}
         >
@@ -588,7 +588,7 @@ export function ManageUsersPage() {
           className={cn(
             "inline-flex h-9 items-center gap-2 rounded-[var(--r-control)] border px-3 text-[13px] font-medium transition-colors",
             tab === "whitelists"
-              ? "border-[var(--ink-primary)] bg-[var(--ink-primary)] text-[var(--bg-elevated)]"
+              ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)] shadow-[inset_0_-2px_0_var(--accent-brand)]"
               : "border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]",
           )}
         >
@@ -614,7 +614,7 @@ export function ManageUsersPage() {
                 className={cn(
                   "inline-flex h-[36px] items-center gap-1.5 rounded-[var(--r-control)] border px-3 font-mono-tabular text-[12px] transition-colors",
                   active
-                    ? "border-[var(--accent-pine)] bg-[var(--accent-pine-soft)] font-semibold text-[var(--accent-pine)]"
+                    ? "border-[var(--accent-brand)] bg-[var(--accent-brand-soft)] font-semibold text-[var(--accent-brand)]"
                     : "border-[var(--border-control)] bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)]",
                 )}
               >
@@ -638,7 +638,7 @@ export function ManageUsersPage() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search name, email, ID... (/)"
             aria-label="Search users and whitelists"
-            className="h-[36px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] pl-8 pr-3 text-[13px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent-pine)] focus:outline-none"
+            className="h-[36px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] pl-8 pr-3 text-[13px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent-brand)] focus:outline-none"
           />
         </div>
       </div>

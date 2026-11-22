@@ -48,7 +48,7 @@ export function ReviewDiffPublishStage({
         className="ledger-card flex max-w-[760px] flex-col gap-3 p-6"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="font-mono-tabular text-[12px] font-medium text-[var(--accent-pine)]">
+          <span className="font-mono-tabular text-[12px] font-medium text-[var(--accent-brand)]">
             Stage 5 · Gate D Required
           </span>
           <Badge tone="joint" mono>
@@ -248,9 +248,9 @@ export function ReviewDiffPublishStage({
             </button>
           </div>
 
-          <div className="mt-4 rounded-[var(--r-control)] border border-[var(--sem-joint-border)] bg-[var(--sem-joint-bg)] p-3 text-[12.5px] text-[var(--sem-joint-ink)]">
-            <div className="flex items-start gap-2 font-semibold">
-              <WarningCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <div className="mt-4 rounded-[var(--r-control)] border border-[var(--border-subtle)] border-l-[3px] border-l-[var(--sem-joint-bar)] bg-[var(--bg-surface)] p-3 text-[12.5px] text-[var(--ink-secondary)]">
+            <div className="flex items-start gap-2 font-semibold text-[var(--ink-primary)]">
+              <WarningCircle size={16} className="mt-0.5 shrink-0 text-[var(--sem-joint-bar)]" aria-hidden="true" />
               <span>Zero Database Writes Guarantee</span>
             </div>
             <p className="mt-1">

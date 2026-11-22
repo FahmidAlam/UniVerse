@@ -7,7 +7,7 @@ description: Governs theme discovery (Mobbin/Figma), OKLCH color architecture, a
 
 ## 1. Anti-Slop Theme Governance & Approved Design System Discipline
 - **NEVER invent or hardcode a generic AI palette** (e.g., default purple gradients, generic corporate navy/amber, or unlinked raw hex codes outside `tokens.css`).
-- **Separate Mobile & Web Identities:** Flutter Mobile (`lib/`, Android and iOS compatibility) retains Obsidian Orbit (`#0B0C0E` + `#FF7A00`). React Web (`apps/web/`) uses the owner-approved **UniVerse Academic Ledger** visual system (light-first, dark mode deferred; combining Precision Ledger, Campus Atelier, and Archival Registrar), stored centrally in `apps/web/src/styles/tokens.css`.
+- **Separate Mobile & Web Identities:** Flutter Mobile (`lib/`, Android and iOS compatibility) retains Obsidian Orbit (`#0B0C0E` + `#FF7A00`). React Web (`apps/web/`) uses the owner-approved **UniVerse Academic Ledger** visual system (interchangeable Light + Dark / System; combining Precision Ledger, Campus Atelier, and Archival Registrar), stored centrally in `apps/web/src/styles/tokens.css`.
 - **Approved v1 Direction Locked:** Do **not** reopen multi-direction discovery for React Web v1 screens or revive Spatial Orbit Engine. Reserve Mobbin/Figma multi-direction exploration strictly for future net-new product initiatives when explicitly requested by the owner.
 - **Domain Grounding:** Every React Web surface must derive its visual density, terminology, and affordances from Leading University CSE routine operations and committee policies rather than generic SaaS templates.
 
@@ -78,7 +78,7 @@ Verify **ZERO** violations before approving any screen:
 
 ---
 
-## 6. Approved Web Theme: UniVerse Academic Ledger (Light-First; Dark Mode Deferred)
+## 6. Approved Web Theme: UniVerse Academic Ledger (Interchangeable Light + Dark / System)
 Approved by Product Owner in `docs/architecture/WEB_ARCHITECTURE_DESIGN_BLUEPRINT.md`. Stored centrally in `apps/web/src/styles/tokens.css`.
 
 ### Three Complementary Design Pillars
@@ -87,13 +87,12 @@ Approved by Product Owner in `docs/architecture/WEB_ARCHITECTURE_DESIGN_BLUEPRIN
 3. **Archival Registrar:** Scholarly `Source Serif 4` editorial credibility for `/` and auth entry.
 
 ### Explicit Visual Prohibitions (No Carryover)
-- **No Dark Mode in v1:** Dark mode is deferred; zero theme switchers or dark CSS custom property branches in v1.
+- **Interchangeable Light + Dark (Light / Dark / System):** Full-parity Crisp Daylight Light and X-Grade Carbon Obsidian Dark modes under UniVerse Academic Ledger — strictly separate from Flutter's Obsidian Orbit (`#0B0C0E` + `#FF7A00`) and the retired cyan/3D Spatial Orbit prototype.
 - **No Obsidian Orbit Carryover:** Completely separate from Flutter's `#0B0C0E` + `#FF7A00` mobile theme.
 - **No Spatial Orbit Carryover:** Zero `Space Grotesk`, zero `JetBrains Mono`, zero cyan-emerald `H = 182°–186°` beams/conduits, zero counter-rotating SVG rings, zero 3D tilt, and zero fluted ribbing.
 
 ### Color Token Architecture (OKLCH -> Opaque Composited sRGB Verified)
-- **Surfaces:** Warm archival paper palette (`--bg-dark` recessed ledger canvas, `--bg` warm off-white sheet, `--bg-light` crisp elevated surface; neutral chalk-warm hue `H ~ 80°–95°` with very low chroma `C <= 0.015`).
-- **Typography Ink Spine:** Warm charcoal ink `--text-primary`, slate ink `--text-secondary`, muted archival ink `--text-muted` — every pair must pass automated opaque sRGB WCAG AA checks (`>= 4.5:1` text, `>= 3:1` non-text controls).
-- **Primary Action Token:** **Charcoal Ink** (`--action-primary` high-contrast dark ink surface with `--action-primary-ink` warm paper foreground).
-- **Provisional Accent Token:** **Deep Botanical Pine** (`--accent` pine hue `H ~ 155°–165°`, `C ~ 0.08–0.11`, crisp light foreground `--accent-ink`) — explicitly **provisional pending Leading University institutional branding confirmation**.
-- **Semantic Routine Categories (Strict Restraint — Default Off = Neutral Ledger):** Dedicated calm high-contrast pairs for **Theory**, **Lab**, **Joint `B+C`**, and **Hard Block / R7 Conflict**, all verified against opaque paper surfaces.
+- **Surfaces:** 4-layer near-achromatic Carbon-Obsidian (Dark, `C <= 0.006`) and Crisp Daylight (Light, `C <= 0.004`) palette (`--bg-canvas`, `--bg-surface`, `--bg-elevated`, `--bg-raised`).
+- **Typography Ink Spine:** Stepped neutral ink `--ink-hero`, `--ink-primary`, `--ink-secondary`, `--ink-muted` — every pair must pass automated opaque sRGB WCAG AA checks (`>= 4.5:1` text, `>= 3:1` non-text controls) across all 4 surface tiers.
+- **Primary Action & Brand Scale:** 10-step **X-Azure Blue** (`--brand-50`..`--brand-950`, `H = 246°–248°`); `--brand-600` for Light primary CTAs/accents, `--brand-500` for Dark primary CTAs (`#FFFFFF` ink `>= 4.5:1`), and `--brand-300` for Dark accents/links/focus rings. Only 1 primary CTA per screen carries solid `--action-primary` fill; active tabs/segmented controls use raised monochrome surfaces.
+- **Charts & Semantics:** Perceptually uniform OKLCH charts (`--chart-1..4`) and 4 calm schedule categories (**Theory**, **Lab**, **Joint `B+C`**, **Hard Block / R7 Conflict**), all verified against opaque surfaces.

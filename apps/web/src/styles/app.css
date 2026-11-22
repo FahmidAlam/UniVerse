@@ -88,8 +88,8 @@
   }
 
   .ledger-popover {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-subtle);
+    background: var(--bg-raised);
+    border: 1px solid var(--border-strong);
     border-radius: var(--r-card);
     box-shadow: var(--highlight-top), var(--shadow-popover);
   }
@@ -162,9 +162,9 @@
     cursor: not-allowed;
   }
   .btn-secondary[data-active="true"] {
-    background: var(--accent-pine-soft);
-    border-color: var(--accent-pine);
-    color: var(--accent-pine);
+    background: var(--bg-raised);
+    border-color: var(--border-strong);
+    color: var(--ink-primary);
     font-weight: 600;
   }
 
@@ -254,5 +254,128 @@
   .btn-primary:active:not(:disabled),
   .btn-secondary:active:not(:disabled) {
     transform: scale(0.97);
+  }
+}
+
+/* Crisp single-frame theme switch without staggered surface lag */
+.theme-switching *,
+.theme-switching *::before,
+.theme-switching *::after {
+  transition: none !important;
+}
+
+/* Diagonal hatching for Friday P4 Jummah & hard-blocked cells in both Light & Dark themes */
+.hatch-blocked {
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 6px,
+      color-mix(in oklab, var(--sem-conflict-bar) 12%, transparent) 6px,
+      color-mix(in oklab, var(--sem-conflict-bar) 12%, transparent) 10px
+    ),
+    var(--sem-conflict-bg);
+  color: var(--sem-conflict-ink);
+}
+
+/* Official Committee Day Sheet Print Mode */
+.print-only-footer {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  :root,
+  :root[data-theme="dark"] {
+    color-scheme: light;
+    --bg-canvas: #ffffff;
+    --bg-surface: #ffffff;
+    --bg-elevated: #ffffff;
+    --bg-raised: #f4f6f8;
+    --ink-primary: #0f1419;
+    --ink-secondary: #3e4c59;
+    --ink-muted: #5b6875;
+    --border-subtle: #cfd6de;
+    --border-strong: #8b98a5;
+    --sem-theory-bg: #f3f7fc;
+    --sem-theory-ink: #134074;
+    --sem-theory-bar: #1476cb;
+    --sem-lab-bg: #f1f8f5;
+    --sem-lab-ink: #174e36;
+    --sem-lab-bar: #2d6a4f;
+    --sem-joint-bg: #fcf7ee;
+    --sem-joint-ink: #5c3d0e;
+    --sem-joint-bar: #946214;
+    --sem-conflict-bg: #fdf2f2;
+    --sem-conflict-ink: #721c24;
+    --sem-conflict-bar: #b02a37;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #0f1419 !important;
+    overflow: visible !important;
+    width: 100% !important;
+    height: auto !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .no-print,
+  aside,
+  header[data-admin-topbar="true"],
+  nav[aria-label="Primary public navigation"],
+  [data-sonner-toaster] {
+    display: none !important;
+  }
+
+  main,
+  .committee-sheet-print-root,
+  .committee-print-sheet,
+  .committee-print-scroll {
+    overflow: visible !important;
+    max-width: none !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #0f1419 !important;
+  }
+
+  .committee-print-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+    font-size: 8.5pt !important;
+  }
+
+  .committee-print-table th,
+  .committee-print-table td {
+    min-width: 0 !important;
+    position: static !important;
+    padding: 3pt 3.5pt !important;
+  }
+
+  .committee-print-table thead {
+    display: table-header-group;
+  }
+
+  .committee-print-table tr {
+    break-inside: avoid;
+  }
+
+  .print-only-footer,
+  .print-signatures {
+    display: grid !important;
+    break-inside: avoid;
+    margin-top: 18pt;
   }
 }

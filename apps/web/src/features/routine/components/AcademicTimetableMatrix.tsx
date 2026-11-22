@@ -2,6 +2,7 @@ import {
   ArrowLeft,
   ArrowsClockwise,
   CalendarBlank,
+  FileText,
   ListBullets,
   Lock,
   MagnifyingGlass,
@@ -40,16 +41,19 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useHorizontalScrollCue } from "@/core/hooks/useHorizontalScrollCue";
 import { useWorkspaceShortcuts } from "@/core/hooks/useWorkspaceShortcuts";
+import { resolveBreakBeforePeriodIdx } from "@/core/utils/breakPolicy";
 import { ClockTime } from "@/core/utils/clockTime";
 import { matchesJointSection, RoomIdentity } from "@/core/utils/roomIdentity";
 import { ACADEMIC_WEEK_DAYS } from "@/features/admin/services/facultyService";
 import {
   fetchTimetableSettings,
+  getDefaultSettings,
   ONLINE_SLOT_IDX,
   partitionPeriods,
   type PeriodDefinition,
 } from "@/features/admin/services/settingsService";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { CommitteeDaySheetView } from "@/features/routine/components/CommitteeDaySheetView";
 import { RoutineSlotForm } from "@/features/routine/components/RoutineSlotForm";
 import {
   createRoutineSlot,
@@ -83,6 +87,7 @@ const VIEW_ITEMS: readonly {
   Icon: typeof Table;
 }[] = [
   { value: "matrix", label: "Matrix", Icon: Table },
+  { value: "committee", label: "Committee Sheet", Icon: FileText },
   { value: "list", label: "Compact List", Icon: ListBullets },
 ];
 
@@ -313,7 +318,9 @@ export function AcademicTimetableMatrix({
     retry: false,
   });
 
-  const settings = isOverrideMode ? undefined : settingsQuery.data;
+  const settings = isOverrideMode
+    ? getDefaultSettings()
+    : (settingsQuery.data ?? getDefaultSettings());
 
   const hasCandidate = Boolean(candidateResult) || isOverrideMode;
   const effectiveSource = isOverrideMode
@@ -461,13 +468,11 @@ export function AcademicTimetableMatrix({
     return list;
   }, [settings]);
 
-  // Identify midday break divider index (just before first period with col >= "H" or idx >= 4)
-  const breakBeforePeriodIdx = useMemo(() => {
-    const afternoon = configuredPeriods.find(
-      (p) => p.col >= "H" && p.idx < ONLINE_SLOT_IDX,
-    );
-    return afternoon?.idx ?? null;
-  }, [configuredPeriods]);
+  // Identify midday break divider index dynamically from period clock gaps
+  const breakBeforePeriodIdx = useMemo(
+    () => resolveBreakBeforePeriodIdx(configuredPeriods),
+    [configuredPeriods],
+  );
 
   const visibleDays = useMemo(() => {
     const baseDays =
@@ -736,7 +741,7 @@ export function AcademicTimetableMatrix({
           overrideNote && "slot-override-corner",
           dimmedByCrosshair && "opacity-40",
           highlightedByCrosshair &&
-            "ring-1 ring-[var(--accent-pine)] shadow-[var(--shadow-sheet)]",
+            "ring-1 ring-[var(--accent-brand)] shadow-[var(--shadow-sheet)]",
           isSelected && "ring-2 ring-[var(--ink-primary)]",
         )}
       >
@@ -837,7 +842,7 @@ export function AcademicTimetableMatrix({
                   type="button"
                   aria-label={`Quick add slot on ${entry.day} P${period.idx} for ${entry.groupLabel}`}
                   onClick={() => openQuickAdd(entry.day, entry.groupKey, period)}
-                  className="flex min-h-[48px] w-full items-center justify-center rounded-[4px] border border-dashed border-[var(--border-subtle)]/70 text-[11px] text-transparent transition-colors hover:border-[var(--accent-pine-border)] hover:bg-[var(--accent-pine-soft)]/50 hover:text-[var(--accent-pine)] focus-visible:text-[var(--accent-pine)]"
+                  className="flex min-h-[48px] w-full items-center justify-center rounded-[4px] border border-dashed border-[var(--border-subtle)]/70 text-[11px] text-transparent transition-colors hover:border-[var(--accent-brand-border)] hover:bg-[var(--accent-brand-soft)]/50 hover:text-[var(--accent-brand)] focus-visible:text-[var(--accent-brand)]"
                 >
                   <Plus size={13} aria-hidden="true" />
                 </button>
@@ -1031,10 +1036,10 @@ export function AcademicTimetableMatrix({
         <div
           role="status"
           data-testid="candidate-preview-banner"
-          className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-card)] border border-[var(--sem-joint-border)] bg-[var(--sem-joint-bg)] px-4 py-2.5 text-[12.5px] text-[var(--sem-joint-ink)]"
+          className="no-print flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-card)] border border-[var(--border-subtle)] border-l-[3px] border-l-[var(--sem-joint-bar)] bg-[var(--bg-elevated)] px-4 py-2.5 text-[12.5px] text-[var(--ink-secondary)]"
         >
-          <div className="flex items-center gap-2 font-medium">
-            <WarningCircle size={16} className="shrink-0" aria-hidden="true" />
+          <div className="flex items-center gap-2 font-medium text-[var(--ink-primary)]">
+            <WarningCircle size={16} className="shrink-0 text-[var(--sem-joint-bar)]" aria-hidden="true" />
             <span>
               Viewing unpublished candidate schedule — live student and teacher
               apps still show the published routine.
@@ -1053,7 +1058,7 @@ export function AcademicTimetableMatrix({
       {/* Connected Filter & Lens Bar (Uniform 36px Controls) */}
       <section
         aria-label="Timetable matrix filters and viewing lens"
-        className="ledger-card space-y-3 p-4"
+        className="no-print ledger-card space-y-3 p-4"
       >
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex flex-wrap items-center gap-2.5">
@@ -1061,7 +1066,7 @@ export function AcademicTimetableMatrix({
             <div
               role="group"
               aria-label="Timetable matrix lens"
-              className="inline-flex h-[36px] min-w-[280px] items-center rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] p-0.5"
+              className="inline-flex h-[36px] min-w-[280px] items-center rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-0.5"
             >
               {LENS_ITEMS.map((item) => {
                 const active = lens === item.value;
@@ -1077,7 +1082,7 @@ export function AcademicTimetableMatrix({
                     className={cn(
                       "relative h-[30px] flex-1 rounded-[5px] px-3 text-[12.5px] whitespace-nowrap transition-colors",
                       active
-                        ? "font-semibold text-[var(--action-primary-ink)]"
+                        ? "font-semibold text-[var(--ink-primary)]"
                         : "font-medium text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
                     )}
                   >
@@ -1089,7 +1094,7 @@ export function AcademicTimetableMatrix({
                             ? { duration: 0 }
                             : { duration: 0.18, ease: [0.16, 1, 0.3, 1] }
                         }
-                        className="absolute inset-0 rounded-[5px] bg-[var(--action-primary)]"
+                        className="absolute inset-0 rounded-[5px] border border-[var(--border-strong)] bg-[var(--bg-raised)]"
                         aria-hidden="true"
                       />
                     )}
@@ -1108,7 +1113,7 @@ export function AcademicTimetableMatrix({
             <div
               role="group"
               aria-label="Timetable layout format"
-              className="inline-flex h-[36px] items-center rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] p-0.5"
+              className="inline-flex max-w-full flex-wrap items-center gap-0.5 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-0.5 sm:h-[36px] sm:flex-nowrap"
             >
               {VIEW_ITEMS.map(({ value, label, Icon }) => {
                 const active = viewMode === value;
@@ -1119,13 +1124,17 @@ export function AcademicTimetableMatrix({
                     aria-pressed={active}
                     onClick={() => setViewMode(value, true)}
                     className={cn(
-                      "inline-flex h-[30px] items-center gap-1.5 rounded-[5px] px-3 text-[12.5px] whitespace-nowrap transition-colors",
+                      "inline-flex h-[30px] items-center gap-1.5 rounded-[5px] border px-2.5 text-[12px] whitespace-nowrap transition-colors sm:px-3 sm:text-[12.5px]",
                       active
-                        ? "bg-[var(--accent-pine-soft)] font-semibold text-[var(--accent-pine)]"
-                        : "font-medium text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
+                        ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)]"
+                        : "border-transparent font-medium text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
                     )}
                   >
-                    <Icon size={14} aria-hidden="true" />
+                    <Icon
+                      size={14}
+                      className={active ? "text-[var(--accent-brand)]" : undefined}
+                      aria-hidden="true"
+                    />
                     <span>{label}</span>
                   </button>
                 );
@@ -1154,17 +1163,17 @@ export function AcademicTimetableMatrix({
               <div
                 role="group"
                 aria-label="Schedule data source"
-                className="inline-flex h-[36px] items-center rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] p-0.5"
+                className="inline-flex h-[36px] items-center gap-0.5 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-0.5"
               >
                 <button
                   type="button"
                   aria-pressed={effectiveSource === "live"}
                   onClick={() => setActiveSource("live")}
                   className={cn(
-                    "font-mono-tabular h-[30px] rounded-[5px] px-2.5 text-[12px] whitespace-nowrap",
+                    "font-mono-tabular h-[30px] rounded-[5px] border px-2.5 text-[12px] whitespace-nowrap",
                     effectiveSource === "live"
-                      ? "bg-[var(--action-primary)] font-semibold text-[var(--action-primary-ink)]"
-                      : "text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
+                      ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)]"
+                      : "border-transparent text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
                   )}
                 >
                   Live Published ({(routinesQuery.data ?? []).length})
@@ -1174,12 +1183,13 @@ export function AcademicTimetableMatrix({
                   aria-pressed={effectiveSource === "candidate"}
                   onClick={() => setActiveSource("candidate")}
                   className={cn(
-                    "font-mono-tabular h-[30px] rounded-[5px] px-2.5 text-[12px] whitespace-nowrap",
+                    "font-mono-tabular inline-flex h-[30px] items-center gap-1.5 rounded-[5px] border px-2.5 text-[12px] whitespace-nowrap",
                     effectiveSource === "candidate"
-                      ? "bg-[var(--sem-joint-bg)] font-semibold text-[var(--sem-joint-ink)]"
-                      : "text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
+                      ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)]"
+                      : "border-transparent text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
                   )}
                 >
+                  <span className="h-1.5 w-1.5 rounded-full bg-[var(--sem-joint-bar)]" aria-hidden="true" />
                   Candidate Preview (
                   {candidateResult.rows.length +
                     candidateResult.service_rows.length}
@@ -1259,10 +1269,19 @@ export function AcademicTimetableMatrix({
             className={cn(
               "font-mono-tabular inline-flex h-[36px] items-center gap-2 rounded-[var(--r-control)] border px-3 text-[12px] font-medium whitespace-nowrap transition-colors",
               includeServiceCourses
-                ? "border-[var(--accent-pine)] bg-[var(--accent-pine-soft)] text-[var(--accent-pine)]"
-                : "border-[var(--border-control)] bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)]",
+                ? "border-[var(--border-strong)] bg-[var(--bg-raised)] text-[var(--ink-primary)]"
+                : "border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)]",
             )}
           >
+            <span
+              aria-hidden="true"
+              className={cn(
+                "h-1.5 w-1.5 rounded-full",
+                includeServiceCourses
+                  ? "bg-[var(--accent-brand)]"
+                  : "bg-[var(--border-control)]",
+              )}
+            />
             <span>Include Service Courses ({serviceCourseCount})</span>
           </button>
 
@@ -1276,48 +1295,51 @@ export function AcademicTimetableMatrix({
           </div>
         </div>
 
-        {/* Day Selector Pills with Upfront Option-Level Counts */}
-        <div
-          role="tablist"
-          aria-label="Filter by academic day"
-          className="flex flex-wrap items-center gap-1.5"
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={effectiveDayFilter === "ALL"}
-            onClick={() => setSelectedDay("ALL")}
-            className={cn(
-              "font-mono-tabular h-[30px] rounded-[6px] border px-2.5 text-[11.5px] whitespace-nowrap transition-colors",
-              effectiveDayFilter === "ALL"
-                ? "border-[var(--ink-primary)] bg-[var(--ink-primary)] font-semibold text-[var(--action-primary-ink)]"
-                : "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)]",
-            )}
+        {/* Day Selector Pills (hidden in Committee Sheet mode to avoid duplicate day bars) */}
+        {viewMode !== "committee" && (
+          <div
+            role="tablist"
+            aria-label="Filter by academic day"
+            data-testid="matrix-day-selector"
+            className="flex flex-wrap items-center gap-1.5"
           >
-            All Days ({rowsAfterServiceAndSearch.length})
-          </button>
-          {ACADEMIC_WEEK_DAYS.map((day) => {
-            const count = dayCounts.get(day) ?? 0;
-            const active = effectiveDayFilter === day;
-            return (
-              <button
-                key={day}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setSelectedDay(day)}
-                className={cn(
-                  "font-mono-tabular h-[30px] rounded-[6px] border px-2.5 text-[11.5px] whitespace-nowrap transition-colors",
-                  active
-                    ? "border-[var(--accent-pine)] bg-[var(--accent-pine-soft)] font-semibold text-[var(--accent-pine)]"
-                    : "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)]",
-                )}
-              >
-                {day.slice(0, 3)} ({count})
-              </button>
-            );
-          })}
-        </div>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={effectiveDayFilter === "ALL"}
+              onClick={() => setSelectedDay("ALL")}
+              className={cn(
+                "font-mono-tabular h-[30px] rounded-[6px] border px-2.5 text-[11.5px] whitespace-nowrap transition-colors",
+                effectiveDayFilter === "ALL"
+                  ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)] shadow-[inset_0_-2px_0_var(--accent-brand)]"
+                  : "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)]",
+              )}
+            >
+              All Days ({rowsAfterServiceAndSearch.length})
+            </button>
+            {ACADEMIC_WEEK_DAYS.map((day) => {
+              const count = dayCounts.get(day) ?? 0;
+              const active = effectiveDayFilter === day;
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setSelectedDay(day)}
+                  className={cn(
+                    "font-mono-tabular h-[30px] rounded-[6px] border px-2.5 text-[11.5px] whitespace-nowrap transition-colors",
+                    active
+                      ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)] shadow-[inset_0_-2px_0_var(--accent-brand)]"
+                      : "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)]",
+                  )}
+                >
+                  {day.slice(0, 3)} ({count})
+                </button>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* Main Grid + Optional Closable 360px Docked Inspector (>= 1100px) */}
@@ -1345,6 +1367,28 @@ export function AcademicTimetableMatrix({
                 setIncludeServiceCourses(true);
                 setSelectedDay("ALL");
               }}
+            />
+          ) : viewMode === "committee" ? (
+            <CommitteeDaySheetView
+              allSourceRows={activeSourceRows}
+              filteredRows={rowsAfterServiceAndSearch}
+              configuredPeriods={configuredPeriods}
+              breakBeforePeriodIdx={breakBeforePeriodIdx}
+              semesterLabel={
+                activeVersionQuery.data?.semester_label ??
+                settings?.semester_label ??
+                "Active Term"
+              }
+              activeDay={
+                effectiveDayFilter === "ALL" ? "Sunday" : effectiveDayFilter
+              }
+              onSelectDay={(day) => setSelectedDay(day)}
+              blockedPeriods={settings?.blocked_periods ?? {}}
+              onInspectSlot={(row) => setInspector({ kind: "view", row })}
+              onQuickAdd={(prefill) =>
+                setInspector({ kind: "quick-add", prefill })
+              }
+              canEdit={effectiveSource !== "candidate" && !isOverrideMode}
             />
           ) : viewMode === "matrix" ? (
             <div className="ledger-card overflow-hidden">

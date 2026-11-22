@@ -585,10 +585,10 @@ export function ManageCourseEligibilityPage() {
               aria-pressed={viewMode === "ledger"}
               onClick={() => setViewMode("ledger")}
               className={cn(
-                "h-[30px] rounded-[5px] px-3 text-[12.5px] font-medium transition-colors",
+                "h-[30px] rounded-[5px] border px-3 text-[12.5px] font-medium transition-colors",
                 viewMode === "ledger"
-                  ? "bg-[var(--action-primary)] font-semibold text-[var(--action-primary-ink)]"
-                  : "text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
+                  ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)]"
+                  : "border-transparent text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
               )}
             >
               Flat Ledger
@@ -599,10 +599,10 @@ export function ManageCourseEligibilityPage() {
               data-testid="eligibility-assign-by-faculty-tab"
               onClick={() => setViewMode("by-faculty")}
               className={cn(
-                "h-[30px] rounded-[5px] px-3 text-[12.5px] font-medium transition-colors",
+                "h-[30px] rounded-[5px] border px-3 text-[12.5px] font-medium transition-colors",
                 viewMode === "by-faculty"
-                  ? "bg-[var(--action-primary)] font-semibold text-[var(--action-primary-ink)]"
-                  : "text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
+                  ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)]"
+                  : "border-transparent text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
               )}
             >
               Assign by Faculty
@@ -682,7 +682,7 @@ export function ManageCourseEligibilityPage() {
                     onChange={(e) => setAssignCourseSearch(e.target.value)}
                     placeholder="Filter derived courses..."
                     aria-label="Filter derived courses"
-                    className="h-[36px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] pl-8 pr-3 text-[13px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent-pine)]"
+                    className="h-[36px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] pl-8 pr-3 text-[13px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent-brand)]"
                   />
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -692,7 +692,7 @@ export function ManageCourseEligibilityPage() {
                     onChange={(e) => setNewCustomCourse(e.target.value)}
                     placeholder="Add code (e.g. CSE-4101)"
                     aria-label="Add custom course code"
-                    className="font-mono-tabular h-[36px] w-[170px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-2.5 text-[12.5px] text-[var(--ink-primary)] uppercase focus:border-[var(--accent-pine)]"
+                    className="font-mono-tabular h-[36px] w-[170px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-2.5 text-[12.5px] text-[var(--ink-primary)] uppercase focus:border-[var(--accent-brand)]"
                   />
                   <Button
                     type="button"
@@ -765,7 +765,7 @@ export function ManageCourseEligibilityPage() {
                                 }));
                                 setAssignDirty(true);
                               }}
-                              className="h-4 w-4 accent-[var(--accent-pine)]"
+                              className="h-4 w-4 accent-[var(--accent-brand)]"
                             />
                             <span className="font-mono-tabular text-[12.5px] font-semibold text-[var(--ink-primary)]">
                               {c.code}
@@ -847,7 +847,7 @@ export function ManageCourseEligibilityPage() {
                 className={cn(
                   "inline-flex h-8 items-center gap-1.5 rounded-[var(--r-control)] border px-2.5 text-[12.5px] font-medium transition-colors",
                   active
-                    ? "border-[var(--ink-primary)] bg-[var(--ink-primary)] text-[var(--bg-elevated)]"
+                    ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)] shadow-[inset_0_-2px_0_var(--accent-brand)]"
                     : "border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]",
                 )}
               >
@@ -855,7 +855,7 @@ export function ManageCourseEligibilityPage() {
                 <span
                   className={cn(
                     "font-mono-tabular text-[11px]",
-                    active ? "text-[var(--bg-elevated)]/80" : "text-[var(--ink-muted)]",
+                    active ? "text-[var(--ink-secondary)]" : "text-[var(--ink-muted)]",
                   )}
                 >
                   {chip.count}

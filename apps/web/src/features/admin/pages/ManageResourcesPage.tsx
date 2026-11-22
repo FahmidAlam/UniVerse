@@ -322,7 +322,7 @@ export function ManageResourcesPage() {
               target="_blank"
               rel="noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1 text-[12.5px] font-medium text-[var(--accent-pine)] no-underline hover:underline"
+              className="inline-flex items-center gap-1 text-[12.5px] font-medium text-[var(--accent-brand)] no-underline hover:underline"
             >
               <span>{r.file_url ? "File" : "Drive Link"}</span>
               <ArrowSquareOut size={13} aria-hidden="true" />
@@ -373,7 +373,7 @@ export function ManageResourcesPage() {
               className={cn(
                 "h-[36px] rounded-[var(--r-control)] border px-3 font-mono-tabular text-[12px]",
                 catFilter === "all"
-                  ? "border-[var(--accent-pine)] bg-[var(--accent-pine-soft)] font-semibold text-[var(--accent-pine)]"
+                  ? "border-[var(--accent-brand)] bg-[var(--accent-brand-soft)] font-semibold text-[var(--accent-brand)]"
                   : "border-[var(--border-control)] bg-[var(--bg-elevated)] text-[var(--ink-secondary)]",
               )}
             >
@@ -388,7 +388,7 @@ export function ManageResourcesPage() {
                 className={cn(
                   "h-[36px] rounded-[var(--r-control)] border px-3 font-mono-tabular text-[12px]",
                   catFilter === cat
-                    ? "border-[var(--accent-pine)] bg-[var(--accent-pine-soft)] font-semibold text-[var(--accent-pine)]"
+                    ? "border-[var(--accent-brand)] bg-[var(--accent-brand-soft)] font-semibold text-[var(--accent-brand)]"
                     : "border-[var(--border-control)] bg-[var(--bg-elevated)] text-[var(--ink-secondary)]",
                 )}
               >
@@ -582,7 +582,7 @@ export function ManageResourcesPage() {
                 htmlFor="res-file"
                 className="flex cursor-pointer items-center gap-2.5 rounded-[var(--r-control)] border border-dashed border-[var(--border-control)] bg-[var(--bg-canvas)]/60 px-3.5 py-2.5 text-[12.5px] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)]"
               >
-                <FileArrowUp size={18} className="shrink-0 text-[var(--accent-pine)]" aria-hidden="true" />
+                <FileArrowUp size={18} className="shrink-0 text-[var(--accent-brand)]" aria-hidden="true" />
                 <span className="truncate">
                   {selectedFile ? selectedFile.name : "Choose file from computer..."}
                 </span>
@@ -624,7 +624,7 @@ export function ManageResourcesPage() {
                 id="res-notify"
                 type="checkbox"
                 {...form.register("notify_students")}
-                className="mt-0.5 h-4 w-4 accent-[var(--accent-pine)]"
+                className="mt-0.5 h-4 w-4 accent-[var(--accent-brand)]"
               />
               <span className="text-[var(--ink-primary)]">
                 Notify students in Semester {selectedSemester} via Campus

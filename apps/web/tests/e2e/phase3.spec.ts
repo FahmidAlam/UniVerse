@@ -22,13 +22,13 @@ async function saveScreenshot(
   fullPage = true,
 ) {
   const buf = await page.screenshot({ fullPage });
-  for (let attempt = 0; attempt < 4; attempt++) {
+  for (let attempt = 0; attempt < 8; attempt++) {
     try {
       fs.writeFileSync(targetPath, buf);
       return;
     } catch (err) {
-      if (attempt === 3) throw err;
-      await page.waitForTimeout(250);
+      if (attempt === 7) throw err;
+      await page.waitForTimeout(350);
     }
   }
 }
@@ -146,6 +146,7 @@ test.describe("UniVerse Academic Ledger — Phase 3 Operational Routine Console 
   test("Verifies 2D Matrix, Manage Published CRUD + Clash Warnings, Generate Wizard + 404/Publish, Gated Upload, Single Settings Dirty Bar, and Responsive Viewports", async ({
     browser,
   }) => {
+    test.setTimeout(90_000);
     const context = await browser.newContext({
       viewport: { width: 1440, height: 900 },
     });

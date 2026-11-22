@@ -75,7 +75,7 @@ export function PolicyStudioStage({
         className="ledger-card flex max-w-[760px] flex-col gap-3 p-6"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="font-mono-tabular text-[12px] font-medium text-[var(--accent-pine)]">
+          <span className="font-mono-tabular text-[12px] font-medium text-[var(--accent-brand)]">
             Stage 2 · Gate C Required
           </span>
           <Badge tone="joint" mono>
@@ -110,7 +110,7 @@ export function PolicyStudioStage({
         <div className="flex items-start gap-2.5">
           <ShieldCheck
             size={18}
-            className="mt-0.5 shrink-0 text-[var(--accent-pine)]"
+            className="mt-0.5 shrink-0 text-[var(--accent-brand)]"
             aria-hidden="true"
           />
           <div>
@@ -189,10 +189,10 @@ export function PolicyStudioStage({
                         })
                       }
                       className={cn(
-                        "font-mono-tabular h-[28px] rounded-[5px] px-3 text-[12px] transition-colors",
+                        "font-mono-tabular h-[28px] rounded-[5px] border px-3 text-[12px] transition-colors",
                         active
-                          ? "bg-[var(--action-primary)] font-semibold text-[var(--action-primary-ink)]"
-                          : "text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
+                          ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)]"
+                          : "border-transparent text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
                       )}
                     >
                       {slots}-Slot Grid
@@ -228,7 +228,7 @@ export function PolicyStudioStage({
                       },
                     })
                   }
-                  className="h-3.5 w-3.5 accent-[var(--accent-pine)]"
+                  className="h-3.5 w-3.5 accent-[var(--accent-brand)]"
                 />
                 <span>Enable Online Slot</span>
               </label>

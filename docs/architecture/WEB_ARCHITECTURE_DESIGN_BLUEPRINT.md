@@ -2,7 +2,7 @@
 
 > **Document Role:** Authoritative Strategic Reference (Approved Product, Architectural & Visual Direction)
 > **Scope:** Separation of Flutter Mobile (`lib/`, `android/`, iOS-compatible) and Standalone React Web (`apps/web/`)
-> **Design System:** **UniVerse Academic Ledger** (Light-First; Dark Mode Deferred)
+> **Design System:** **UniVerse Academic Ledger** (Interchangeable Light + Dark / System — Archival Daylight & Warm Dark Ledger)
 > **Important Notice:** This document preserves the owner's approved strategic direction. It does **not** claim that every proposed technology, UI screen, or backend contract is currently implemented or deployed. See [`WEB_SOURCE_VERIFICATION_REPORT.md`](WEB_SOURCE_VERIFICATION_REPORT.md) for verified repository facts and [`WEB_IMPLEMENTATION_ROADMAP.md`](WEB_IMPLEMENTATION_ROADMAP.md) for phased execution.
 
 ---
@@ -16,7 +16,7 @@ To eliminate the UX friction, heavy bundle overhead, and visual compromises of t
 1. **Flutter Mobile (`lib/`):** Retained for Android with continuous iOS compatibility preservation (active new iOS feature expansion is deferred; iOS compatibility preservation and verification are **not** deferred). Serves **Students** and **Teachers** for daily campus life—live/next class tracking, weekly and daily routine consultation, date-scoped class cancellations, room vacancy lookup, faculty directory lookup, course resources, notifications, and profile management—preserving its dark-orange **Obsidian Orbit** identity (`AppColors`, `AppTheme.dark`).
 2. **Standalone React Web (`apps/web/`):** Replaces the Flutter Web experience using React 19, TypeScript, Vite, and Tailwind CSS v4. Primarily serves **Administrators** (Routine Committee members and departmental staff) for routine generation, academic configuration, scheduling, and operational management, alongside a **public institutional landing page** (`/`).
 3. **Shared Backend:** Preserves the existing **Supabase** (PostgreSQL, GoTrue PKCE auth, Row Level Security, Storage, Edge Functions) and **Python FastAPI + Google OR-Tools CP-SAT** scheduling microservice (`engine/`) without unnecessary backend rewrites or duplicated domain logic.
-4. **Approved Web Visual Identity — UniVerse Academic Ledger:** Replaces both Flutter's dark-orange **Obsidian Orbit** theme and the earlier dark-cyan/3D **Spatial Orbit Engine** web prototype (`apps/web/` Phase 0/1) with a calm, daylight-first scholarly institutional design system combining **Precision Ledger**, **Campus Atelier**, and **Archival Registrar**.
+4. **Approved Web Visual Identity — UniVerse Academic Ledger:** Replaces both Flutter's dark-orange **Obsidian Orbit** theme and the earlier dark-cyan/3D **Spatial Orbit Engine** web prototype (`apps/web/` Phase 0/1) with an interchangeable Light + Dark (Light / Dark / System) scholarly institutional design system combining **Precision Ledger**, **Campus Atelier**, and **Archival Registrar**.
 
 ---
 
@@ -95,7 +95,7 @@ The owner has approved **UniVerse Academic Ledger** as the unified design system
 | **Archival Registrar** | Public institutional landing page (`/`) and authentication entry | Scholarly editorial typography (`Source Serif 4`), subtle public masthead paper grain (`<= 2–3%`) and visual rhyming across ledger borders/cells, user-controlled illustrative landing timetable preview, clean multi-column grid without marketing hype or SaaS tropes. |
 
 ### 5.2 Explicit Theme & Visual Prohibitions
-- **Light-First Only (Dark Mode Deferred):** All surfaces in React Web v1 ship in a calibrated daylight palette. Dark mode is explicitly deferred; do **not** implement dark-mode switches or maintain dual light/dark theme tokens in v1.
+- **Interchangeable Light + Dark (Light / Dark / System):** React Web v1 supports full-parity Crisp Daylight Light and X-Grade Carbon Obsidian Dark themes under UniVerse Academic Ledger — strictly separate from Flutter's Obsidian Orbit (`#0B0C0E` + `#FF7A00`) and the retired cyan/3D Spatial Orbit prototype.
 - **No Obsidian Orbit Carryover:** Zero `#0B0C0E` obsidian canvas, zero `#FF7A00` neon orange primary accents.
 - **No Spatial Orbit Engine Carryover:** Zero `Space Grotesk` display headings, zero spectral cyan-emerald (`H = 182°–186°`) glowing beams/conduits, zero counter-rotating SVG orbital rings, zero perspective 3D CSS tilts (`rotateX/rotateY`), and zero fluted vertical ribbing.
 - **Anti-Slop Restraint:** Zero decorative KPI wallpaper, zero purple gradients, zero ungrounded AI assistant claims, zero glowing orbs, zero filler status badges (`Active`, `Verified`), zero generic 3-icon SaaS feature grids.
@@ -112,7 +112,7 @@ The owner has approved **UniVerse Academic Ledger** as the unified design system
 | **UI & Dense Data** | `IBM Plex Sans` | `400`, `500`, `600` | Navigation, form labels, inspector prose, dense tabular descriptions, control labels. Admin `h1` capped at `<= 24px` (`-0.02em` tracking). |
 | **Tabular & Academic Code** | `IBM Plex Mono` | `400`, `500`; `font-variant-numeric: tabular-nums` | Course codes (`CSE-3101`), time slots (`08:50–10:05`), teacher acronyms (`EBH`), room identifiers (`ACL-1`), SHA-256 hashes, batch/section labels, row counts, solver timers. |
 
-### 6.2 Color Architecture (OKLCH Light-First Spine + Opaque sRGB Contrast Verification)
+### 6.2 Color Architecture (OKLCH Dual-Theme Spine + Opaque sRGB Contrast Verification)
 
 All design tokens live centrally in `apps/web/src/styles/tokens.css` using perceptual `oklch(L C H)` values and safe `color-mix(in oklab, ...)` blending (never `color-mix(in oklch, ...)` on low-chroma neutrals, avoiding Chromium neutral hue drift). Contrast compliance **must be verified over actual opaque composited sRGB foreground/background hex pairs** (not OKLCH lightness differences alone):
 
@@ -303,7 +303,7 @@ UniVerse separates routine operations into two explicit tracks matching verified
 |---|---|---|
 | **Approved Decision** | Flutter Mobile (`lib/`, `android/`, iOS-compatible) retained for Students & Teachers under **Obsidian Orbit**. | Zero unrequested mobile rewrites; active iOS feature expansion is deferred while continuous Android & iOS compatibility preservation remains mandatory. |
 | **Approved Decision** | Standalone React 19 + TypeScript + Vite web app (`apps/web/`) replaces Flutter Web for Administrators + Public Landing. | Shares Supabase & FastAPI backends without duplicating CP-SAT or ingestion logic. |
-| **Approved Decision** | **UniVerse Academic Ledger** visual direction (Precision Ledger + Campus Atelier + Archival Registrar), light-first, dark mode deferred. | Supersedes Spatial Orbit Engine (`apps/web/` Phase 0/1) and forbids Obsidian Orbit carryover. |
+| **Approved Decision** | **UniVerse Academic Ledger** visual direction (Precision Ledger + Campus Atelier + Archival Registrar), interchangeable Light + Dark (Light / Dark / System). | Strictly separate from Flutter's Obsidian Orbit (`#0B0C0E` + `#FF7A00`) and the retired cyan/3D Spatial Orbit Engine (`apps/web/` Phase 0/1). |
 | **Approved Decision** | `Source Serif 4` + `IBM Plex Sans` + `IBM Plex Mono`, Charcoal Ink primary action, OKLCH tokens verified via opaque sRGB WCAG AA checks, `prefers-reduced-motion`, user-controlled landing timetable, Phosphor Icons. | Tokenized centrally in `apps/web/src/styles/tokens.css`. |
 | **Approved Decision** | Custom CSS Grid + React 2D Academic Timetable Matrix + Compact List toggle (no Gregorian calendar library), backend-derived dashboard readiness. | Supports Section, Faculty, Room lenses + Friday P4 Jummah + `B+C` joint sections. |
 | **Approved Decision** | Track 1 (Operational Routine Console) vs. Track 2 (Committee Scheduling Workbench fail-closed behind Gates A–D; durable job storage placed in Gate D). | Centralized frontend capability model; zero simulated DB mutations. |

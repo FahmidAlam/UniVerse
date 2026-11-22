@@ -12,7 +12,7 @@ export const buttonVariants = cva(
         secondary:
           "bg-[var(--bg-elevated)] text-[var(--ink-primary)] border border-[var(--border-control)] shadow-[var(--highlight-top)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-active)]",
         pine:
-          "bg-[var(--accent-pine)] text-[var(--accent-pine-ink)] border border-[var(--accent-pine)] font-semibold hover:bg-[var(--accent-pine-hover)] hover:border-[var(--accent-pine-hover)]",
+          "bg-[var(--accent-brand)] text-[var(--accent-brand-ink)] border border-[var(--accent-brand)] font-semibold hover:bg-[var(--accent-brand-hover)] hover:border-[var(--accent-brand-hover)]",
         ghost:
           "bg-transparent text-[var(--ink-secondary)] border border-transparent hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]",
         destructive:

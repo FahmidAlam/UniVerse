@@ -139,7 +139,7 @@ export function ForgotPasswordPage() {
                 placeholder="committee.cse@lus.ac.bd"
                 aria-invalid={Boolean(errors.email)}
                 {...register("email")}
-                className="h-[40px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] pl-9 pr-3 text-[13.5px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent-pine)]"
+                className="h-[40px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] pl-9 pr-3 text-[13.5px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent-brand)]"
               />
             </div>
             {errors.email && (

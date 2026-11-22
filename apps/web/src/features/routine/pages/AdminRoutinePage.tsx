@@ -4,19 +4,26 @@ import {
   ListChecks,
   LockSimple,
   Play,
+  Table,
   UploadSimple,
 } from "@phosphor-icons/react";
 import { motion, useReducedMotion } from "motion/react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/Badge";
 import { AcademicTimetableMatrix } from "@/features/routine/components/AcademicTimetableMatrix";
+import { DistributionStudioTab } from "@/features/routine/components/DistributionStudioTab";
 import { GenerateRoutineTab } from "@/features/routine/components/GenerateRoutineTab";
 import { ManagePublishedTab } from "@/features/routine/components/ManagePublishedTab";
 import { UploadRoutineGatedTab } from "@/features/routine/components/UploadRoutineGatedTab";
 import { useRoutineOperationsStore } from "@/features/routine/store/routineOperationsStore";
 import { cn } from "@/lib/utils";
 
-export type RoutineTabId = "grid" | "manage" | "generate" | "upload";
+export type RoutineTabId =
+  | "distribution"
+  | "grid"
+  | "manage"
+  | "generate"
+  | "upload";
 
 const ROUTINE_TABS: readonly {
   id: RoutineTabId;
@@ -24,6 +31,7 @@ const ROUTINE_TABS: readonly {
   Icon: typeof GridFour;
   badge?: string;
 }[] = [
+  { id: "distribution", label: "Distribution Sheet", Icon: Table },
   { id: "grid", label: "2D Grid", Icon: GridFour },
   { id: "manage", label: "Manage Published", Icon: ListChecks },
   { id: "generate", label: "Generate Routine", Icon: Play },
@@ -36,14 +44,22 @@ const ROUTINE_TABS: readonly {
 ];
 
 function resolveRoutineTab(raw: string | null): RoutineTabId {
-  if (raw === "manage" || raw === "generate" || raw === "upload") return raw;
+  if (
+    raw === "distribution" ||
+    raw === "manage" ||
+    raw === "generate" ||
+    raw === "upload"
+  ) {
+    return raw;
+  }
   return "grid";
 }
 
 export function AdminRoutinePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = resolveRoutineTab(searchParams.get("tab"));
-  const { solverPhase, setActiveSource } = useRoutineOperationsStore();
+  const { solverPhase, setActiveSource, setGenerateInputMode } =
+    useRoutineOperationsStore();
   const prefersReducedMotion = useReducedMotion() ?? false;
 
   const selectTab = (tab: RoutineTabId) => {
@@ -52,7 +68,7 @@ export function AdminRoutinePage() {
 
   return (
     <div className="space-y-4">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-[var(--border-subtle)] pb-4">
+      <header className="no-print flex flex-wrap items-end justify-between gap-4 border-b border-[var(--border-subtle)] pb-4">
         <div>
           <h1 className="font-editorial text-[24px] font-semibold tracking-[-0.02em] text-[var(--ink-primary)]">
             Routine Operations
@@ -71,14 +87,15 @@ export function AdminRoutinePage() {
         >
           <LockSimple size={13} aria-hidden="true" />
           <span>Track 2 Workbench</span>
-          <Badge tone="joint" mono>
+          <Badge tone="joint" dot={false} mono>
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--sem-joint-bar)]" aria-hidden="true" />
             Locked · Gates A–D
           </Badge>
         </Link>
       </header>
 
       {/* URL-Synced Tab Strip (Lazy mounts ONLY the active tab) */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
+      <div className="no-print flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
         <div
           role="tablist"
           aria-label="Routine operations workspaces"
@@ -96,11 +113,15 @@ export function AdminRoutinePage() {
                 className={cn(
                   "inline-flex h-9 items-center gap-2 rounded-[var(--r-control)] border px-3 text-[13px] whitespace-nowrap transition-colors",
                   active
-                    ? "border-[var(--action-primary)] bg-[var(--action-primary)] font-semibold text-[var(--action-primary-ink)] shadow-[inset_0_1px_0_oklch(1_0_0_/_0.14)]"
+                    ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)] shadow-[inset_0_-2px_0_var(--accent-brand)]"
                     : "border-[var(--border-subtle)] bg-[var(--bg-elevated)] font-medium text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]",
                 )}
               >
-                <Icon size={15} aria-hidden="true" />
+                <Icon
+                  size={15}
+                  className={active ? "text-[var(--accent-brand)]" : undefined}
+                  aria-hidden="true"
+                />
                 <span>{label}</span>
                 {id === "generate" &&
                   (solverPhase === "submitting" ||
@@ -111,14 +132,8 @@ export function AdminRoutinePage() {
                     />
                   )}
                 {badge && (
-                  <span
-                    className={cn(
-                      "font-mono-tabular rounded border px-1.5 py-[1px] text-[10px] font-semibold",
-                      active
-                        ? "border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--sem-joint-ink)]"
-                        : "border-[var(--sem-joint-border)] bg-[var(--sem-joint-bg)] text-[var(--sem-joint-ink)]",
-                    )}
-                  >
+                  <span className="font-mono-tabular inline-flex items-center gap-1 rounded-[var(--r-pill)] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-1.5 py-[1px] text-[10px] font-medium text-[var(--ink-secondary)]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--sem-joint-bar)]" aria-hidden="true" />
                     {badge}
                   </span>
                 )}
@@ -149,6 +164,14 @@ export function AdminRoutinePage() {
             : { duration: 0.15, ease: [0.16, 1, 0.3, 1] }
         }
       >
+        {activeTab === "distribution" && (
+          <DistributionStudioTab
+            onGenerateFromSheet={() => {
+              setGenerateInputMode("sheet");
+              selectTab("generate");
+            }}
+          />
+        )}
         {activeTab === "grid" && <AcademicTimetableMatrix />}
         {activeTab === "manage" && <ManagePublishedTab />}
         {activeTab === "generate" && (
@@ -157,6 +180,7 @@ export function AdminRoutinePage() {
               setActiveSource("candidate");
               selectTab("grid");
             }}
+            onOpenDistributionSheet={() => selectTab("distribution")}
           />
         )}
         {activeTab === "upload" && <UploadRoutineGatedTab />}

@@ -27,7 +27,7 @@ export function AdminRouteStubPage({ capabilityId }: AdminRouteStubPageProps) {
   return (
     <div className="ledger-card flex max-w-[740px] flex-col gap-4 p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-mono-tabular text-[12px] font-medium text-[var(--accent-pine)]">
+        <span className="font-mono-tabular text-[12px] font-medium text-[var(--accent-brand)]">
           {capability.plannedPhaseLabel}
         </span>
         <Badge tone={badgeTone} mono>

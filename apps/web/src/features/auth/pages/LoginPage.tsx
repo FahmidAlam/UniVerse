@@ -177,7 +177,7 @@ export function LoginPage() {
               placeholder="committee.cse@lus.ac.bd"
               aria-invalid={Boolean(errors.email)}
               {...register("email")}
-              className="h-[40px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] pl-9 pr-3 text-[13.5px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent-pine)]"
+              className="h-[40px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] pl-9 pr-3 text-[13.5px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent-brand)]"
             />
           </div>
           {errors.email && (
@@ -197,7 +197,7 @@ export function LoginPage() {
             </label>
             <Link
               to="/forgot-password"
-              className="text-[12px] font-medium text-[var(--accent-pine)] underline-offset-[3px] hover:underline"
+              className="text-[12px] font-medium text-[var(--accent-brand)] underline-offset-[3px] hover:underline"
             >
               Forgot password?
             </Link>
@@ -215,7 +215,7 @@ export function LoginPage() {
               placeholder="Minimum 6 characters"
               aria-invalid={Boolean(errors.password)}
               {...register("password")}
-              className="h-[40px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] pl-9 pr-10 text-[13.5px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent-pine)]"
+              className="h-[40px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] pl-9 pr-10 text-[13.5px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent-brand)]"
             />
             <button
               type="button"

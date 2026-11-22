@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { MobileCompanionStrip } from "@/features/auth/components/MobileCompanionStrip";
 import { LedgerMark } from "@/shared/components/LedgerMark";
+import { ThemeSwitcher } from "@/shared/theme/ThemeSwitcher";
 
 const ROUTE_ORDER: Record<string, number> = {
   "/": 0,
@@ -38,8 +39,9 @@ export function PublicAuthLayout() {
 
           <nav
             aria-label="Primary public navigation"
-            className="flex shrink-0 items-center gap-4"
+            className="flex shrink-0 items-center gap-3 sm:gap-4"
           >
+            <ThemeSwitcher />
             {isLanding ? (
               <>
                 <a
@@ -102,7 +104,7 @@ export function PublicAuthLayout() {
                   <li className="flex items-center gap-2.5 py-2.5">
                     <CheckCircle
                       size={16}
-                      className="shrink-0 text-[var(--accent-pine)]"
+                      className="shrink-0 text-[var(--accent-brand)]"
                       aria-hidden="true"
                     />
                     <span>Departmental administrator account verification</span>
@@ -110,7 +112,7 @@ export function PublicAuthLayout() {
                   <li className="flex items-center gap-2.5 py-2.5">
                     <CheckCircle
                       size={16}
-                      className="shrink-0 text-[var(--accent-pine)]"
+                      className="shrink-0 text-[var(--accent-brand)]"
                       aria-hidden="true"
                     />
                     <span>Room pool, faculty off-day, and prayer-window rule checks</span>
@@ -118,7 +120,7 @@ export function PublicAuthLayout() {
                   <li className="flex items-center gap-2.5 py-2.5">
                     <CheckCircle
                       size={16}
-                      className="shrink-0 text-[var(--accent-pine)]"
+                      className="shrink-0 text-[var(--accent-brand)]"
                       aria-hidden="true"
                     />
                     <span>Coordinated routine release for student and teacher mobile apps</span>

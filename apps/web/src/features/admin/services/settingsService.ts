@@ -76,7 +76,12 @@ export function getDefaultPeriods6(): PeriodDefinition[] {
 
 export function getDefaultPeriods7(): PeriodDefinition[] {
   return [
-    ...getDefaultPeriods6(),
+    { idx: 1, label: "08:50-10:05", start: "08:50", end: "10:05", col: "D" },
+    { idx: 2, label: "10:10-11:25", start: "10:10", end: "11:25", col: "E" },
+    { idx: 3, label: "11:30-12:45", start: "11:30", end: "12:45", col: "F" },
+    { idx: 4, label: "12:50-14:05", start: "12:50", end: "14:05", col: "H" },
+    { idx: 5, label: "14:30-15:45", start: "14:30", end: "15:45", col: "I" },
+    { idx: 6, label: "15:50-17:05", start: "15:50", end: "17:05", col: "J" },
     { idx: 7, label: "17:10-18:25", start: "17:10", end: "18:25", col: "K" },
   ];
 }

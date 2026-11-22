@@ -34,6 +34,7 @@ import { ForgotPasswordPage } from "@/features/auth/pages/ForgotPasswordPage";
 import { LandingPage } from "@/features/auth/pages/LandingPage";
 import { LoginPage } from "@/features/auth/pages/LoginPage";
 import { ResetPasswordPage } from "@/features/auth/pages/ResetPasswordPage";
+import { ThemeProvider, useTheme } from "@/shared/theme/ThemeProvider";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -109,9 +110,31 @@ const STUB_CAPABILITIES = CAPABILITY_REGISTRY.filter(
   (cap) => !LIVE_CAPABILITY_PATHS.has(cap.path),
 );
 
+function ThemedToaster() {
+  const { resolvedTheme } = useTheme();
+  return (
+    <Toaster
+      theme={resolvedTheme}
+      position="bottom-left"
+      closeButton
+      duration={3500}
+      toastOptions={{
+        style: {
+          background: "var(--bg-elevated)",
+          color: "var(--ink-primary)",
+          border: "1px solid var(--border-subtle)",
+          boxShadow: "var(--shadow-popover)",
+          fontFamily: "var(--font-sans)",
+        },
+      }}
+    />
+  );
+}
+
 export function App() {
   return (
-    <QueryClientProvider client={queryClient}>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
       <MotionConfig reducedMotion="user">
         <TooltipProvider delayDuration={400} skipDelayDuration={0}>
           <AuthProvider>
@@ -206,23 +229,11 @@ export function App() {
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </BrowserRouter>
-            <Toaster
-              position="bottom-left"
-              closeButton
-              duration={3500}
-              toastOptions={{
-                style: {
-                  background: "var(--bg-elevated)",
-                  color: "var(--ink-primary)",
-                  border: "1px solid var(--border-subtle)",
-                  boxShadow: "var(--shadow-popover)",
-                  fontFamily: "var(--font-sans)",
-                },
-              }}
-            />
+            <ThemedToaster />
           </AuthProvider>
         </TooltipProvider>
       </MotionConfig>
     </QueryClientProvider>
+    </ThemeProvider>
   );
 }

@@ -149,7 +149,7 @@ export function CommandCombobox({
                     {isSelected && (
                       <Check
                         size={14}
-                        className="shrink-0 text-[var(--accent-pine)]"
+                        className="shrink-0 text-[var(--accent-brand)]"
                         aria-hidden="true"
                       />
                     )}
@@ -165,7 +165,7 @@ export function CommandCombobox({
                     setOpen(false);
                     setSearch("");
                   }}
-                  className="mt-1 flex cursor-pointer items-center gap-2 rounded-[5px] border-t border-[var(--border-subtle)] px-2.5 py-2 text-[12.5px] font-medium text-[var(--accent-pine)] aria-selected:bg-[var(--accent-pine-soft)]"
+                  className="mt-1 flex cursor-pointer items-center gap-2 rounded-[5px] border-t border-[var(--border-subtle)] px-2.5 py-2 text-[12.5px] font-medium text-[var(--accent-brand)] aria-selected:bg-[var(--accent-brand-soft)]"
                 >
                   <Plus size={14} aria-hidden="true" />
                   <span>

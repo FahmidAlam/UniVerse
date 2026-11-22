@@ -119,7 +119,7 @@ function BatchLoadTooltip({
   return (
     <div className="ledger-popover px-3 py-2 text-[12px]">
       <div className="font-semibold text-[var(--ink-primary)]">{label}</div>
-      <div className="font-mono-tabular mt-0.5 text-[var(--accent-pine)]">
+      <div className="font-mono-tabular mt-0.5 text-[var(--accent-brand)]">
         {payload[0]?.value ?? 0} active weekly slots
       </div>
     </div>
@@ -249,7 +249,7 @@ export function AdminDashboardView({
         <div
           role="status"
           data-testid="dev-preview-banner"
-          className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-card)] border border-[var(--accent-pine-border)] bg-[var(--accent-pine-soft)] px-4 py-2.5 text-[12.5px] text-[var(--accent-pine)]"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-card)] border border-[var(--accent-brand-border)] bg-[var(--accent-brand-soft)] px-4 py-2.5 text-[12.5px] text-[var(--accent-brand)]"
         >
           <div className="flex items-center gap-2 font-medium">
             <Info size={16} className="shrink-0" aria-hidden="true" />
@@ -370,7 +370,7 @@ export function AdminDashboardView({
               <CheckCircle
                 size={15}
                 weight="fill"
-                className="mt-0.5 shrink-0 text-[var(--accent-pine)]"
+                className="mt-0.5 shrink-0 text-[var(--accent-brand)]"
                 aria-hidden="true"
               />
             ) : (
@@ -389,12 +389,12 @@ export function AdminDashboardView({
         <div
           role="status"
           data-testid="dashboard-r7-advisory-link"
-          className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-card)] border border-[var(--sem-joint-border)] bg-[var(--sem-joint-bg)] px-4 py-2.5 text-[12.5px] text-[var(--sem-joint-ink)]"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-card)] border border-[var(--border-subtle)] border-l-[3px] border-l-[var(--sem-joint-bar)] bg-[var(--bg-elevated)] px-4 py-2.5 text-[12.5px] text-[var(--ink-secondary)]"
         >
           <div className="flex items-center gap-2">
-            <WarningCircle size={16} className="shrink-0" aria-hidden="true" />
+            <WarningCircle size={16} className="shrink-0 text-[var(--sem-joint-bar)]" aria-hidden="true" />
             <span>
-              <strong className="font-semibold">
+              <strong className="font-semibold text-[var(--ink-primary)]">
                 {data.r7AdvisoryCount} active faculty{" "}
                 {data.r7AdvisoryCount === 1 ? "member has" : "members have"} an R7
                 off-day advisory
@@ -506,7 +506,7 @@ export function AdminDashboardView({
                   className={cn(
                     "h-[30px] rounded-[6px] border px-2.5 font-mono-tabular text-[11.5px] transition-colors whitespace-nowrap",
                     active
-                      ? "border-[var(--accent-pine)] bg-[var(--accent-pine-soft)] font-semibold text-[var(--accent-pine)]"
+                      ? "border-[var(--accent-brand)] bg-[var(--accent-brand-soft)] font-semibold text-[var(--accent-brand)]"
                       : "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]",
                   )}
                 >
@@ -607,7 +607,7 @@ export function AdminDashboardView({
             </div>
             <Link
               to="/admin/timetable/settings"
-              className="text-[12px] font-medium text-[var(--accent-pine)] no-underline hover:underline"
+              className="text-[12px] font-medium text-[var(--accent-brand)] no-underline hover:underline"
             >
               Grid Settings
             </Link>
@@ -655,7 +655,7 @@ export function AdminDashboardView({
                     {data.batchLoadSummary.map((entry, idx) => (
                       <Cell
                         key={entry.batch}
-                        fill="var(--accent-pine)"
+                        fill="var(--chart-1)"
                         fillOpacity={
                           hoveredBatchIndex === null || hoveredBatchIndex === idx
                             ? 1
@@ -685,7 +685,7 @@ export function AdminDashboardView({
             </div>
             <Link
               to="/admin/timetable/rooms"
-              className="text-[12px] font-medium text-[var(--accent-pine)] no-underline hover:underline"
+              className="text-[12px] font-medium text-[var(--accent-brand)] no-underline hover:underline"
             >
               Manage Rooms
             </Link>
@@ -696,7 +696,7 @@ export function AdminDashboardView({
               <span>0 rooms configured in baseline inventory.</span>
               <Link
                 to="/admin/timetable/rooms"
-                className="text-[12.5px] font-medium text-[var(--accent-pine)] no-underline hover:underline"
+                className="text-[12.5px] font-medium text-[var(--accent-brand)] no-underline hover:underline"
               >
                 Open Room &amp; Lab Pools
               </Link>
@@ -737,17 +737,25 @@ export function AdminDashboardView({
                     onMouseEnter={(_, idx) => setHoveredRoomIndex(idx)}
                     onMouseLeave={() => setHoveredRoomIndex(null)}
                   >
-                    {data.roomCategorySummary.map((entry, idx) => (
-                      <Cell
-                        key={`${entry.category}-active`}
-                        fill="var(--sem-theory-bar)"
-                        fillOpacity={
-                          hoveredRoomIndex === null || hoveredRoomIndex === idx
-                            ? 1
-                            : 0.34
-                        }
-                      />
-                    ))}
+                    {data.roomCategorySummary.map((entry, idx) => {
+                      const catLow = entry.category.toLowerCase();
+                      const barFill = catLow.includes("lab")
+                        ? "var(--chart-3)"
+                        : catLow.includes("gallery")
+                          ? "var(--chart-4)"
+                          : "var(--chart-2)";
+                      return (
+                        <Cell
+                          key={`${entry.category}-active`}
+                          fill={barFill}
+                          fillOpacity={
+                            hoveredRoomIndex === null || hoveredRoomIndex === idx
+                              ? 1
+                              : 0.34
+                          }
+                        />
+                      );
+                    })}
                   </Bar>
                   <Bar
                     dataKey="inactive"
@@ -792,7 +800,7 @@ export function AdminDashboardView({
             </div>
             <Link
               to="/admin/timetable/grid?from=dashboard"
-              className="text-[12px] font-medium text-[var(--accent-pine)] no-underline hover:underline"
+              className="text-[12px] font-medium text-[var(--accent-brand)] no-underline hover:underline"
             >
               Open Matrix
             </Link>
@@ -840,7 +848,7 @@ export function AdminDashboardView({
                     {(data.dailySlotLoadSummary ?? []).map((entry, idx) => (
                       <Cell
                         key={entry.day}
-                        fill="var(--sem-lab-bar)"
+                        fill="var(--chart-2)"
                         fillOpacity={
                           hoveredDayIndex === null || hoveredDayIndex === idx
                             ? 1

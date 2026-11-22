@@ -53,7 +53,7 @@ export function LedgerEmptyState({
       className="ledger-card flex flex-col items-start gap-3 p-6"
     >
       {icon && (
-        <div className="flex h-10 w-10 items-center justify-center rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--accent-pine)]">
+        <div className="flex h-10 w-10 items-center justify-center rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--accent-brand)]">
           {icon}
         </div>
       )}

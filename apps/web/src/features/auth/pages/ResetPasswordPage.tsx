@@ -113,7 +113,7 @@ export function ResetPasswordPage() {
         <div className="mb-2 inline-flex items-center gap-1.5 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 py-1 font-mono-tabular text-[11.5px] text-[var(--ink-secondary)]">
           <ClockCountdown
             size={14}
-            className="text-[var(--accent-pine)]"
+            className="text-[var(--accent-brand)]"
             aria-hidden="true"
           />
           <span>
@@ -186,7 +186,7 @@ export function ResetPasswordPage() {
                 placeholder="At least 8 characters"
                 aria-invalid={Boolean(errors.password)}
                 {...register("password")}
-                className="h-[40px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] pl-9 pr-10 text-[13.5px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent-pine)]"
+                className="h-[40px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] pl-9 pr-10 text-[13.5px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent-brand)]"
               />
               <button
                 type="button"
@@ -228,7 +228,7 @@ export function ResetPasswordPage() {
                 placeholder="Re-enter password"
                 aria-invalid={Boolean(errors.confirm)}
                 {...register("confirm")}
-                className="h-[40px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] pl-9 pr-10 text-[13.5px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent-pine)]"
+                className="h-[40px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] pl-9 pr-10 text-[13.5px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent-brand)]"
               />
               <button
                 type="button"

@@ -38,7 +38,7 @@ export function PreflightReadinessStage({
         className="ledger-card flex max-w-[760px] flex-col gap-3 p-6"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="font-mono-tabular text-[12px] font-medium text-[var(--accent-pine)]">
+          <span className="font-mono-tabular text-[12px] font-medium text-[var(--accent-brand)]">
             Stage 3 · Gate C Required
           </span>
           <Badge tone="joint" mono>
@@ -75,16 +75,16 @@ export function PreflightReadinessStage({
         <div
           role="alert"
           data-testid="preflight-stale-artifacts-banner"
-          className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-card)] border border-[var(--sem-joint-border)] bg-[var(--sem-joint-bg)] p-4 text-[12.5px] text-[var(--sem-joint-ink)]"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-card)] border border-[var(--border-subtle)] border-l-[3px] border-l-[var(--sem-joint-bar)] bg-[var(--bg-elevated)] p-4 text-[12.5px] text-[var(--ink-secondary)]"
         >
           <div className="flex items-start gap-2.5">
             <WarningCircle
               size={18}
-              className="mt-0.5 shrink-0"
+              className="mt-0.5 shrink-0 text-[var(--sem-joint-bar)]"
               aria-hidden="true"
             />
             <div>
-              <div className="font-semibold">
+              <div className="font-semibold text-[var(--ink-primary)]">
                 Validation report marked stale after distribution/policy edits
               </div>
               <p className="mt-0.5">

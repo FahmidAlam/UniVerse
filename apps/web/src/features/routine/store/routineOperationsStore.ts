@@ -37,6 +37,7 @@ export type SolverRunPhase = "idle" | "submitting" | "polling" | "done" | "error
 
 interface RoutineOperationsState {
   // Workbook & optional rehearsal profile
+  generateInputMode: "sheet" | "upload";
   selectedWorkbookName: string | null;
   selectedWorkbookSize: number | null;
   selectedWorkbookBytes: Uint8Array | null;
@@ -72,6 +73,7 @@ interface RoutineOperationsState {
   includeServiceCourses: boolean;
 
   // Actions
+  setGenerateInputMode: (mode: "sheet" | "upload") => void;
   setWorkbook: (file: File, bytes: Uint8Array) => void;
   clearWorkbook: () => void;
   setLoadedProfile: (profile: GenerationProfileV1 | null, error: string | null) => void;
@@ -101,6 +103,7 @@ interface RoutineOperationsState {
 }
 
 export const useRoutineOperationsStore = create<RoutineOperationsState>((set, get) => ({
+  generateInputMode: "upload",
   selectedWorkbookName: null,
   selectedWorkbookSize: null,
   selectedWorkbookBytes: null,
@@ -131,6 +134,8 @@ export const useRoutineOperationsStore = create<RoutineOperationsState>((set, ge
   selectedDay: null,
   activeSource: "live",
   includeServiceCourses: true,
+
+  setGenerateInputMode: (mode) => set({ generateInputMode: mode }),
 
   setWorkbook: (file, bytes) =>
     set({

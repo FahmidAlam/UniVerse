@@ -457,7 +457,7 @@ export function ManageRoomsPage() {
       {isDevPreview && (
         <div
           role="status"
-          className="flex items-center gap-2 rounded-[var(--r-card)] border border-[var(--accent-pine-border)] bg-[var(--accent-pine-soft)] px-4 py-2.5 text-[12.5px] text-[var(--accent-pine)]"
+          className="flex items-center gap-2 rounded-[var(--r-card)] border border-[var(--accent-brand-border)] bg-[var(--accent-brand-soft)] px-4 py-2.5 text-[12.5px] text-[var(--accent-brand)]"
         >
           <Info size={16} className="shrink-0" aria-hidden="true" />
           <span>
@@ -507,7 +507,7 @@ export function ManageRoomsPage() {
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search rooms (press /)"
               aria-label="Search rooms"
-              className="h-[36px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] pl-9 pr-3 text-[13px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent-pine)]"
+              className="h-[36px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] pl-9 pr-3 text-[13px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent-brand)]"
             />
           </div>
 
@@ -535,7 +535,7 @@ export function ManageRoomsPage() {
                   className={cn(
                     "h-[36px] rounded-[var(--r-control)] border px-3 font-mono-tabular text-[12px] transition-colors whitespace-nowrap",
                     active
-                      ? "border-[var(--accent-pine)] bg-[var(--accent-pine-soft)] font-semibold text-[var(--accent-pine)]"
+                      ? "border-[var(--accent-brand)] bg-[var(--accent-brand-soft)] font-semibold text-[var(--accent-brand)]"
                       : "border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]",
                   )}
                 >
@@ -644,7 +644,7 @@ export function ManageRoomsPage() {
                 <Link
                   to={`/admin/timetable/grid?lens=room&entity=${encodeURIComponent(selectedRoom.name)}&from=rooms`}
                   data-testid="view-room-schedule-link"
-                  className="inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--accent-pine)] no-underline hover:underline"
+                  className="inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--accent-brand)] no-underline hover:underline"
                 >
                   <span>View Room Schedule</span>
                   <ArrowRight size={13} aria-hidden="true" />
@@ -676,7 +676,7 @@ export function ManageRoomsPage() {
                 placeholder="e.g. RAB-302 or ACL-1"
                 aria-invalid={Boolean(errors.name)}
                 {...register("name")}
-                className="font-mono-tabular h-[40px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[13.5px] text-[var(--ink-primary)] uppercase focus:border-[var(--accent-pine)]"
+                className="font-mono-tabular h-[40px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[13.5px] text-[var(--ink-primary)] uppercase focus:border-[var(--accent-brand)]"
               />
               {errors.name && (
                 <p className="text-[12px] font-medium text-[var(--sem-conflict-ink)]">
@@ -698,7 +698,7 @@ export function ManageRoomsPage() {
                   type="text"
                   placeholder="e.g. RAB, RKB, Academic 2"
                   {...register("building")}
-                  className="h-[40px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[13.5px] text-[var(--ink-primary)] focus:border-[var(--accent-pine)]"
+                  className="h-[40px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[13.5px] text-[var(--ink-primary)] focus:border-[var(--accent-brand)]"
                 />
               </div>
 
@@ -717,7 +717,7 @@ export function ManageRoomsPage() {
                   placeholder="45"
                   aria-invalid={Boolean(errors.capacity)}
                   {...register("capacity")}
-                  className="font-mono-tabular h-[40px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[13.5px] text-[var(--ink-primary)] focus:border-[var(--accent-pine)]"
+                  className="font-mono-tabular h-[40px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[13.5px] text-[var(--ink-primary)] focus:border-[var(--accent-brand)]"
                 />
                 {errors.capacity && (
                   <p className="text-[12px] font-medium text-[var(--sem-conflict-ink)]">
@@ -739,7 +739,7 @@ export function ManageRoomsPage() {
                 list="room-dept-suggestions"
                 placeholder="CSE, EEE, or blank if shared"
                 {...register("dept")}
-                className="h-[40px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[13.5px] text-[var(--ink-primary)] focus:border-[var(--accent-pine)]"
+                className="h-[40px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[13.5px] text-[var(--ink-primary)] focus:border-[var(--accent-brand)]"
               />
               <datalist id="room-dept-suggestions">
                 {INSTITUTIONAL_DEPARTMENTS.map((d) => (

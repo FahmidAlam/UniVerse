@@ -8,7 +8,7 @@ export type AcademicDay =
   | "Saturday";
 
 export type RoutineMatrixLens = "section" | "faculty" | "room";
-export type RoutineMatrixViewMode = "matrix" | "list";
+export type RoutineMatrixViewMode = "matrix" | "committee" | "list";
 export type RoutineDataSource = "live" | "candidate";
 
 export interface RoutineRow {

@@ -386,12 +386,12 @@ export function ManageFacultyPage() {
                     key={day}
                     title={`${day}: ${isOff ? "Off-day" : "Available"}`}
                     className={cn(
-                      "font-mono-tabular inline-flex h-[18px] w-[18px] items-center justify-center rounded-[3px] text-[10px] font-semibold",
+                      "font-mono-tabular inline-flex h-[18px] w-[18px] items-center justify-center rounded-[3px] border text-[10px] font-semibold",
                       isOff
                         ? outsideR7
-                          ? "bg-[var(--sem-conflict-bg)] text-[var(--sem-conflict-ink)]"
-                          : "bg-[var(--ink-primary)] text-[var(--action-primary-ink)]"
-                        : "text-[var(--ink-muted)]",
+                          ? "border-[var(--sem-conflict-bar)]/45 bg-[var(--sem-conflict-bg)] text-[var(--sem-conflict-ink)]"
+                          : "border-[var(--accent-brand)]/35 bg-[var(--accent-brand-soft)] text-[var(--accent-brand)]"
+                        : "border-transparent bg-[var(--bg-surface)] text-[var(--ink-muted)]",
                     )}
                   >
                     {day.charAt(0)}
@@ -461,7 +461,7 @@ export function ManageFacultyPage() {
       {isDevPreview && (
         <div
           role="status"
-          className="flex items-center gap-2 rounded-[var(--r-card)] border border-[var(--accent-pine-border)] bg-[var(--accent-pine-soft)] px-4 py-2.5 text-[12.5px] text-[var(--accent-pine)]"
+          className="flex items-center gap-2 rounded-[var(--r-card)] border border-[var(--accent-brand-border)] bg-[var(--accent-brand-soft)] px-4 py-2.5 text-[12.5px] text-[var(--accent-brand)]"
         >
           <Info size={16} className="shrink-0" aria-hidden="true" />
           <span>
@@ -541,7 +541,7 @@ export function ManageFacultyPage() {
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search faculty or course (/)"
               aria-label="Search faculty"
-              className="h-[36px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] pl-9 pr-3 text-[13px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent-pine)]"
+              className="h-[36px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] pl-9 pr-3 text-[13px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--accent-brand)]"
             />
           </div>
 
@@ -571,7 +571,7 @@ export function ManageFacultyPage() {
                   className={cn(
                     "h-[36px] rounded-[var(--r-control)] border px-3 font-mono-tabular text-[12px] transition-colors whitespace-nowrap",
                     active
-                      ? "border-[var(--accent-pine)] bg-[var(--accent-pine-soft)] font-semibold text-[var(--accent-pine)]"
+                      ? "border-[var(--accent-brand)] bg-[var(--accent-brand-soft)] font-semibold text-[var(--accent-brand)]"
                       : "border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]",
                   )}
                 >
@@ -585,7 +585,7 @@ export function ManageFacultyPage() {
             aria-label="Filter by department"
             value={deptFilter}
             onChange={(e) => setDeptFilter(e.target.value)}
-            className="h-[36px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-2.5 text-[12.5px] text-[var(--ink-primary)] focus:border-[var(--accent-pine)]"
+            className="h-[36px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-2.5 text-[12.5px] text-[var(--ink-primary)] focus:border-[var(--accent-brand)]"
           >
             <option value="all">All Depts ({faculty.length})</option>
             {deptOptions.map(([dept, count]) => (
@@ -695,7 +695,7 @@ export function ManageFacultyPage() {
                 <Link
                   to={`/admin/timetable/grid?lens=faculty&entity=${encodeURIComponent(selectedFaculty.acronym)}&from=faculty`}
                   data-testid="view-faculty-schedule-link"
-                  className="inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--accent-pine)] no-underline hover:underline"
+                  className="inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--accent-brand)] no-underline hover:underline"
                 >
                   <span>View Teaching Schedule</span>
                   <ArrowRight size={13} aria-hidden="true" />
@@ -728,7 +728,7 @@ export function ManageFacultyPage() {
                   placeholder="EBH"
                   aria-invalid={Boolean(errors.acronym)}
                   {...register("acronym")}
-                  className="font-mono-tabular h-[40px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[13.5px] text-[var(--ink-primary)] uppercase focus:border-[var(--accent-pine)]"
+                  className="font-mono-tabular h-[40px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[13.5px] text-[var(--ink-primary)] uppercase focus:border-[var(--accent-brand)]"
                 />
                 {errors.acronym && (
                   <p className="text-[12px] font-medium text-[var(--sem-conflict-ink)]">
@@ -749,7 +749,7 @@ export function ManageFacultyPage() {
                   type="text"
                   placeholder="Instructor full name"
                   {...register("full_name")}
-                  className="h-[40px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[13.5px] text-[var(--ink-primary)] focus:border-[var(--accent-pine)]"
+                  className="h-[40px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[13.5px] text-[var(--ink-primary)] focus:border-[var(--accent-brand)]"
                 />
               </div>
             </div>
@@ -767,7 +767,7 @@ export function ManageFacultyPage() {
                   list="faculty-dept-list"
                   placeholder="CSE"
                   {...register("dept")}
-                  className="h-[40px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[13.5px] text-[var(--ink-primary)] focus:border-[var(--accent-pine)]"
+                  className="h-[40px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[13.5px] text-[var(--ink-primary)] focus:border-[var(--accent-brand)]"
                 />
                 <datalist id="faculty-dept-list">
                   {INSTITUTIONAL_DEPARTMENTS.map((d) => (
@@ -788,7 +788,7 @@ export function ManageFacultyPage() {
                   list="faculty-designation-list"
                   placeholder="Assistant Professor"
                   {...register("designation")}
-                  className="h-[40px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[13.5px] text-[var(--ink-primary)] focus:border-[var(--accent-pine)]"
+                  className="h-[40px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[13.5px] text-[var(--ink-primary)] focus:border-[var(--accent-brand)]"
                 />
                 <datalist id="faculty-designation-list">
                   {FACULTY_DESIGNATIONS.map((d) => (
@@ -821,7 +821,7 @@ export function ManageFacultyPage() {
                       className={cn(
                         "h-[34px] rounded-[var(--r-control)] border px-2.5 text-[12px] font-medium transition-colors",
                         selected
-                          ? "border-[var(--accent-pine)] bg-[var(--accent-pine-soft)] font-semibold text-[var(--accent-pine)]"
+                          ? "border-[var(--accent-brand)] bg-[var(--accent-brand-soft)] font-semibold text-[var(--accent-brand)]"
                           : "border-[var(--border-control)] bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)]",
                       )}
                     >
@@ -872,7 +872,7 @@ export function ManageFacultyPage() {
                     }
                   }}
                   placeholder="e.g. CSE-3101"
-                  className="font-mono-tabular h-[36px] flex-1 rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[13px] uppercase focus:border-[var(--accent-pine)]"
+                  className="font-mono-tabular h-[36px] flex-1 rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[13px] uppercase focus:border-[var(--accent-brand)]"
                 />
                 <Button variant="secondary" size="md" onClick={addCourseTag}>
                   Add

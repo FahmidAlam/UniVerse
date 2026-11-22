@@ -53,7 +53,7 @@ export function RevisionSolveStage({
         className="ledger-card flex max-w-[760px] flex-col gap-3 p-6"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="font-mono-tabular text-[12px] font-medium text-[var(--accent-pine)]">
+          <span className="font-mono-tabular text-[12px] font-medium text-[var(--accent-brand)]">
             Stage 4 · Gate D Required
           </span>
           <Badge tone="joint" mono>
@@ -91,7 +91,7 @@ export function RevisionSolveStage({
       {/* Bound Source Contract Header */}
       <section className="ledger-card flex flex-wrap items-center justify-between gap-3 p-4">
         <div className="flex items-start gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--accent-pine)]">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--accent-brand)]">
             <Cpu size={18} aria-hidden="true" />
           </div>
           <div>
@@ -158,7 +158,7 @@ export function RevisionSolveStage({
                   <span className="font-medium text-[var(--ink-primary)]">
                     {slider.label}
                   </span>
-                  <span className="font-mono-tabular font-semibold text-[var(--accent-pine)]">
+                  <span className="font-mono-tabular font-semibold text-[var(--accent-brand)]">
                     {val.toFixed(2)}
                   </span>
                 </div>
@@ -173,7 +173,7 @@ export function RevisionSolveStage({
                       [slider.key]: Number.parseFloat(e.target.value),
                     })
                   }
-                  className="accent-[var(--accent-pine)]"
+                  className="accent-[var(--accent-brand)]"
                 />
               </label>
             );
@@ -250,7 +250,7 @@ export function RevisionSolveStage({
                   completed
                     ? "border-[var(--sem-lab-border)] bg-[var(--sem-lab-bg)] text-[var(--sem-lab-ink)]"
                     : current
-                      ? "border-[var(--accent-pine)] bg-[var(--accent-pine-soft)] font-semibold text-[var(--accent-pine)]"
+                      ? "border-[var(--accent-brand)] bg-[var(--accent-brand-soft)] font-semibold text-[var(--accent-brand)]"
                       : "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--ink-muted)]",
                 )}
               >

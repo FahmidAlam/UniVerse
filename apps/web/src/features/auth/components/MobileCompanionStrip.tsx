@@ -25,7 +25,7 @@ export function MobileCompanionStrip({
       )}
     >
       <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--r-control)] border border-[var(--accent-pine-border)] bg-[var(--accent-pine-soft)] text-[var(--accent-pine)]">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--r-control)] border border-[var(--accent-brand-border)] bg-[var(--accent-brand-soft)] text-[var(--accent-brand)]">
           <DeviceMobile size={18} aria-hidden="true" />
         </div>
         <div className="min-w-0 flex-1">

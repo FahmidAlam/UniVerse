@@ -59,8 +59,8 @@ export function LedgerMark({ size = 28, className }: LedgerMarkProps) {
         width="7.75"
         height="7.75"
         rx="1.25"
-        fill="var(--accent-pine)"
-        stroke="var(--accent-pine-soft)"
+        fill="var(--accent-brand)"
+        stroke="var(--accent-brand-soft)"
         strokeWidth="1.1"
       />
     </svg>

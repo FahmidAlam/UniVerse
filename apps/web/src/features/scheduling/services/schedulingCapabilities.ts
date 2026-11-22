@@ -42,7 +42,7 @@ export function resolveLiveSchedulingGates(
       : !canAttemptLive
         ? "Disconnected from live Supabase RPC contract."
         : !probe.readRpcAvailable
-          ? "read_course_distribution_revision RPC or revision_version schema is unavailable."
+          ? "Track 2 Course Distribution revision services are not yet active on this environment."
           : "Scoped distribution read permission denied or unverified.",
   };
 

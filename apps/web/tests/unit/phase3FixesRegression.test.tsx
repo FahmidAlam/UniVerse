@@ -80,13 +80,14 @@ describe("Phase 3 visual & UX fixes regression checks", () => {
     const generateTab = screen.getByRole("tab", { name: /Generate Routine/i });
 
     expect(uploadTab.getAttribute("aria-selected")).toBe("true");
-    expect(uploadTab.className).toContain("bg-[var(--action-primary)]");
+    expect(uploadTab.className).toContain("bg-[var(--bg-raised)]");
+    expect(uploadTab.className).not.toContain("bg-[var(--action-primary)]");
     expect(generateTab.getAttribute("aria-selected")).toBe("false");
-    expect(generateTab.className).not.toContain("bg-[var(--action-primary)]");
+    expect(generateTab.className).not.toContain("bg-[var(--bg-raised)]");
 
     const phaseBadge = screen.getByText("Phase 3B");
-    expect(phaseBadge.className).toContain("bg-[var(--bg-elevated)]");
-    expect(phaseBadge.className).toContain("text-[var(--sem-joint-ink)]");
+    expect(phaseBadge.className).toContain("bg-[var(--bg-surface)]");
+    expect(phaseBadge.className).toContain("text-[var(--ink-secondary)]");
   });
 
   it("removes sticky topbar clipping, avoids duplicate Generate Routine CTAs on routine/grid routes, and dismisses toasts on navigation", () => {

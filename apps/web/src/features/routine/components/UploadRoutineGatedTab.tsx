@@ -15,7 +15,7 @@ export function UploadRoutineGatedTab() {
       className="ledger-card flex max-w-[760px] flex-col gap-4 p-6"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-mono-tabular text-[12px] font-medium text-[var(--accent-pine)]">
+        <span className="font-mono-tabular text-[12px] font-medium text-[var(--accent-brand)]">
           Track 1 · Sub-Phase 3B
         </span>
         <Badge tone="joint" mono>

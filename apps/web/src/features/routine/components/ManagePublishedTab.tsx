@@ -316,11 +316,11 @@ export function ManagePublishedTab() {
       <div
         role="status"
         data-testid="f23-manual-edit-disclosure"
-        className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-card)] border border-[var(--sem-joint-border)] bg-[var(--sem-joint-bg)] px-4 py-2.5 text-[12.5px] text-[var(--sem-joint-ink)]"
+        className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-card)] border border-[var(--border-subtle)] border-l-[3px] border-l-[var(--sem-joint-bar)] bg-[var(--bg-elevated)] px-4 py-2.5 text-[12.5px] text-[var(--ink-secondary)]"
       >
         <div className="flex items-start gap-2">
-          <Info size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
-          <span>
+          <Info size={16} className="mt-0.5 shrink-0 text-[var(--sem-joint-bar)]" aria-hidden="true" />
+          <span className="text-[var(--ink-primary)]">
             Manual edits update live student and teacher schedules immediately
             without creating a new version snapshot.
           </span>
@@ -359,7 +359,7 @@ export function ManagePublishedTab() {
                   className={cn(
                     "font-mono-tabular h-[32px] rounded-[6px] border px-3 text-[12px] whitespace-nowrap transition-colors",
                     active
-                      ? "border-[var(--accent-pine)] bg-[var(--accent-pine-soft)] font-semibold text-[var(--accent-pine)]"
+                      ? "border-[var(--accent-brand)] bg-[var(--accent-brand-soft)] font-semibold text-[var(--accent-brand)]"
                       : "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)]",
                   )}
                 >

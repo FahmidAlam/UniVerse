@@ -9,7 +9,7 @@ export function Switch({
   return (
     <SwitchPrimitive.Root
       className={cn(
-        "peer inline-flex h-[22px] w-[38px] shrink-0 cursor-pointer items-center rounded-full border border-[var(--border-control)] bg-[var(--bg-canvas)] p-[2px] transition-colors duration-[var(--dur-in)] ease-[var(--ease-out)] data-[state=checked]:border-[var(--accent-pine)] data-[state=checked]:bg-[var(--accent-pine)] disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none",
+        "peer inline-flex h-[22px] w-[38px] shrink-0 cursor-pointer items-center rounded-full border border-[var(--border-control)] bg-[var(--bg-canvas)] p-[2px] transition-colors duration-[var(--dur-in)] ease-[var(--ease-out)] data-[state=checked]:border-[var(--accent-brand)] data-[state=checked]:bg-[var(--accent-brand)] disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none",
         className,
       )}
       {...props}

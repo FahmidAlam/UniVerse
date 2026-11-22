@@ -126,10 +126,7 @@ test.describe("UniVerse Academic Ledger — Phase 2A Fixes & Sub-Phase 2B E2E", 
     expect(dirtyBox!.y).toBeGreaterThan(p6Box!.y + p6Box!.height);
 
     await page.evaluate(() => window.scrollTo(0, 0));
-    await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "06_settings_clock_1440x900.png"),
-      fullPage: true,
-    });
+    await saveScreenshot(page, "06_settings_clock_1440x900.png", true);
 
     // Fix 2: Tab 2 R1-R15 Policy Ledger shows exact official R1-R15 rules & non-occluding bar
     await page

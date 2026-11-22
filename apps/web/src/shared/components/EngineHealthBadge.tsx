@@ -25,7 +25,7 @@ export function EngineHealthBadge() {
         <TooltipTrigger asChild>
           <div className="inline-flex h-[34px] items-center gap-2 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2.5 text-[12px] text-[var(--ink-secondary)]">
             <span
-              className="h-2 w-2 rounded-full bg-[var(--accent-pine)]"
+              className="h-2 w-2 rounded-full bg-[var(--accent-brand)]"
               aria-hidden="true"
             />
             <span className="font-mono-tabular whitespace-nowrap">
@@ -73,7 +73,7 @@ export function EngineHealthBadge() {
           {isFetching ? (
             <CircleNotch
               size={14}
-              className="animate-spin text-[var(--accent-pine)]"
+              className="animate-spin text-[var(--accent-brand)]"
               aria-hidden="true"
             />
           ) : (

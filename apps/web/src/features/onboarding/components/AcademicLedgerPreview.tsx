@@ -135,7 +135,7 @@ export function AcademicLedgerPreview({ compact = false }: { compact?: boolean }
         <div className="flex items-center gap-2">
           <Info
             size={15}
-            className="shrink-0 text-[var(--accent-pine)]"
+            className="shrink-0 text-[var(--accent-brand)]"
             aria-hidden="true"
           />
           <span className="font-medium text-[var(--ink-primary)]">
@@ -174,7 +174,7 @@ export function AcademicLedgerPreview({ compact = false }: { compact?: boolean }
                   className={cn(
                     "relative h-[30px] rounded-[5px] px-3 text-[12.5px] whitespace-nowrap transition-colors",
                     active
-                      ? "font-semibold text-[var(--action-primary-ink)]"
+                      ? "font-semibold text-[var(--ink-primary)]"
                       : "font-medium text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
                   )}
                 >
@@ -182,7 +182,7 @@ export function AcademicLedgerPreview({ compact = false }: { compact?: boolean }
                     <motion.span
                       layoutId="specimen-lens-pill"
                       transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                      className="absolute inset-0 rounded-[5px] bg-[var(--action-primary)]"
+                      className="absolute inset-0 rounded-[5px] border border-[var(--border-strong)] bg-[var(--bg-raised)]"
                       aria-hidden="true"
                     />
                   )}
@@ -213,7 +213,7 @@ export function AcademicLedgerPreview({ compact = false }: { compact?: boolean }
                     className={cn(
                       "relative h-[30px] rounded-[5px] px-2.5 text-[12px] whitespace-nowrap transition-colors",
                       active
-                        ? "font-semibold text-[var(--accent-pine-ink)]"
+                        ? "font-semibold text-[var(--accent-brand-ink)]"
                         : "font-medium text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
                     )}
                   >
@@ -221,7 +221,7 @@ export function AcademicLedgerPreview({ compact = false }: { compact?: boolean }
                       <motion.span
                         layoutId="specimen-slots-pill"
                         transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                        className="absolute inset-0 rounded-[5px] bg-[var(--accent-pine)]"
+                        className="absolute inset-0 rounded-[5px] bg-[var(--accent-brand)]"
                         aria-hidden="true"
                       />
                     )}

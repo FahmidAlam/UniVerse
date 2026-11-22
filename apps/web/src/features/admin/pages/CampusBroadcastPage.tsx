@@ -326,7 +326,7 @@ export function CampusBroadcastPage() {
           className={cn(
             "inline-flex h-9 items-center gap-2 rounded-[var(--r-control)] border px-3 text-[13px] font-medium transition-colors",
             activeTab === "compose"
-              ? "border-[var(--ink-primary)] bg-[var(--ink-primary)] text-[var(--bg-elevated)]"
+              ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)] shadow-[inset_0_-2px_0_var(--accent-brand)]"
               : "border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)]",
           )}
         >
@@ -341,7 +341,7 @@ export function CampusBroadcastPage() {
           className={cn(
             "inline-flex h-9 items-center gap-2 rounded-[var(--r-control)] border px-3 text-[13px] font-medium transition-colors",
             activeTab === "history"
-              ? "border-[var(--ink-primary)] bg-[var(--ink-primary)] text-[var(--bg-elevated)]"
+              ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)] shadow-[inset_0_-2px_0_var(--accent-brand)]"
               : "border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)]",
           )}
         >
@@ -490,7 +490,7 @@ export function CampusBroadcastPage() {
           <aside className="space-y-3">
             <div className="ledger-card space-y-2.5 p-4 text-[12.5px] text-[var(--ink-secondary)]">
               <div className="flex items-center gap-2 font-semibold text-[var(--ink-primary)]">
-                <Info size={16} className="shrink-0 text-[var(--accent-pine)]" aria-hidden="true" />
+                <Info size={16} className="shrink-0 text-[var(--accent-brand)]" aria-hidden="true" />
                 <span>Mobile Audience Matching</span>
               </div>
               <p className="leading-[1.55]">
@@ -520,7 +520,7 @@ export function CampusBroadcastPage() {
                 className={cn(
                   "inline-flex h-[36px] items-center gap-1.5 rounded-[var(--r-control)] border px-3 font-mono-tabular text-[12px]",
                   typeFilter === "all"
-                    ? "border-[var(--accent-pine)] bg-[var(--accent-pine-soft)] font-semibold text-[var(--accent-pine)]"
+                    ? "border-[var(--accent-brand)] bg-[var(--accent-brand-soft)] font-semibold text-[var(--accent-brand)]"
                     : "border-[var(--border-control)] bg-[var(--bg-elevated)] text-[var(--ink-secondary)]",
                 )}
               >
@@ -535,7 +535,7 @@ export function CampusBroadcastPage() {
                   className={cn(
                     "inline-flex h-[36px] items-center gap-1.5 rounded-[var(--r-control)] border px-2.5 font-mono-tabular text-[12px]",
                     typeFilter === t
-                      ? "border-[var(--accent-pine)] bg-[var(--accent-pine-soft)] font-semibold text-[var(--accent-pine)]"
+                      ? "border-[var(--accent-brand)] bg-[var(--accent-brand-soft)] font-semibold text-[var(--accent-brand)]"
                       : "border-[var(--border-control)] bg-[var(--bg-elevated)] text-[var(--ink-secondary)]",
                   )}
                 >

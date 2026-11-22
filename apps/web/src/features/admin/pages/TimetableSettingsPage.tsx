@@ -20,6 +20,10 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StickyDirtyBar } from "@/components/ui/StickyDirtyBar";
 import { Switch } from "@/components/ui/Switch";
+import {
+  applyMiddayBreakToPeriods,
+  resolveMiddayBreak,
+} from "@/core/utils/breakPolicy";
 import { ClockTime } from "@/core/utils/clockTime";
 import { ACADEMIC_WEEK_DAYS } from "@/features/admin/services/facultyService";
 import {
@@ -191,6 +195,11 @@ export function TimetableSettingsPage() {
         ? partitionPeriods(draft)
         : { regularPeriods: [], onlinePeriod: null },
     [draft],
+  );
+
+  const middayBreak = useMemo(
+    () => resolveMiddayBreak(draft?.periods ?? []),
+    [draft?.periods],
   );
 
   const isDirty = useMemo(() => {
@@ -449,7 +458,7 @@ export function TimetableSettingsPage() {
                     className={cn(
                       "inline-flex h-9 items-center gap-2 rounded-[var(--r-control)] border px-3 text-[13px] font-medium transition-colors",
                       active
-                        ? "border-[var(--ink-primary)] bg-[var(--ink-primary)] text-[var(--bg-elevated)]"
+                        ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)] shadow-[inset_0_-2px_0_var(--accent-brand)]"
                         : "border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]",
                     )}
                   >
@@ -601,7 +610,7 @@ export function TimetableSettingsPage() {
                           className={cn(
                             "h-8 rounded-[var(--r-control)] border px-2.5 text-[12px] font-medium transition-colors",
                             active
-                              ? "border-[var(--accent-pine)] bg-[var(--accent-pine-soft)] text-[var(--accent-pine)]"
+                              ? "border-[var(--accent-brand)] bg-[var(--accent-brand-soft)] text-[var(--accent-brand)]"
                               : "border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)]",
                           )}
                         >
@@ -674,6 +683,109 @@ export function TimetableSettingsPage() {
                   </div>
                 </div>
 
+                {/* Dynamic Midday Break Position & Window */}
+                <div
+                  data-testid="settings-midday-break-controls"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 py-2.5"
+                >
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span className="text-[12.5px] font-semibold text-[var(--ink-primary)]">
+                      Midday Break Position
+                    </span>
+                    <div
+                      role="group"
+                      aria-label="Midday break position"
+                      className="inline-flex h-[32px] items-center rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] p-0.5"
+                    >
+                      {(
+                        [
+                          { id: 3, label: "After P3", testId: "break-pos-3" },
+                          { id: 4, label: "After P4", testId: "break-pos-4" },
+                          { id: 5, label: "After P5", testId: "break-pos-5" },
+                          { id: null, label: "No Break", testId: "break-pos-none" },
+                        ] as const
+                      ).map((opt) => {
+                        const active = middayBreak.afterPeriodIdx === opt.id;
+                        return (
+                          <button
+                            key={String(opt.id)}
+                            type="button"
+                            data-testid={opt.testId}
+                            aria-pressed={active}
+                            onClick={() =>
+                              setDraft((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      periods: applyMiddayBreakToPeriods(
+                                        prev.periods,
+                                        opt.id,
+                                        middayBreak.durationMinutes || 25,
+                                      ),
+                                    }
+                                  : prev,
+                              )
+                            }
+                            className={cn(
+                              "h-[26px] rounded-[5px] border px-2.5 text-[11.5px] font-medium transition-colors",
+                              active
+                                ? "border-[var(--border-strong)] bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)]"
+                                : "border-transparent text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]",
+                            )}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-[12px]">
+                    <label
+                      htmlFor="break-duration-input"
+                      className="text-[var(--ink-secondary)]"
+                    >
+                      Duration (min)
+                    </label>
+                    <input
+                      id="break-duration-input"
+                      data-testid="break-duration-input"
+                      type="number"
+                      min={15}
+                      max={90}
+                      step={5}
+                      disabled={middayBreak.afterPeriodIdx === null}
+                      value={
+                        middayBreak.afterPeriodIdx === null
+                          ? 0
+                          : middayBreak.durationMinutes
+                      }
+                      onChange={(e) => {
+                        const val = Number.parseInt(e.target.value, 10);
+                        if (!Number.isFinite(val)) return;
+                        setDraft((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                periods: applyMiddayBreakToPeriods(
+                                  prev.periods,
+                                  middayBreak.afterPeriodIdx,
+                                  val,
+                                ),
+                              }
+                            : prev,
+                        );
+                      }}
+                      className="font-mono-tabular h-[30px] w-[66px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-2 text-[12px] text-[var(--ink-primary)] disabled:opacity-50"
+                    />
+                    <span className="font-mono-tabular text-[11.5px] text-[var(--ink-muted)]">
+                      {middayBreak.afterPeriodIdx === null
+                        ? "Continuous slots"
+                        : `${middayBreak.start}–${middayBreak.end}`}
+                    </span>
+                  </div>
+                </div>
+
                 {/* Visual Daily Period Timeline Strip */}
                 <div
                   data-testid="settings-daily-timeline-strip"
@@ -716,7 +828,7 @@ export function TimetableSettingsPage() {
                               input?.focus();
                             }}
                             className={cn(
-                              "flex min-w-[82px] flex-1 flex-col items-start rounded-[5px] border px-2.5 py-1.5 text-left transition-colors hover:border-[var(--accent-pine)]",
+                              "flex min-w-[82px] flex-1 flex-col items-start rounded-[5px] border px-2.5 py-1.5 text-left transition-colors hover:border-[var(--accent-brand)]",
                               isExcluded
                                 ? "border-dashed border-[var(--border-subtle)] bg-[var(--bg-surface)] opacity-60"
                                 : "border-[var(--border-subtle)] bg-[var(--bg-elevated)]",
@@ -729,16 +841,17 @@ export function TimetableSettingsPage() {
                               {period.start}–{period.end}
                             </span>
                           </button>
-                          {period.idx === 3 && (
+                          {middayBreak.afterPeriodIdx === period.idx && (
                             <div
+                              data-testid="timeline-break-block"
                               className="flex flex-col items-center justify-center rounded-[5px] border border-dashed border-[var(--border-strong)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-center"
-                              title="Midday Break (Workbook Column G)"
+                              title={`Midday Break (${middayBreak.start}–${middayBreak.end})`}
                             >
                               <span className="font-mono-tabular text-[10.5px] font-semibold text-[var(--ink-secondary)]">
                                 Break
                               </span>
                               <span className="font-mono-tabular text-[10px] text-[var(--ink-muted)]">
-                                Col G
+                                {middayBreak.start}–{middayBreak.end}
                               </span>
                             </div>
                           )}
@@ -1137,7 +1250,7 @@ export function TimetableSettingsPage() {
                         className={cn(
                           "rounded-[var(--r-control)] border p-3.5 text-left transition-colors",
                           selected
-                            ? "border-[var(--accent-pine)] bg-[var(--accent-pine-soft)]"
+                            ? "border-[var(--accent-brand)] bg-[var(--accent-brand-soft)]"
                             : "border-[var(--border-subtle)] bg-[var(--bg-elevated)] hover:bg-[var(--surface-hover)]",
                         )}
                       >
@@ -1242,7 +1355,7 @@ export function TimetableSettingsPage() {
                         >
                           {item.title}
                         </label>
-                        <span className="font-mono-tabular rounded-[4px] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 py-0.5 text-[12px] font-semibold text-[var(--accent-pine)]">
+                        <span className="font-mono-tabular rounded-[4px] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 py-0.5 text-[12px] font-semibold text-[var(--accent-brand)]">
                           {val}
                         </span>
                       </div>
@@ -1255,7 +1368,7 @@ export function TimetableSettingsPage() {
                         aria-hidden="true"
                       >
                         <div
-                          className="h-full bg-[var(--accent-pine)] transition-[width] duration-150"
+                          className="h-full bg-[var(--accent-brand)] transition-[width] duration-150"
                           style={{
                             width: `${Math.min(100, Math.round((val / 20) * 100))}%`,
                           }}
@@ -1284,7 +1397,7 @@ export function TimetableSettingsPage() {
                               : prev,
                           );
                         }}
-                        className="mt-3 w-full accent-[var(--accent-pine)]"
+                        className="mt-3 w-full accent-[var(--accent-brand)]"
                       />
                     </div>
                   );
