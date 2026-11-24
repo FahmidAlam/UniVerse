@@ -192,6 +192,8 @@ void main() {
             await tester.tap(find.text('PYQ'));
             await tester.pumpAndSettle();
             expect(find.text('Showing 0 resources'), findsOneWidget);
+            await tester.ensureVisible(find.text('Clear filters'));
+            await tester.pumpAndSettle();
             await tester.tap(find.text('Clear filters'));
             await tester.pumpAndSettle();
             expect(find.text('Fixture lecture notes'), findsOneWidget);
