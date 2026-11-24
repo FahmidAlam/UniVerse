@@ -132,18 +132,24 @@ class _ResourceLibraryScreenState extends State<ResourceLibraryScreen> {
                             child: _controller.isLoading
                                 ? const ULoading.spinner()
                                 : _controller.errorMessage != null
-                                    ? UEmptyState.error(
-                                        message: _controller.errorMessage!,
-                                        onRetry: _controller.load)
+                                    ? Center(
+                                        child: SingleChildScrollView(
+                                            child: UEmptyState.error(
+                                                message:
+                                                    _controller.errorMessage!,
+                                                onRetry: _controller.load)))
                                     : items.isEmpty
-                                        ? UEmptyState.noMatches(
-                                            title: _controller.all.isEmpty
-                                                ? 'No resources yet'
-                                                : 'No matching resources',
-                                            onClearFilters: () => setState(() {
-                                                  _semester = null;
-                                                  _type = null;
-                                                }))
+                                        ? Center(
+                                            child: SingleChildScrollView(
+                                                child: UEmptyState.noMatches(
+                                                    title: _controller.all.isEmpty
+                                                        ? 'No resources yet'
+                                                        : 'No matching resources',
+                                                    onClearFilters: () =>
+                                                        setState(() {
+                                                          _semester = null;
+                                                          _type = null;
+                                                        }))))
                                         : Padding(
                                             padding: const EdgeInsets.symmetric(
                                                 horizontal: AppSpacing.screenH),

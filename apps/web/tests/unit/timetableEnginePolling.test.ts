@@ -303,7 +303,7 @@ describe("Timetable Engine HTTP Polling & 3-Step Guarded Publication Pipeline", 
         return new Response(JSON.stringify(SAMPLE_RESULT), { status: 200 });
       }
       if (url.includes("/download/")) {
-        return new Response(new Blob(["pk"]), { status: 200 });
+        return new Response(new Uint8Array([0x50, 0x4b]), { status: 200 });
       }
       return new Response("Not found", { status: 404 });
     });
