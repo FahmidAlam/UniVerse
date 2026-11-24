@@ -5,21 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
     <title>UniVerse — Academic Ledger · Leading University CSE</title>
-    <script>
-      (() => {
-        try {
-          const pref = localStorage.getItem("universe-web-theme") || "system";
-          const dark =
-            pref === "dark" ||
-            (pref === "system" &&
-              window.matchMedia &&
-              window.matchMedia("(prefers-color-scheme: dark)").matches);
-          document.documentElement.dataset.theme = dark ? "dark" : "light";
-        } catch {
-          document.documentElement.dataset.theme = "light";
-        }
-      })();
-    </script>
+    <script src="/theme-init.js"></script>
     <meta
       name="description"
       content="UniVerse Academic Ledger — Routine administration console and constraint preview for Leading University CSE."

@@ -38,6 +38,20 @@ describe("Track 2 Scheduling Workbench contracts & fail-closed boundaries", () =
     expect(svcSource).toContain("academic_terms ( label");
     expect(svcSource).not.toContain("p_revision_id");
     expect(svcSource).not.toContain("revisions.scope_id");
+
+    const capSource = fs.readFileSync(
+      path.resolve(
+        __dirname,
+        "../../src/features/scheduling/services/schedulingCapabilities.ts",
+      ),
+      "utf8",
+    );
+    expect(capSource).toContain("course_distribution_sources");
+    expect(capSource).toContain("course_distribution_revisions");
+    expect(capSource).toContain("course_distribution_corrections");
+    expect(capSource).toContain("course_distribution_artifacts");
+    expect(capSource).not.toContain("application/openapi+json");
+    expect(capSource).not.toContain("00000000-0000-0000-0000-000000000000");
   });
 
   it("keeps Live Mode gates fail-closed even when revision rows exist, and keeps Gates C & D unconditionally locked", () => {

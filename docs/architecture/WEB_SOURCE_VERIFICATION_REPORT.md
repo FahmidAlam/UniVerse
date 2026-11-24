@@ -72,7 +72,7 @@
 ### `F-04` — Superseded `Spatial Orbit Engine` Visual Theme Conflicts with `UniVerse Academic Ledger`
 - **Category:** React Web Implementation
 - **Status:** `CONTRADICTED`
-- **File Paths:** [`apps/web/index.html`](../../apps/web/index.html), [`apps/web/src/styles/tokens.css`](../../apps/web/src/styles/tokens.css), [`apps/web/src/styles/app.css`](../../apps/web/src/styles/app.css), [`apps/web/src/shared/theme/ThemeProvider.tsx`](../../apps/web/src/shared/theme/ThemeProvider.tsx), [`apps/web/src/shared/components/ThemeSwitcher.tsx`](../../apps/web/src/shared/components/ThemeSwitcher.tsx), [`apps/web/src/features/onboarding/components/SpatialOrbitStage.tsx`](../../apps/web/src/features/onboarding/components/SpatialOrbitStage.tsx)
+- **File Paths:** [`apps/web/index.html`](../../apps/web/index.html), [`apps/web/src/styles/tokens.css`](../../apps/web/src/styles/tokens.css), [`apps/web/src/styles/app.css`](../../apps/web/src/styles/app.css), [`apps/web/src/shared/theme/ThemeProvider.tsx`](../../apps/web/src/shared/theme/ThemeProvider.tsx), `apps/web/src/shared/components/ThemeSwitcher.tsx` (retired), `apps/web/src/features/onboarding/components/SpatialOrbitStage.tsx` (retired)
 - **Relevant Symbols:** `html[data-theme="dark"]` (`tokens.css:82-126`), `ThemeSwitcher` (`ThemeSwitcher.tsx:18-70`), `orbitSpinCw` / `orbitSpinCcw` / `conduitFlow` (`app.css:221-295`), `planeTransform` (`SpatialOrbitStage.tsx:152`)
 - **What Source Demonstrates:**
   - `index.html:16` loads `Space Grotesk`, `IBM Plex Sans`, and `JetBrains Mono` (not `Source Serif 4` or `IBM Plex Mono`).
@@ -99,7 +99,7 @@
 ### `F-06` — Public Landing Sandbox Is Strictly Client-Only
 - **Category:** React Web Implementation
 - **Status:** `VERIFIED`
-- **File Paths:** [`apps/web/src/features/onboarding/components/SpatialOrbitStage.tsx`](../../apps/web/src/features/onboarding/components/SpatialOrbitStage.tsx), [`apps/web/src/features/onboarding/data/routineFixtures.ts`](../../apps/web/src/features/onboarding/data/routineFixtures.ts)
+- **File Paths:** `apps/web/src/features/onboarding/components/SpatialOrbitStage.tsx` (retired), [`apps/web/src/features/onboarding/data/routineFixtures.ts`](../../apps/web/src/features/onboarding/data/routineFixtures.ts)
 - **Relevant Symbols:** `buildSandboxSlots`, `AUTO_SCENARIOS`, `SpatialOrbitStage`
 - **What Source Demonstrates:** All landing page preview data comes statically from `routineFixtures.ts`. Neither `PublicAuthLayout.tsx` nor `SpatialOrbitStage.tsx` invokes `supabase` or `engineHealth`.
 - **Agreement / Conflict:** **Agrees** with blueprint security requirement (zero unauthenticated FastAPI or private Supabase calls on `/`).
@@ -137,7 +137,7 @@
 ### `F-09` — Explicit Investigation: `approved_users` vs. `public.whitelists`
 - **Category:** Authentication and Authorization
 - **Status:** `CONTRADICTED` (Phase 0/1 prose) / `VERIFIED` (code & SQL)
-- **File Paths:** [`docs/implementation/web_phase_0_1_spatial_orbit_foundation.md`](../../docs/implementation/web_phase_0_1_spatial_orbit_foundation.md) (lines 51, 79), [`apps/web/src/features/auth/AuthProvider.tsx`](../../apps/web/src/features/auth/AuthProvider.tsx) (lines 171, 214–219), [`lib/core/constants/app_constants.dart`](../../lib/core/constants/app_constants.dart) (line 102), [`supabase/functions/invite-admin/handler.js`](../../supabase/functions/invite-admin/handler.js) (line 75), [`supabase/migrations/006_enable_rls_all_tables.sql`](../../supabase/migrations/006_enable_rls_all_tables.sql) (lines 61, 94)
+- **File Paths:** [`docs/implementation/web_phase_0_1_spatial_orbit_foundation.md`](../archive/web_history/web_phase_0_1_spatial_orbit_foundation.md) (lines 51, 79), [`apps/web/src/features/auth/AuthProvider.tsx`](../../apps/web/src/features/auth/AuthProvider.tsx) (lines 171, 214–219), [`lib/core/constants/app_constants.dart`](../../lib/core/constants/app_constants.dart) (line 102), [`supabase/functions/invite-admin/handler.js`](../../supabase/functions/invite-admin/handler.js) (line 75), [`supabase/migrations/006_enable_rls_all_tables.sql`](../../supabase/migrations/006_enable_rls_all_tables.sql) (lines 61, 94)
 - **Relevant Symbols:** `resolveAdminGate` (`AuthProvider.tsx:174-275`), `AppConstants.tableWhitelists`
 - **What Source Demonstrates:**
   - `docs/implementation/web_phase_0_1_spatial_orbit_foundation.md:51,79` falsely reports that `AuthProvider.tsx` checks `approved_users`.
@@ -302,7 +302,7 @@
 ### `F-20` — Production & Staging Schema, Row Counts, RLS & Realtime Verified via Owner SQL Audit
 - **Category:** Supabase Schema and RLS
 - **Status:** `VERIFIED` *(via owner-executed read-only SQL diagnostic packet on 21 November 2026)*
-- **File Paths:** [`UNIVERSE_CURRENT_ARCHITECTURE_AND_UI_UX_DOSSIER.md`](../../UNIVERSE_CURRENT_ARCHITECTURE_AND_UI_UX_DOSSIER.md) (lines 200–201, 516), [`.agents/skills/react-admin-backend-contracts/SKILL.md`](../../.agents/skills/react-admin-backend-contracts/SKILL.md) (line 55), [`supabase/reconciliation/storage_realtime_inventory.sql`](../../supabase/reconciliation/storage_realtime_inventory.sql), [`WEB_PHASE_0_COMPATIBILITY_AND_AUDIT_ADDENDUM.md`](WEB_PHASE_0_COMPATIBILITY_AND_AUDIT_ADDENDUM.md) (§4)
+- **File Paths:** [`UNIVERSE_CURRENT_ARCHITECTURE_AND_UI_UX_DOSSIER.md`](../archive/flutter_ui_history/UNIVERSE_CURRENT_ARCHITECTURE_AND_UI_UX_DOSSIER.md) (lines 200–201, 516), [`.agents/skills/react-admin-backend-contracts/SKILL.md`](../../.agents/skills/react-admin-backend-contracts/SKILL.md) (line 55), [`supabase/reconciliation/storage_realtime_inventory.sql`](../../supabase/reconciliation/storage_realtime_inventory.sql), [`WEB_PHASE_0_COMPATIBILITY_AND_AUDIT_ADDENDUM.md`](WEB_PHASE_0_COMPATIBILITY_AND_AUDIT_ADDENDUM.md) (§4)
 - **What Hosted SQL Diagnostics Confirmed:**
   1. **Production (`yxqyrjyzxitrgkhgauli` — kept strictly read-only):**
      - **18 `public` tables** with `rls_enabled = true` (`force_rls = false`); `supabase_migrations.schema_migrations` is absent; **none** of the 19 catalog/Track 2 tables (`20261022140809` / `20261106130000`) or extended columns (`campus`, `features`, `home_department_id`) are present.
@@ -428,7 +428,7 @@
 ### `F-28` — Contradictory Framework & Theme Rules in `AGENTS.md`, `CLAUDE.md`, and `.agents/skills/`
 - **Category:** Governance and Documentation Discrepancies
 - **Status:** `CONTRADICTED`
-- **File Paths:** [`AGENTS.md`](../../AGENTS.md) (lines 16, 20, 74, 96, 100), [`CLAUDE.md`](../../CLAUDE.md) (lines 9, 11, 42, 93–95, 129, 144–145), [`PROJECT_STRUCTURE.md`](../../PROJECT_STRUCTURE.md), [`.agents/skills/react-web-academic-design-system/SKILL.md`](../../.agents/skills/react-web-academic-design-system/SKILL.md) (lines 70–98), [`.agents/skills/react-web-motion-and-craft/SKILL.md`](../../.agents/skills/react-web-motion-and-craft/SKILL.md) (lines 65–82), [`UNIVERSE_CURRENT_ARCHITECTURE_AND_UI_UX_DOSSIER.md`](../../UNIVERSE_CURRENT_ARCHITECTURE_AND_UI_UX_DOSSIER.md) (lines 9, 200–201)
+- **File Paths:** [`AGENTS.md`](../../AGENTS.md) (lines 16, 20, 74, 96, 100), [`CLAUDE.md`](../../CLAUDE.md) (lines 9, 11, 42, 93–95, 129, 144–145), [`PROJECT_STRUCTURE.md`](../../PROJECT_STRUCTURE.md), [`.agents/skills/react-web-academic-design-system/SKILL.md`](../../.agents/skills/react-web-academic-design-system/SKILL.md) (lines 70–98), [`.agents/skills/react-web-motion-and-craft/SKILL.md`](../../.agents/skills/react-web-motion-and-craft/SKILL.md) (lines 65–82), [`UNIVERSE_CURRENT_ARCHITECTURE_AND_UI_UX_DOSSIER.md`](../archive/flutter_ui_history/UNIVERSE_CURRENT_ARCHITECTURE_AND_UI_UX_DOSSIER.md) (lines 9, 200–201)
 - **What Source Demonstrates:**
   1. **React Prohibition vs. React Adoption:** `AGENTS.md` §2/§6 and `CLAUDE.md` §1/§6 still instruct *"No unrequested React/Next.js rewrite"* and *"Never replace Flutter with React/Next.js"*, while the end of both files defines `React Web v1 Locked Theme` for `apps/web/`.
   2. **Superseded Design System Locked in Rules:** `AGENTS.md`, `CLAUDE.md`, and both `react-web-*` skills lock **Spatial Orbit Engine** (`Space Grotesk`, light+dark, cyan-emerald, 4-layer kinetic loop), contradicting the owner's new **UniVerse Academic Ledger** blueprint.

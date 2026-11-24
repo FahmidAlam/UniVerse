@@ -1,5 +1,7 @@
 # UniVerse — Database Architecture, RLS Policy Audit, Backend Engine Integration & Routine Generation Blueprint
 
+> **Freshness Notice (Updated 2026-11-24):** This root document is a **historical 10 November 2026 baseline snapshot** authored prior to Standalone React Web v1 (`apps/web/`), Phase 5A FastAPI dual-client JWT/CORS hardening (`engine/auth.py`), and Phase 5B RLS & Storage hardening (`supabase/migrations/20261122160000_phase_5b_rls_and_storage_hardening.sql`, live on Staging `oqwvxplteqtlrhktsplj`). For the **current, code-verified Wave 2 & NotebookLM backend reference pack**, read [`docs/backend/README.md`](docs/backend/README.md) and `docs/backend/01`–`04`.
+
 **Date:** 10 November 2026  
 **Scope:** Complete cross-system audit of Supabase Database, Row-Level Security (RLS), Edge Functions, Python CP-SAT Routine Engine, Flutter Application, and Compliance with `Routine Generation System.pdf`.  
 **Repository Working Directory:** `d:\flutter projects\universe_v1`  

@@ -1,9 +1,11 @@
 ---
 name: universe-visual-design-system
-description: Design and refine UniVerse's visual language, hierarchy, spacing, typography, color, iconography, and component consistency while safely governing the existing Flutter theme system.
+description: Design and refine UniVerse Flutter Mobile's (lib/, Android & iOS) Obsidian Orbit visual language, spacing, typography, dark/orange color tokens, and shared U* widgets. Do NOT load for React Web (apps/web/).
 ---
 
-# UniVerse Visual Design System Specification
+# UniVerse Flutter Mobile Visual Design System (Obsidian Orbit)
+
+> **Platform Scope:** Exclusively governs **Flutter Mobile (`lib/`, Android & iOS Student/Teacher)** using centralized Obsidian Orbit tokens (`lib/core/theme/`). Never apply `#0B0C0E` + `#FF7A00` tokens to standalone React Web (`apps/web/`), which uses `react-web-academic-design-system`. Legacy Flutter Web (`web/`, `lib/features/admin/`) is frozen.
 
 ## 1. Objective & Obsidian Orbit Design Identity
 
@@ -31,7 +33,6 @@ description: Design and refine UniVerse's visual language, hierarchy, spacing, t
 ## 2. Theme Governance & Safety Protocols
 
 - **Centralization Rule:** All design tokens MUST be defined in `lib/core/theme/` (`app_colors.dart`, `app_text_styles.dart`, `app_spacing.dart`, `app_theme.dart`). Never inline raw hex values, magic font sizes, or ad-hoc padding constants in screen files.
-- **Provisional Token Tagging:** All updated design tokens must include inline comments: `// PHASE 2 (PROVISIONAL): Obsidian Orbit token pending representative-screen review`.
 - **Backward Compatibility:** Preserving public getters in `AppColors` and existing component parameters is mandatory. New semantic tokens must map cleanly alongside existing theme getters so all screens compile with zero warnings or broken references.
 - **No Forking or Parallel Palettes:** Do not create conflicting local themes or inline custom color definitions for single screens. Fix visual hierarchy by refining central semantic tokens or updating shared `U*` widgets.
 

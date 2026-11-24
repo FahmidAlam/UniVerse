@@ -13,4 +13,4 @@ Verified by widget assertions: four layouts at both sizes; local app bars absent
 
 Visual findings: bounded forms and filter controls remain readable, cards use the existing tokens, and counts are placed before results. The long whitelist tab is ellipsized on mobile. The registration dropdown placeholder uses an inherited test-font surface that renders as blocks in the harness; production/browser typography is not accepted from this capture. No screen-reader, browser walkthrough or performance-profile acceptance is claimed.
 
-See [closure report](../../../PHASE_7_FINAL_UI_UX_CLOSURE_REPORT.md) for repository-wide test limitations and backend boundaries.
+See [closure report](../../archive/flutter_ui_history/PHASE_7_FINAL_UI_UX_CLOSURE_REPORT.md) for repository-wide test limitations and backend boundaries.

@@ -1,6 +1,7 @@
 # UniVerse — Standalone React Web Implementation Roadmap
 
 > **Purpose:** Safe, dependency-aware phased roadmap bridging the approved strategic blueprint ([`WEB_ARCHITECTURE_DESIGN_BLUEPRINT.md`](WEB_ARCHITECTURE_DESIGN_BLUEPRINT.md)) and verified repository truth ([`WEB_SOURCE_VERIFICATION_REPORT.md`](WEB_SOURCE_VERIFICATION_REPORT.md)).
+> **Current Milestone:** Phases 0–4B + Theme v3 (**X-Grade Carbon Obsidian Dark + Crisp Daylight Light + X-Azure**) + Phase 5A/5B/5C-Prep & Staging 5B Verified → Immediate Next: GitHub Push + Cloudflare Pages **Environment A** (Committee Review) → Gated Production Cutover (**Environment B** + Phase 4A-1) → **Wave 2** (`Phase 4A-2`: R1–R16 CP-SAT Solver, Gate C/D Backend, Phase 3B Parse Endpoint, and Post-Cutover Flutter Web Pruning).
 > **Safety Rule:** Approving a frontend milestone **never** implies authorization for Flutter, Python FastAPI, PostgreSQL/RLS schema, Edge Function, or hosting changes. Each non-frontend boundary carries an explicit **Separate Owner Authorization Required** gate.
 
 ---
@@ -52,7 +53,7 @@ Resolve governance/documentation contradictions, establish live hosted Supabase 
 - [`.agents/skills/react-web-academic-design-system/SKILL.md`](../../.agents/skills/react-web-academic-design-system/SKILL.md)
 - [`.agents/skills/react-web-motion-and-craft/SKILL.md`](../../.agents/skills/react-web-motion-and-craft/SKILL.md)
 - [`.agents/skills/react-admin-backend-contracts/SKILL.md`](../../.agents/skills/react-admin-backend-contracts/SKILL.md)
-- [`docs/implementation/web_phase_0_1_spatial_orbit_foundation.md`](../implementation/web_phase_0_1_spatial_orbit_foundation.md)
+- [`docs/archive/web_history/web_phase_0_1_spatial_orbit_foundation.md`](../archive/web_history/web_phase_0_1_spatial_orbit_foundation.md)
 - [`apps/web/package.json`](../../apps/web/package.json)
 - [`supabase/reconciliation/storage_realtime_inventory.sql`](../../supabase/reconciliation/storage_realtime_inventory.sql)
 
@@ -98,7 +99,7 @@ Resolve governance/documentation contradictions, establish live hosted Supabase 
 
 ### 11. Separate Owner Authorization Required
 - **Completed for Phase 0:** Owner SQL diagnostics executed on both projects, `oqwvxplteqtlrhktsplj` designated as clean staging, and Deep Botanical Pine confirmed for Phase 1A.
-- **Required Next:** Owner approval of the Phase 1A UI/UX design brief ([`WEB_PHASE_1A_DESIGN_BRIEF.md`](WEB_PHASE_1A_DESIGN_BRIEF.md)) and npm package changes before installing dependencies or editing `apps/web/`.
+- **Required Next:** Owner approval of the Phase 1A UI/UX design brief ([`../archive/web_history/WEB_PHASE_1A_DESIGN_BRIEF.md`](../archive/web_history/WEB_PHASE_1A_DESIGN_BRIEF.md)) and npm package changes before installing dependencies or editing `apps/web/`.
 
 ---
 
@@ -116,9 +117,9 @@ Split into two distinct gates:
 ### 3. Relevant Existing Files & Affected Areas
 - [`apps/web/package.json`](../../apps/web/package.json), [`apps/web/index.html`](../../apps/web/index.html)
 - [`apps/web/src/styles/tokens.css`](../../apps/web/src/styles/tokens.css), [`apps/web/src/styles/app.css`](../../apps/web/src/styles/app.css)
-- [`apps/web/src/shared/theme/ThemeProvider.tsx`](../../apps/web/src/shared/theme/ThemeProvider.tsx), [`apps/web/src/shared/components/ThemeSwitcher.tsx`](../../apps/web/src/shared/components/ThemeSwitcher.tsx) (to be retired/simplified for light-first)
-- [`apps/web/src/features/onboarding/components/SpatialOrbitStage.tsx`](../../apps/web/src/features/onboarding/components/SpatialOrbitStage.tsx) & [`routineFixtures.ts`](../../apps/web/src/features/onboarding/data/routineFixtures.ts) (replace with flat 2D Academic Ledger public preview)
-- [`apps/web/src/features/auth/PublicAuthLayout.tsx`](../../apps/web/src/features/auth/PublicAuthLayout.tsx), [`AuthProvider.tsx`](../../apps/web/src/features/auth/AuthProvider.tsx), [`LoginPage.tsx`](../../apps/web/src/features/auth/pages/LoginPage.tsx), [`ForgotPasswordPage.tsx`](../../apps/web/src/features/auth/pages/ForgotPasswordPage.tsx), [`ResetPasswordPage.tsx`](../../apps/web/src/features/auth/pages/ResetPasswordPage.tsx), [`AccessRequiredPage.tsx`](../../apps/web/src/features/auth/pages/AccessRequiredPage.tsx), [`AndroidCompanionStrip.tsx`](../../apps/web/src/features/auth/components/AndroidCompanionStrip.tsx)
+- [`apps/web/src/shared/theme/ThemeProvider.tsx`](../../apps/web/src/shared/theme/ThemeProvider.tsx), `apps/web/src/shared/components/ThemeSwitcher.tsx` (retired) (to be retired/simplified for light-first)
+- `apps/web/src/features/onboarding/components/SpatialOrbitStage.tsx` (retired) & [`routineFixtures.ts`](../../apps/web/src/features/onboarding/data/routineFixtures.ts) (replace with flat 2D Academic Ledger public preview)
+- [`apps/web/src/features/auth/PublicAuthLayout.tsx`](../../apps/web/src/features/auth/PublicAuthLayout.tsx), [`AuthProvider.tsx`](../../apps/web/src/features/auth/AuthProvider.tsx), [`LoginPage.tsx`](../../apps/web/src/features/auth/pages/LoginPage.tsx), [`ForgotPasswordPage.tsx`](../../apps/web/src/features/auth/pages/ForgotPasswordPage.tsx), [`ResetPasswordPage.tsx`](../../apps/web/src/features/auth/pages/ResetPasswordPage.tsx), [`AccessRequiredPage.tsx`](../../apps/web/src/features/auth/pages/AccessRequiredPage.tsx), `AndroidCompanionStrip.tsx` (retired)
 - [`apps/web/src/services/supabase.ts`](../../apps/web/src/services/supabase.ts)
 - [`apps/web/src/features/admin/AdminShell.tsx`](../../apps/web/src/features/admin/AdminShell.tsx)
 

@@ -364,6 +364,10 @@
     padding: 3pt 3.5pt !important;
   }
 
+  .committee-print-table th.committee-break-col {
+    width: 44pt !important;
+  }
+
   .committee-print-table thead {
     display: table-header-group;
   }

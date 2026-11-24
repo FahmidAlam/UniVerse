@@ -1,9 +1,9 @@
 # UniVerse — Standalone React Web Architecture & Design Blueprint
 
 > **Document Role:** Authoritative Strategic Reference (Approved Product, Architectural & Visual Direction)
-> **Scope:** Separation of Flutter Mobile (`lib/`, `android/`, iOS-compatible) and Standalone React Web (`apps/web/`)
-> **Design System:** **UniVerse Academic Ledger** (Interchangeable Light + Dark / System — Archival Daylight & Warm Dark Ledger)
-> **Important Notice:** This document preserves the owner's approved strategic direction. It does **not** claim that every proposed technology, UI screen, or backend contract is currently implemented or deployed. See [`WEB_SOURCE_VERIFICATION_REPORT.md`](WEB_SOURCE_VERIFICATION_REPORT.md) for verified repository facts and [`WEB_IMPLEMENTATION_ROADMAP.md`](WEB_IMPLEMENTATION_ROADMAP.md) for phased execution.
+> **Scope:** Separation of Flutter Mobile (`lib/`, `android/`, iOS-compatible; Flutter Web frozen as read-only fallback) and Standalone React Web (`apps/web/`)
+> **Design System:** **UniVerse Academic Ledger** — Theme v3 (**X-Grade Carbon Obsidian Dark + Crisp Daylight Light + X-Azure**, Light / Dark / System)
+> **Current Milestone:** Phases 0–4B, Theme v3, and Phase 5A/5B/5C-Prep & Staging Phase 5B hardening are **complete and verified**. Immediate next: GitHub Push + Cloudflare Pages **Environment A** (Continuous Committee Review → Staging `oqwvxplteqtlrhktsplj`) → Gated Production Cutover (**Environment B** + Phase 4A-1) → **Wave 2** (`Phase 4A-2`: R1–R16 CP-SAT Solver, Gate C/D Backend, Phase 3B Parse Endpoint, and Post-Cutover Flutter Web Pruning). See [`WEB_SOURCE_VERIFICATION_REPORT.md`](WEB_SOURCE_VERIFICATION_REPORT.md) and [`WEB_IMPLEMENTATION_ROADMAP.md`](WEB_IMPLEMENTATION_ROADMAP.md).
 
 ---
 

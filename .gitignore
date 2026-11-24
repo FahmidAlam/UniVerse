@@ -70,3 +70,9 @@ google-services*.json
 workbook/
 supabase/.temp/
 supabase/.branches/
+
+# Transient test failure diffs & E2E artifacts
+test/failures/
+test-results/
+playwright-report/
+project_structure*.txt

@@ -6,7 +6,7 @@ import { expect, test, type Page } from "@playwright/test";
 const SPEC_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SCREENSHOT_DIR = path.resolve(
   SPEC_DIR,
-  "../../../../docs/screenshots/web_phase_4",
+  "../../test-results/e2e-screenshots/web_phase_4",
 );
 
 fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });

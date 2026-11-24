@@ -1,98 +1,61 @@
 ---
 name: react-web-academic-design-system
-description: Governs theme discovery (Mobbin/Figma), OKLCH color architecture, anchor-first typography, visual rhyming, spacing geometry, and anti-slop rules for the standalone UniVerse React Web app (apps/web/). Use before theming, styling, or designing any React web screen or component.
+description: Governs OKLCH color architecture, X-Grade Carbon Obsidian Dark + Crisp Daylight Light + X-Azure tokens, anchor-first typography, spacing geometry, and anti-slop rules for the standalone UniVerse React Web app (apps/web/). Use before theming, styling, or designing any React web screen or component.
 ---
 
 # UniVerse React Web — Design System, Theme Craft & Anti-Slop Governance
 
-## 1. Anti-Slop Theme Governance & Approved Design System Discipline
-- **NEVER invent or hardcode a generic AI palette** (e.g., default purple gradients, generic corporate navy/amber, or unlinked raw hex codes outside `tokens.css`).
-- **Separate Mobile & Web Identities:** Flutter Mobile (`lib/`, Android and iOS compatibility) retains Obsidian Orbit (`#0B0C0E` + `#FF7A00`). React Web (`apps/web/`) uses the owner-approved **UniVerse Academic Ledger** visual system (interchangeable Light + Dark / System; combining Precision Ledger, Campus Atelier, and Archival Registrar), stored centrally in `apps/web/src/styles/tokens.css`.
-- **Approved v1 Direction Locked:** Do **not** reopen multi-direction discovery for React Web v1 screens or revive Spatial Orbit Engine. Reserve Mobbin/Figma multi-direction exploration strictly for future net-new product initiatives when explicitly requested by the owner.
-- **Domain Grounding:** Every React Web surface must derive its visual density, terminology, and affordances from Leading University CSE routine operations and committee policies rather than generic SaaS templates.
+## 1. Identity & Theme Governance
+- **Separated Client Identities:** Flutter Mobile (`lib/`, Android and iOS Student/Teacher) retains **Obsidian Orbit** (`#0B0C0E` + `#FF7A00`). Standalone React Web (`apps/web/`, Admin Operations Console + Public `/`) uses **UniVerse Academic Ledger** (Theme v3: **X-Grade Carbon Obsidian Dark + Crisp Daylight Light + X-Azure**, interchangeable `Light` / `Dark` / `System` with pre-paint `public/theme-init.js`).
+- **Central Token Authority:** All colors, surfaces, borders, and semantic tokens live in `apps/web/src/styles/tokens.css`. Never invent ad-hoc palettes, purple/cyan gradients, or raw unlinked hex values in components, and never revive the retired Spatial Orbit prototype.
+- **Domain Grounding:** Derive density, terminology, and affordances from Leading University CSE routine operations and Routine Committee policies (`R1`–`R16`, `D1`–`D6`, `CD1`) rather than generic SaaS templates.
 
 ---
 
-## 2. Perceptual Color Architecture (OKLCH Math + 4 Depth Properties)
-Once the owner approves a visual direction from Mobbin/Figma, translate it into **Tailwind v4 / CSS custom properties in OKLCH (`oklch(L C H)`)**—never raw unlinked hex values.
-
-### Neutral Surface & Text Spine (Define Before Brand Accent)
-1. **3 Perceptual Light Surfaces (Light-First; Dark Mode Deferred):** `--bg-dark` (recessed warm ledger canvas/sidebar), `--bg` (primary warm paper surface), `--bg-light` (crisp elevated sheet/card surface). Never ship a dark theme toggle or parallel dark palette in v1.
-2. **Actual Opaque sRGB WCAG AA Verification:** Compute contrast ratios over **actual opaque composited sRGB foreground/background hex pairs** (not OKLCH `L` heuristics alone) via automated verification: primary text (`>= 7:1` AAA target, `>= 4.5:1` hard floor), secondary labels (`>= 4.5:1`), muted metadata/inactive-row text (`>= 4.5:1` for small text; `>= 3:1` strictly for non-text UI controls, borders, and focus rings) + `@media (prefers-contrast: more)` support.
-3. **Calm Paper Depth Properties (Prevent Flatness Without Glare or 3D Clutter):**
-   - **Subtle Surface Elevation:** Soft luminance step from warm ledger paper (`--bg-dark` / `--bg`) to elevated sheets (`--bg-light`).
-   - **Calibrated Structural Hairlines:** Crisp `1px` ledger borders matching paper tone without noisy dark boxes.
-   - **1px Specular Top Edge (`--highlight`):** Subtle top light highlight on elevated drawers/cards/actions.
-   - **Soft Daylight Shadows:** Low-opacity dual-layer shadows (`short + ambient`) — zero neon glow or heavy drop-shadows.
-4. **Controlled Chroma & Signaling Discipline:**
-   - Keep UI chroma restrained (`C <= 0.14` in OKLCH for accents; neutral ink/paper spine keeps `C <= 0.015`).
-   - **"Checkbox Off = Gray" Rule:** Default/baseline states stay neutral ledger slate. Semantic color activates **only** for exceptions, overrides, or schedule class categories (Theory, Lab, Joint `B+C`, Conflict/R7 Violation/Cancellation).
-   - **Data Visualization Scales:** Sequential scales for load/utilization density; diverging scales for overload/underload balance. Recharts charts must render explicit axes, flat bar tops (never rounded candy bars), and **sibling-bar hover dimming** (dimming non-hovered sibling bars cleanly).
-   - **Color Mixing Safety:** Always use `color-mix(in oklab, ...)` — never `in oklch` with low-chroma neutrals (avoids Chromium neutral hue bug 565837690).
+## 2. Perceptual Color Architecture (`tokens.css` OKLCH -> Opaque sRGB Verified)
+1. **4-Layer Near-Achromatic Surface Spine (Full Light + Dark Parity):**
+   - `--bg-canvas`, `--bg-surface`, `--bg-elevated`, `--bg-raised` across **Crisp Daylight Light** (`C <= 0.004`) and **X-Grade Carbon Obsidian Dark** (`C <= 0.006`).
+   - Subtle `1px` structural hairlines (`--border-subtle`, `--border-default`), selective `1px` top specular edge (`--highlight`) on elevated drawers/modals, and restrained dual-layer shadows without neon glow or heavy blur.
+2. **Opaque sRGB WCAG AA Contrast Floor:**
+   - Stepped neutral ink (`--ink-hero`, `--ink-primary`, `--ink-secondary`, `--ink-muted`) verified over actual opaque composited sRGB foreground/background pairs (`tests/unit/tokensContrast.test.ts`): `>= 4.5:1` for text (`>= 7:1` AAA target for primary copy) and `>= 3:1` for non-text UI controls, borders, and focus rings, plus `@media (prefers-contrast: more)` support.
+3. **10-Step X-Azure Brand Scale & Signaling Restraint:**
+   - `--brand-50`..`--brand-950` (`H = 246°–248°`): `--brand-600` for Light primary CTAs/accents, `--brand-500` for Dark primary CTAs (`#FFFFFF` ink `>= 4.5:1`), and `--brand-300` for Dark links/focus rings.
+   - **Single Primary Fill Rule:** At most 1 primary CTA per view carries solid `--action-primary` fill; active tabs and segmented controls use raised monochrome surfaces.
+   - **"Checkbox Off = Gray" Rule:** Baseline/untouched states stay neutral slate with dot-pill status badges. Semantic color activates **only** for exceptions, overrides, or the 4 schedule categories (**Theory**, **Lab**, **Joint `B+C`**, **Hard Block / R7 Conflict / Cancellation**).
+   - **Color Mixing Safety:** Always use `color-mix(in oklab, ...)` — never `in oklch` on low-chroma neutrals (avoids Chromium neutral hue interpolation artifacts).
+   - **Charts (`--chart-1..4`):** Perceptually uniform OKLCH scales; Recharts bars use explicit axes, flat tops, and sibling-bar hover dimming.
 
 ---
 
 ## 3. Anchor-First Typography & Visual Rhyming
-- **Locked Academic Ledger Font Stack (Zero Generic Defaults):**
-  - Do **NOT** use bare **Inter**, **Geist**, **Instrument Serif**, or legacy **Space Grotesk** / **JetBrains Mono**.
-  - **Editorial / Display Headlines (Archival Registrar):** **`Source Serif 4`** (`600`, `700`; `text-wrap: balance`, tight headline tracking on `/`, scholarly authority without marketing hype).
-  - **UI, Forms & Dense Tables (Precision Ledger / Campus Atelier):** **`IBM Plex Sans`** (`400`, `500`, `600`).
-  - **Codes, Slots, Tabular Numerals & Hashes:** **`IBM Plex Mono`** (`400`, `500`, `tabular-nums`) for course codes (`CSE-3101`), time slots (`08:50–10:05`), section counts, and revision hashes.
-- **Visual Rhyming:** Echo subtle archival ledger geometry (`1px` structural hairlines, tabular cell proportion, crisp rectangular corner geometry) consistently across public mastheads, auth panels, dashboards, drawers, and schedule cells so every surface clearly belongs to one institution.
-- **Dashboard Scale Cap & Micro-Typography:**
-  - Cap in-app `/admin/*` workspace headings at `<= 24px` (`-0.02em` to `-0.03em` tracking, `1.15–1.2` leading); public `/` editorial headings in `Source Serif 4` scale deliberately with `text-wrap: balance` (zero widows).
-  - **Tabular Numbers (`font-variant-numeric: tabular-nums`):** Mandatory on all grids, filter counts, slot times, capacities, and solver timers.
-  - **Reserved Bold Width:** Prevent horizontal layout shift when tabs/links bold on active state.
-  - **Optical Alignment & Smart Truncation:** Align labels by eye (`text-box-trim` / calibrated optical padding), use `line-clamp` for long course titles, **middle truncation** for `.xlsx` filenames/hashes, `text-underline-offset: 3px`, small-caps styling for dense acronyms (`CSE`, `GED`, `SUST`, `ECL`), and curly quotes in editorial copy.
+- **Locked Academic Ledger Font Stack:**
+  - **Editorial / Display Headlines (`/`, Auth):** **`Source Serif 4`** (`600`, `700`; `text-wrap: balance`, scholarly authority).
+  - **UI, Forms & Dense Tables (`/admin/*`):** **`IBM Plex Sans`** (`400`, `500`, `600`).
+  - **Codes, Time Slots, Numerals & Hashes:** **`IBM Plex Mono`** (`400`, `500`, `tabular-nums`) for course codes (`CSE-3101`), slots (`08:50–10:05`), capacities, and SHA-256 hashes.
+  - Do **NOT** introduce bare `Inter`, `Geist`, `Space Grotesk`, or `JetBrains Mono` in `apps/web/`.
+- **Workspace Scale & Micro-Typography:**
+  - Cap `/admin/*` page headings at `<= 24px` (`-0.02em` tracking, `1.15–1.2` leading).
+  - Enforce `font-variant-numeric: tabular-nums` on all grids, counts, slot times, and timers; reserve bold width on tabs to prevent horizontal shift; use middle truncation for `.xlsx` filenames/hashes.
 
 ---
 
-## 4. Layout Geometry, Operational Table Ergonomics & Iconography
-1. **Strict 4px (`0.25rem`) Grid & Cross-Screen Consistency:** Inner gap must always be smaller than outer container padding (`gap < padding`). Enforce identical cross-screen component dimensions and interaction grammar (`36px` compact admin bar controls, `40px` primary auth/form controls, uniform `12px`/`8px`/`6px` concentric radii where `R_inner = R_outer - padding`).
-2. **Optical Button Padding:** Horizontal button padding = `2x–3x` vertical padding.
-3. **"Walmart Receipt" Dissolved Lists:** Never nest 4-sided bordered cards inside bordered cards for lists, rules, or settings. Use one surface container with `1px` structural dividers and aligned left-text / right-numeric column edges.
-4. **Public vs. Dense Table Surface Discipline:**
-   - Public `/` Archival Registrar masthead may use **subtle archival paper grain (`<= 2–3%`)** paired with visual rhyming and a calm custom 2D preview. **Prohibit** fluted/layered glass, 3D perspective stages (`rotateX/rotateY`), and glowing conduits anywhere in `apps/web/`.
-   - Authenticated `/admin/*` dense operational tables stay crisp and unadorned for extended administrative sessions.
-5. **Dense Operational Table & Inspector Grammar:**
-   - **Invisible UI:** Keep secondary row actions (Edit, Inspect, Archive) hidden until row hover or `focus-within`.
-   - **Inactive-Row Dimming:** Visibly attenuate disabled rooms, inactive faculty, or archived versions while preserving WCAG AA text contrast.
-   - **Hover-Revealed Copy Actions:** Reveal one-click copy triggers on row hover/`focus-within` for course codes, teacher codes, revision IDs, and hashes.
-   - **Corner-Triangle Override Indicators + Radix Tooltips:** Mark manual overrides or exceptions with a clean corner-triangle cell indicator backed by a consistent **Radix UI Tooltip** explaining provenance/reason.
-   - **Upfront Option-Level Filter Counts:** Show live counts beside filter options (`Theory (18)`, `Inactive (3)`) so admins anticipate result sizes before clicking.
-   - **Matrix ↔ Compact List Switching:** Provide instant switching between the custom CSS Grid **2D Timetable Matrix** and compact flat row scanning where appropriate.
-   - **Contextual Multi-Select Bulk Actions:** Reveal batch action toolbars strictly when 1+ rows are selected.
-6. **Icon Consistency:** Use **`@phosphor-icons/react`** (`Regular` weight matching UI typography and mobile's Phosphor family). Do **NOT** use generic Lucide defaults or decorative sparkle icons.
-7. **Masked Scroll Edges & `100dvh`:** Use CSS `mask-image` edge fades on scrollable timetable strips and dynamic viewport units (`min-h-dvh`).
+## 4. Layout Geometry, Operational Tables, Print & Iconography
+1. **4px (`0.25rem`) Grid & Concentric Radii:** Inner gap `<` outer container padding; `36px` compact admin bar controls, `40px` primary auth/form controls; concentric radii (`12px` outer / `8px` inner / `6px` cell). Horizontal button padding = `2x–3x` vertical padding.
+2. **Dissolved Lists ("Walmart Receipt"):** Never nest 4-sided bordered cards inside bordered cards; use one container with `1px` structural dividers and aligned left-label / right-numeric edges.
+3. **Dense Operational Table & Inspector Grammar:**
+   - **Invisible UI:** Reveal secondary row actions and one-click copy triggers on row hover or `focus-within`.
+   - **Inactive-Row Dimming:** Attenuate inactive rooms/faculty or archived versions while keeping WCAG AA contrast.
+   - **Override Provenance:** Mark manual overrides/corrections with corner-triangle indicators + Radix Tooltips.
+   - **Upfront Filter Counts:** Show live counts (`Showing 14 of 23`, `Inactive (3)`) and contextual bulk toolbars only when `>= 1` row is selected.
+4. **Custom 2D Timetable, Dynamic Break & Landscape A4 Print:**
+   - Use custom CSS Grid scheduling matrices (`AcademicTimetableMatrix`, `CommitteeDaySheetView`) with dynamic midday break positioning (`breakAfterSlot` / `friday_no_p4` Jummah lock) and dedicated `@media print` Landscape A4 single-sheet pagination — never a Gregorian calendar library.
+5. **Icons:** Use **`@phosphor-icons/react`** (`Regular` weight); no Lucide defaults or decorative sparkles.
 
 ---
 
-## 5. Mandatory Anti-Slop & Anti-Vibe-Coded Gate
-Verify **ZERO** violations before approving any screen:
-- [ ] Zero filler badges (`Active`, `Verified`, `Default Baseline`, `Standard 3x/Wk`).
-- [ ] Zero `SECTION 01 · ALL CAPS` eyebrows, zero periods in titles, zero code breadcrumbs, zero emojis in headings, zero em-dash spam.
-- [ ] Zero vibe-coded clichés: no 3-icon feature cards in a row, no bento-grid filler, no glowing orbs, no dot-grid wallpaper, no purple gradients, no permanent color stripe on every stacked card, no gradient circle-letter avatars.
-- [ ] Real `<title>` (`UniVerse — Academic Routine Platform`) and custom SVG favicon (never `"Vite + React"`).
-- [ ] Zero Lorem Ipsum, fake testimonials, or unimplemented AI claims.
-- [ ] Zero automated WCAG AA opaque-sRGB contrast failures.
-
----
-
-## 6. Approved Web Theme: UniVerse Academic Ledger (Interchangeable Light + Dark / System)
-Approved by Product Owner in `docs/architecture/WEB_ARCHITECTURE_DESIGN_BLUEPRINT.md`. Stored centrally in `apps/web/src/styles/tokens.css`.
-
-### Three Complementary Design Pillars
-1. **Precision Ledger:** Swiss-inspired grid discipline, crisp `1px` hairlines, high density, tabular numerals, administrative ergonomics.
-2. **Campus Atelier:** Warm daylight paper tones, comfortable long-session contrast without stark glare, generous breathing room.
-3. **Archival Registrar:** Scholarly `Source Serif 4` editorial credibility for `/` and auth entry.
-
-### Explicit Visual Prohibitions (No Carryover)
-- **Interchangeable Light + Dark (Light / Dark / System):** Full-parity Crisp Daylight Light and X-Grade Carbon Obsidian Dark modes under UniVerse Academic Ledger — strictly separate from Flutter's Obsidian Orbit (`#0B0C0E` + `#FF7A00`) and the retired cyan/3D Spatial Orbit prototype.
-- **No Obsidian Orbit Carryover:** Completely separate from Flutter's `#0B0C0E` + `#FF7A00` mobile theme.
-- **No Spatial Orbit Carryover:** Zero `Space Grotesk`, zero `JetBrains Mono`, zero cyan-emerald `H = 182°–186°` beams/conduits, zero counter-rotating SVG rings, zero 3D tilt, and zero fluted ribbing.
-
-### Color Token Architecture (OKLCH -> Opaque Composited sRGB Verified)
-- **Surfaces:** 4-layer near-achromatic Carbon-Obsidian (Dark, `C <= 0.006`) and Crisp Daylight (Light, `C <= 0.004`) palette (`--bg-canvas`, `--bg-surface`, `--bg-elevated`, `--bg-raised`).
-- **Typography Ink Spine:** Stepped neutral ink `--ink-hero`, `--ink-primary`, `--ink-secondary`, `--ink-muted` — every pair must pass automated opaque sRGB WCAG AA checks (`>= 4.5:1` text, `>= 3:1` non-text controls) across all 4 surface tiers.
-- **Primary Action & Brand Scale:** 10-step **X-Azure Blue** (`--brand-50`..`--brand-950`, `H = 246°–248°`); `--brand-600` for Light primary CTAs/accents, `--brand-500` for Dark primary CTAs (`#FFFFFF` ink `>= 4.5:1`), and `--brand-300` for Dark accents/links/focus rings. Only 1 primary CTA per screen carries solid `--action-primary` fill; active tabs/segmented controls use raised monochrome surfaces.
-- **Charts & Semantics:** Perceptually uniform OKLCH charts (`--chart-1..4`) and 4 calm schedule categories (**Theory**, **Lab**, **Joint `B+C`**, **Hard Block / R7 Conflict**), all verified against opaque surfaces.
+## 5. Mandatory Anti-Slop Gate
+Verify **ZERO** violations before completing any `apps/web/` UI change:
+- Zero filler badges (`Active`, `Verified`, `Default Baseline`, `Standard 3x/Wk`).
+- Zero `SECTION 01 · ALL CAPS` eyebrows, trailing title periods, emojis in headings, 3D tilt (`rotateX/rotateY`), fluted glass, or orbital rings.
+- Zero Lorem Ipsum, fake testimonials, or unbacked AI claims.
+- Zero automated WCAG AA opaque-sRGB contrast failures (`npm --prefix apps/web test`).

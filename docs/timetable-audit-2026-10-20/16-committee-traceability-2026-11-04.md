@@ -2,7 +2,7 @@
 
 > **Role in Documentation Hierarchy (Tier 2 — Loaded When Relevant):**
 > Detailed 11-column traceability matrix for all 16 CSE routine committee requirements (`R1`–`R16`) and approved policy clarifications (`D1`–`D6`, `CD1` in [`18-committee-decisions-and-policy-baseline-2026-11-04.md`](18-committee-decisions-and-policy-baseline-2026-11-04.md)).
-> The single authoritative roadmap and phase checkpoint is [`../implementation/UniVerse_Implementation_Master_Plan_v1_1.md`](../implementation/UniVerse_Implementation_Master_Plan_v1_1.md). Support ratings below reflect the November 4 pre-Phase-4 baseline (`engine/solver.py` prior to Phase 4 CP-SAT rule integration), while Phase 1 browser foundation and Phase 2a Course Distribution data contract (`engine/distribution.py`, `20261106130000_course_distribution_contract.sql`) are now active in the working tree. Companion historical audit: [`15-admin-web-preimplementation-2026-11-04.md`](15-admin-web-preimplementation-2026-11-04.md).
+> The single authoritative roadmap and phase checkpoint is [`../implementation/UniVerse_Implementation_Master_Plan_v1_1.md`](../implementation/UniVerse_Implementation_Master_Plan_v1_1.md). Support ratings below reflect the November 4 pre-Phase-4 baseline (`engine/solver.py` prior to Phase 4 CP-SAT rule integration), while Phase 1 browser foundation and Phase 2a Course Distribution data contract (`engine/distribution.py`, `20261106130000_course_distribution_contract.sql`) are now active in the working tree. Companion historical audit: [`15-admin-web-preimplementation-2026-11-04.md`](../archive/timetable_audit_history/15-admin-web-preimplementation-2026-11-04.md).
 
 
 Evidence abbreviations (paths relative to repository root):

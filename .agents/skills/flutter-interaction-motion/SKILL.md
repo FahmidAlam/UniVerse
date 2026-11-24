@@ -1,12 +1,11 @@
-
-
-
 ---
 name: flutter-interaction-motion
-description: Design and implement purposeful Flutter interaction states, transitions, feedback, gestures, and motion for UniVerse without sacrificing speed, clarity, or accessibility.
+description: Design and implement purposeful Flutter Mobile (lib/, Android & iOS) interaction states, transitions, AppMotion tokens, gestures, and reduced-motion safeguards for UniVerse.
 ---
 
-# UniVerse Interaction and Motion Specification
+# UniVerse Flutter Mobile Interaction & Motion Specification
+
+> **Platform Scope:** Governs **Flutter Mobile (`lib/`, Android & iOS)** under Obsidian Orbit (`AppMotion`, `UAnimatedSwap`, `UPressableScale`, `USegmentedControl`). For React Web (`apps/web/`), load `react-web-motion-and-craft`.
 
 ## 1. Core Principles & Design Intent
 

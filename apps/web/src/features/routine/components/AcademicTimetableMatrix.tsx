@@ -41,7 +41,10 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useHorizontalScrollCue } from "@/core/hooks/useHorizontalScrollCue";
 import { useWorkspaceShortcuts } from "@/core/hooks/useWorkspaceShortcuts";
-import { resolveBreakBeforePeriodIdx } from "@/core/utils/breakPolicy";
+import {
+  resolveBreakBeforePeriodIdx,
+  resolveMiddayBreak,
+} from "@/core/utils/breakPolicy";
 import { ClockTime } from "@/core/utils/clockTime";
 import { matchesJointSection, RoomIdentity } from "@/core/utils/roomIdentity";
 import { ACADEMIC_WEEK_DAYS } from "@/features/admin/services/facultyService";
@@ -468,7 +471,11 @@ export function AcademicTimetableMatrix({
     return list;
   }, [settings]);
 
-  // Identify midday break divider index dynamically from period clock gaps
+  // Identify midday break divider index & window dynamically from period clock gaps
+  const middayBreak = useMemo(
+    () => resolveMiddayBreak(configuredPeriods),
+    [configuredPeriods],
+  );
   const breakBeforePeriodIdx = useMemo(
     () => resolveBreakBeforePeriodIdx(configuredPeriods),
     [configuredPeriods],
@@ -1560,7 +1567,9 @@ export function AcademicTimetableMatrix({
                   </span>
                 </div>
                 <span className="font-mono-tabular text-[11px] text-[var(--ink-muted)]">
-                  Vertical thick rule marks Midday Break (Col G)
+                  {middayBreak.afterPeriodIdx !== null
+                    ? `Vertical thick rule marks Midday Break (after P${middayBreak.afterPeriodIdx} · ${middayBreak.start}–${middayBreak.end})`
+                    : "No midday break configured"}
                 </span>
               </div>
             </div>

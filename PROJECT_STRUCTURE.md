@@ -23,15 +23,11 @@ This document provides a comprehensive, complete index of all folders and files 
 | `tool/` | Python diagnostics, schema probes, visual capture scripts, and defense diagram generators. |
 | `web/` | Web platform runner, `index.html` canvas configuration, manifest, and service worker. |
 | `workbook/` | Academic curriculum distributions, room inventory workbooks, and semester constraints (read-only). |
-| `AGENTS.md` | Primary operating rules, approval gates, and UI/UX skill routing for Codex (Terra & Sol) and Antigravity. |
+| `AGENTS.md` | Primary operating rules, Flutter Web freeze policy, archive exclusion, and UI/UX skill routing for Codex and Antigravity. |
 | `CLAUDE.md` | Primary operating rules, architecture summary, and UI/UX skill routing for Claude Code. |
-| `GLOBAL_FLUTTER_DART_SKILLS_REPORT.md` | Ecosystem audit evaluating global Flutter/Dart skills against UniVerse architecture and guidelines. |
-| `PHASE_2B_UI_UX_IMPLEMENTATION_REPORT.md` | Architectural implementation report for the Phase 2b Scheduling Workspace foundation. |
-| `PHASE_6_COMMITTEE_RULES_AND_SUPPORTING_MODULES_REPORT.md` | Comprehensive implementation report for Phase 6 R1–R16 committee scheduling rules and supporting module overhaul. |
+| `DATABASE_AND_ROUTINE_SYSTEM_ARCHITECTURE.md` | Authoritative database schema, RLS, and routine pipeline architecture reference. |
 | `PROJECT_STRUCTURE.md` | Complete file inventory and subsystem directory guide (this document). |
-| `README.md` | Project overview, tech stack, quick-start guide, and architectural introduction. |
-| `UI_UX_SKILLS_INTEGRATION_REPORT.md` | Multi-phase UI/UX skills integration, workflow lifecycle, and cross-phase execution evidence report. |
-| `UNIVERSE_CURRENT_ARCHITECTURE_AND_UI_UX_DOSSIER.md` | Authoritative 29-section architecture, route inventory, design system, and operational safety dossier. |
+| `README.md` | Project overview, tech stack, quick-start guide, and current milestone status. |
 | `analysis_options.yaml` | Dart static analysis configuration with strict lint rules enforcing clean code quality. |
 | `pubspec.yaml` | Flutter package dependencies (`go_router`, `supabase_flutter`, `google_fonts`, etc.) and asset declarations. |
 | `render.yaml` | Deployment specification for hosting the Python engine microservice on Render. |
@@ -419,31 +415,47 @@ This document provides a comprehensive, complete index of all folders and files 
 ## 📖 Governance, Skills & Documentation
 
 ### Agent Skills (`.agents/skills/`)
-- `.agents/skills/universe-visual-design-system/` — Governs Flutter mobile Obsidian Orbit visual tokens, surface hierarchy, and dark/orange palette restraint.
-- `.agents/skills/flutter-interaction-motion/` — Governs Flutter mobile micro-interactions, `AppMotion` durations, press compression, and reduced-motion stops.
-- `.agents/skills/flutter-web-responsive-ui/` — Governs Flutter responsive breakpoints ($1440$, $1280$, $1024$, $920$, $860$, $768$, $390\text{px}$).
-- `.agents/skills/universe-ux-principles/` — Governs product-level UX reasoning, academic task clarity, honest progress feedback, and Service Recovery Paradox.
-- `.agents/skills/accessibility-performance/` — Governs WCAG AA/AAA contrast ratios, keyboard focus traversal, and widget rebuild minimization.
-- `.agents/skills/visual-ui-qa/` — Governs visual review, screenshot comparison protocols, and multi-viewport inspection.
-- `.agents/skills/universe-implementation/` — Master implementation skill coordinating specialist roles and execution gates.
-- `.agents/skills/react-web-academic-design-system/` — Governs **UniVerse Academic Ledger** OKLCH design tokens, typography (`Source Serif 4`, `IBM Plex Sans`, `IBM Plex Mono`), opaque-sRGB WCAG AA verification, and tabular ergonomics for `apps/web/`.
-- `.agents/skills/react-web-motion-and-craft/` — Governs restrained Motion/CSS animations, `prefers-reduced-motion`, user-controlled illustrative public timetable, and error recovery in `apps/web/`.
-- `.agents/skills/react-admin-backend-contracts/` — Governs Supabase Auth/RLS/RPC, FastAPI CP-SAT contracts, public `/` isolation, and persistence truth for `apps/web/`.
+- `.agents/skills/react-web-academic-design-system/` — Governs **UniVerse Academic Ledger** Theme v3 OKLCH tokens (`X-Grade Carbon Obsidian` Dark + `Crisp Daylight` Light + `X-Azure`), typography (`Source Serif 4`, `IBM Plex Sans`, `IBM Plex Mono`), opaque-sRGB WCAG AA checks, and Landscape A4 print for `apps/web/`.
+- `.agents/skills/react-web-motion-and-craft/` — Governs restrained `motion/react` + CSS animations, `prefers-reduced-motion`, user-controlled public specimen, Course Distribution Studio, and async states in `apps/web/`.
+- `.agents/skills/react-admin-backend-contracts/` — Governs Supabase PKCE + invite bridge, FastAPI JWT/CORS (`engine/auth.py`), public `/` isolation, and 4-table Gate A–D persistence truth for `apps/web/`.
+- `.agents/skills/ui-backend-policy-correlation/` — Enforces 1:1 correlation between UI controls (`apps/web/` & `lib/`), backend contracts, and Routine Committee rules (`R1`–`R16`, `D1`–`D6`, `CD1`).
+- `.agents/skills/universe-implementation/` — Multi-layer implementation coordinator with 5 role references (`web-platform`, `admin-distribution-ui`, `scheduling-cp-sat`, `backend-data-integrity`, `testing-reliability`).
+- `.agents/skills/universe-ux-principles/` — Governs product-level UX reasoning, academic task clarity, and the 6 unglamorous states across Mobile and Web.
+- `.agents/skills/universe-visual-design-system/` — Governs Flutter Mobile (`lib/`) Obsidian Orbit visual tokens, surface hierarchy, and dark/orange palette restraint.
+- `.agents/skills/flutter-interaction-motion/` — Governs Flutter Mobile (`lib/`) micro-interactions, `AppMotion` durations, press compression, and reduced-motion stops.
+- `.agents/skills/accessibility-performance/` — Governs Flutter Mobile (`lib/`) WCAG AA contrast ratios, `Semantics`, keyboard focus traversal, and rebuild minimization.
+- `.agents/skills/visual-ui-qa/` — Governs dual-client visual review, Playwright/DevTools inspection (`apps/web/`), and widget/golden baselines (`lib/`).
 
 ### Documentation Files (`docs/`)
+- `docs/backend/README.md` — Authoritative 5-file Backend Architecture & NotebookLM Reference Pack index (`2026-11-24`, zero-secret/zero-PII).
+- `docs/backend/01_SUPABASE_DATABASE_AND_SECURITY_ARCHITECTURE.md` — Complete 37-table Supabase schema (Layers 1–3 + `academic_private`), Production vs. Staging diff, Phase 5B RLS/Storage matrix, and Edge Functions (`invite-admin`, `send-push`).
+- `docs/backend/02_TIMETABLE_ENGINE_AND_SOLVER_ARCHITECTURE.md` — FastAPI + OR-Tools CP-SAT engine architecture, dual-client JWT/CORS (`engine/auth.py`), R1–R16 + D1–D6 + CD1 rule matrix, and Phase 3B / Gate D roadmap.
+- `docs/backend/03_FIREBASE_PUSH_AND_EXTERNAL_INTEGRATIONS.md` — Firebase/FCM push pipeline (`PushService` → `send-push` → FCM HTTP v1), Staging webhook isolation, and Android/iOS/Web OAuth deep-link contracts.
+- `docs/backend/04_END_TO_END_DATA_FLOWS_AND_INFRASTRUCTURE.md` — 5 end-to-end Mermaid sequence flows, 5-job GitHub Actions CI + Render + Cloudflare Pages Env A/B topology, and Wave 2 Backend Change Impact Matrix.
+- `docs/backend/05_FRONTEND_BACKEND_INTEGRATION_MATRIX.md` — Route-by-route React Web (`apps/web/`) and flow-by-flow Flutter Mobile (`lib/`) backend wiring matrices, cross-client serialization guardrails, and Wave 2 UI touchpoint map.
 - `docs/architecture/WEB_ARCHITECTURE_DESIGN_BLUEPRINT.md` — Authoritative target architecture and **UniVerse Academic Ledger** design specification for separated React Web + Flutter Mobile.
 - `docs/architecture/WEB_SOURCE_VERIFICATION_REPORT.md` — Evidence-based repository audit reconciling existing `apps/web/`, `lib/`, `engine/`, and `supabase/` reality.
-- `docs/architecture/WEB_IMPLEMENTATION_ROADMAP.md` — Phased migration and delivery roadmap from Phase 0 readiness through Track 1/Track 2 web rollout and dual-client verification.
+- `docs/architecture/WEB_IMPLEMENTATION_ROADMAP.md` — Phased migration and delivery roadmap through Cutover and Wave 2 (`Phase 4A-2` / `Phase 3B`).
 - `docs/architecture/WEB_PHASE_0_COMPATIBILITY_AND_AUDIT_ADDENDUM.md` — Live npm dependency compatibility matrix, Phase 0 `send-push`/avatar/iOS audits, and owner-ready Supabase SQL diagnostic packet.
+- `docs/architecture/WEB_SEPARATION_CONTRACT_EXTRACTION.md` — Extracted backend, auth, and routine contracts across Flutter Mobile and React Web.
+- `docs/deployment/CLOUDFLARE_PAGES_AND_CUTOVER_RUNBOOK.md` — Deployment runbook for Cloudflare Pages Environment A (Committee Review) and Environment B (Production Cutover).
+- `docs/deployment/PHASE_4A1_AND_5B_SQL_PROMOTION_RUNBOOK.md` — Owner-gated SQL promotion runbook for Phase 4A-1 and Phase 5B RLS/storage hardening (`supabase/migrations/20261122160000_phase_5b_rls_and_storage_hardening.sql`).
 - `docs/implementation/UniVerse_Implementation_Master_Plan_v1_1.md` — Authoritative master roadmap across core platform/engine/database phases.
-- `docs/implementation/phase_0_redesign_baseline_and_decisions.md` — Phase 0 decisions settling technical architecture and design constraints.
-- `docs/implementation/phase_1_information_architecture_and_navigation.md` — Phase 1 admin web extension and role navigation documentation.
+- `docs/implementation/web_theme_v3_x_obsidian_and_print_fix.md` — Theme v3 (**X-Grade Carbon Obsidian Dark + Crisp Daylight Light + X-Azure**) and Landscape A4 print verification report.
+- `docs/implementation/web_phase_5_hardening_cicd_and_4a1_readiness.md` — Phase 5A (`engine/auth.py` dual-client JWT/CORS), Phase 5B RLS/storage hardening, and 5-job CI/CD readiness report.
+- `docs/implementation/web_phase_5_staging_verification_and_ci_fix.md` — Live Staging (`oqwvxplteqtlrhktsplj`) verification report.
+- `docs/implementation/web_pre_push_audit_and_doc_cleanup.md` — Pre-push whole-project audit and OpenAPI 401 probe fix report.
+- `docs/implementation/repo_knowledge_and_assets_refinement.md` — Knowledge-base, `.agents/` skill ecosystem, and visual asset refinement report + final NotebookLM sync list.
+- `docs/timetable-audit-2026-10-20/` — Living committee policy & workbook specs (`02`, `16`, `18`, and CI-verified `task2-backfill-status.json`).
+- `docs/screenshots/README.md` — Index of active React Web v3 screenshots (`web_theme_v3_x_obsidian_and_print/`) and active Flutter golden baselines (`phase_3/`, `phase_7/`).
+- `docs/archive/` — Historical archive (`agent_skills_history/`, `flutter_ui_history/`, `web_history/`, `timetable_audit_history/`, `screenshots/`) excluded from active agent context.
+- `docs/backend-setup.md` — Database setup guide, table inventory, and security rule reference.
 
 ---
 
 ## 🌐 Standalone React Web Application (`apps/web/`)
 
-> **Status:** Early Phase 0/1 foundation exists on disk (built on the superseded Spatial Orbit prototype; target migration to **UniVerse Academic Ledger** begins after Phase 0 readiness sign-off).
+> **Status:** Production-ready React Web v1 (**UniVerse Academic Ledger** — Theme v3: X-Grade Carbon Obsidian Dark + Crisp Daylight Light + X-Azure). Phases 0–4B, Theme v3, and Phase 5A/5B/5C-Prep + Staging 5B hardening are complete and verified.
 
 ```text
 apps/web/
@@ -452,60 +464,34 @@ apps/web/
 ├── index.html
 ├── package.json
 ├── package-lock.json
+├── playwright.config.ts
 ├── tsconfig.json
 ├── tsconfig.app.json
 ├── tsconfig.node.json
 ├── vite.config.ts
-└── src/
-    ├── App.tsx
-    ├── main.tsx
-    ├── vite-env.d.ts
-    ├── features/
-    │   ├── admin/
-    │   │   ├── AdminShell.tsx
-    │   │   ├── pages/
-    │   │   │   ├── AdminDashboardPage.tsx
-    │   │   │   └── AdminRouteStubPage.tsx
-    │   │   └── services/
-    │   │       └── adminDashboardService.ts
-    │   ├── auth/
-    │   │   ├── AuthProvider.tsx
-    │   │   ├── PublicAuthLayout.tsx
-    │   │   ├── components/
-    │   │   │   └── AndroidCompanionStrip.tsx
-    │   │   └── pages/
-    │   │       ├── AccessRequiredPage.tsx
-    │   │       ├── ForgotPasswordPage.tsx
-    │   │       ├── LandingPage.tsx
-    │   │       ├── LoginPage.tsx
-    │   │       └── ResetPasswordPage.tsx
-    │   └── onboarding/
-    │       ├── components/
-    │       │   └── SpatialOrbitStage.tsx
-    │       └── data/
-    │           └── routineFixtures.ts
-    ├── services/
-    │   ├── engineHealth.ts
-    │   └── supabase.ts
-    └── shared/
-        ├── components/
-        │   ├── EngineHealthBadge.tsx
-        │   ├── OrbitMark.tsx
-        │   └── ThemeSwitcher.tsx
-        └── theme/
-            └── ThemeProvider.tsx
-    └── styles/
-        ├── app.css
-        └── tokens.css
+├── public/
+│   ├── _headers                      # Cloudflare Pages CSP & security headers
+│   ├── _redirects                    # SPA fallback routing
+│   └── theme-init.js                 # Pre-paint anti-FOUC Light/Dark/System bootstrap
+├── src/
+│   ├── App.tsx
+│   ├── main.tsx
+│   ├── vite-env.d.ts
+│   ├── components/ui/                # Shared Academic Ledger primitives & accessible controls
+│   ├── features/
+│   │   ├── admin/                    # AdminShell, Dashboard, Rooms, Faculty, Eligibility, Settings, Users, Broadcast, Resources, Profile
+│   │   ├── auth/                     # AuthProvider, PKCE + invite hash bridge, Landing, Login, Forgot/Reset Password, AccessRequired
+│   │   ├── onboarding/               # Public AcademicLedgerPreview & illustrative schedule fixtures
+│   │   ├── routine/                  # Track 1 Operational Console: 2D Matrix, Committee Day Sheet (Landscape A4 print), Manage, Generate, Upload
+│   │   └── scheduling/               # Track 2 Committee Scheduling Workbench (Gates A–D, Course Distribution Studio, R1–R16 Policy, Review)
+│   ├── services/                     # supabase.ts, engineHealth.ts
+│   ├── shared/
+│   │   ├── components/               # LedgerMark, EngineHealthBadge, ThemeSwitcher
+│   │   └── theme/                    # ThemeProvider (Light / Dark / System)
+│   └── styles/
+│       ├── app.css
+│       └── tokens.css                # 4-layer Carbon-Obsidian + Crisp Daylight + 10-step X-Azure OKLCH tokens
+└── tests/
+    ├── unit/                         # Vitest unit & contract suites
+    └── e2e/                          # Playwright browser & print-layout suites
 ```
-- `docs/implementation/phase_2_visual_identity_and_design_system.md` — Phase 2 Obsidian Orbit token specifications and shared widget documentation.
-- `docs/implementation/phase_3_first_impression_onboarding_and_auth.md` — Phase 3/3.5 onboarding, authentication, and showcase documentation.
-- `docs/implementation/phase_4_core_student_and_teacher_experiences.md` — Phase 4 adaptive student/teacher dashboards, routine matrix/agenda, and surgical class management documentation.
-- `docs/implementation/phase_5_administrative_scheduling_experience.md` — Phase 5 Administrative Command Center, live routine operations, and clip-free scheduling workbench documentation.
-- `docs/implementation/phase_0_3_continuation_completion_report.md` — Comprehensive completion report for Phases 0–3.5.
-- `docs/implementation/22-phase-2b-scheduling-workspace-design-proposal.md` — Approved design proposal for the Phase 2b Scheduling Workspace.
-- `docs/screenshots/phase_5/VISUAL_REVIEW_GALLERY.md` — Markdown gallery indexing all 22 Phase 5 visual inspection screenshots across Admin Command Center, Scheduling Workbench, and Live Routine Operations.
-- `docs/screenshots/phase_5/` — Visual raster assets (22 PNG files) documenting Phase 5 viewports ($1440\text{px}$, $1024\text{px}$, $390\text{px}$).
-- `docs/screenshots/phase_3/VISUAL_REVIEW_GALLERY.md` — Markdown gallery indexing all 76 Phase 3.5 visual inspection screenshots.
-- `docs/screenshots/phase_3/README.md` — Visual review guide and local testing instructions.
-- `docs/backend-setup.md` — Database setup guide, table inventory, and security rule reference.

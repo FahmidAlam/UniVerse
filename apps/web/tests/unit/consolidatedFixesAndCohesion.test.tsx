@@ -148,8 +148,11 @@ describe("Consolidated Staging Bug Fixes & Phase 4B Cohesion", () => {
       "utf8",
     );
     expect(capSrc).not.toContain("00000000-0000-0000-0000-000000000000");
-    expect(capSrc).toContain("/rpc/read_course_distribution_revision");
-    expect(capSrc).toContain("/rpc/append_course_distribution_correction");
+    expect(capSrc).not.toContain("application/openapi+json");
+    expect(capSrc).toContain("course_distribution_sources");
+    expect(capSrc).toContain("course_distribution_revisions");
+    expect(capSrc).toContain("course_distribution_corrections");
+    expect(capSrc).toContain("course_distribution_artifacts");
   });
 
   it("constructs exact timetable_course_eligibility batch upsert payloads with zero non-DB keys", () => {

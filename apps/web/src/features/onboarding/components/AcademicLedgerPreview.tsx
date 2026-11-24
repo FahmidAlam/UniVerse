@@ -213,7 +213,7 @@ export function AcademicLedgerPreview({ compact = false }: { compact?: boolean }
                     className={cn(
                       "relative h-[30px] rounded-[5px] px-2.5 text-[12px] whitespace-nowrap transition-colors",
                       active
-                        ? "font-semibold text-[var(--accent-brand-ink)]"
+                        ? "font-semibold text-[var(--ink-primary)]"
                         : "font-medium text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
                     )}
                   >
@@ -221,7 +221,7 @@ export function AcademicLedgerPreview({ compact = false }: { compact?: boolean }
                       <motion.span
                         layoutId="specimen-slots-pill"
                         transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                        className="absolute inset-0 rounded-[5px] bg-[var(--accent-brand)]"
+                        className="absolute inset-0 rounded-[5px] border border-[var(--border-strong)] bg-[var(--bg-raised)] shadow-[var(--highlight-top)]"
                         aria-hidden="true"
                       />
                     )}

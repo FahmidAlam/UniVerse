@@ -1,21 +1,16 @@
 ---
 name: visual-ui-qa
-description: Conduct evidence-based visual and usability reviews of UniVerse Flutter screens using screenshots, live browser inspection, responsive viewport checks, interaction walkthroughs, and regression comparisons.
+description: Conduct evidence-based visual and usability reviews of UniVerse screens (React Web apps/web/ via Playwright/DevTools and Flutter Mobile lib/ via widget/golden tests) across responsive viewports.
 ---
 
 # UniVerse Visual & Usability Quality Assurance Specification
 
-## 1. Objective & Evidence-Based QA Philosophy
+## 1. Objective & Dual-Client Evidence Protocol
 
-- **Product Target:** Maintain high visual polish, operational trust, accessibility, and zero-regression standards across all UniVerse Flutter views (Student, Teacher, Admin, Pre-Auth).
-- **Evidence-First Protocol:** Reviews MUST be grounded in actual rendered UI evidence—live browser inspection, automated widget/golden tests, and verified screenshots across responsive viewports. Never invent praise or claim visual compliance without inspecting real artifacts.
-- **Obsidian Orbit Aesthetic Grounding:**
-  - Base Background: `#0B0C0E`
-  - Rail / Subtle Surface: `#121417`
-  - Standard Card Surface: `#17191E`
-  - Elevated Modal / Sheet Surface: `#1F2229`
-  - Top-Lit Specular Highlight: 1px `#262932` border with selective `Color(0x12FFFFFF)` top-edge specular highlight.
-  - Signature Accent: `#FF7A00` for primary call-to-actions, active tab indicators, and keyboard focus rings (`2px solid`).
+- **Evidence-First Protocol:** Reviews MUST be grounded in actual rendered UI evidence — Playwright/Chrome DevTools DOM & screenshot inspection for **React Web (`apps/web/`)**, and widget/golden tests for **Flutter Mobile (`lib/`)**. Never claim visual compliance without inspecting real rendered output across `1440px`, `1024px`, and `390px` viewports (plus `@media print` Landscape A4 on web day sheets).
+- **Client-Specific Aesthetic Grounding (Never Cross-Contaminate):**
+  - **React Web (`apps/web/`):** Pair with `react-web-academic-design-system` (**UniVerse Academic Ledger** — X-Grade Carbon Obsidian Dark + Crisp Daylight Light + X-Azure in `tokens.css`; active reference gallery: `docs/screenshots/web_theme_v3_x_obsidian_and_print/`).
+  - **Flutter Mobile (`lib/`, Android & iOS):** Pair with `universe-visual-design-system` (**Obsidian Orbit** — `#0B0C0E`–`#1F2229` dark surfaces, `Color(0x12FFFFFF)` top-lit highlight, `#FF7A00` accent; active golden baselines: `docs/screenshots/phase_3/` and `docs/screenshots/phase_7/`). Legacy Flutter Web (`web/`, `lib/features/admin/`) is frozen.
 
 ## 2. Responsive Viewport & Layout Tier Inspection
 

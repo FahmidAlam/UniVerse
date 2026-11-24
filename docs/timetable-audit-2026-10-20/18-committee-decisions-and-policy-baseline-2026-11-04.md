@@ -3,7 +3,7 @@
 > **Role in Documentation Hierarchy (Tier 2 — Loaded When Relevant):**
 > This document is the detailed reference for confirmed committee policy decisions **D1–D6** and editable Course Distribution field rules **CD1**.
 > The single authoritative roadmap and active execution checkpoint is [`../implementation/UniVerse_Implementation_Master_Plan_v1_1.md`](../implementation/UniVerse_Implementation_Master_Plan_v1_1.md) (currently in **Phase 2a: Course Distribution data contract**). Specialist role coordination lives in [`../../.agents/skills/universe-implementation/SKILL.md`](../../.agents/skills/universe-implementation/SKILL.md) and Master Plan §10.
-> Companion traceability matrix: [`16-committee-traceability-2026-11-04.md`](16-committee-traceability-2026-11-04.md). Historical November 4 pre-implementation audit: [`15-admin-web-preimplementation-2026-11-04.md`](15-admin-web-preimplementation-2026-11-04.md).
+> Companion traceability matrix: [`16-committee-traceability-2026-11-04.md`](16-committee-traceability-2026-11-04.md). Historical November 4 pre-implementation audit: [`15-admin-web-preimplementation-2026-11-04.md`](../archive/timetable_audit_history/15-admin-web-preimplementation-2026-11-04.md).
 
 ## Confirmed decisions and historical corrections
 

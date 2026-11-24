@@ -209,6 +209,7 @@ const sampleParseResult = RoutineWorkbookParseResult(
 );
 
 void main() {
+  const enabled = bool.fromEnvironment('PHASE5_CAPTURE');
   testWidgets('Capture Phase 5 Visual Gallery Screenshots', (tester) async {
     GoogleFonts.config.allowRuntimeFetching = false;
 
@@ -679,5 +680,5 @@ void main() {
       const Size(1024, 800),
       location: '/admin/timetable/grid',
     );
-  });
+  }, skip: !enabled, tags: ['visual_capture']);
 }

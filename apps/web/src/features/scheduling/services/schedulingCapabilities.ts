@@ -1,5 +1,4 @@
 import {
-  getSupabaseConfig,
   isSupabaseConfigured,
   supabase,
 } from "@/services/supabase";
@@ -110,55 +109,16 @@ function isMissingFunctionOrSchemaError(err: {
 }
 
 /**
- * Inspects PostgREST OpenAPI root schema (`GET /rest/v1/`) for RPC path presence
- * without invoking PL/pgSQL functions with nil UUIDs (which raise P0002 -> HTTP 500).
- */
-async function probeRpcPathsViaOpenApi(): Promise<{
-  readRpcAvailable: boolean;
-  appendRpcAvailable: boolean;
-} | null> {
-  const { url, anonKey } = getSupabaseConfig();
-  if (!url || !anonKey || typeof fetch !== "function") return null;
-
-  try {
-    const sessionRes = supabase ? await supabase.auth.getSession() : null;
-    const accessToken = sessionRes?.data?.session?.access_token;
-    const headers: Record<string, string> = {
-      Accept: "application/openapi+json",
-      apikey: anonKey,
-    };
-    if (accessToken) {
-      headers.Authorization = `Bearer ${accessToken}`;
-    }
-
-    const res = await fetch(`${url.replace(/\/+$/, "")}/rest/v1/`, {
-      method: "GET",
-      headers,
-    });
-    if (!res.ok) return null;
-
-    const spec = (await res.json()) as { paths?: Record<string, unknown> } | null;
-    const paths = spec?.paths;
-    if (!paths || typeof paths !== "object") return null;
-
-    return {
-      readRpcAvailable: Boolean(paths["/rpc/read_course_distribution_revision"]),
-      appendRpcAvailable: Boolean(
-        paths["/rpc/append_course_distribution_correction"],
-      ),
-    };
-  } catch {
-    return null;
-  }
-}
-
-/**
  * Live capability probe against Supabase Track 2 distribution schema (`20261106130000`).
- * Never mutates data and never invokes RPCs with nil UUIDs: queries
- * `course_distribution_revisions(id, revision_version, status)` +
- * `course_distribution_sources(id, scheduling_scope_id)` and checks PostgREST OpenAPI
- * RPC exposure (falling back to `read_course_distribution_revision` only when a real
- * revision ID exists).
+ * Never mutates data, never calls PostgREST OpenAPI root (`GET /rest/v1/`, which
+ * returns 401 on newer publishable-key projects), and never invokes RPCs with nil
+ * UUIDs (which raise P0002 -> HTTP 500).
+ *
+ * Probes the 4 atomic Track 2 tables (`course_distribution_revisions`,
+ * `course_distribution_sources`, `course_distribution_corrections`,
+ * `course_distribution_artifacts`) via standard RLS-protected PostgREST reads,
+ * and verifies `read_course_distribution_revision` directly only when a real
+ * revision row exists.
  */
 export async function probeLiveSchedulingCapabilities(
   isDevPreview: boolean,
@@ -180,7 +140,7 @@ export async function probeLiveSchedulingCapabilities(
   let appendRpcAvailable = false;
 
   try {
-    const [revQuery, srcQuery] = await Promise.all([
+    const [revQuery, srcQuery, corrQuery, artQuery] = await Promise.all([
       supabase
         .from("course_distribution_revisions")
         .select("id, revision_version, status")
@@ -189,18 +149,26 @@ export async function probeLiveSchedulingCapabilities(
         .from("course_distribution_sources")
         .select("id, scheduling_scope_id")
         .limit(1),
+      supabase
+        .from("course_distribution_corrections")
+        .select("id, revision_id")
+        .limit(1),
+      supabase
+        .from("course_distribution_artifacts")
+        .select("id, revision_id")
+        .limit(1),
     ]);
 
-    if (!revQuery.error && !srcQuery.error) {
+    const coreSchemaReadable = !revQuery.error && !srcQuery.error;
+    const fullTrack2SchemaReadable =
+      coreSchemaReadable && !corrQuery.error && !artQuery.error;
+
+    if (coreSchemaReadable) {
       scopeReadAuthorized = true;
       revisionRowExists = (revQuery.data ?? []).length > 0;
     }
 
-    const openApiResult = await probeRpcPathsViaOpenApi();
-    if (openApiResult) {
-      readRpcAvailable = openApiResult.readRpcAvailable;
-      appendRpcAvailable = openApiResult.appendRpcAvailable;
-    } else if (!revQuery.error && revQuery.data && revQuery.data[0]) {
+    if (coreSchemaReadable && revQuery.data && revQuery.data[0]) {
       const realRevisionId = String(revQuery.data[0].id);
       const readProbe = await supabase.rpc("read_course_distribution_revision", {
         target_revision: realRevisionId,
@@ -208,6 +176,14 @@ export async function probeLiveSchedulingCapabilities(
       if (!isMissingFunctionOrSchemaError(readProbe.error)) {
         readRpcAvailable = true;
       }
+    } else if (fullTrack2SchemaReadable) {
+      // All 4 tables from migration 20261106130000_course_distribution_contract.sql
+      // are live and RLS-readable for this admin; RPCs ship in the same migration.
+      readRpcAvailable = true;
+    }
+
+    if (readRpcAvailable && fullTrack2SchemaReadable) {
+      appendRpcAvailable = true;
     }
   } catch {
     return ALL_GATES_LOCKED_STATE;

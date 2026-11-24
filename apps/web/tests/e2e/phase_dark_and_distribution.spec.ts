@@ -6,7 +6,9 @@ import { expect, test, type Page } from "@playwright/test";
 const SPEC_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SCREENSHOT_DIR = path.resolve(
   SPEC_DIR,
-  "../../../../docs/screenshots/web_theme_v3_x_obsidian_and_print",
+  process.env.UPDATE_WEB_GALLERY === "1"
+    ? "../../../../docs/screenshots/web_theme_v3_x_obsidian_and_print"
+    : "../../test-results/e2e-screenshots/web_theme_v3",
 );
 
 fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });

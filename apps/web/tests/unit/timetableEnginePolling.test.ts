@@ -272,4 +272,84 @@ describe("Timetable Engine HTTP Polling & 3-Step Guarded Publication Pipeline", 
     expect(outcome.secondaryAuditError).toContain("timetable_runs");
     expect(outcome.retryAuditParams).not.toBeNull();
   });
+
+  it("attaches Authorization Bearer token when Supabase session exists and fails fast on 401/403", async () => {
+    vi.resetModules();
+
+    vi.doMock("@/services/supabase", () => ({
+      isSupabaseConfigured: true,
+      supabase: {
+        auth: {
+          getSession: vi.fn().mockResolvedValue({
+            data: { session: { access_token: "web-admin-jwt-xyz" } },
+          }),
+        },
+      },
+    }));
+
+    const recorded: Array<{ url: string; headers: HeadersInit | undefined }> = [];
+    const fetchSpy = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      recorded.push({ url, headers: init?.headers });
+      if (url.includes("/generate")) {
+        return new Response(JSON.stringify({ job_id: "job-auth-1" }), { status: 200 });
+      }
+      if (url.includes("/status/")) {
+        return new Response(
+          JSON.stringify({ job_id: "job-auth-1", state: "done", progress: 1 }),
+          { status: 200 },
+        );
+      }
+      if (url.includes("/result/")) {
+        return new Response(JSON.stringify(SAMPLE_RESULT), { status: 200 });
+      }
+      if (url.includes("/download/")) {
+        return new Response(new Blob(["pk"]), { status: 200 });
+      }
+      return new Response("Not found", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const mod = await import(
+      "@/features/routine/services/timetableEngineService"
+    );
+
+    await mod.submitGenerationJob({
+      file: new Blob(["xlsx"]),
+      configJson: "{}",
+    });
+    await mod.runResilientJobPolling({
+      jobId: "job-auth-1",
+      sleepFn: async () => {},
+    });
+    await mod.downloadJobWorkbook("job-auth-1");
+
+    expect(recorded).toHaveLength(4);
+    for (const call of recorded) {
+      expect(call.headers).toEqual(
+        expect.objectContaining({ Authorization: "Bearer web-admin-jwt-xyz" }),
+      );
+    }
+
+    // 403 Forbidden during polling must fail fast on 1st attempt (not retry 5 times)
+    const fetch403 = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ detail: "Admin role required." }), {
+        status: 403,
+      }),
+    );
+    vi.stubGlobal("fetch", fetch403);
+
+    let caught: unknown;
+    try {
+      await mod.runResilientJobPolling({
+        jobId: "job-auth-1",
+        sleepFn: async () => {},
+      });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(mod.EngineJobError);
+    expect((caught as EngineJobError).kind).toBe("auth");
+    expect((caught as EngineJobError).status).toBe(403);
+    expect(fetch403).toHaveBeenCalledTimes(1);
+  });
 });

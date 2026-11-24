@@ -278,12 +278,13 @@ export function CommitteeDaySheetView({
                         data-break-after={middayBreak.afterPeriodIdx ?? "none"}
                         aria-label={`Midday Break ${middayBreak.start} to ${middayBreak.end}`}
                         title={`Midday Break (${middayBreak.start}–${middayBreak.end})`}
-                        className="w-[46px] min-w-[46px] border-x border-[var(--border-strong)] bg-[var(--bg-canvas)] px-1 py-2 text-center font-mono-tabular text-[10px] font-semibold tracking-[0.14em] text-[var(--ink-muted)]"
+                        className="committee-break-col w-[52px] min-w-[52px] border-x border-[var(--border-strong)] bg-[var(--bg-canvas)] px-1 py-2 text-center font-mono-tabular text-[10px] font-semibold tracking-[0.14em] text-[var(--ink-muted)]"
                       >
                         <div>BREAK</div>
                         {middayBreak.start && (
-                          <div className="mt-0.5 text-[9px] font-normal tracking-normal text-[var(--ink-muted)]">
-                            {middayBreak.start}
+                          <div className="mt-0.5 text-[9px] font-normal leading-[1.15] tracking-normal text-[var(--ink-muted)]">
+                            <div>{middayBreak.start}</div>
+                            {middayBreak.end && <div>{middayBreak.end}</div>}
                           </div>
                         )}
                       </th>

@@ -5,10 +5,11 @@ import json
 import uuid
 from threading import Thread
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
+import auth
 import distribution
 import render
 import solver
@@ -17,9 +18,10 @@ app = FastAPI(title="UniVerse Timetable Engine", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=auth.get_allowed_origins(),
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 JOBS: dict[str, dict] = {}
@@ -103,7 +105,12 @@ def _run_job(job_id: str, file_bytes: bytes, config_override: dict | None,
 
 @app.get("/")
 def health() -> dict:
-    return {"service": "universe-timetable-engine", "version": "2.0.0", "ok": True}
+    return {
+        "service": "universe-timetable-engine",
+        "version": "2.0.0",
+        "ok": True,
+        "auth_mode": auth.get_auth_mode(),
+    }
 
 
 @app.post("/api/timetable/generate")
@@ -112,6 +119,7 @@ async def generate(
     config: str | None = Form(None),
     source_contract: str | None = Form(None),
     time_limit_s: float = Form(60.0),
+    _caller: auth.VerifiedCaller | None = Depends(auth.require_admin_caller),
 ) -> dict:
     if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls")):
         raise HTTPException(status_code=400, detail="Upload a .xlsx distribution file.")
@@ -140,7 +148,10 @@ async def generate(
 
 
 @app.get("/api/timetable/status/{job_id}")
-def status(job_id: str) -> dict:
+def status(
+    job_id: str,
+    _caller: auth.VerifiedCaller | None = Depends(auth.require_admin_caller),
+) -> dict:
     job = JOBS.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Unknown job_id.")
@@ -155,7 +166,10 @@ def status(job_id: str) -> dict:
 
 
 @app.get("/api/timetable/result/{job_id}")
-def result(job_id: str) -> dict:
+def result(
+    job_id: str,
+    _caller: auth.VerifiedCaller | None = Depends(auth.require_admin_caller),
+) -> dict:
     job = JOBS.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Unknown job_id.")
@@ -174,7 +188,10 @@ def result(job_id: str) -> dict:
 
 
 @app.get("/api/timetable/download/{job_id}")
-def download(job_id: str):
+def download(
+    job_id: str,
+    _caller: auth.VerifiedCaller | None = Depends(auth.require_admin_caller),
+):
     job = JOBS.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Unknown job_id.")

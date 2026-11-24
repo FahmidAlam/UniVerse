@@ -1,9 +1,11 @@
 ---
 name: accessibility-performance
-description: Review and implement accessible, inclusive, and performant UniVerse Flutter interfaces, especially browser layouts, data-heavy screens, forms, navigation, and custom controls.
+description: Review and implement accessible, inclusive, and performant UniVerse Flutter Mobile (lib/, Android & iOS) interfaces — WCAG AA contrast, Semantics, focus traversal, reduced motion, and rebuild minimization.
 ---
 
-# UniVerse Accessibility and UI Performance Specification
+# UniVerse Flutter Mobile Accessibility & UI Performance Specification
+
+> **Platform Scope:** Governs **Flutter Mobile (`lib/`, Android & iOS Student/Teacher)** under Obsidian Orbit (`#0B0C0E` + `#FF7A00`). For standalone React Web (`apps/web/`), load `react-web-academic-design-system` + `react-web-motion-and-craft`. Legacy Flutter Web (`web/`, `lib/features/admin/`) is frozen.
 
 ## 1. Accessibility Baseline & Obsidian Orbit Contrast Standards
 
@@ -83,7 +85,6 @@ Before marking any UI task complete, developers and AI coding agents MUST execut
    - Test accessibility using VoiceOver (macOS/iOS), TalkBack (Android), or NVDA/ChromeVox.
 5. **Performance & Profiling Evidence:**
    - Verify 60fps rendering in Flutter DevTools Performance Overlay (zero red jank bars during scrolling or tab transitions).
-```
 
 ## Phase 3.5 dual-mode kinetic storytelling
 Normal runtime (MediaQuery.disableAnimations == false): hero showcases, splash orbit and verification radar MUST use continuous CustomPainter/ticker ambient orbital rings, Bezier energy pulses, staggered entrance and hover/focus elevation. Isolate repaints and dispose controllers; never delay initialization or fabricate backend progress.

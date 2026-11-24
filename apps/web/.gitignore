@@ -6,3 +6,5 @@ dist-ssr
 .env.local
 .env.*.local
 .vite
+test-results
+playwright-report

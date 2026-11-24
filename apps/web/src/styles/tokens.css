@@ -60,7 +60,7 @@
 
   /* 6. Perceptually Uniform OKLCH Chart Tokens (Light: L = 0.50–0.56) */
   --chart-1: var(--brand-600);
-  --chart-2: oklch(0.520 0.088 210);
+  --chart-2: oklch(0.540 0.085 236);
   --chart-3: oklch(0.520 0.095 162);
   --chart-4: oklch(0.560 0.110 76);
 
@@ -156,7 +156,7 @@
 
   /* 6. Perceptually Uniform OKLCH Chart Tokens (Dark: L = 0.68–0.72) */
   --chart-1: var(--brand-300);
-  --chart-2: oklch(0.690 0.110 205);
+  --chart-2: oklch(0.700 0.100 238);
   --chart-3: oklch(0.690 0.115 162);
   --chart-4: oklch(0.740 0.115 76);
 

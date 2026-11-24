@@ -275,7 +275,7 @@ void main() {
   });
 
   group('TimetableGridScreen desktop inspection', () {
-    testWidgets('shows helpful empty state with action when refreshed/empty',
+    testWidgets('falls back to preview schedule with operational lenses when rows are empty',
         (tester) async {
       tester.view.physicalSize = const Size(1024, 768);
       tester.view.devicePixelRatio = 1.0;
@@ -288,8 +288,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('No Timetable Preview Available'), findsOneWidget);
-      expect(find.text('Open Routine Generator'), findsOneWidget);
+      expect(find.text('Section'), findsOneWidget);
+      expect(find.text('Faculty'), findsOneWidget);
+      expect(find.text('Room'), findsOneWidget);
     });
 
     testWidgets('renders grid cells with comfortable desktop spacing',
@@ -328,7 +329,7 @@ void main() {
               of: find.byType(AdminScheduleSlot), matching: find.text('FA')),
           findsOneWidget);
       expect(tester.widget<AdminScheduleSlot>(find.byType(AdminScheduleSlot)).entry.room, 'Lab-1');
-      expect(find.text('LAB-1'), findsWidgets);
+      expect(find.text('LAB-1 ↗'), findsWidgets);
     });
   });
 

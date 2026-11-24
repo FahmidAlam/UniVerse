@@ -65,7 +65,7 @@ Do **not** read all repository documentation or the entire master plan before ev
      - [`docs/timetable-audit-2026-10-20/16-committee-traceability-2026-11-04.md`](../timetable-audit-2026-10-20/16-committee-traceability-2026-11-04.md) — Detailed R1–R16 implementation traceability matrix.
      - [`docs/timetable-audit-2026-10-20/02-workbook-and-rules.md`](../timetable-audit-2026-10-20/02-workbook-and-rules.md) — Source workbook sheet/cell/formula anomalies.
    - Component technical docs only when touching that subsystem: [`engine/README.md`](../../engine/README.md), [`docs/backend-setup.md`](../backend-setup.md), [`PROJECT_STRUCTURE.md`](../../PROJECT_STRUCTURE.md).
-   - Phase 1 implementation/review records only when closing remaining Phase 1 runtime checks: [`20-browser-admin-foundation.md`](20-browser-admin-foundation.md), [`21-browser-admin-independent-review.md`](21-browser-admin-independent-review.md).
+   - Phase 1 implementation/review records only when closing remaining Phase 1 runtime checks: [`20-browser-admin-foundation.md`](../archive/flutter_ui_history/20-browser-admin-foundation.md), [`21-browser-admin-independent-review.md`](../archive/flutter_ui_history/21-browser-admin-independent-review.md).
 4. **Historical / On-Demand Only (Never Load by Default):**
    - `docs/archive/**` (archived October/November audits, superseded plans, handoffs, diagrams) and historical point-in-time checkpoints in `docs/timetable-audit-2026-10-20/01`–`15`.
 
@@ -83,7 +83,7 @@ Do **not** read all repository documentation or the entire master plan before ev
 ### 2.1 Phase 1 — Implemented & Remediated in Working Tree
 - Browser admin foundation (`AdminDesktopShell`, responsive admin layouts, web XLSX/JSON downloads, browser auth callback handling, and platform file abstractions) is implemented on `feature/admin-web-extension`.
 - Independent review findings F1–F8 were remediated and verified locally (`flutter analyze` clean, 179 passing Flutter tests, green web release build). F9 (refresh-persistent preview) belongs to Phase 2a/3 revision-bound draft work.
-- Historical Argon local Postgres/pgTAP/Mailpit verification for the Phase 1 baseline is recorded in [`21-browser-admin-independent-review.md`](21-browser-admin-independent-review.md).
+- Historical Argon local Postgres/pgTAP/Mailpit verification for the Phase 1 baseline is recorded in [`21-browser-admin-independent-review.md`](../archive/flutter_ui_history/21-browser-admin-independent-review.md).
 
 ### 2.2 Phase 2a — Course Distribution Data Contract (VERIFIED IN SECONDARY SUPABASE)
 

@@ -134,14 +134,38 @@ class TimetableResult {
   });
 }
 
+typedef EngineAccessTokenProvider = String? Function();
+
 class TimetableEngineService {
   SupabaseClient get _supabase => Supabase.instance.client;
   final http.Client _http;
   final String _base;
-  TimetableEngineService({http.Client? client, String? baseUrl})
-      : _http = client ?? http.Client(),
-        _base = baseUrl ?? AppConstants.timetableBaseUrl;
+  final EngineAccessTokenProvider? _accessTokenProvider;
+
+  TimetableEngineService({
+    http.Client? client,
+    String? baseUrl,
+    EngineAccessTokenProvider? accessTokenProvider,
+  })  : _http = client ?? http.Client(),
+        _base = baseUrl ?? AppConstants.timetableBaseUrl,
+        _accessTokenProvider = accessTokenProvider;
+
   void close() => _http.close();
+
+  Map<String, String> _authHeaders() {
+    String? token;
+    if (_accessTokenProvider != null) {
+      token = _accessTokenProvider?.call();
+    } else {
+      try {
+        token = _supabase.auth.currentSession?.accessToken;
+      } catch (_) {
+        token = null;
+      }
+    }
+    if (token == null || token.isEmpty) return const {};
+    return {'Authorization': 'Bearer $token'};
+  }
 
   Future<String> generate({
     required Uint8List fileBytes,
@@ -154,6 +178,7 @@ class TimetableEngineService {
       'POST',
       Uri.parse('$_base/api/timetable/generate'),
     );
+    req.headers.addAll(_authHeaders());
     req.files.add(
       http.MultipartFile.fromBytes('file', fileBytes, filename: filename),
     );
@@ -211,7 +236,10 @@ class TimetableEngineService {
 
   Future<TimetableJobStatus> pollStatus(String jobId) async {
     final res = await _http
-        .get(Uri.parse('$_base/api/timetable/status/$jobId'))
+        .get(
+          Uri.parse('$_base/api/timetable/status/$jobId'),
+          headers: _authHeaders(),
+        )
         .timeout(const Duration(seconds: 90));
     if (res.statusCode != 200) {
       throw Exception('Could not read job status (${res.statusCode}).');
@@ -223,7 +251,10 @@ class TimetableEngineService {
 
   Future<TimetableResult> fetchResult(String jobId) async {
     final res = await _http
-        .get(Uri.parse('$_base/api/timetable/result/$jobId'))
+        .get(
+          Uri.parse('$_base/api/timetable/result/$jobId'),
+          headers: _authHeaders(),
+        )
         .timeout(const Duration(seconds: 90));
     if (res.statusCode != 200) {
       throw Exception(
@@ -250,6 +281,7 @@ class TimetableEngineService {
     final res = await _http
         .get(
           Uri.parse('$_base/api/timetable/download/$jobId'),
+          headers: _authHeaders(),
         )
         .timeout(const Duration(seconds: 90));
     if (res.statusCode != 200) {

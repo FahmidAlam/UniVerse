@@ -559,7 +559,7 @@ export function AdminDashboardView({
                   <div className="text-[13.5px] font-semibold text-[var(--ink-primary)]">
                     {stage.title}
                   </div>
-                  <div className="truncate text-[12px] text-[var(--ink-secondary)]">
+                  <div className="line-clamp-2 text-[12px] leading-snug text-[var(--ink-secondary)] sm:truncate">
                     {stage.description}
                   </div>
                 </div>

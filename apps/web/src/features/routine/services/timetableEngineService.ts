@@ -28,6 +28,7 @@ export const RATE_LIMIT_BACKOFF_MS = 4_000;
 export const MAX_CONSECUTIVE_POLL_ERRORS = 4; // Fails on 5th consecutive non-429 error
 
 export type EngineErrorKind =
+  | "auth"
   | "engine-restart"
   | "rate-limited"
   | "solver-failed"
@@ -161,6 +162,17 @@ async function fetchWithTimeout(
   }
 }
 
+async function getEngineAuthHeaders(): Promise<Record<string, string>> {
+  if (!isSupabaseConfigured || !supabase) return {};
+  try {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
+}
+
 async function readErrorDetail(res: Response): Promise<string> {
   try {
     const text = await res.text();
@@ -193,10 +205,12 @@ export async function submitGenerationJob({
   form.append("config", configJson);
   form.append("time_limit_s", String(timeLimitS));
 
+  const authHeaders = await getEngineAuthHeaders();
   const res = await fetchWithTimeout(
     `${baseUrl}/api/timetable/generate`,
     {
       method: "POST",
+      ...(Object.keys(authHeaders).length > 0 ? { headers: authHeaders } : {}),
       body: form,
     },
     signal,
@@ -204,8 +218,14 @@ export async function submitGenerationJob({
 
   if (!res.ok) {
     const detail = await readErrorDetail(res);
+    const kind: EngineErrorKind =
+      res.status === 401 || res.status === 403
+        ? "auth"
+        : res.status === 429
+          ? "rate-limited"
+          : "http";
     throw new EngineJobError(
-      res.status === 429 ? "rate-limited" : "http",
+      kind,
       `Engine submission failed (${res.status}): ${detail}`,
       res.status,
     );
@@ -227,14 +247,24 @@ export async function pollJobStatus(
   signal?: AbortSignal,
 ): Promise<EngineStatusResponse> {
   const baseUrl = getEngineBaseUrl();
+  const authHeaders = await getEngineAuthHeaders();
   const res = await fetchWithTimeout(
     `${baseUrl}/api/timetable/status/${encodeURIComponent(jobId)}`,
     {
       method: "GET",
-      headers: { Accept: "application/json" },
+      headers: { Accept: "application/json", ...authHeaders },
     },
     signal,
   );
+
+  if (res.status === 401 || res.status === 403) {
+    const detail = await readErrorDetail(res);
+    throw new EngineJobError(
+      "auth",
+      `Engine authorization failed (${res.status}): ${detail}`,
+      res.status,
+    );
+  }
 
   if (res.status === 429) {
     throw new EngineJobError(
@@ -280,14 +310,24 @@ export async function fetchJobResult(
   signal?: AbortSignal,
 ): Promise<EngineResultResponse> {
   const baseUrl = getEngineBaseUrl();
+  const authHeaders = await getEngineAuthHeaders();
   const res = await fetchWithTimeout(
     `${baseUrl}/api/timetable/result/${encodeURIComponent(jobId)}`,
     {
       method: "GET",
-      headers: { Accept: "application/json" },
+      headers: { Accept: "application/json", ...authHeaders },
     },
     signal,
   );
+
+  if (res.status === 401 || res.status === 403) {
+    const detail = await readErrorDetail(res);
+    throw new EngineJobError(
+      "auth",
+      `Engine authorization failed (${res.status}): ${detail}`,
+      res.status,
+    );
+  }
 
   if (res.status === 404) {
     throw new EngineJobError(
@@ -322,13 +362,24 @@ export async function downloadJobWorkbook(
   signal?: AbortSignal,
 ): Promise<Blob> {
   const baseUrl = getEngineBaseUrl();
+  const authHeaders = await getEngineAuthHeaders();
   const res = await fetchWithTimeout(
     `${baseUrl}/api/timetable/download/${encodeURIComponent(jobId)}`,
     {
       method: "GET",
+      ...(Object.keys(authHeaders).length > 0 ? { headers: authHeaders } : {}),
     },
     signal,
   );
+
+  if (res.status === 401 || res.status === 403) {
+    const detail = await readErrorDetail(res);
+    throw new EngineJobError(
+      "auth",
+      `Engine authorization failed (${res.status}): ${detail}`,
+      res.status,
+    );
+  }
 
   if (res.status === 404) {
     throw new EngineJobError(
@@ -415,7 +466,10 @@ export async function runResilientJobPolling({
       consecutiveErrors = 0;
       onBackoff?.(false);
     } catch (err) {
-      if (err instanceof EngineJobError && err.kind === "engine-restart") {
+      if (
+        err instanceof EngineJobError &&
+        (err.kind === "engine-restart" || err.kind === "auth")
+      ) {
         throw err;
       }
       const is429 =

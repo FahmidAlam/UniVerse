@@ -419,6 +419,7 @@ function SidebarContent({
 }
 
 const COMPACT_MOBILE_TITLES: Record<string, string> = {
+  "admin.dashboard": "Dashboard",
   "admin.routine-grid": "Routine Matrix",
   "admin.eligibility": "Course Eligibility",
   "admin.scheduling": "Workbench",

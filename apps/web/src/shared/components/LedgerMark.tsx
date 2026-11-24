@@ -5,7 +5,7 @@ interface LedgerMarkProps {
 
 /**
  * Geometric Archival Ledger emblem for UniVerse Web.
- * Clean static hairline grid with Deep Botanical Pine active cell mark.
+ * Clean static hairline grid with X-Azure Blue active cell mark.
  */
 export function LedgerMark({ size = 28, className }: LedgerMarkProps) {
   return (

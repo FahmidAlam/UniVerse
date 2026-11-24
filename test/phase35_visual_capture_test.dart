@@ -180,5 +180,5 @@ void main() {
     tester.view.resetPhysicalSize();
     tester.view.resetDevicePixelRatio();
     await Supabase.instance.dispose();
-  }, skip: !enabled);
+  }, skip: !enabled, tags: ['visual_capture']);
 }
