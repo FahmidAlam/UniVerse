@@ -148,7 +148,7 @@ def main():
 
     try:
         # Services irrelevant to database/Storage verification stay disabled.
-        local('start', '--exclude', 'studio,imgproxy,edge-runtime,logflare,vector,supavisor', quiet=True)
+        local('start', '--exclude', 'studio,imgproxy,edge-runtime,logflare,vector,supavisor')
         for iteration in (1, 2):
             print('Fresh public-namespace rebuild', iteration, 'of 2', flush=True)
             local('db', 'reset', '--local', '--no-seed', '--yes')
