@@ -1,5 +1,6 @@
 import {
   ArrowUpRight,
+  ClockCounterClockwise,
   GridFour,
   ListChecks,
   LockSimple,
@@ -8,7 +9,9 @@ import {
   UploadSimple,
 } from "@phosphor-icons/react";
 import { motion, useReducedMotion } from "motion/react";
+import { lazy, Suspense } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { LedgerTableSkeleton } from "@/components/ui/AsyncStates";
 import { Badge } from "@/components/ui/Badge";
 import { AcademicTimetableMatrix } from "@/features/routine/components/AcademicTimetableMatrix";
 import { DistributionStudioTab } from "@/features/routine/components/DistributionStudioTab";
@@ -18,11 +21,16 @@ import { UploadRoutineGatedTab } from "@/features/routine/components/UploadRouti
 import { useRoutineOperationsStore } from "@/features/routine/store/routineOperationsStore";
 import { cn } from "@/lib/utils";
 
+const RoutineArchiveTab = lazy(
+  () => import("@/features/routine/components/RoutineArchiveTab"),
+);
+
 export type RoutineTabId =
   | "distribution"
   | "grid"
   | "manage"
   | "generate"
+  | "archive"
   | "upload";
 
 const ROUTINE_TABS: readonly {
@@ -35,6 +43,7 @@ const ROUTINE_TABS: readonly {
   { id: "grid", label: "2D Grid", Icon: GridFour },
   { id: "manage", label: "Manage Published", Icon: ListChecks },
   { id: "generate", label: "Generate Routine", Icon: Play },
+  { id: "archive", label: "Archive", Icon: ClockCounterClockwise },
   {
     id: "upload",
     label: "Upload Routine",
@@ -48,6 +57,7 @@ function resolveRoutineTab(raw: string | null): RoutineTabId {
     raw === "distribution" ||
     raw === "manage" ||
     raw === "generate" ||
+    raw === "archive" ||
     raw === "upload"
   ) {
     return raw;
@@ -182,6 +192,15 @@ export function AdminRoutinePage() {
             }}
             onOpenDistributionSheet={() => selectTab("distribution")}
           />
+        )}
+        {activeTab === "archive" && (
+          <Suspense
+            fallback={
+              <LedgerTableSkeleton rows={6} label="Loading routine archive" />
+            }
+          >
+            <RoutineArchiveTab />
+          </Suspense>
         )}
         {activeTab === "upload" && <UploadRoutineGatedTab />}
       </motion.div>

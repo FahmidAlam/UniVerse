@@ -435,6 +435,9 @@ export function GenerateRoutineTab({
         queryKey: ["admin-routine-active-version"],
       });
       void queryClient.invalidateQueries({
+        queryKey: ["admin-routine-archive"],
+      });
+      void queryClient.invalidateQueries({
         queryKey: ["admin-dashboard-counts"],
       });
       if (outcome.secondaryAuditError) {
