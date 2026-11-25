@@ -1,3 +1,8 @@
+// PHASE A: Extended TimetableRoom and TimetableFaculty with Routine Committee R1-R15 metadata
+import 'package:universe/core/models/admin_catalog_models.dart';
+
+typedef FacultyMember = TimetableFaculty;
+
 class TimetableRoom {
   final String id;
   final String name;
@@ -6,6 +11,11 @@ class TimetableRoom {
   final bool isGallery;
   final bool isActive;
   final int? capacity;
+  final RoomClassification? classification;
+  final String? buildingAndFloor;
+  final bool inActiveSemesterPool;
+  final List<String> boundCourseCodes;
+  final Map<String, bool> declaredWindowMatrix;
 
   const TimetableRoom({
     required this.id,
@@ -15,28 +25,111 @@ class TimetableRoom {
     this.isGallery = false,
     this.isActive = true,
     this.capacity,
+    this.classification,
+    this.buildingAndFloor,
+    this.inActiveSemesterPool = true,
+    this.boundCourseCodes = const [],
+    this.declaredWindowMatrix = const {},
   });
 
-  factory TimetableRoom.fromMap(Map<String, dynamic> m) => TimetableRoom(
-        id: m['id'] as String,
-        name: (m['name'] as String?) ?? '',
-        building: m['building'] as String?,
-        isLab: (m['is_lab'] as bool?) ?? false,
-        isGallery: (m['is_gallery'] as bool?) ?? false,
-        isActive: (m['is_active'] as bool?) ?? true,
-        capacity: (m['capacity'] as num?)?.toInt(),
-      );
+  factory TimetableRoom.fromMap(Map<String, dynamic> m) {
+    final rawClass = m['classification'] as String?;
+    final bound = ((m['bound_course_codes'] as List?) ?? const [])
+        .map((e) => e.toString())
+        .toList();
+    final rawMatrix = m['declared_window_matrix'] as Map?;
+    final matrix = <String, bool>{};
+    if (rawMatrix != null) {
+      for (final entry in rawMatrix.entries) {
+        matrix[entry.key.toString()] = entry.value == true;
+      }
+    }
+    final isLab = (m['is_lab'] as bool?) ?? false;
+    final isGallery = (m['is_gallery'] as bool?) ?? false;
+    final isActive = (m['is_active'] as bool?) ?? true;
+
+    return TimetableRoom(
+      id: (m['id'] as String?) ?? '',
+      name: (m['name'] as String?) ?? '',
+      building: m['building'] as String?,
+      isLab: isLab,
+      isGallery: isGallery,
+      isActive: isActive,
+      capacity: (m['capacity'] as num?)?.toInt(),
+      classification: rawClass != null ? RoomClassification.fromString(rawClass) : null,
+      buildingAndFloor: m['building_and_floor'] as String?,
+      inActiveSemesterPool: (m['in_active_semester_pool'] as bool?) ?? isActive,
+      boundCourseCodes: bound,
+      declaredWindowMatrix: matrix,
+    );
+  }
 
   Map<String, dynamic> toMap() => {
+        if (id.isNotEmpty) 'id': id,
         'name': name,
         'building': building,
         'is_lab': isLab,
         'is_gallery': isGallery,
         'is_active': isActive,
         if (capacity != null) 'capacity': capacity,
+        if (classification != null) 'classification': classification!.name,
+        if (buildingAndFloor != null) 'building_and_floor': buildingAndFloor,
+        'in_active_semester_pool': inActiveSemesterPool,
+        'bound_course_codes': boundCourseCodes,
+        'declared_window_matrix': declaredWindowMatrix,
       };
 
   String get kind => isLab ? 'Lab' : (isGallery ? 'Gallery' : 'Theory');
+
+  RoomClassification get roomClassification {
+    if (classification != null) return classification!;
+    if (isGallery) return RoomClassification.lectureGallery;
+    if (isPhysicsLab) return RoomClassification.physicsLab;
+    if (isEclLab) return RoomClassification.eclLab;
+    if (isLab) return RoomClassification.cseComputerLab;
+    return RoomClassification.generalClassroom;
+  }
+
+  bool get isEclLab =>
+      name.toUpperCase().contains('ECL') ||
+      (building?.toUpperCase().contains('EEE') ?? false);
+
+  bool get isPhysicsLab =>
+      name.toUpperCase().contains('PHY') ||
+      (building?.toUpperCase().contains('PHYSICS') ?? false);
+
+  bool get isComputerLab => isLab && !isEclLab && !isPhysicsLab;
+
+  bool get isGeneralClassroom => !isLab && !isGallery;
+
+  TimetableRoom copyWith({
+    String? name,
+    String? building,
+    bool? isLab,
+    bool? isGallery,
+    bool? isActive,
+    int? capacity,
+    RoomClassification? classification,
+    String? buildingAndFloor,
+    bool? inActiveSemesterPool,
+    List<String>? boundCourseCodes,
+    Map<String, bool>? declaredWindowMatrix,
+  }) =>
+      TimetableRoom(
+        id: id,
+        name: name ?? this.name,
+        building: building ?? this.building,
+        isLab: isLab ?? this.isLab,
+        isGallery: isGallery ?? this.isGallery,
+        isActive: isActive ?? this.isActive,
+        capacity: capacity ?? this.capacity,
+        classification: classification ?? this.classification,
+        buildingAndFloor: buildingAndFloor ?? this.buildingAndFloor,
+        inActiveSemesterPool: inActiveSemesterPool ?? this.inActiveSemesterPool,
+        boundCourseCodes: boundCourseCodes ?? this.boundCourseCodes,
+        declaredWindowMatrix:
+            declaredWindowMatrix ?? this.declaredWindowMatrix,
+      );
 }
 
 class TimetableFaculty {
@@ -47,6 +140,12 @@ class TimetableFaculty {
   final String? designation;
   final List<String> offDays;
   final bool isActive;
+  final String? employmentType; // 'permanent' | 'adjunct'
+  final bool? isSustAdjunctExplicit;
+  final String? sustCompactnessMode; // 'before_break' | 'after_break' | 'either'
+  final bool? isExternalGuestExplicit;
+  final bool? hasExternalBlockExplicit;
+  final Map<String, String> slotMatrix; // '$day:$slotIndex' -> 'available' | 'preferred_r8' | 'external_block_r4' | 'guest_window_r5'
 
   const TimetableFaculty({
     required this.id,
@@ -56,19 +155,41 @@ class TimetableFaculty {
     this.designation,
     this.offDays = const [],
     this.isActive = true,
+    this.employmentType,
+    this.isSustAdjunctExplicit,
+    this.sustCompactnessMode,
+    this.isExternalGuestExplicit,
+    this.hasExternalBlockExplicit,
+    this.slotMatrix = const {},
   });
 
-  factory TimetableFaculty.fromMap(Map<String, dynamic> m) => TimetableFaculty(
-        id: m['id'] as String,
-        acronym: (m['acronym'] as String?) ?? '',
-        fullName: m['full_name'] as String?,
-        dept: m['dept'] as String?,
-        designation: m['designation'] as String?,
-        offDays: ((m['off_days'] as List?) ?? const [])
-            .map((e) => e.toString())
-            .toList(),
-        isActive: (m['is_active'] as bool?) ?? true,
-      );
+  factory TimetableFaculty.fromMap(Map<String, dynamic> m) {
+    final rawMatrix = m['slot_matrix'] as Map?;
+    final matrix = <String, String>{};
+    if (rawMatrix != null) {
+      for (final entry in rawMatrix.entries) {
+        matrix[entry.key.toString()] = entry.value.toString();
+      }
+    }
+
+    return TimetableFaculty(
+      id: (m['id'] as String?) ?? '',
+      acronym: (m['acronym'] as String?) ?? '',
+      fullName: m['full_name'] as String?,
+      dept: m['dept'] as String?,
+      designation: m['designation'] as String?,
+      offDays: ((m['off_days'] as List?) ?? const [])
+          .map((e) => e.toString())
+          .toList(),
+      isActive: (m['is_active'] as bool?) ?? true,
+      employmentType: m['employment_type'] as String?,
+      isSustAdjunctExplicit: m['is_sust_adjunct'] as bool?,
+      sustCompactnessMode: m['sust_compactness_mode'] as String?,
+      isExternalGuestExplicit: m['is_external_guest'] as bool?,
+      hasExternalBlockExplicit: m['has_external_block'] as bool?,
+      slotMatrix: matrix,
+    );
+  }
 
   Map<String, dynamic> toMap() => {
         'acronym': acronym,
@@ -77,20 +198,104 @@ class TimetableFaculty {
         'designation': designation,
         'off_days': offDays,
         'is_active': isActive,
+        if (employmentType != null) 'employment_type': employmentType,
+        if (isSustAdjunctExplicit != null)
+          'is_sust_adjunct': isSustAdjunctExplicit,
+        if (sustCompactnessMode != null)
+          'sust_compactness_mode': sustCompactnessMode,
+        if (isExternalGuestExplicit != null)
+          'is_external_guest': isExternalGuestExplicit,
+        if (hasExternalBlockExplicit != null)
+          'has_external_block': hasExternalBlockExplicit,
+        'slot_matrix': slotMatrix,
       };
 
   String get displayName =>
       (fullName != null && fullName!.isNotEmpty) ? fullName! : acronym;
 
-  TimetableFaculty copyWith({String? fullName, List<String>? offDays}) =>
+  bool get isAdjunct =>
+      employmentType == 'adjunct' ||
+      (designation?.toLowerCase().contains('adjunct') ?? false) ||
+      (fullName?.toLowerCase().contains('adjunct') ?? false);
+
+  bool get isSustAdjunct =>
+      isSustAdjunctExplicit ??
+      (isAdjunct &&
+          ((designation?.toLowerCase().contains('sust') ?? false) ||
+              (fullName?.toLowerCase().contains('sust') ?? false) ||
+              acronym == 'FK' ||
+              acronym == 'NJ'));
+
+  bool get isExternalGuest =>
+      isExternalGuestExplicit ??
+      ((dept != null && dept != 'CSE' && dept!.isNotEmpty) ||
+          (designation?.toLowerCase().contains('guest') ?? false) ||
+          (designation?.toLowerCase().contains('external') ?? false));
+
+  bool get isPermanent =>
+      employmentType == 'permanent' ||
+      (employmentType == null && !isAdjunct && !isExternalGuest);
+
+  bool get hasExternalBlock =>
+      hasExternalBlockExplicit ??
+      (acronym == 'MSA' || acronym == 'FA' || acronym == 'SH');
+
+  int get assignedCoursesCount {
+    if (acronym == 'MSA') return 4;
+    if (acronym == 'FA') return 3;
+    if (acronym == 'FK') return 2;
+    if (acronym == 'NJ') return 2;
+    if (acronym == 'SR') return 3;
+    if (acronym == 'ZI') return 3;
+    return isAdjunct ? 2 : 4;
+  }
+
+  String get r6TargetWorkingDays {
+    if (isAdjunct) {
+      if (assignedCoursesCount <= 2) return '2 Days';
+      if (assignedCoursesCount == 3) return '3–4 Days';
+      return '4–5 Days';
+    }
+    return '4–5 Days';
+  }
+
+  bool get isR7Violation {
+    if (!isPermanent) return false;
+    final count = offDays.length;
+    // R7: Min 2 / Max 3 weekly days off for permanent faculty
+    return count < 2 || count > 3;
+  }
+
+  TimetableFaculty copyWith({
+    String? fullName,
+    String? dept,
+    String? designation,
+    List<String>? offDays,
+    bool? isActive,
+    String? employmentType,
+    bool? isSustAdjunctExplicit,
+    String? sustCompactnessMode,
+    bool? isExternalGuestExplicit,
+    bool? hasExternalBlockExplicit,
+    Map<String, String>? slotMatrix,
+  }) =>
       TimetableFaculty(
         id: id,
         acronym: acronym,
         fullName: fullName ?? this.fullName,
-        dept: dept,
-        designation: designation,
+        dept: dept ?? this.dept,
+        designation: designation ?? this.designation,
         offDays: offDays ?? this.offDays,
-        isActive: isActive,
+        isActive: isActive ?? this.isActive,
+        employmentType: employmentType ?? this.employmentType,
+        isSustAdjunctExplicit:
+            isSustAdjunctExplicit ?? this.isSustAdjunctExplicit,
+        sustCompactnessMode: sustCompactnessMode ?? this.sustCompactnessMode,
+        isExternalGuestExplicit:
+            isExternalGuestExplicit ?? this.isExternalGuestExplicit,
+        hasExternalBlockExplicit:
+            hasExternalBlockExplicit ?? this.hasExternalBlockExplicit,
+        slotMatrix: slotMatrix ?? this.slotMatrix,
       );
 }
 

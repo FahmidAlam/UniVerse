@@ -1,0 +1,3040 @@
+<!doctype html>
+<html lang="en" data-theme="folio">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UniVerse — Academic Routine Platform | Web Design Directions</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231b3c2d'/%3E%3Cellipse cx='32' cy='32' rx='24' ry='11' fill='none' stroke='%23e8f2ec' stroke-width='3.2'/%3E%3Ccircle cx='32' cy='32' r='10' fill='%2378d5a8'/%3E%3Ccircle cx='52.5' cy='32' r='4.8' fill='%23e8f2ec'/%3E%3C/svg%3E" />
+
+  <!-- Anchor-First Google Fonts for all 3 directions (Zero Inter / Geist / Instrument Serif) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Phosphor Icons (Regular stroke matching typography weight; zero Lucide) -->
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
+
+  <style>
+    @layer reset, base, theme, components, utilities;
+
+    /* =========================================================================
+       LAYER: RESET (Scoped to concrete elements — no global `*` reset)
+    ========================================================================= */
+    @layer reset {
+      html, body, h1, h2, h3, h4, p, ul, ol, figure, blockquote, dl, dd {
+        margin: 0;
+        padding: 0;
+      }
+      html, body, main, section, aside, header, nav, article, div, form, label, input, button, table, thead, tbody, tr, th, td, span, a {
+        box-sizing: border-box;
+      }
+      button, input, select {
+        font: inherit;
+        color: inherit;
+      }
+      button {
+        cursor: pointer;
+        background: transparent;
+        border: 0;
+      }
+      ul, ol {
+        list-style: none;
+      }
+    }
+
+    /* =========================================================================
+       LAYER: THEME — 3 RADICALLY DISTINCT OKLCH ARCHITECTURES
+       Neutral surface spine (--bg-dark < --bg < --bg-light) defined BEFORE accent.
+       Zero color-mix(in oklch, ...) with neutrals (avoids Chromium 565837690).
+    ========================================================================= */
+    @layer theme {
+      :root {
+        view-transition-name: none;
+        --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+        --ease-in: cubic-bezier(0.4, 0, 1, 1);
+        --dur-in: 210ms;
+        --dur-out: 165ms;
+        --dur-press: 120ms;
+        --frame-pad: 6px;
+      }
+
+      /* DIRECTION 1: SYLHET FOLIO (Warm Archival Paper + Botanical Pine) */
+      html[data-theme="folio"] {
+        color-scheme: light;
+        --bg-dark: oklch(0.928 0.013 82);
+        --bg: oklch(0.964 0.010 82);
+        --bg-light: oklch(0.992 0.005 82);
+
+        --text-primary: oklch(0.210 0.015 75);
+        --text-secondary: oklch(0.405 0.014 75);
+        --text-muted: oklch(0.485 0.013 75);
+
+        --accent: oklch(0.425 0.105 154);
+        --accent-hover: oklch(0.365 0.112 154);
+        --accent-ink: oklch(0.985 0.004 85);
+        --accent-soft: oklch(0.924 0.028 154);
+        --accent-border: oklch(0.425 0.105 154 / 0.28);
+
+        /* 4 Depth Properties */
+        --surface-grad: linear-gradient(180deg, oklch(0.996 0.004 82), oklch(0.980 0.008 82));
+        --surface-grad-hover: linear-gradient(180deg, oklch(1 0.002 82), oklch(0.988 0.006 82));
+        --border: oklch(0.220 0.015 75 / 0.12);
+        --border-strong: oklch(0.220 0.015 75 / 0.24);
+        --highlight: inset 0 1px 0 oklch(1 0 0 / 0.88);
+        --shadow-elevated: 0 1px 2px oklch(0.22 0.02 75 / 0.06), 0 10px 26px -8px oklch(0.22 0.02 75 / 0.10);
+        --shadow-sm: 0 1px 1.5px oklch(0.22 0.02 75 / 0.05), 0 3px 8px -3px oklch(0.22 0.02 75 / 0.07);
+
+        /* Semantic Schedule Tokens (Checkbox Off = Gray; active only on classes/exceptions) */
+        --sem-theory-bg: oklch(0.942 0.022 238);
+        --sem-theory-border: oklch(0.48 0.088 238 / 0.32);
+        --sem-theory-ink: oklch(0.31 0.088 238);
+
+        --sem-lab-bg: oklch(0.936 0.028 154);
+        --sem-lab-border: oklch(0.43 0.098 154 / 0.34);
+        --sem-lab-ink: oklch(0.29 0.095 154);
+
+        --sem-joint-bg: oklch(0.946 0.036 68);
+        --sem-joint-border: oklch(0.54 0.115 62 / 0.38);
+        --sem-joint-ink: oklch(0.35 0.098 58);
+
+        --sem-alert-bg: oklch(0.942 0.032 22);
+        --sem-alert-border: oklch(0.52 0.145 22 / 0.40);
+        --sem-alert-ink: oklch(0.37 0.148 22);
+
+        --sem-neutral-bg: oklch(0.938 0.009 82);
+        --sem-neutral-ink: oklch(0.42 0.012 75);
+
+        /* Data Visualization Scales */
+        --viz-seq-1: oklch(0.93 0.018 154);
+        --viz-seq-2: oklch(0.83 0.048 154);
+        --viz-seq-3: oklch(0.65 0.085 154);
+        --viz-seq-4: oklch(0.43 0.105 154);
+        --viz-div-low: oklch(0.50 0.095 235);
+        --viz-div-mid: oklch(0.84 0.010 82);
+        --viz-div-high: oklch(0.50 0.142 24);
+
+        /* Typography */
+        --font-display: "Fraunces", Georgia, serif;
+        --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
+        --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+        /* Geometry & Visual Rhyming */
+        --r-outer: 16px;
+        --r-inner: 10px;
+        --r-control: 8px;
+        --r-pill: 999px;
+      }
+
+      /* DIRECTION 2: MERIDIAN GRID (Cool Mineral Alabaster + Swiss Technical Cobalt) */
+      html[data-theme="meridian"] {
+        color-scheme: light;
+        --bg-dark: oklch(0.944 0.008 245);
+        --bg: oklch(0.976 0.005 245);
+        --bg-light: oklch(0.996 0.002 245);
+
+        --text-primary: oklch(0.192 0.018 252);
+        --text-secondary: oklch(0.400 0.018 250);
+        --text-muted: oklch(0.482 0.016 248);
+
+        --accent: oklch(0.455 0.155 256);
+        --accent-hover: oklch(0.395 0.162 256);
+        --accent-ink: oklch(0.992 0.002 245);
+        --accent-soft: oklch(0.938 0.032 256);
+        --accent-border: oklch(0.455 0.155 256 / 0.28);
+
+        --surface-grad: linear-gradient(180deg, oklch(1 0.001 245), oklch(0.985 0.005 245));
+        --surface-grad-hover: linear-gradient(180deg, oklch(1 0.001 245), oklch(0.992 0.003 245));
+        --border: oklch(0.200 0.020 252 / 0.11);
+        --border-strong: oklch(0.200 0.020 252 / 0.24);
+        --highlight: inset 0 1px 0 oklch(1 0 0 / 0.94);
+        --shadow-elevated: 0 1px 1.5px oklch(0.18 0.025 252 / 0.05), 0 8px 20px -6px oklch(0.18 0.025 252 / 0.08);
+        --shadow-sm: 0 1px 1px oklch(0.18 0.025 252 / 0.05), 0 2px 6px -2px oklch(0.18 0.025 252 / 0.06);
+
+        --sem-theory-bg: oklch(0.948 0.025 254);
+        --sem-theory-border: oklch(0.48 0.135 256 / 0.30);
+        --sem-theory-ink: oklch(0.32 0.138 256);
+
+        --sem-lab-bg: oklch(0.942 0.028 198);
+        --sem-lab-border: oklch(0.46 0.095 198 / 0.34);
+        --sem-lab-ink: oklch(0.29 0.092 198);
+
+        --sem-joint-bg: oklch(0.950 0.034 82);
+        --sem-joint-border: oklch(0.54 0.110 78 / 0.36);
+        --sem-joint-ink: oklch(0.35 0.096 72);
+
+        --sem-alert-bg: oklch(0.946 0.034 26);
+        --sem-alert-border: oklch(0.54 0.155 26 / 0.42);
+        --sem-alert-ink: oklch(0.38 0.155 26);
+
+        --sem-neutral-bg: oklch(0.946 0.006 245);
+        --sem-neutral-ink: oklch(0.42 0.015 250);
+
+        --viz-seq-1: oklch(0.94 0.018 256);
+        --viz-seq-2: oklch(0.83 0.055 256);
+        --viz-seq-3: oklch(0.65 0.105 256);
+        --viz-seq-4: oklch(0.46 0.155 256);
+        --viz-div-low: oklch(0.48 0.100 198);
+        --viz-div-mid: oklch(0.86 0.006 245);
+        --viz-div-high: oklch(0.50 0.152 26);
+
+        --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+        --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+        --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+        --r-outer: 12px;
+        --r-inner: 6px;
+        --r-control: 6px;
+        --r-pill: 6px;
+      }
+
+      /* DIRECTION 3: OBSERVATORY SLATE (Mineral Teal-Slate + Luminous Verdigris; ZERO Black/Orange) */
+      html[data-theme="observatory"] {
+        color-scheme: dark;
+        --bg-dark: oklch(0.172 0.018 218);
+        --bg: oklch(0.212 0.018 218);
+        --bg-light: oklch(0.258 0.019 218);
+
+        --text-primary: oklch(0.935 0.008 205);
+        --text-secondary: oklch(0.778 0.014 212);
+        --text-muted: oklch(0.688 0.015 214);
+
+        --accent: oklch(0.760 0.128 172);
+        --accent-hover: oklch(0.812 0.132 172);
+        --accent-ink: oklch(0.160 0.024 185);
+        --accent-soft: oklch(0.295 0.044 174);
+        --accent-border: oklch(0.760 0.128 172 / 0.36);
+
+        --surface-grad: linear-gradient(180deg, oklch(0.272 0.019 218), oklch(0.244 0.018 218));
+        --surface-grad-hover: linear-gradient(180deg, oklch(0.294 0.020 218), oklch(0.260 0.019 218));
+        --border: oklch(0.920 0.012 205 / 0.12);
+        --border-strong: oklch(0.920 0.012 205 / 0.24);
+        --highlight: inset 0 1px 0 oklch(0.960 0.010 200 / 0.14);
+        --shadow-elevated: 0 1px 2px oklch(0.08 0.015 218 / 0.46), 0 14px 32px -10px oklch(0.06 0.015 218 / 0.56);
+        --shadow-sm: 0 1px 2px oklch(0.08 0.015 218 / 0.38), 0 4px 10px -4px oklch(0.06 0.015 218 / 0.42);
+
+        --sem-theory-bg: oklch(0.276 0.036 232);
+        --sem-theory-border: oklch(0.72 0.105 232 / 0.36);
+        --sem-theory-ink: oklch(0.89 0.060 230);
+
+        --sem-lab-bg: oklch(0.274 0.044 170);
+        --sem-lab-border: oklch(0.75 0.118 170 / 0.40);
+        --sem-lab-ink: oklch(0.90 0.072 168);
+
+        --sem-joint-bg: oklch(0.292 0.040 84);
+        --sem-joint-border: oklch(0.79 0.108 82 / 0.40);
+        --sem-joint-ink: oklch(0.92 0.068 84);
+
+        --sem-alert-bg: oklch(0.276 0.052 20);
+        --sem-alert-border: oklch(0.72 0.142 20 / 0.46);
+        --sem-alert-ink: oklch(0.90 0.082 20);
+
+        --sem-neutral-bg: oklch(0.244 0.018 218);
+        --sem-neutral-ink: oklch(0.77 0.014 212);
+
+        --viz-seq-1: oklch(0.26 0.025 172);
+        --viz-seq-2: oklch(0.38 0.065 172);
+        --viz-seq-3: oklch(0.56 0.100 172);
+        --viz-seq-4: oklch(0.76 0.128 172);
+        --viz-div-low: oklch(0.72 0.100 232);
+        --viz-div-mid: oklch(0.34 0.018 218);
+        --viz-div-high: oklch(0.70 0.140 20);
+
+        --font-display: "Newsreader", Georgia, serif;
+        --font-sans: "DM Sans", system-ui, sans-serif;
+        --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+        --r-outer: 16px;
+        --r-inner: 10px;
+        --r-control: 8px;
+        --r-pill: 999px;
+      }
+
+      /* Instant theme switch: 1-frame snap without muddy color cross-fades */
+      html.theme-switching body,
+      html.theme-switching body * {
+        transition: none !important;
+      }
+
+      @media (prefers-contrast: more) {
+        html[data-theme="folio"],
+        html[data-theme="meridian"] {
+          --border: oklch(0.20 0.015 240 / 0.30);
+          --text-muted: oklch(0.36 0.015 240);
+        }
+        html[data-theme="observatory"] {
+          --border: oklch(0.94 0.010 205 / 0.30);
+          --text-muted: oklch(0.80 0.012 212);
+        }
+      }
+
+      @media (forced-colors: active) {
+        .elevated-card,
+        .specimen-frame,
+        .cell-card,
+        .btn-primary,
+        .btn-secondary {
+          border: 1px solid CanvasText;
+          box-shadow: none;
+          background-image: none;
+        }
+        .cell-card.is-selected,
+        button:focus-visible,
+        input:focus-visible {
+          outline: 2px solid Highlight;
+        }
+      }
+    }
+
+    /* =========================================================================
+       LAYER: BASE TYPOGRAPHY, MOTION & ACCESSIBILITY
+    ========================================================================= */
+    @layer base {
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        font-family: var(--font-sans);
+        font-size: 14px;
+        line-height: 1.5;
+        color: var(--text-primary);
+        background: var(--bg-dark);
+        min-height: 100dvh;
+        -webkit-font-smoothing: antialiased;
+        overflow-x: clip;
+      }
+
+      h1, h2, h3 {
+        font-family: var(--font-display);
+        text-wrap: balance;
+        color: var(--text-primary);
+      }
+
+      .mono {
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .tabular {
+        font-variant-numeric: tabular-nums;
+      }
+
+      .acronym {
+        font-variant-caps: all-small-caps;
+        letter-spacing: 0.04em;
+        font-weight: 600;
+      }
+
+      a {
+        color: var(--accent);
+        text-underline-offset: 3px;
+        text-decoration-thickness: 1.5px;
+      }
+
+      button:focus-visible,
+      input:focus-visible,
+      a:focus-visible,
+      [tabindex]:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      /* View Transitions for interactive sandbox grid reorganization */
+      ::view-transition {
+        pointer-events: none;
+      }
+      ::view-transition-group(.routine-cell) {
+        animation-duration: 260ms;
+        animation-timing-function: var(--ease-out);
+      }
+      ::view-transition-new(.routine-cell):only-child {
+        animation: cellFadeIn 220ms var(--ease-out) both;
+      }
+      ::view-transition-old(.routine-cell):only-child {
+        animation: cellFadeOut 160ms var(--ease-in) both;
+      }
+
+      @keyframes cellFadeIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      @keyframes cellFadeOut {
+        from { opacity: 1; transform: scale(1); }
+        to { opacity: 0; transform: scale(0.95); }
+      }
+
+      @keyframes errorShake {
+        0%, 100% { transform: translateX(0); }
+        20% { transform: translateX(-4px); }
+        40% { transform: translateX(4px); }
+        60% { transform: translateX(-3px); }
+        80% { transform: translateX(3px); }
+      }
+
+      @keyframes successPulse {
+        0% { transform: scale(0.98); filter: blur(1.5px); opacity: 0.85; }
+        55% { transform: scale(1.01); filter: blur(0); opacity: 1; }
+        100% { transform: scale(1); filter: blur(0); opacity: 1; }
+      }
+
+      @keyframes rowEnter {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+        ::view-transition-group(*),
+        ::view-transition-old(*),
+        ::view-transition-new(*) {
+          animation: none !important;
+        }
+      }
+    }
+
+    /* =========================================================================
+       LAYER: COMPONENTS
+    ========================================================================= */
+    @layer components {
+      /* --- Floating Top Direction Switcher (Single-Row, Compact <= 56px) --- */
+      .lookbook-bar {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        background: color-mix(in oklab, var(--bg) 92%, transparent);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--border);
+        box-shadow: var(--highlight), var(--shadow-sm);
+      }
+      .lookbook-bar-inner {
+        max-width: 1400px;
+        margin-inline: auto;
+        padding-inline: 20px;
+        height: 54px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .brand-cluster {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-inline-size: 0;
+      }
+      .orbit-svg {
+        width: 28px;
+        height: 28px;
+        flex-shrink: 0;
+      }
+      .brand-name {
+        font-family: var(--font-display);
+        font-weight: 600;
+        font-size: 16px;
+        letter-spacing: -0.02em;
+        color: var(--text-primary);
+      }
+      .brand-meta {
+        font-size: 12px;
+        color: var(--text-muted);
+        border-inline-start: 1px solid var(--border-strong);
+        padding-inline-start: 10px;
+        white-space: nowrap;
+      }
+
+      /* Segmented Switcher with Reserved Bold Width (Zero Horizontal Shift) */
+      .direction-switcher {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px;
+        background: var(--bg-dark);
+        border: 1px solid var(--border);
+        border-radius: calc(var(--r-control) + 4px);
+      }
+      .dir-btn {
+        height: 32px;
+        padding-inline: 14px;
+        border-radius: var(--r-control);
+        font-size: 13px;
+        color: var(--text-secondary);
+        display: inline-grid;
+        place-items: center;
+        transition: background var(--dur-in) var(--ease-out), color var(--dur-in) var(--ease-out), transform var(--dur-press) var(--ease-out);
+      }
+      .dir-btn::after {
+        content: attr(data-label);
+        font-weight: 600;
+        height: 0;
+        visibility: hidden;
+        overflow: hidden;
+        user-select: none;
+        pointer-events: none;
+      }
+      .dir-btn:hover:not(:disabled):not([aria-pressed="true"]) {
+        color: var(--text-primary);
+        background: color-mix(in oklab, var(--bg-light) 55%, transparent);
+      }
+      .dir-btn:active {
+        transform: scale(0.97);
+      }
+      .dir-btn[aria-pressed="true"] {
+        background: var(--bg-light);
+        color: var(--text-primary);
+        font-weight: 600;
+        box-shadow: var(--highlight), var(--shadow-sm);
+        border: 1px solid var(--border);
+      }
+
+      .jump-nav {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .jump-link {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        text-decoration: none;
+        white-space: nowrap;
+        padding-block: 4px;
+        transition: color var(--dur-in) var(--ease-out);
+      }
+      .jump-link:hover {
+        color: var(--text-primary);
+        text-decoration: underline;
+      }
+
+      /* --- Lookbook Main Container & Direction Context Ribbon --- */
+      .page-wrap {
+        max-width: 1400px;
+        margin-inline: auto;
+        padding: 20px 20px 64px;
+        display: flex;
+        flex-direction: column;
+        gap: 32px;
+      }
+
+      .theme-brief-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px 24px;
+        padding: 14px 20px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--r-outer);
+        box-shadow: var(--highlight), var(--shadow-sm);
+      }
+      .theme-brief-title {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .theme-brief-title strong {
+        font-family: var(--font-display);
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .theme-brief-title span {
+        font-size: 13px;
+        color: var(--text-secondary);
+      }
+      .swatch-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .swatch-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+      .swatch-chip {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        border: 1px solid var(--border-strong);
+      }
+
+      /* --- Shared Specimen Frame --- */
+      .specimen-section {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        scroll-margin-top: 72px;
+      }
+      .specimen-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        padding-inline: 4px;
+      }
+      .specimen-head h2 {
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.025em;
+        line-height: 1.2;
+      }
+      .specimen-head p {
+        font-size: 13px;
+        color: var(--text-secondary);
+      }
+
+      .specimen-frame {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--r-outer);
+        box-shadow: var(--highlight), var(--shadow-elevated);
+        overflow: hidden;
+        position: relative;
+      }
+
+      /* --- Shared Optical Buttons & Inputs (40px standard / 36px compact) --- */
+      .btn-primary {
+        height: 40px;
+        padding-inline: 20px;
+        border-radius: var(--r-control);
+        background: var(--accent);
+        color: var(--accent-ink);
+        font-weight: 600;
+        font-size: 13px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border: 1px solid color-mix(in oklab, var(--accent) 85%, black);
+        box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.22), var(--shadow-sm);
+        transition: background var(--dur-in) var(--ease-out), transform var(--dur-press) var(--ease-out);
+        white-space: nowrap;
+      }
+      .btn-primary:hover:not(:disabled) {
+        background: var(--accent-hover);
+      }
+      .btn-primary:active:not(:disabled) {
+        transform: scale(0.97);
+      }
+
+      .btn-secondary {
+        height: 36px;
+        padding-inline: 14px;
+        border-radius: var(--r-control);
+        background: var(--surface-grad);
+        color: var(--text-primary);
+        font-weight: 500;
+        font-size: 13px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border: 1px solid var(--border);
+        box-shadow: var(--highlight), var(--shadow-sm);
+        transition: background var(--dur-in) var(--ease-out), border-color var(--dur-in) var(--ease-out), transform var(--dur-press) var(--ease-out);
+        white-space: nowrap;
+      }
+      .btn-secondary:hover:not(:disabled) {
+        background: var(--surface-grad-hover);
+        border-color: var(--border-strong);
+      }
+      .btn-secondary:active:not(:disabled) {
+        transform: scale(0.97);
+      }
+      .btn-secondary.is-active {
+        background: var(--accent-soft);
+        border-color: var(--accent-border);
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+
+      .btn-compact {
+        height: 32px;
+        padding-inline: 12px;
+        font-size: 12px;
+      }
+
+      /* =======================================================================
+         SPECIMEN 1: PUBLIC MARKETABLE ONBOARDING & ROUTINE ENGINE SANDBOX
+         Curated background depth ONLY on this hero stage (never on dense tables)
+      ======================================================================= */
+      .hero-stage {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1.38fr) minmax(300px, 0.92fr);
+        min-height: 580px;
+      }
+
+      /* Direction 1 Curated Texture: Fine cotton-paper grain (<= 2.2%) + folio rules */
+      html[data-theme="folio"] .hero-stage::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0.025;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+      }
+
+      /* Direction 2 Curated Texture: Architectural blueprint hairlines masked behind hero */
+      html[data-theme="meridian"] .hero-stage::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0.045;
+        background-image:
+          linear-gradient(to right, var(--text-primary) 1px, transparent 1px),
+          linear-gradient(to bottom, var(--text-primary) 1px, transparent 1px);
+        background-size: 40px 40px;
+        mask-image: radial-gradient(ellipse 75% 75% at 32% 45%, black 25%, transparent 88%);
+      }
+
+      /* Direction 3 Curated Texture: Subtle orbital contour arcs behind hero */
+      html[data-theme="observatory"] .hero-stage::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0.14;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 600' fill='none'%3E%3Cellipse cx='300' cy='290' rx='390' ry='155' stroke='%238bd8c2' stroke-width='0.9'/%3E%3Cellipse cx='300' cy='290' rx='510' ry='215' stroke='%238bd8c2' stroke-width='0.6' stroke-dasharray='4 6'/%3E%3C/svg%3E");
+        background-size: cover;
+        background-position: left center;
+      }
+
+      .hero-left {
+        position: relative;
+        z-index: 1;
+        padding: 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        min-inline-size: 0;
+        border-inline-end: 1px solid var(--border);
+      }
+
+      .hero-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-width: 640px;
+      }
+      .hero-institution {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-secondary);
+      }
+      .orbit-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-soft);
+      }
+      .hero-copy h1 {
+        font-size: clamp(28px, 3vw, 38px);
+        line-height: 1.12;
+        letter-spacing: -0.03em;
+        font-weight: 600;
+      }
+      html[data-theme="observatory"] .hero-copy h1 em {
+        font-style: italic;
+        color: var(--accent);
+      }
+      html[data-theme="folio"] .hero-copy h1 em {
+        font-style: italic;
+        color: var(--accent);
+      }
+      html[data-theme="meridian"] .hero-copy h1 em {
+        font-style: normal;
+        color: var(--accent);
+      }
+      .hero-copy p {
+        font-size: 14px;
+        line-height: 1.55;
+        color: var(--text-secondary);
+        max-width: 58ch;
+      }
+
+      /* Star of the Show: Interactive Routine Sandbox Bezel */
+      .sandbox-bezel {
+        padding: var(--frame-pad);
+        background: var(--bg-dark);
+        border: 1px solid var(--border);
+        border-radius: var(--r-outer);
+        box-shadow: var(--shadow-sm);
+        min-inline-size: 0;
+      }
+
+      /* Direction 3 restrained fluted glass vertical ribbing strictly on outer bezel */
+      html[data-theme="observatory"] .sandbox-bezel {
+        background:
+          repeating-linear-gradient(
+            90deg,
+            oklch(0.95 0.01 200 / 0.03) 0px,
+            oklch(0.95 0.01 200 / 0.03) 4px,
+            transparent 4px,
+            transparent 10px
+          ),
+          var(--bg-dark);
+        padding: 8px;
+      }
+
+      .sandbox-inner {
+        background: var(--bg-light);
+        border: 1px solid var(--border);
+        border-radius: var(--r-inner);
+        box-shadow: var(--highlight);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .sandbox-controls {
+        padding: 12px 14px;
+        background: var(--bg);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .control-group {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+
+      /* Visual Rhyming Orbital Toggle Switch */
+      .rule-switch {
+        height: 36px;
+        padding-inline: 10px 12px;
+        border-radius: var(--r-control);
+        border: 1px solid var(--border);
+        background: var(--surface-grad);
+        box-shadow: var(--highlight), var(--shadow-sm);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        transition: border-color var(--dur-in) var(--ease-out), background var(--dur-in) var(--ease-out), transform var(--dur-press) var(--ease-out);
+      }
+      .rule-switch:hover {
+        border-color: var(--border-strong);
+        color: var(--text-primary);
+      }
+      .rule-switch:active {
+        transform: scale(0.97);
+      }
+      .rule-switch[aria-pressed="true"] {
+        border-color: var(--accent-border);
+        color: var(--text-primary);
+        background: var(--accent-soft);
+      }
+      .orbit-track {
+        width: 28px;
+        height: 16px;
+        border-radius: 999px;
+        border: 1.5px solid var(--border-strong);
+        background: var(--bg-dark);
+        position: relative;
+        flex-shrink: 0;
+        transition: background var(--dur-in) var(--ease-out), border-color var(--dur-in) var(--ease-out);
+      }
+      .orbit-thumb {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: var(--text-muted);
+        position: absolute;
+        top: 1.5px;
+        left: 2px;
+        transition: transform 200ms var(--ease-out), background 200ms var(--ease-out);
+      }
+      .rule-switch[aria-pressed="true"] .orbit-track {
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+      .rule-switch[aria-pressed="true"] .orbit-thumb {
+        transform: translateX(11px);
+        background: var(--accent-ink);
+      }
+
+      /* Segmented Lens & Slot Selector */
+      .seg-group {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px;
+        height: 36px;
+        background: var(--bg-dark);
+        border: 1px solid var(--border);
+        border-radius: var(--r-control);
+        gap: 2px;
+      }
+      .seg-btn {
+        height: 28px;
+        padding-inline: 10px;
+        border-radius: calc(var(--r-control) - 2px);
+        font-size: 12px;
+        color: var(--text-secondary);
+        display: inline-grid;
+        place-items: center;
+        transition: background var(--dur-in) var(--ease-out), color var(--dur-in) var(--ease-out);
+      }
+      .seg-btn::after {
+        content: attr(data-label);
+        font-weight: 600;
+        height: 0;
+        visibility: hidden;
+        overflow: hidden;
+      }
+      .seg-btn[aria-pressed="true"] {
+        background: var(--bg-light);
+        color: var(--text-primary);
+        font-weight: 600;
+        box-shadow: var(--shadow-sm);
+      }
+
+      /* Sandbox Telemetry Bar */
+      .sandbox-telemetry {
+        padding: 8px 14px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        font-size: 12px;
+        color: var(--text-secondary);
+        background: var(--bg-light);
+      }
+      .telemetry-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 500;
+        color: var(--text-primary);
+      }
+      .telemetry-status.is-conflict {
+        color: var(--sem-alert-ink);
+      }
+
+      /* Sandbox Timetable Grid */
+      .sandbox-grid-wrap {
+        padding: 12px;
+        overflow-x: auto;
+        mask-image: linear-gradient(to right, transparent 0, black 8px, black calc(100% - 8px), transparent 100%);
+      }
+      .mini-grid {
+        width: 100%;
+        min-width: 580px;
+        border-collapse: separate;
+        border-spacing: 5px;
+        table-layout: fixed;
+      }
+      .mini-grid.is-seven {
+        min-width: 672px;
+      }
+      .mini-grid th {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-muted);
+        text-align: start;
+        padding: 4px 6px;
+        white-space: nowrap;
+        line-height: 1.25;
+      }
+      .mini-grid th .th-time {
+        display: block;
+        font-size: 10px;
+        opacity: 0.78;
+      }
+      .mini-grid th.day-col {
+        width: 48px;
+      }
+      .mini-grid td.day-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        padding: 6px;
+        vertical-align: middle;
+      }
+      .mini-slot {
+        height: 58px;
+        border-radius: calc(var(--r-control) - 1px);
+        border: 1px solid var(--border);
+        background: var(--bg);
+        padding: 6px 8px;
+        vertical-align: top;
+        position: relative;
+        transition: border-color var(--dur-in) var(--ease-out);
+      }
+      .mini-slot.is-empty {
+        background: color-mix(in oklab, var(--bg) 55%, transparent);
+        border-style: dashed;
+      }
+      .mini-cell-item {
+        view-transition-class: routine-cell;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 2px;
+        min-inline-size: 0;
+      }
+      .mini-slot.cat-theory {
+        background: var(--sem-theory-bg);
+        border-color: var(--sem-theory-border);
+        color: var(--sem-theory-ink);
+      }
+      .mini-slot.cat-lab {
+        background: var(--sem-lab-bg);
+        border-color: var(--sem-lab-border);
+        color: var(--sem-lab-ink);
+      }
+      .mini-slot.cat-joint {
+        background: var(--sem-joint-bg);
+        border-color: var(--sem-joint-border);
+        color: var(--sem-joint-ink);
+      }
+      .mini-slot.cat-block {
+        background:
+          repeating-linear-gradient(
+            -45deg,
+            transparent,
+            transparent 5px,
+            color-mix(in oklab, var(--sem-alert-border) 28%, transparent) 5px,
+            color-mix(in oklab, var(--sem-alert-border) 28%, transparent) 8px
+          ),
+          var(--sem-alert-bg);
+        border-color: var(--sem-alert-border);
+        color: var(--sem-alert-ink);
+      }
+      .slot-code {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      .slot-meta {
+        font-size: 11px;
+        opacity: 0.88;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .sandbox-footnote {
+        padding: 9px 14px;
+        border-top: 1px solid var(--border);
+        background: var(--bg);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      /* Right Auth Sheet (42% Panel) */
+      .hero-right {
+        position: relative;
+        z-index: 1;
+        padding: 32px;
+        background: var(--bg-light);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 24px;
+        min-inline-size: 0;
+      }
+      .auth-header {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .auth-header h3 {
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.025em;
+        line-height: 1.2;
+      }
+      .auth-header p {
+        font-size: 13px;
+        color: var(--text-secondary);
+        line-height: 1.5;
+      }
+      .auth-form {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .field-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .field-group label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+      .text-input {
+        height: 40px;
+        padding-inline: 12px;
+        border-radius: var(--r-control);
+        border: 1px solid var(--border-strong);
+        background: var(--bg);
+        color: var(--text-primary);
+        font-size: 14px;
+        transition: border-color var(--dur-in) var(--ease-out), background var(--dur-in) var(--ease-out);
+      }
+      .text-input::placeholder {
+        color: var(--text-muted);
+      }
+      .text-input:focus {
+        background: var(--bg-light);
+        border-color: var(--accent);
+      }
+      .auth-feedback {
+        font-size: 12px;
+        padding: 10px 12px;
+        border-radius: var(--r-control);
+        border: 1px solid var(--accent-border);
+        background: var(--accent-soft);
+        color: var(--text-primary);
+        display: none;
+        align-items: center;
+        gap: 8px;
+      }
+      .auth-feedback.is-visible {
+        display: flex;
+        animation: successPulse 260ms var(--ease-out);
+      }
+
+      /* Truthful Android App Companion Strip (No card-in-card nesting; dissolved top hairline) */
+      .companion-strip {
+        padding-top: 18px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      .companion-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--r-control);
+        background: var(--bg);
+        border: 1px solid var(--border);
+        display: grid;
+        place-items: center;
+        color: var(--accent);
+        font-size: 18px;
+        flex-shrink: 0;
+      }
+      .companion-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+      .companion-copy strong {
+        font-size: 13px;
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+
+      /* =======================================================================
+         SPECIMEN 2: ADMIN COMMAND CENTER SHELL & PROACTIVE READINESS
+         Ultra-clean data canvas (Zero background texture!)
+      ======================================================================= */
+      .console-shell {
+        display: grid;
+        grid-template-columns: 236px minmax(0, 1fr);
+        min-height: 520px;
+        background: var(--bg);
+      }
+      .console-sidebar {
+        background: var(--bg-dark);
+        border-inline-end: 1px solid var(--border);
+        padding: 16px 12px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .sidebar-org {
+        padding: 4px 8px 12px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .sidebar-org-text {
+        display: flex;
+        flex-direction: column;
+        min-inline-size: 0;
+      }
+      .sidebar-org-text strong {
+        font-family: var(--font-display);
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .sidebar-org-text span {
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+      .nav-list {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        margin-top: 10px;
+      }
+      .nav-item {
+        height: 36px;
+        padding-inline: 10px;
+        border-radius: var(--r-control);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        color: var(--text-secondary);
+        width: 100%;
+        text-align: start;
+        position: relative;
+        transition: background var(--dur-in) var(--ease-out), color var(--dur-in) var(--ease-out);
+      }
+      .nav-item:hover:not(.is-current) {
+        background: color-mix(in oklab, var(--bg-light) 55%, transparent);
+        color: var(--text-primary);
+      }
+      .nav-item.is-current {
+        background: var(--bg-light);
+        color: var(--text-primary);
+        font-weight: 600;
+        border: 1px solid var(--border);
+        box-shadow: var(--highlight), var(--shadow-sm);
+      }
+      .nav-item.is-current::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 9px;
+        bottom: 9px;
+        width: 3px;
+        border-radius: 0 3px 3px 0;
+        background: var(--accent);
+      }
+      .sidebar-footer {
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding-inline: 6px;
+      }
+      .monogram-box {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--r-control);
+        background: var(--bg-light);
+        border: 1px solid var(--border-strong);
+        display: grid;
+        place-items: center;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-primary);
+        flex-shrink: 0;
+      }
+      .sidebar-user {
+        display: flex;
+        flex-direction: column;
+        min-inline-size: 0;
+        font-size: 12px;
+      }
+      .sidebar-user strong {
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .sidebar-user span {
+        color: var(--text-muted);
+        font-size: 11px;
+      }
+
+      /* Console Main Area */
+      .console-main {
+        display: flex;
+        flex-direction: column;
+        min-inline-size: 0;
+        background: var(--bg);
+      }
+      .console-topbar {
+        height: 54px;
+        padding-inline: 24px;
+        border-bottom: 1px solid var(--border);
+        background: var(--bg-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .console-topbar h3 {
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.025em;
+        line-height: 1.2;
+      }
+      .topbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .engine-pill {
+        height: 36px;
+        padding-inline: 12px;
+        border-radius: var(--r-control);
+        border: 1px solid var(--border);
+        background: var(--bg);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: var(--text-secondary);
+        white-space: nowrap;
+      }
+      .engine-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--sem-lab-ink);
+      }
+
+      .console-body {
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      /* Proactive 2026 Anomaly Callout (No KPI Wallpaper) */
+      .anomaly-strip {
+        padding: 14px 16px;
+        border-radius: var(--r-inner);
+        border: 1px solid var(--sem-alert-border);
+        background: var(--sem-alert-bg);
+        color: var(--sem-alert-ink);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .anomaly-copy {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        min-inline-size: 0;
+        flex: 1;
+      }
+      .anomaly-copy i {
+        font-size: 18px;
+        margin-top: 2px;
+        flex-shrink: 0;
+      }
+      .anomaly-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        font-size: 13px;
+      }
+      .anomaly-text strong {
+        font-weight: 600;
+      }
+
+      /* Dissolved "Walmart Receipt" Container (Single Surface, 1px Dividers, Zero Nested Cards) */
+      .dissolved-panel {
+        background: var(--bg-light);
+        border: 1px solid var(--border);
+        border-radius: var(--r-inner);
+        box-shadow: var(--highlight), var(--shadow-sm);
+        overflow: hidden;
+      }
+      .dissolved-header {
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .dissolved-header h4 {
+        font-family: var(--font-display);
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .dissolved-header span {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      .receipt-row {
+        padding: 13px 18px;
+        display: grid;
+        grid-template-columns: 28px minmax(0, 1fr) 156px 196px;
+        align-items: center;
+        gap: 14px;
+        transition: background var(--dur-in) var(--ease-out);
+      }
+      .receipt-row:not(:last-child) {
+        border-bottom: 1px solid var(--border);
+      }
+      .receipt-row:hover {
+        background: color-mix(in oklab, var(--bg) 65%, transparent);
+      }
+      .stage-num {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-muted);
+      }
+      .stage-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-inline-size: 0;
+      }
+      .stage-info strong {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+      .stage-sub {
+        font-size: 12px;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-inline-size: 0;
+      }
+
+      /* Middle Truncation keeping extension intact in DOM (per single-line-overflow guide) */
+      .filename-mid {
+        display: inline-flex;
+        max-width: 240px;
+        white-space: nowrap;
+        min-inline-size: 0;
+        font-family: var(--font-mono);
+        font-size: 11.5px;
+        color: var(--text-secondary);
+      }
+      .filename-mid > span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .stage-metric {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--text-secondary);
+        text-align: end;
+        white-space: nowrap;
+      }
+      .stage-metric.is-warn {
+        color: var(--sem-alert-ink);
+        font-weight: 500;
+      }
+
+      /* Invisible UI: secondary row actions revealed cleanly on hover / focus-within */
+      .row-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
+        opacity: 0;
+        transform: translateX(4px);
+        transition: opacity var(--dur-in) var(--ease-out), transform var(--dur-in) var(--ease-out);
+      }
+      .receipt-row:hover .row-actions,
+      .receipt-row:focus-within .row-actions {
+        opacity: 1;
+        transform: translateX(0);
+      }
+
+      /* Data-Viz Scales Ledger (Sequential Load + Diverging Faculty Balance) */
+      .scales-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .scale-block {
+        padding: 14px 16px;
+        background: var(--bg-light);
+        border: 1px solid var(--border);
+        border-radius: var(--r-inner);
+        box-shadow: var(--highlight);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .scale-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+      }
+      .scale-head strong {
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .scale-head span {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+      .seq-bar {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 4px;
+        height: 8px;
+      }
+      .seq-bar span {
+        border-radius: 3px;
+      }
+      .balance-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .balance-item {
+        display: grid;
+        grid-template-columns: 96px minmax(0, 1fr) 74px;
+        align-items: center;
+        gap: 10px;
+        font-size: 12px;
+      }
+      .balance-track {
+        height: 6px;
+        border-radius: 999px;
+        background: var(--bg-dark);
+        overflow: hidden;
+        position: relative;
+      }
+      .balance-fill {
+        height: 100%;
+        border-radius: 999px;
+      }
+
+      /* =======================================================================
+         SPECIMEN 3: 2D OPERATIONAL TIMETABLE MATRIX + DOCKED INSPECTOR
+      ======================================================================= */
+      .matrix-toolbar {
+        padding: 12px 16px;
+        background: var(--bg-light);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .filter-left {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        min-inline-size: 0;
+      }
+      .search-box {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+      .search-box i {
+        position: absolute;
+        left: 10px;
+        color: var(--text-muted);
+        font-size: 15px;
+        pointer-events: none;
+      }
+      .search-input {
+        height: 36px;
+        width: 248px;
+        padding-inline: 32px 32px;
+        border-radius: var(--r-control);
+        border: 1px solid var(--border-strong);
+        background: var(--bg);
+        font-size: 13px;
+      }
+      .search-input:focus {
+        background: var(--bg-light);
+        border-color: var(--accent);
+      }
+      .kbd-hint {
+        position: absolute;
+        right: 8px;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        padding: 1px 5px;
+        border-radius: 4px;
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        pointer-events: none;
+      }
+      .filter-pill {
+        height: 36px;
+        padding-inline: 12px;
+        border-radius: var(--r-control);
+        border: 1px solid var(--border);
+        background: var(--bg);
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: background var(--dur-in) var(--ease-out), border-color var(--dur-in) var(--ease-out), transform var(--dur-press) var(--ease-out);
+      }
+      .filter-pill:hover:not([aria-pressed="true"]) {
+        color: var(--text-primary);
+        border-color: var(--border-strong);
+      }
+      .filter-pill:active {
+        transform: scale(0.97);
+      }
+      .filter-pill[aria-pressed="true"] {
+        background: var(--accent-soft);
+        border-color: var(--accent-border);
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+      .filter-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .match-count {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--text-secondary);
+        white-space: nowrap;
+      }
+
+      /* Service Recovery Banner (Hidden until toggled) */
+      .recovery-banner {
+        display: none;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--sem-alert-border);
+        background: var(--sem-alert-bg);
+        color: var(--sem-alert-ink);
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .recovery-banner.is-open {
+        display: flex;
+        animation: errorShake 260ms var(--ease-out);
+      }
+      .recovery-banner.is-recovered {
+        display: flex;
+        background: var(--sem-lab-bg);
+        border-bottom-color: var(--sem-lab-border);
+        color: var(--sem-lab-ink);
+        animation: successPulse 300ms var(--ease-out);
+      }
+
+      /* Master-Detail Operational Matrix + Docked Inspector */
+      .workbench-split {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 332px;
+        min-height: 460px;
+      }
+      .matrix-canvas {
+        padding: 16px;
+        min-inline-size: 0;
+        border-inline-end: 1px solid var(--border);
+        background: var(--bg);
+        overflow-x: auto;
+      }
+      .ops-table {
+        width: 100%;
+        min-width: 684px;
+        border-collapse: separate;
+        border-spacing: 6px;
+        table-layout: fixed;
+      }
+      .ops-table th {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-muted);
+        text-align: start;
+        padding: 4px 6px 6px;
+        white-space: nowrap;
+      }
+      .ops-table th.col-day {
+        width: 48px;
+      }
+      .ops-table th.after-break,
+      .ops-table td.after-break {
+        position: relative;
+      }
+      .ops-table td.day-head {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        padding: 4px;
+        vertical-align: middle;
+      }
+
+      .cell-card {
+        width: 100%;
+        min-height: 68px;
+        padding: 8px 9px;
+        border-radius: var(--r-control);
+        border: 1px solid var(--border);
+        background: var(--bg-light);
+        text-align: start;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 4px;
+        transition: transform var(--dur-press) var(--ease-out), border-color var(--dur-in) var(--ease-out), box-shadow var(--dur-in) var(--ease-out);
+      }
+      .cell-card:hover:not(:disabled) {
+        border-color: var(--border-strong);
+        box-shadow: var(--shadow-sm);
+      }
+      .cell-card:active:not(:disabled) {
+        transform: scale(0.97);
+      }
+      .cell-card.is-selected {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        box-shadow: var(--shadow-sm);
+      }
+      .cell-card.cat-theory {
+        background: var(--sem-theory-bg);
+        border-color: var(--sem-theory-border);
+        color: var(--sem-theory-ink);
+      }
+      .cell-card.cat-lab {
+        background: var(--sem-lab-bg);
+        border-color: var(--sem-lab-border);
+        color: var(--sem-lab-ink);
+      }
+      .cell-card.cat-joint {
+        background: var(--sem-joint-bg);
+        border-color: var(--sem-joint-border);
+        color: var(--sem-joint-ink);
+      }
+      .cell-card.cat-block {
+        background:
+          repeating-linear-gradient(
+            -45deg,
+            transparent,
+            transparent 5px,
+            color-mix(in oklab, var(--sem-alert-border) 28%, transparent) 5px,
+            color-mix(in oklab, var(--sem-alert-border) 28%, transparent) 8px
+          ),
+          var(--sem-alert-bg);
+        border-color: var(--sem-alert-border);
+        color: var(--sem-alert-ink);
+      }
+      .cell-empty {
+        min-height: 68px;
+        border-radius: var(--r-control);
+        border: 1px dashed var(--border);
+        display: grid;
+        place-items: center;
+        color: var(--text-muted);
+        font-size: 11px;
+        opacity: 0.55;
+      }
+      .cell-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 4px;
+        font-family: var(--font-mono);
+        font-size: 11.5px;
+        font-weight: 500;
+        white-space: nowrap;
+      }
+      .cell-mid {
+        font-size: 11.5px;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .cell-bot {
+        display: flex;
+        justify-content: space-between;
+        gap: 6px;
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        opacity: 0.85;
+        white-space: nowrap;
+      }
+      .cell-bot span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* Zero-Match Empty State */
+      .zero-match-box {
+        padding: 44px 20px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        color: var(--text-secondary);
+      }
+      .zero-match-box i {
+        font-size: 28px;
+        color: var(--text-muted);
+      }
+
+      /* Docked Provenance Inspector */
+      .inspector-pane {
+        background: var(--bg-light);
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        min-inline-size: 0;
+      }
+      .inspector-head {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding-bottom: 14px;
+        border-bottom: 1px solid var(--border);
+      }
+      .inspector-tag-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .cat-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 8px;
+        border-radius: var(--r-pill);
+        font-size: 11px;
+        font-weight: 600;
+        border: 1px solid var(--border);
+        background: var(--sem-neutral-bg);
+        color: var(--sem-neutral-ink);
+      }
+      .cat-pill.cat-theory { background: var(--sem-theory-bg); border-color: var(--sem-theory-border); color: var(--sem-theory-ink); }
+      .cat-pill.cat-lab { background: var(--sem-lab-bg); border-color: var(--sem-lab-border); color: var(--sem-lab-ink); }
+      .cat-pill.cat-joint { background: var(--sem-joint-bg); border-color: var(--sem-joint-border); color: var(--sem-joint-ink); }
+      .cat-pill.cat-block { background: var(--sem-alert-bg); border-color: var(--sem-alert-border); color: var(--sem-alert-ink); }
+
+      .inspector-head h4 {
+        font-family: var(--font-display);
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        line-height: 1.25;
+      }
+      .inspector-sub {
+        font-size: 12.5px;
+        color: var(--text-secondary);
+      }
+
+      .kv-list {
+        display: flex;
+        flex-direction: column;
+      }
+      .kv-row {
+        padding-block: 8px;
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        font-size: 12.5px;
+      }
+      .kv-row:not(:last-child) {
+        border-bottom: 1px solid var(--border);
+      }
+      .kv-label {
+        color: var(--text-muted);
+      }
+      .kv-val {
+        color: var(--text-primary);
+        font-weight: 500;
+        text-align: end;
+      }
+
+      /* Checkbox Off = Gray Rule List inside Inspector */
+      .policy-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding-top: 10px;
+        border-top: 1px solid var(--border);
+      }
+      .policy-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+      .policy-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 7px 10px;
+        border-radius: var(--r-control);
+        background: var(--sem-neutral-bg);
+        color: var(--sem-neutral-ink);
+        border: 1px solid var(--border);
+        font-size: 12px;
+      }
+      .policy-row.is-override {
+        background: var(--sem-joint-bg);
+        border-color: var(--sem-joint-border);
+        color: var(--sem-joint-ink);
+        font-weight: 500;
+      }
+      .policy-row.is-hard {
+        background: var(--sem-alert-bg);
+        border-color: var(--sem-alert-border);
+        color: var(--sem-alert-ink);
+        font-weight: 500;
+      }
+      .d5-toggle-btn {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      /* =======================================================================
+         RESPONSIVE ADAPTATION (1024px Laptop + Compact Mobile)
+      ======================================================================= */
+      @media (max-width: 1120px) {
+        .hero-stage {
+          grid-template-columns: minmax(0, 1.38fr) minmax(272px, 0.84fr);
+        }
+        .hero-left,
+        .hero-right {
+          padding: 22px;
+        }
+        .console-shell {
+          grid-template-columns: 204px minmax(0, 1fr);
+        }
+        .receipt-row {
+          grid-template-columns: 26px minmax(0, 1fr) 140px 156px;
+        }
+        .workbench-split {
+          grid-template-columns: minmax(0, 1fr) 288px;
+        }
+        .brand-meta {
+          display: none;
+        }
+        .search-input {
+          width: 214px;
+        }
+      }
+
+      @media (max-width: 920px) {
+        .hero-stage,
+        .console-shell,
+        .workbench-split,
+        .scales-row {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .hero-left,
+        .console-sidebar,
+        .matrix-canvas {
+          border-inline-end: 0;
+          border-bottom: 1px solid var(--border);
+        }
+        .jump-nav {
+          display: none;
+        }
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Sticky Compact Top Switcher -->
+  <header class="lookbook-bar">
+    <div class="lookbook-bar-inner">
+      <div class="brand-cluster">
+        <svg class="orbit-svg" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+          <ellipse cx="18" cy="18" rx="15" ry="7.2" stroke="var(--accent)" stroke-width="2" />
+          <circle cx="18" cy="18" r="5.5" fill="var(--accent)" />
+          <circle cx="30.8" cy="18" r="3" fill="var(--text-primary)" />
+        </svg>
+        <span class="brand-name">UniVerse</span>
+        <span class="brand-meta">React Web v1 Direction Lookbook</span>
+      </div>
+
+      <div class="direction-switcher" role="group" aria-label="Select visual design direction">
+        <button type="button" class="dir-btn" data-dir="folio" data-label="1 · Sylhet Folio" aria-pressed="true">1 · Sylhet Folio</button>
+        <button type="button" class="dir-btn" data-dir="meridian" data-label="2 · Meridian Grid" aria-pressed="false">2 · Meridian Grid</button>
+        <button type="button" class="dir-btn" data-dir="observatory" data-label="3 · Observatory Slate" aria-pressed="false">3 · Observatory Slate</button>
+      </div>
+
+      <nav class="jump-nav" aria-label="Specimen shortcuts">
+        <a class="jump-link" href="#specimen-1">01 Onboarding</a>
+        <a class="jump-link" href="#specimen-2">02 Command Center</a>
+        <a class="jump-link" href="#specimen-3">03 Timetable Matrix</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page-wrap">
+    <!-- Active Direction Meta Ribbon -->
+    <section class="theme-brief-bar" aria-live="polite">
+      <div class="theme-brief-title">
+        <strong id="brief-name">Direction 1: Sylhet Folio</strong>
+        <span id="brief-desc">Warm archival paper (H 82°) · Botanical pine accent · Fraunces + Plus Jakarta Sans + IBM Plex Mono</span>
+      </div>
+      <div class="swatch-row" aria-label="Active neutral and semantic palette tokens">
+        <span class="swatch-item"><span class="swatch-chip" style="background: var(--bg-dark)"></span><code>--bg-dark</code></span>
+        <span class="swatch-item"><span class="swatch-chip" style="background: var(--bg)"></span><code>--bg</code></span>
+        <span class="swatch-item"><span class="swatch-chip" style="background: var(--bg-light)"></span><code>--bg-light</code></span>
+        <span class="swatch-item"><span class="swatch-chip" style="background: var(--accent)"></span><code>--accent</code></span>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         SPECIMEN 1: MARKETABLE WEB ENTRY & INTERACTIVE SANDBOX
+    =================================================================== -->
+    <section id="specimen-1" class="specimen-section">
+      <div class="specimen-head">
+        <h2>Specimen 1: Public Marketable Entry &amp; Interactive Routine Sandbox</h2>
+        <p>Toggle Friday Jummah, R15 grid depth, R7 off-days, or institutional lens to watch the schedule reorganize live</p>
+      </div>
+
+      <div class="specimen-frame">
+        <div class="hero-stage">
+          <!-- Left 58%: Narrative + Star of the Show Interactive Sandbox -->
+          <div class="hero-left">
+            <div class="hero-copy">
+              <div class="hero-institution">
+                <span class="orbit-dot" aria-hidden="true"></span>
+                <span>Leading University · Department of <span class="acronym">CSE</span></span>
+              </div>
+              <h1>Turn course distributions into a <em>conflict-checked</em> weekly routine</h1>
+              <p>UniVerse pairs <span class="acronym">OR</span>-Tools <span class="acronym">CP-SAT</span> with Leading University&rsquo;s 16 committee rules to transform departmental workbooks, faculty off-days, and lab pools into an organized campus timetable.</p>
+            </div>
+
+            <!-- Interactive Centerpiece -->
+            <div class="sandbox-bezel">
+              <div class="sandbox-inner">
+                <div class="sandbox-controls" role="toolbar" aria-label="Interactive routine solver constraints">
+                  <div class="control-group">
+                    <button type="button" id="toggle-jummah" class="rule-switch" aria-pressed="true">
+                      <span class="orbit-track" aria-hidden="true"><span class="orbit-thumb"></span></span>
+                      <span>Friday P4 Jummah</span>
+                    </button>
+
+                    <button type="button" id="toggle-r7" class="rule-switch" aria-pressed="true">
+                      <span class="orbit-track" aria-hidden="true"><span class="orbit-thumb"></span></span>
+                      <span>R7: <span class="mono">EBH</span> Thu&ndash;Fri off</span>
+                    </button>
+
+                    <div class="seg-group" role="group" aria-label="R15 daily period slots">
+                      <button type="button" class="seg-btn" data-slots="6" data-label="6-Slot" aria-pressed="true">6-Slot</button>
+                      <button type="button" class="seg-btn" data-slots="7" data-label="7-Slot" aria-pressed="false">7-Slot</button>
+                    </div>
+                  </div>
+
+                  <div class="seg-group" role="group" aria-label="Timetable view lens">
+                    <button type="button" class="seg-btn" data-lens="section" data-label="Batch 58 B+C" aria-pressed="true">Batch 58 B+C</button>
+                    <button type="button" class="seg-btn" data-lens="faculty" data-label="Faculty EBH" aria-pressed="false">Faculty EBH</button>
+                    <button type="button" class="seg-btn" data-lens="room" data-label="Lab ACL-1" aria-pressed="false">Lab ACL-1</button>
+                  </div>
+                </div>
+
+                <div class="sandbox-telemetry">
+                  <span id="sandbox-status" class="telemetry-status">
+                    <i class="ph ph-check-circle" aria-hidden="true"></i>
+                    <span>0 clashes · 6/6 committee rules satisfied</span>
+                  </span>
+                  <span id="sandbox-metrics" class="mono">Lens: Batch 58 B+C · 6 slots/day · 184 ms</span>
+                </div>
+
+                <div class="sandbox-grid-wrap">
+                  <table class="mini-grid" aria-label="Interactive routine engine preview matrix">
+                    <thead id="sandbox-thead"></thead>
+                    <tbody id="sandbox-tbody"></tbody>
+                  </table>
+                </div>
+
+                <div class="sandbox-footnote">
+                  <span>Illustrative preview using curated Leading University <span class="acronym">CSE</span> fixtures</span>
+                  <span>Published routines depend on departmental approval</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right 42%: High-Conviction Admin Sign-In + Android Companion Note -->
+          <aside class="hero-right" aria-label="Administrator sign in">
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+              <div class="auth-header">
+                <h3>Administrator Console</h3>
+                <p>Sign in with your whitelisted Leading University <span class="acronym">CSE</span> routine committee account to manage baseline rooms, faculty off-days, and solver runs.</p>
+              </div>
+
+              <form id="demo-login-form" class="auth-form" novalidate>
+                <div class="field-group">
+                  <label for="admin-email">Institutional Email</label>
+                  <input id="admin-email" class="text-input" type="email" value="committee.cse@lus.ac.bd" autocomplete="email" />
+                </div>
+                <div class="field-group">
+                  <label for="admin-pass">Password</label>
+                  <input id="admin-pass" class="text-input" type="password" value="••••••••••••" autocomplete="current-password" />
+                </div>
+                <button type="submit" class="btn-primary">
+                  <i class="ph ph-sign-in" aria-hidden="true"></i>
+                  <span>Sign in to Admin Console</span>
+                </button>
+                <div id="auth-feedback" class="auth-feedback" role="status" aria-live="polite">
+                  <i class="ph ph-shield-check" aria-hidden="true"></i>
+                  <span>Lookbook preview only: live sign-in verifies admin role in Supabase Auth (PKCE).</span>
+                </div>
+              </form>
+            </div>
+
+            <div class="companion-strip">
+              <div class="companion-icon" aria-hidden="true">
+                <i class="ph ph-device-mobile"></i>
+              </div>
+              <div class="companion-copy">
+                <strong>Student or Faculty Member?</strong>
+                <span>Web v1 is dedicated to Routine Committee Administrators. Check daily classes, room lookups, and cancellation alerts in the <strong>UniVerse Android App</strong>.</span>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         SPECIMEN 2: ADMIN COMMAND CENTER SHELL & PROACTIVE READINESS
+    =================================================================== -->
+    <section id="specimen-2" class="specimen-section">
+      <div class="specimen-head">
+        <h2>Specimen 2: Admin Command Center &amp; Proactive Readiness</h2>
+        <p>Persistent sidebar, dissolved 4-stage checklist (zero modal tours), live engine status, and hover-revealed row actions</p>
+      </div>
+
+      <div class="specimen-frame">
+        <div class="console-shell">
+          <!-- Left Recessed Navigation Sidebar -->
+          <aside class="console-sidebar" aria-label="Admin navigation">
+            <div>
+              <div class="sidebar-org">
+                <svg class="orbit-svg" viewBox="0 0 36 36" fill="none" aria-hidden="true" style="width: 24px; height: 24px;">
+                  <ellipse cx="18" cy="18" rx="15" ry="7.2" stroke="var(--accent)" stroke-width="2.2" />
+                  <circle cx="18" cy="18" r="5.2" fill="var(--accent)" />
+                  <circle cx="30.8" cy="18" r="2.8" fill="var(--text-primary)" />
+                </svg>
+                <div class="sidebar-org-text">
+                  <strong>UniVerse Admin</strong>
+                  <span>Leading Univ. · <span class="acronym">CSE</span></span>
+                </div>
+              </div>
+
+              <ul class="nav-list">
+                <li><button type="button" class="nav-item is-current"><i class="ph ph-compass" aria-hidden="true"></i><span>Command Center</span></button></li>
+                <li><button type="button" class="nav-item"><i class="ph ph-calendar-blank" aria-hidden="true"></i><span>Routine Operations</span></button></li>
+                <li><button type="button" class="nav-item"><i class="ph ph-table" aria-hidden="true"></i><span>Course Distribution</span></button></li>
+                <li><button type="button" class="nav-item"><i class="ph ph-buildings" aria-hidden="true"></i><span>Room &amp; Lab Pools</span></button></li>
+                <li><button type="button" class="nav-item"><i class="ph ph-users-three" aria-hidden="true"></i><span>Faculty &amp; Off-Days</span></button></li>
+                <li><button type="button" class="nav-item"><i class="ph ph-sliders-horizontal" aria-hidden="true"></i><span>Time Grid &amp; R1&ndash;R16</span></button></li>
+              </ul>
+            </div>
+
+            <div class="sidebar-footer">
+              <div class="monogram-box" aria-hidden="true">KJ</div>
+              <div class="sidebar-user">
+                <strong>KJH · Committee Chair</strong>
+                <span class="mono">Staging · oqwvxpl...</span>
+              </div>
+            </div>
+          </aside>
+
+          <!-- Main Console Workspace (Zero Background Texture) -->
+          <div class="console-main">
+            <div class="console-topbar">
+              <h3>Routine Command Center</h3>
+              <div class="topbar-actions">
+                <div class="engine-pill" title="Render free-tier engine responds to GET / health check; allow warm-up after idle periods">
+                  <span class="engine-dot" aria-hidden="true"></span>
+                  <span>CP-SAT v2.0.0 · <span class="mono">142 ms</span></span>
+                </div>
+                <button type="button" class="btn-primary" style="height: 36px; padding-inline: 16px;">
+                  <i class="ph ph-play" aria-hidden="true"></i>
+                  <span>New Solver Run</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="console-body">
+              <!-- Proactive 2026 Anomaly Cue -->
+              <div class="anomaly-strip" role="alert">
+                <div class="anomaly-copy">
+                  <i class="ph ph-warning-circle" aria-hidden="true"></i>
+                  <div class="anomaly-text">
+                    <strong>Publication guard engaged: production baseline tables are empty</strong>
+                    <span><code>timetable_rooms</code> and <code>timetable_faculty</code> currently hold 0 rows in production. Seed approved pools before calling <code>publish_routine</code>, and review 1 flagged R7 off-day overlap on <span class="mono">EBH</span>.</span>
+                  </div>
+                </div>
+                <button type="button" class="btn-secondary btn-compact">Inspect Baseline</button>
+              </div>
+
+              <!-- Dissolved "Walmart Receipt" 4-Stage Routine Readiness Checklist -->
+              <div class="dissolved-panel">
+                <div class="dissolved-header">
+                  <h4>Routine Readiness Checklist</h4>
+                  <span class="mono">Spring 2026 · 2 of 4 stages ready</span>
+                </div>
+
+                <div class="receipt-row">
+                  <span class="stage-num">01</span>
+                  <div class="stage-info">
+                    <strong>Room &amp; Lab Pools</strong>
+                    <div class="stage-sub"><span><span class="acronym">RAB</span> &amp; <span class="acronym">RKB</span> theory halls, <span class="mono">ACL-1..4</span>, shared <span class="acronym">ECL</span> windows (R10/R14)</span></div>
+                  </div>
+                  <span class="stage-metric is-warn">0 / 30 seeded</span>
+                  <div class="row-actions">
+                    <button type="button" class="btn-secondary btn-compact">Seed Rooms</button>
+                  </div>
+                </div>
+
+                <div class="receipt-row">
+                  <span class="stage-num">02</span>
+                  <div class="stage-info">
+                    <strong>Faculty Roster &amp; Off-Day Bounds</strong>
+                    <div class="stage-sub"><span>Permanent R7 bounds (2&ndash;3 off-days), Adjunct R6 distinct-course bands, <span class="acronym">SUST</span> half-day windows</span></div>
+                  </div>
+                  <span class="stage-metric is-warn">0 / 56 seeded</span>
+                  <div class="row-actions">
+                    <button type="button" class="btn-secondary btn-compact">Review R7</button>
+                  </div>
+                </div>
+
+                <div class="receipt-row">
+                  <span class="stage-num">03</span>
+                  <div class="stage-info">
+                    <strong>Course Distribution &amp; Time Grid</strong>
+                    <div class="stage-sub">
+                      <span class="filename-mid" title="CSE_Course_Distribution_Spring_2026_Final_v4.xlsx"><span>CSE_Course_Distribution_Spring_2026_Final_v4</span>.xlsx</span>
+                      <span class="mono" style="color: var(--text-muted)">SHA 9f4c8a&hellip;e21b</span>
+                    </div>
+                  </div>
+                  <span class="stage-metric">6-slot · Jummah on</span>
+                  <div class="row-actions">
+                    <button type="button" class="btn-secondary btn-compact" id="copy-sha-btn">Copy SHA</button>
+                    <button type="button" class="btn-secondary btn-compact">Inspect Cols A&ndash;L</button>
+                  </div>
+                </div>
+
+                <div class="receipt-row">
+                  <span class="stage-num">04</span>
+                  <div class="stage-info">
+                    <strong>Active Routine &amp; Engine Publication</strong>
+                    <div class="stage-sub"><span>Single-teacher pre-publish guard · Storage archive <code>timetables/</code> · Gates A&ndash;D staged</span></div>
+                  </div>
+                  <span class="stage-metric">v2026.2 · Candidate</span>
+                  <div class="row-actions">
+                    <button type="button" class="btn-secondary btn-compact">Download XLSX</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Data Visualization Scales Discipline (Sequential Load + Diverging Balance) -->
+              <div class="scales-row">
+                <div class="scale-block">
+                  <div class="scale-head">
+                    <strong>Room Utilization Density</strong>
+                    <span class="mono">Sequential · 22% &rarr; 94%</span>
+                  </div>
+                  <div class="seq-bar" aria-label="Sequential load density scale">
+                    <span style="background: var(--viz-seq-1)" title="Low load (0–30%)"></span>
+                    <span style="background: var(--viz-seq-2)" title="Moderate load (31–60%)"></span>
+                    <span style="background: var(--viz-seq-3)" title="High load (61–85%)"></span>
+                    <span style="background: var(--viz-seq-4)" title="Peak load (86–100%)"></span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary);">
+                    <span><span class="mono">ACL-1</span> Peak (<span class="mono">92%</span>)</span>
+                    <span><span class="mono">RAB-302</span> High (<span class="mono">74%</span>)</span>
+                    <span><span class="mono">G1</span> Low (<span class="mono">28%</span>)</span>
+                  </div>
+                </div>
+
+                <div class="scale-block">
+                  <div class="scale-head">
+                    <strong>Faculty Weekly Load Balance</strong>
+                    <span class="mono">Diverging · Under / Balanced / Over</span>
+                  </div>
+                  <div class="balance-list">
+                    <div class="balance-item">
+                      <span class="mono">EBH · Perm.</span>
+                      <div class="balance-track"><div class="balance-fill" style="width: 88%; background: var(--viz-div-high);"></div></div>
+                      <span class="mono" style="text-align: end; color: var(--sem-alert-ink);">+3 cr over</span>
+                    </div>
+                    <div class="balance-item">
+                      <span class="mono">MSR · Perm.</span>
+                      <div class="balance-track"><div class="balance-fill" style="width: 62%; background: var(--viz-div-mid);"></div></div>
+                      <span class="mono" style="text-align: end; color: var(--text-secondary);">Balanced</span>
+                    </div>
+                    <div class="balance-item">
+                      <span class="mono">SPJ · SUST</span>
+                      <div class="balance-track"><div class="balance-fill" style="width: 34%; background: var(--viz-div-low);"></div></div>
+                      <span class="mono" style="text-align: end; color: var(--text-secondary);">Compact</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         SPECIMEN 3: 2D OPERATIONAL TIMETABLE MATRIX + DOCKED INSPECTOR
+    =================================================================== -->
+    <section id="specimen-3" class="specimen-section">
+      <div class="specimen-head">
+        <h2>Specimen 3: 2D Operational Timetable Matrix &amp; Docked Provenance Inspector</h2>
+        <p>Click any cell to inspect Course Distribution provenance, filter live with tabular counts, or preview Service Recovery error handling</p>
+      </div>
+
+      <div class="specimen-frame">
+        <!-- Connected 36px Filter Toolbar -->
+        <div class="matrix-toolbar" role="toolbar" aria-label="Timetable matrix filters">
+          <div class="filter-left">
+            <div class="search-box">
+              <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+              <input id="matrix-search" class="search-input" type="search" placeholder="Search code, faculty, room" aria-label="Filter timetable cells" />
+              <span class="kbd-hint" aria-hidden="true">/</span>
+            </div>
+
+            <button type="button" class="filter-pill" data-cat="all" aria-pressed="true">All</button>
+            <button type="button" class="filter-pill" data-cat="theory" aria-pressed="false"><i class="ph ph-book-open" aria-hidden="true"></i><span>Theory</span></button>
+            <button type="button" class="filter-pill" data-cat="lab" aria-pressed="false"><i class="ph ph-desktop" aria-hidden="true"></i><span>Lab</span></button>
+            <button type="button" class="filter-pill" data-cat="joint" aria-pressed="false"><i class="ph ph-users" aria-hidden="true"></i><span>Joint B+C</span></button>
+            <button type="button" class="filter-pill" data-cat="block" aria-pressed="false"><i class="ph ph-lock-simple" aria-hidden="true"></i><span>Hard Blocks</span></button>
+          </div>
+
+          <div class="filter-right">
+            <span id="matrix-count" class="match-count">Showing 12 of 12 slots</span>
+            <button type="button" id="toggle-error-preview" class="btn-secondary btn-compact">
+              <i class="ph ph-plugs-connected" aria-hidden="true"></i>
+              <span>Test Service Recovery</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Recoverable Error State Preview (Service Recovery Paradox) -->
+        <div id="recovery-banner" class="recovery-banner" role="alert">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <i id="recovery-icon" class="ph ph-warning" aria-hidden="true" style="font-size: 18px;"></i>
+            <span id="recovery-msg"><strong>Solver request timed out after 90s</strong> (Render cold start). Your local selection and rule overrides remain intact.</span>
+          </div>
+          <button type="button" id="retry-recovery-btn" class="btn-secondary btn-compact">
+            <i class="ph ph-arrow-clockwise" aria-hidden="true"></i>
+            <span>Retry Connection</span>
+          </button>
+        </div>
+
+        <!-- Master-Detail Matrix + Docked Right-Hand Inspector -->
+        <div class="workbench-split">
+          <div class="matrix-canvas">
+            <div id="ops-matrix-container"></div>
+          </div>
+
+          <aside id="inspector-pane" class="inspector-pane" aria-label="Selected slot provenance inspector">
+            <!-- Populated dynamically via JS -->
+          </aside>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      // =========================================================================
+      // 1. DIRECTION METADATA & INSTANT ZERO-FLASH THEME SWITCHER
+      // =========================================================================
+      const DIRECTION_META = {
+        folio: {
+          name: "Direction 1: Sylhet Folio",
+          desc: "Warm archival paper (H 82°) · Botanical pine accent · Fraunces + Plus Jakarta Sans + IBM Plex Mono"
+        },
+        meridian: {
+          name: "Direction 2: Meridian Grid",
+          desc: "Cool mineral alabaster (H 245°) · Swiss technical cobalt · Bricolage Grotesque + IBM Plex Sans + IBM Plex Mono"
+        },
+        observatory: {
+          name: "Direction 3: Observatory Slate",
+          desc: "Deep mineral teal-slate (H 218°) · Luminous verdigris · Newsreader + DM Sans + JetBrains Mono"
+        }
+      };
+
+      const htmlEl = document.documentElement;
+      const dirButtons = document.querySelectorAll(".dir-btn");
+      const briefName = document.getElementById("brief-name");
+      const briefDesc = document.getElementById("brief-desc");
+
+      function setTheme(themeKey) {
+        if (!DIRECTION_META[themeKey]) return;
+        htmlEl.classList.add("theme-switching");
+        htmlEl.setAttribute("data-theme", themeKey);
+        dirButtons.forEach(btn => {
+          btn.setAttribute("aria-pressed", String(btn.dataset.dir === themeKey));
+        });
+        briefName.textContent = DIRECTION_META[themeKey].name;
+        briefDesc.textContent = DIRECTION_META[themeKey].desc;
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => htmlEl.classList.remove("theme-switching"));
+        });
+      }
+
+      dirButtons.forEach(btn => {
+        btn.addEventListener("click", () => setTheme(btn.dataset.dir));
+      });
+
+      // =========================================================================
+      // 2. SPECIMEN 1 — INTERACTIVE "STAR OF THE SHOW" ROUTINE ENGINE SANDBOX
+      // =========================================================================
+      const PERIODS_ALL = [
+        { idx: 1, label: "P1", time: "08:50" },
+        { idx: 2, label: "P2", time: "10:05" },
+        { idx: 3, label: "P3", time: "11:20" },
+        { idx: 4, label: "P4", time: "13:10" },
+        { idx: 5, label: "P5", time: "14:25" },
+        { idx: 6, label: "P6", time: "15:40" },
+        { idx: 7, label: "P7 OL", time: "19:00" }
+      ];
+
+      const SANDBOX_DAYS = ["Sun", "Mon", "Tue", "Thu", "Fri"];
+
+      const sandboxState = {
+        jummah: true,
+        r7Enforced: true,
+        slots: 6,
+        lens: "section" // "section" | "faculty" | "room"
+      };
+
+      function computeSandboxCells() {
+        const { jummah, r7Enforced, slots, lens } = sandboxState;
+
+        if (lens === "section") {
+          const items = [
+            { id: "sb-3101-a", day: "Sun", p: 1, code: "CSE-3101", sub: "EBH · RAB-302", cat: "joint", tag: "B+C" },
+            { id: "sb-3102-a", day: "Sun", p: 2, code: "CSE-3102", sub: "MSR · ACL-1", cat: "lab", tag: "Lab" },
+            { id: "sb-3105-a", day: "Mon", p: 1, code: "CSE-3105", sub: "KJH · RAB-304", cat: "theory", tag: "Th" },
+            // R7 EBH Thu-Fri off: when enforced, EBH's second CSE-3101 session moves from Thu P2 -> Mon P2
+            {
+              id: "sb-3101-b",
+              day: r7Enforced ? "Mon" : "Thu",
+              p: 2,
+              code: "CSE-3101",
+              sub: r7Enforced ? "EBH · RAB-302" : "EBH · R7 Conflict",
+              cat: r7Enforced ? "joint" : "block",
+              tag: r7Enforced ? "B+C" : "R7!"
+            },
+            { id: "sb-3201-a", day: "Tue", p: 2, code: "CSE-3201", sub: "SPJ (SUST) · RKB-401", cat: "joint", tag: "B+C" },
+            { id: "sb-3106-a", day: "Tue", p: 3, code: "CSE-3106", sub: "SAB · ACL-2", cat: "lab", tag: "Lab" },
+            { id: "sb-eee-a", day: "Thu", p: 4, code: "EEE-2101", sub: "MRI · ECL-1", cat: "lab", tag: "ECL" },
+            // Friday Jummah P4: when active, CSE-3202 Lab shifts from Fri P4 -> Fri P5 (or P7 OL when 7-slot active)
+            {
+              id: "sb-3202-a",
+              day: "Fri",
+              p: jummah ? (slots === 7 ? 7 : 5) : 4,
+              code: "CSE-3202",
+              sub: slots === 7 && jummah ? "MSR · Online Lab" : "MSR · ACL-1",
+              cat: "lab",
+              tag: slots === 7 && jummah ? "P7" : "Lab"
+            },
+            { id: "sb-3105-b", day: "Fri", p: 2, code: "CSE-3105", sub: "KJH · RAB-304", cat: "theory", tag: "Th" }
+          ];
+          if (jummah) {
+            items.push({ id: "sb-jummah", day: "Fri", p: 4, code: "JUMMAH", sub: "Hard Block · P4", cat: "block", tag: "Lock" });
+          }
+          if (slots === 7) {
+            items.push({ id: "sb-ol-sec", day: "Mon", p: 7, code: "CSE-3201", sub: "SPJ · Online P7", cat: "theory", tag: "OL" });
+          }
+          return items;
+        }
+
+        if (lens === "faculty") {
+          const items = [
+            { id: "sb-3101-a", day: "Sun", p: 1, code: "CSE-3101", sub: "Batch 58 B+C · RAB-302", cat: "joint", tag: "B+C" },
+            { id: "sb-ebh-2", day: "Sun", p: 3, code: "CSE-4101", sub: "Batch 56 A · RAB-306", cat: "theory", tag: "Th" },
+            {
+              id: "sb-3101-b",
+              day: r7Enforced ? "Mon" : "Thu",
+              p: 2,
+              code: "CSE-3101",
+              sub: r7Enforced ? "Batch 58 B+C · RAB-302" : "R7 Off-Day Violation",
+              cat: r7Enforced ? "joint" : "block",
+              tag: r7Enforced ? "B+C" : "R7!"
+            },
+            { id: "sb-ebh-3", day: "Tue", p: 1, code: "CSE-4101", sub: "Batch 56 A · RAB-306", cat: "theory", tag: "Th" },
+            { id: "sb-ebh-4", day: "Tue", p: 4, code: "CSE-4102", sub: "Batch 56 A · ACL-3", cat: "lab", tag: "Lab" }
+          ];
+          if (r7Enforced) {
+            items.push({ id: "sb-r7-thu", day: "Thu", p: 1, code: "OFF-DAY", sub: "EBH · R7 Bound", cat: "block", tag: "R7" });
+          }
+          if (jummah) {
+            items.push({ id: "sb-jummah", day: "Fri", p: 4, code: "JUMMAH", sub: "Hard Block · P4", cat: "block", tag: "Lock" });
+          }
+          if (slots === 7) {
+            items.push({ id: "sb-ol-ebh", day: "Tue", p: 7, code: "CSE-4101", sub: "Makeup · Online", cat: "theory", tag: "OL" });
+          }
+          return items;
+        }
+
+        // lens === "room" (Lab ACL-1)
+        const items = [
+          { id: "sb-3102-a", day: "Sun", p: 2, code: "CSE-3102", sub: "58 B · MSR", cat: "lab", tag: "Lab" },
+          { id: "sb-acl-2", day: "Sun", p: 3, code: "CSE-3102", sub: "58 C · MSR", cat: "lab", tag: "Lab" },
+          { id: "sb-acl-3", day: "Mon", p: 4, code: "CSE-2204", sub: "59 A · SAB", cat: "lab", tag: "Lab" },
+          { id: "sb-acl-4", day: "Tue", p: 2, code: "CSE-1202", sub: "61 B · AFZ", cat: "lab", tag: "Lab" },
+          { id: "sb-acl-5", day: "Thu", p: 2, code: "CSE-2204", sub: "59 B · SAB", cat: "lab", tag: "Lab" },
+          {
+            id: "sb-3202-a",
+            day: "Fri",
+            p: jummah ? (slots === 7 ? 7 : 5) : 4,
+            code: "CSE-3202",
+            sub: "58 C · MSR",
+            cat: "lab",
+            tag: slots === 7 && jummah ? "P7" : "Lab"
+          }
+        ];
+        if (jummah) {
+          items.push({ id: "sb-jummah", day: "Fri", p: 4, code: "JUMMAH", sub: "Campus Block · P4", cat: "block", tag: "Lock" });
+        }
+        return items;
+      }
+
+      const sandboxThead = document.getElementById("sandbox-thead");
+      const sandboxTbody = document.getElementById("sandbox-tbody");
+      const sandboxStatus = document.getElementById("sandbox-status");
+      const sandboxMetrics = document.getElementById("sandbox-metrics");
+
+      function renderSandboxDOM() {
+        const activePeriods = PERIODS_ALL.slice(0, sandboxState.slots);
+        const cells = computeSandboxCells();
+        const cellMap = new Map(cells.map(c => [`${c.day}-${c.p}`, c]));
+
+        const miniTable = sandboxThead.parentElement;
+        miniTable.classList.toggle("is-seven", sandboxState.slots === 7);
+        sandboxThead.innerHTML = `<tr><th class="day-col">Day</th>${activePeriods.map(p => `<th class="mono">${p.label}<span class="th-time">${p.time}</span></th>`).join("")}</tr>`;
+
+        sandboxTbody.innerHTML = SANDBOX_DAYS.map(day => {
+          const tds = activePeriods.map(p => {
+            const item = cellMap.get(`${day}-${p.idx}`);
+            if (!item) {
+              return `<td class="mini-slot is-empty" aria-label="${day} ${p.label} open"></td>`;
+            }
+            const icon = item.cat === "block"
+              ? "ph-lock-simple"
+              : item.cat === "lab"
+              ? "ph-desktop"
+              : item.cat === "joint"
+              ? "ph-users"
+              : "ph-book-open";
+            return `
+              <td class="mini-slot cat-${item.cat}">
+                <div class="mini-cell-item" style="view-transition-name: ${item.id}">
+                  <div class="slot-code">
+                    <span>${item.code}</span>
+                    <i class="ph ${icon}" aria-hidden="true"></i>
+                  </div>
+                  <div class="slot-meta">${item.sub}</div>
+                </div>
+              </td>`;
+          }).join("");
+          return `<tr><td class="day-label">${day}</td>${tds}</tr>`;
+        }).join("");
+
+        const lensLabel = sandboxState.lens === "section"
+          ? "Batch 58 B+C"
+          : sandboxState.lens === "faculty"
+          ? "Faculty EBH"
+          : "Lab ACL-1";
+
+        if (!sandboxState.r7Enforced) {
+          sandboxStatus.className = "telemetry-status is-conflict";
+          sandboxStatus.innerHTML = `<i class="ph ph-warning" aria-hidden="true"></i><span>1 R7 off-day conflict flagged (EBH scheduled on Thursday)</span>`;
+        } else if (!sandboxState.jummah) {
+          sandboxStatus.className = "telemetry-status is-conflict";
+          sandboxStatus.innerHTML = `<i class="ph ph-warning" aria-hidden="true"></i><span>Friday P4 Jummah guard disabled · CSE-3202 overlaps prayer window</span>`;
+        } else {
+          sandboxStatus.className = "telemetry-status";
+          sandboxStatus.innerHTML = `<i class="ph ph-check-circle" aria-hidden="true"></i><span>0 clashes · 6/6 committee rules satisfied</span>`;
+        }
+        sandboxMetrics.textContent = `Lens: ${lensLabel} · ${sandboxState.slots} slots/day · 184 ms`;
+      }
+
+      function updateSandbox(mutator) {
+        const run = () => {
+          mutator();
+          renderSandboxDOM();
+        };
+        const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (document.startViewTransition && !reduced) {
+          document.startViewTransition(run);
+        } else {
+          run();
+        }
+      }
+
+      const btnJummah = document.getElementById("toggle-jummah");
+      const btnR7 = document.getElementById("toggle-r7");
+      const slotBtns = document.querySelectorAll("[data-slots]");
+      const lensBtns = document.querySelectorAll("[data-lens]");
+
+      btnJummah.addEventListener("click", () => {
+        updateSandbox(() => {
+          sandboxState.jummah = !sandboxState.jummah;
+          btnJummah.setAttribute("aria-pressed", String(sandboxState.jummah));
+        });
+      });
+
+      btnR7.addEventListener("click", () => {
+        updateSandbox(() => {
+          sandboxState.r7Enforced = !sandboxState.r7Enforced;
+          btnR7.setAttribute("aria-pressed", String(sandboxState.r7Enforced));
+        });
+      });
+
+      slotBtns.forEach(btn => {
+        btn.addEventListener("click", () => {
+          const val = Number(btn.dataset.slots);
+          if (val === sandboxState.slots) return;
+          updateSandbox(() => {
+            sandboxState.slots = val;
+            slotBtns.forEach(b => b.setAttribute("aria-pressed", String(Number(b.dataset.slots) === val)));
+          });
+        });
+      });
+
+      lensBtns.forEach(btn => {
+        btn.addEventListener("click", () => {
+          const val = btn.dataset.lens;
+          if (val === sandboxState.lens) return;
+          updateSandbox(() => {
+            sandboxState.lens = val;
+            lensBtns.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lens === val)));
+          });
+        });
+      });
+
+      // Demo Login Feedback (Truthful Lookbook Notice)
+      const loginForm = document.getElementById("demo-login-form");
+      const authFeedback = document.getElementById("auth-feedback");
+      loginForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        authFeedback.classList.remove("is-visible");
+        void authFeedback.offsetWidth;
+        authFeedback.classList.add("is-visible");
+      });
+
+      // Specimen 2 Copy SHA tactile confirmation
+      const copyShaBtn = document.getElementById("copy-sha-btn");
+      copyShaBtn.addEventListener("click", () => {
+        const orig = copyShaBtn.textContent;
+        copyShaBtn.textContent = "Copied";
+        setTimeout(() => { copyShaBtn.textContent = orig; }, 1200);
+      });
+
+      // =========================================================================
+      // 3. SPECIMEN 3 — 2D OPERATIONAL TIMETABLE MATRIX + DOCKED INSPECTOR
+      // =========================================================================
+      const OPS_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+      const OPS_PERIODS = PERIODS_ALL.slice(0, 6);
+
+      const OPS_SLOTS = [
+        {
+          id: "ops-1", day: "Sunday", p: 1, code: "CSE-3101", title: "Design & Analysis of Algorithms",
+          cat: "joint", catLabel: "Joint B+C", batch: "Batch 58 B+C", faculty: "EBH",
+          facultyFull: "Assistant Professor · Permanent", room: "RAB-302", building: "Ragib Ali Building",
+          credits: "3.0 cr", sourceRow: "Row 14 · Col A–L",
+          rules: [
+            { label: "R1 Section 2-day weekend", state: "baseline" },
+            { label: "Joint B+C atomic lock", state: "override" },
+            { label: "R7 EBH off-days (Thu–Fri)", state: "baseline" }
+          ]
+        },
+        {
+          id: "ops-2", day: "Sunday", p: 2, code: "CSE-3102", title: "Algorithms Sessional",
+          cat: "lab", catLabel: "Lab", batch: "Batch 58 B", faculty: "MSR",
+          facultyFull: "Lecturer · Permanent", room: "ACL-1", building: "Academic Computer Lab",
+          credits: "1.5 cr", sourceRow: "Row 15 · Col A–L",
+          rules: [
+            { label: "R12 Sessional 2 classes/wk", state: "baseline" },
+            { label: "R14 Active CSE Lab pool", state: "baseline" },
+            { label: "R7 MSR off-days (Fri–Sat)", state: "baseline" }
+          ]
+        },
+        {
+          id: "ops-3", day: "Sunday", p: 4, code: "CSE-3105", title: "Software Engineering",
+          cat: "theory", catLabel: "Theory", batch: "Batch 58 B", faculty: "KJH",
+          facultyFull: "Assistant Prof. & Head · Permanent", room: "RAB-304", building: "Ragib Ali Building",
+          credits: "3.0 cr", sourceRow: "Row 18 · Col A–L",
+          rules: [
+            { label: "R3 Zero 2-slot section gaps", state: "baseline" },
+            { label: "R7 KJH off-days (Fri–Sat)", state: "baseline" }
+          ]
+        },
+        {
+          id: "ops-4", day: "Monday", p: 1, code: "CSE-3201", title: "Computer Networks",
+          cat: "joint", catLabel: "Joint B+C", batch: "Batch 58 B+C", faculty: "SPJ",
+          facultyFull: "Adjunct Lecturer · SUST", room: "RKB-401", building: "Rabeya Khatun Building",
+          credits: "3.0 cr", sourceRow: "Row 22 · Col A–L",
+          rules: [
+            { label: "R9 SUST compact half-day", state: "override" },
+            { label: "R6 Adjunct distinct-course cap", state: "baseline" }
+          ]
+        },
+        {
+          id: "ops-5", day: "Monday", p: 2, code: "CSE-3101", title: "Design & Analysis of Algorithms",
+          cat: "joint", catLabel: "Joint B+C", batch: "Batch 58 B+C", faculty: "EBH",
+          facultyFull: "Assistant Professor · Permanent", room: "RAB-302", building: "Ragib Ali Building",
+          credits: "3.0 cr", sourceRow: "Row 14 · Col A–L",
+          rules: [
+            { label: "Joint B+C atomic lock", state: "override" },
+            { label: "R7 EBH off-days (Thu–Fri)", state: "baseline" }
+          ]
+        },
+        {
+          id: "ops-6", day: "Monday", p: 5, code: "CSE-3106", title: "Software Engineering Lab",
+          cat: "lab", catLabel: "Lab", batch: "Batch 58 B", faculty: "SAB",
+          facultyFull: "Assistant Professor · Permanent", room: "ACL-2", building: "Academic Computer Lab",
+          credits: "1.5 cr", sourceRow: "Row 19 · Col A–L",
+          rules: [
+            { label: "R12 Consecutive same-lab pref.", state: "baseline" },
+            { label: "R7 SAB off-days (Fri–Sat)", state: "baseline" }
+          ]
+        },
+        {
+          id: "ops-7", day: "Tuesday", p: 2, code: "CSE-3202", title: "Computer Networks Lab",
+          cat: "lab", catLabel: "Lab", batch: "Batch 58 C", faculty: "MSR",
+          facultyFull: "Lecturer · Permanent", room: "ACL-1", building: "Academic Computer Lab",
+          credits: "1.5 cr", sourceRow: "Row 23 · Col A–L",
+          rules: [
+            { label: "R12 Sessional 2 classes/wk", state: "baseline" },
+            { label: "R14 Active CSE Lab pool", state: "baseline" }
+          ]
+        },
+        {
+          id: "ops-8", day: "Tuesday", p: 3, code: "CSE-3105", title: "Software Engineering",
+          cat: "theory", catLabel: "Theory", batch: "Batch 58 B", faculty: "KJH",
+          facultyFull: "Assistant Prof. & Head · Permanent", room: "RAB-304", building: "Ragib Ali Building",
+          credits: "3.0 cr", sourceRow: "Row 18 · Col A–L",
+          rules: [
+            { label: "R3 Zero 2-slot section gaps", state: "baseline" },
+            { label: "R15 6-Slot printed grid", state: "baseline" }
+          ]
+        },
+        {
+          id: "ops-9", day: "Wednesday", p: 1, code: "GED-2103", title: "Technical Writing & Ethics",
+          cat: "theory", catLabel: "Theory", batch: "Batch 58 B", faculty: "NSD",
+          facultyFull: "Lecturer · English, LU", room: "RKB-403", building: "Rabeya Khatun Building",
+          credits: "2.0 cr", sourceRow: "Row 29 · Col A–L",
+          rules: [
+            { label: "R13 2-cr theory 2 consecutive", state: "baseline" },
+            { label: "R5 External dept window", state: "override" }
+          ]
+        },
+        {
+          id: "ops-10", day: "Wednesday", p: 2, code: "GED-2103", title: "Technical Writing & Ethics",
+          cat: "theory", catLabel: "Theory", batch: "Batch 58 B", faculty: "NSD",
+          facultyFull: "Lecturer · English, LU", room: "RKB-403", building: "Rabeya Khatun Building",
+          credits: "2.0 cr", sourceRow: "Row 29 · Col A–L",
+          rules: [
+            { label: "R13 Same-room consecutive block", state: "baseline" },
+            { label: "R5 External dept window", state: "override" }
+          ]
+        },
+        {
+          id: "ops-11", day: "Thursday", p: 4, code: "EEE-2101", title: "Digital Logic Lab",
+          cat: "lab", catLabel: "Lab", batch: "Batch 58 B", faculty: "MRI",
+          facultyFull: "Assistant Professor · EEE, LU", room: "ECL-1", building: "Shared EEE Lab",
+          credits: "1.5 cr", sourceRow: "Row 33 · Col A–L",
+          rules: [
+            { label: "R10 Shared ECL lab window", state: "override" },
+            { label: "R3 Zero 2-slot section gaps", state: "baseline" }
+          ]
+        },
+        {
+          id: "ops-12", day: "Friday", p: 4, code: "JUMMAH", title: "Friday Prayer Hard Block",
+          cat: "block", catLabel: "Hard Block", batch: "All Campus Cohorts", faculty: "Policy",
+          facultyFull: "Campus-Wide Constraint", room: "All Rooms", building: "Leading University",
+          credits: "P4 13:10", sourceRow: "config.json · friday_no_p4",
+          rules: [
+            { label: "friday_no_p4 = true (Mandatory)", state: "hard" },
+            { label: "Zero solver relaxation (D6)", state: "hard" }
+          ]
+        }
+      ];
+
+      const opsState = {
+        query: "",
+        cat: "all",
+        selectedId: "ops-1",
+        d5BreakAllowed: false,
+        errorMode: "idle" // "idle" | "error" | "recovered"
+      };
+
+      const opsContainer = document.getElementById("ops-matrix-container");
+      const inspectorPane = document.getElementById("inspector-pane");
+      const matrixCount = document.getElementById("matrix-count");
+      const matrixSearch = document.getElementById("matrix-search");
+      const filterPills = document.querySelectorAll(".filter-pill");
+
+      function getFilteredOpsSlots() {
+        const q = opsState.query.trim().toLowerCase();
+        return OPS_SLOTS.filter(s => {
+          const catOk = opsState.cat === "all" || s.cat === opsState.cat;
+          if (!catOk) return false;
+          if (!q) return true;
+          return (
+            s.code.toLowerCase().includes(q) ||
+            s.title.toLowerCase().includes(q) ||
+            s.faculty.toLowerCase().includes(q) ||
+            s.room.toLowerCase().includes(q) ||
+            s.batch.toLowerCase().includes(q)
+          );
+        });
+      }
+
+      function renderOpsMatrix() {
+        const filtered = getFilteredOpsSlots();
+        matrixCount.textContent = `Showing ${filtered.length} of ${OPS_SLOTS.length} slots`;
+
+        if (filtered.length === 0) {
+          opsContainer.innerHTML = `
+            <div class="zero-match-box">
+              <i class="ph ph-funnel-x" aria-hidden="true"></i>
+              <strong>No timetable slots match &ldquo;${opsState.query.replace(/[<>&"]/g, "")}&rdquo;</strong>
+              <span>Adjust your search terms or reset the active category filter.</span>
+              <button type="button" id="clear-ops-filters" class="btn-secondary btn-compact">Clear filters</button>
+            </div>`;
+          document.getElementById("clear-ops-filters").addEventListener("click", () => {
+            opsState.query = "";
+            opsState.cat = "all";
+            matrixSearch.value = "";
+            filterPills.forEach(p => p.setAttribute("aria-pressed", String(p.dataset.cat === "all")));
+            renderOpsMatrix();
+          });
+          return;
+        }
+
+        const slotMap = new Map(filtered.map(s => [`${s.day}-${s.p}`, s]));
+
+        const headerCells = OPS_PERIODS.map(p =>
+          `<th class="mono ${p.idx === 4 ? "after-break" : ""}">${p.label} · ${p.time}</th>`
+        ).join("");
+
+        const rowsHtml = OPS_DAYS.map(day => {
+          const shortDay = day.slice(0, 3);
+          const tds = OPS_PERIODS.map(p => {
+            const slot = slotMap.get(`${day}-${p.idx}`);
+            if (!slot) {
+              return `<td><div class="cell-empty" aria-label="${day} ${p.label} open">&middot;</div></td>`;
+            }
+            const icon = slot.cat === "block"
+              ? "ph-lock-simple"
+              : slot.cat === "lab"
+              ? "ph-desktop"
+              : slot.cat === "joint"
+              ? "ph-users"
+              : "ph-book-open";
+            const selectedCls = slot.id === opsState.selectedId ? "is-selected" : "";
+            return `
+              <td>
+                <button type="button" class="cell-card cat-${slot.cat} ${selectedCls}" data-slot-id="${slot.id}" aria-pressed="${slot.id === opsState.selectedId}">
+                  <div class="cell-top">
+                    <span>${slot.code}</span>
+                    <i class="ph ${icon}" aria-hidden="true"></i>
+                  </div>
+                  <div class="cell-mid">${slot.batch}</div>
+                  <div class="cell-bot">
+                    <span>${slot.faculty}</span>
+                    <span>${slot.room}</span>
+                  </div>
+                </button>
+              </td>`;
+          }).join("");
+          return `<tr><td class="day-head">${shortDay}</td>${tds}</tr>`;
+        }).join("");
+
+        opsContainer.innerHTML = `
+          <table class="ops-table" aria-label="Operational weekly timetable matrix">
+            <thead><tr><th class="col-day">Day</th>${headerCells}</tr></thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>`;
+
+        opsContainer.querySelectorAll("[data-slot-id]").forEach(btn => {
+          btn.addEventListener("click", () => {
+            opsState.selectedId = btn.dataset.slotId;
+            renderOpsMatrix();
+            renderInspector();
+          });
+        });
+      }
+
+      function renderInspector() {
+        const slot = OPS_SLOTS.find(s => s.id === opsState.selectedId) || OPS_SLOTS[0];
+        const periodInfo = OPS_PERIODS.find(p => p.idx === slot.p);
+
+        const rulesHtml = slot.rules.map(r => {
+          const cls = r.state === "hard" ? "is-hard" : r.state === "override" ? "is-override" : "";
+          const badge = r.state === "hard" ? "Hard Rule" : r.state === "override" ? "Override" : "Baseline";
+          return `<div class="policy-row ${cls}"><span>${r.label}</span><span class="mono">${badge}</span></div>`;
+        }).join("");
+
+        inspectorPane.innerHTML = `
+          <div class="inspector-head">
+            <div class="inspector-tag-row">
+              <span class="cat-pill cat-${slot.cat}">${slot.catLabel}</span>
+              <span class="mono" style="font-size: 11.5px; color: var(--text-muted);">${slot.day} · P${slot.p} (${periodInfo ? periodInfo.time : ""})</span>
+            </div>
+            <h4>${slot.code} · ${slot.title}</h4>
+            <span class="inspector-sub">${slot.batch} · ${slot.credits}</span>
+          </div>
+
+          <div class="kv-list">
+            <div class="kv-row"><span class="kv-label">Faculty</span><span class="kv-val"><span class="mono">${slot.faculty}</span> (${slot.facultyFull})</span></div>
+            <div class="kv-row"><span class="kv-label">Room Pool</span><span class="kv-val"><span class="mono">${slot.room}</span> · ${slot.building}</span></div>
+            <div class="kv-row"><span class="kv-label">Source Ref</span><span class="kv-val mono">${slot.sourceRow}</span></div>
+          </div>
+
+          <div class="policy-section">
+            <div class="policy-title">Committee Policy Trace (Checkbox Off = Gray)</div>
+            ${rulesHtml}
+          </div>
+
+          <div class="policy-section">
+            <div class="policy-title">Decision D5 · Sessional Break Permission</div>
+            <button type="button" id="d5-toggle" class="rule-switch d5-toggle-btn" aria-pressed="${opsState.d5BreakAllowed}">
+              <span>Allow 2-cr lab across break</span>
+              <span class="orbit-track" aria-hidden="true"><span class="orbit-thumb"></span></span>
+            </button>
+            <div class="policy-row ${opsState.d5BreakAllowed ? "is-override" : ""}">
+              <span>D5 Status</span>
+              <span class="mono">${opsState.d5BreakAllowed ? "Explicit Override" : "Off (Baseline)"}</span>
+            </div>
+          </div>`;
+
+        document.getElementById("d5-toggle").addEventListener("click", () => {
+          opsState.d5BreakAllowed = !opsState.d5BreakAllowed;
+          renderInspector();
+        });
+      }
+
+      matrixSearch.addEventListener("input", (e) => {
+        opsState.query = e.target.value;
+        renderOpsMatrix();
+      });
+
+      filterPills.forEach(pill => {
+        pill.addEventListener("click", () => {
+          opsState.cat = pill.dataset.cat;
+          filterPills.forEach(p => p.setAttribute("aria-pressed", String(p === pill)));
+          renderOpsMatrix();
+        });
+      });
+
+      // Keyboard fluency: '/' focuses matrix search, 'Esc' clears search
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "/" && document.activeElement.tagName !== "INPUT") {
+          e.preventDefault();
+          matrixSearch.focus();
+        } else if (e.key === "Escape" && document.activeElement === matrixSearch) {
+          matrixSearch.value = "";
+          opsState.query = "";
+          renderOpsMatrix();
+          matrixSearch.blur();
+        }
+      });
+
+      // Service Recovery Error-State Toggle
+      const toggleErrorBtn = document.getElementById("toggle-error-preview");
+      const recoveryBanner = document.getElementById("recovery-banner");
+      const recoveryIcon = document.getElementById("recovery-icon");
+      const recoveryMsg = document.getElementById("recovery-msg");
+      const retryRecoveryBtn = document.getElementById("retry-recovery-btn");
+
+      toggleErrorBtn.addEventListener("click", () => {
+        if (opsState.errorMode === "error") {
+          opsState.errorMode = "idle";
+          recoveryBanner.className = "recovery-banner";
+          toggleErrorBtn.classList.remove("is-active");
+          return;
+        }
+        opsState.errorMode = "error";
+        recoveryIcon.className = "ph ph-warning";
+        recoveryMsg.innerHTML = `<strong>Solver request timed out after 90s</strong> (Render cold start). Your local selection and D5 override remain intact.`;
+        retryRecoveryBtn.style.display = "inline-flex";
+        recoveryBanner.className = "recovery-banner is-open";
+        toggleErrorBtn.classList.add("is-active");
+      });
+
+      retryRecoveryBtn.addEventListener("click", () => {
+        opsState.errorMode = "recovered";
+        recoveryIcon.className = "ph ph-check-circle";
+        recoveryMsg.innerHTML = `<strong>Reconnected to CP-SAT engine v2.0.0</strong> (138 ms). No draft edits were lost.`;
+        retryRecoveryBtn.style.display = "none";
+        recoveryBanner.className = "recovery-banner is-recovered";
+        setTimeout(() => {
+          if (opsState.errorMode === "recovered") {
+            opsState.errorMode = "idle";
+            recoveryBanner.className = "recovery-banner";
+            toggleErrorBtn.classList.remove("is-active");
+          }
+        }, 2600);
+      });
+
+      // Initial renders
+      renderSandboxDOM();
+      renderOpsMatrix();
+      renderInspector();
+    })();
+  </script>
+</body>
+</html>

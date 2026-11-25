@@ -46,14 +46,17 @@ class GoogleSignInButton extends StatelessWidget {
                   _GoogleLogo(),
                   const SizedBox(width: AppSpacing.md),
                 ],
+                // PHASE 3: Bound provider copy within compact auth panels.
                 if (!isLoading)
-                  Text(
+                  Flexible(
+                      child: Text(
                     label,
+                    textAlign: TextAlign.center,
                     style: AppTextStyles.button.copyWith(
                       color: const Color(0xFF1F1F1F),
                       fontSize: 15,
                     ),
-                  ),
+                  )),
               ],
             ),
           ),
@@ -79,42 +82,57 @@ class _GoogleLogoPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
     final cy = size.height / 2;
-    final r  = size.width / 2;
+    final r = size.width / 2;
 
-
-    final bluePaint   = Paint()..color = const Color(0xFF4285F4);
-    final redPaint    = Paint()..color = const Color(0xFFEA4335);
+    final bluePaint = Paint()..color = const Color(0xFF4285F4);
+    final redPaint = Paint()..color = const Color(0xFFEA4335);
     final yellowPaint = Paint()..color = const Color(0xFFFBBC05);
-    final greenPaint  = Paint()..color = const Color(0xFF34A853);
+    final greenPaint = Paint()..color = const Color(0xFF34A853);
 
     canvas.drawArc(
       Rect.fromCircle(center: Offset(cx, cy), radius: r),
-      -0.52, 1.05, false,
-      bluePaint..style = PaintingStyle.stroke..strokeWidth = size.width * 0.28,
+      -0.52,
+      1.05,
+      false,
+      bluePaint
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = size.width * 0.28,
     );
 
     canvas.drawArc(
       Rect.fromCircle(center: Offset(cx, cy), radius: r),
-      -2.62, 1.05, false,
-      redPaint..style = PaintingStyle.stroke..strokeWidth = size.width * 0.28,
+      -2.62,
+      1.05,
+      false,
+      redPaint
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = size.width * 0.28,
     );
 
     canvas.drawArc(
       Rect.fromCircle(center: Offset(cx, cy), radius: r),
-      2.09, 0.57, false,
-      yellowPaint..style = PaintingStyle.stroke..strokeWidth = size.width * 0.28,
+      2.09,
+      0.57,
+      false,
+      yellowPaint
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = size.width * 0.28,
     );
 
     canvas.drawArc(
       Rect.fromCircle(center: Offset(cx, cy), radius: r),
-      1.57, 0.57, false,
-      greenPaint..style = PaintingStyle.stroke..strokeWidth = size.width * 0.28,
+      1.57,
+      0.57,
+      false,
+      greenPaint
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = size.width * 0.28,
     );
 
     final whitePaint = Paint()..color = Colors.white;
     canvas.drawRect(
-      Rect.fromLTWH(cx - 0.5, cy - size.height * 0.14,
-          r + 1.5, size.height * 0.28),
+      Rect.fromLTWH(
+          cx - 0.5, cy - size.height * 0.14, r + 1.5, size.height * 0.28),
       whitePaint,
     );
   }

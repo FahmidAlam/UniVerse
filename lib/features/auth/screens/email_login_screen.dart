@@ -1,3 +1,4 @@
+import 'package:universe/features/auth/widgets/auth_responsive_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
@@ -81,158 +82,147 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
 
         return Scaffold(
           backgroundColor: AppColors.bgPrimary,
-          appBar: AppBar(
-            backgroundColor: AppColors.bgPrimary,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(PhosphorIconsRegular.arrowLeft),
-              onPressed: () => context.backOr(RouteNames.login),
-            ),
-            title: Text('Sign in', style: AppTextStyles.h2),
-          ),
-          body: SafeArea(
-            child: SingleChildScrollView(
-              padding: AppSpacing.screenPaddingScrollable,
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    AppSpacing.lgGap,
-
-                    Text('Welcome back', style: AppTextStyles.h1),
-                    AppSpacing.smGap,
-                    Text(
-                      'Sign in with your registered email address.',
-                      style: AppTextStyles.bodySm,
-                    ),
-
-                    const SizedBox(height: AppSpacing.x3l),
-
-                    _buildLabel('Email address'),
-                    AppSpacing.smGap,
-                    TextFormField(
-                      controller: _emailCtrl,
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.next,
-                      style: AppTextStyles.input,
-                      autocorrect: false,
-                      decoration: _fieldDecoration(
-                        hint: 'you@university.edu',
-                        icon: PhosphorIconsRegular.envelope,
-                      ),
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) {
-                          return 'Email is required';
-                        }
-                        if (!v.contains('@') || !v.contains('.')) {
-                          return 'Enter a valid email address';
-                        }
-                        return null;
-                      },
-                    ),
-
-                    AppSpacing.lgGap,
-
-                    _buildLabel('Password'),
-                    AppSpacing.smGap,
-                    TextFormField(
-                      controller: _passwordCtrl,
-                      obscureText: _obscurePassword,
-                      textInputAction: TextInputAction.done,
-                      style: AppTextStyles.input,
-                      onFieldSubmitted: (_) => _signIn(),
-                      decoration: _fieldDecoration(
-                        hint: '••••••••',
-                        icon: PhosphorIconsRegular.lock,
-                        suffix: IconButton(
-                          icon: Icon(
-                            _obscurePassword
-                                ? PhosphorIconsRegular.eye
-                                : PhosphorIconsRegular.eyeSlash,
-                            size: AppSpacing.iconMd,
-                            color: AppColors.textMuted,
-                          ),
-                          onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword),
-                        ),
-                      ),
-                      validator: (v) {
-                        if (v == null || v.isEmpty) {
-                          return 'Password is required';
-                        }
-                        return null;
-                      },
-                    ),
-
-                    AppSpacing.smGap,
-
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () =>
-                            context.push(RouteNames.forgotPassword),
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child:
-                            Text('Forgot password?', style: AppTextStyles.link),
-                      ),
-                    ),
-
-                    const SizedBox(height: AppSpacing.x3l),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: AppSpacing.buttonHeight,
-                      child: ElevatedButton(
-                        onPressed: isLoading ? null : _signIn,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          disabledBackgroundColor: AppColors.bgElevated,
-                          shape: const RoundedRectangleBorder(
-                              borderRadius: AppSpacing.radiusMd),
-                          elevation: 0,
-                        ),
-                        child: isLoading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation(
-                                      AppColors.textPrimary),
+          body: // PHASE 3: Adaptive auth presentation preserves existing form and callback ownership.
+              AuthResponsiveShell(
+                  title: 'Sign in',
+                  onBack: () => context.backOr(RouteNames.login),
+                  child: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            AppSpacing.lgGap,
+                            Text('Welcome back', style: AppTextStyles.h1),
+                            AppSpacing.smGap,
+                            Text(
+                              'Sign in with your registered email address.',
+                              style: AppTextStyles.bodySm,
+                            ),
+                            const SizedBox(height: AppSpacing.x3l),
+                            _buildLabel('Email address'),
+                            AppSpacing.smGap,
+                            TextFormField(
+                              controller: _emailCtrl,
+                              keyboardType: TextInputType.emailAddress,
+                              textInputAction: TextInputAction.next,
+                              style: AppTextStyles.input,
+                              autocorrect: false,
+                              decoration: _fieldDecoration(
+                                hint: 'you@university.edu',
+                                icon: PhosphorIconsRegular.envelope,
+                              ),
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) {
+                                  return 'Email is required';
+                                }
+                                if (!v.contains('@') || !v.contains('.')) {
+                                  return 'Enter a valid email address';
+                                }
+                                return null;
+                              },
+                            ),
+                            AppSpacing.lgGap,
+                            _buildLabel('Password'),
+                            AppSpacing.smGap,
+                            TextFormField(
+                              controller: _passwordCtrl,
+                              obscureText: _obscurePassword,
+                              textInputAction: TextInputAction.done,
+                              style: AppTextStyles.input,
+                              onFieldSubmitted: (_) => _signIn(),
+                              decoration: _fieldDecoration(
+                                hint: '••••••••',
+                                icon: PhosphorIconsRegular.lock,
+                                suffix: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? PhosphorIconsRegular.eye
+                                        : PhosphorIconsRegular.eyeSlash,
+                                    size: AppSpacing.iconMd,
+                                    color: AppColors.textMuted,
+                                  ),
+                                  onPressed: () => setState(() =>
+                                      _obscurePassword = !_obscurePassword),
                                 ),
-                              )
-                            : Text('Sign in', style: AppTextStyles.button),
+                              ),
+                              validator: (v) {
+                                if (v == null || v.isEmpty) {
+                                  return 'Password is required';
+                                }
+                                return null;
+                              },
+                            ),
+                            AppSpacing.smGap,
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: () =>
+                                    context.push(RouteNames.forgotPassword),
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: Size.zero,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: Text('Forgot password?',
+                                    style: AppTextStyles.link),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.x3l),
+                            SizedBox(
+                              width: double.infinity,
+                              height: AppSpacing.buttonHeight,
+                              child: ElevatedButton(
+                                onPressed: isLoading ? null : _signIn,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  disabledBackgroundColor: AppColors.bgElevated,
+                                  shape: const RoundedRectangleBorder(
+                                      borderRadius: AppSpacing.radiusMd),
+                                  elevation: 0,
+                                ),
+                                child: isLoading
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation(
+                                              AppColors.textPrimary),
+                                        ),
+                                      )
+                                    : Text('Sign in',
+                                        style: AppTextStyles.button),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.x3l),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text("Don't have an account? ",
+                                    style: AppTextStyles.bodySm),
+                                TextButton(
+                                  onPressed: () =>
+                                      context.push(RouteNames.emailSignup),
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: Size.zero,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text('Sign up',
+                                      style: AppTextStyles.link),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-
-                    const SizedBox(height: AppSpacing.x3l),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text("Don't have an account? ",
-                            style: AppTextStyles.bodySm),
-                        TextButton(
-                          onPressed: () => context.push(RouteNames.emailSignup),
-                          style: TextButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: Text('Sign up', style: AppTextStyles.link),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+                  )),
         );
       },
     );

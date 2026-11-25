@@ -20,18 +20,50 @@ import 'package:universe/features/notifications/services/notification_service.da
 enum RoutineUploadPhase { idle, parsing, ready, publishing, published, error }
 
 class RoutineUploadController extends ChangeNotifier {
-  final TimetableConfigService _configService = TimetableConfigService();
-  final TimetableEngineService _engineService = TimetableEngineService();
-  final RoutineWorkbookParser _parser = RoutineWorkbookParser();
+  final TimetableConfigService _configService;
+  final TimetableEngineService _engineService;
+  final RoutineWorkbookParser _parser;
 
   Uint8List? _fileBytes;
   String? _fileName;
-  RoutineUploadPhase _phase = RoutineUploadPhase.idle;
+  RoutineUploadPhase _phase;
   RoutineWorkbookParseResult? _result;
   String? _errorMessage;
   int? _publishedCount;
   String? _semesterLabel;
   String? _workbookPath;
+  bool _storageUploaded = false;
+  bool _routinePublished = false;
+  bool _historyRecorded = false;
+  String? _secondaryWarning;
+
+  // PHASE 5: Optional DI seams and 3-step publication tracking for Service Recovery Paradox.
+  RoutineUploadController({
+    TimetableConfigService? configService,
+    TimetableEngineService? engineService,
+    RoutineWorkbookParser? parser,
+    RoutineUploadPhase initialPhase = RoutineUploadPhase.idle,
+    RoutineWorkbookParseResult? initialResult,
+    String? initialFileName,
+    int? initialPublishedCount,
+    String? initialSecondaryWarning,
+  })  : _configService = configService ?? TimetableConfigService(),
+        _engineService = engineService ?? TimetableEngineService(),
+        _parser = parser ?? RoutineWorkbookParser(),
+        _phase = initialPhase,
+        _result = initialResult,
+        _fileName = initialFileName,
+        _publishedCount = initialPublishedCount,
+        _secondaryWarning = initialSecondaryWarning {
+    if (initialFileName != null) {
+      _fileBytes = Uint8List.fromList(const [0]);
+    }
+    if (initialPhase == RoutineUploadPhase.published) {
+      _storageUploaded = true;
+      _routinePublished = true;
+      _historyRecorded = initialSecondaryWarning == null;
+    }
+  }
 
   String? get fileName => _fileName;
   bool get hasFile => _fileBytes != null;
@@ -39,6 +71,10 @@ class RoutineUploadController extends ChangeNotifier {
   RoutineWorkbookParseResult? get result => _result;
   String? get errorMessage => _errorMessage;
   int? get publishedCount => _publishedCount;
+  bool get storageUploaded => _storageUploaded;
+  bool get routinePublished => _routinePublished;
+  bool get historyRecorded => _historyRecorded;
+  String? get secondaryWarning => _secondaryWarning;
   bool get isBusy =>
       _phase == RoutineUploadPhase.parsing ||
       _phase == RoutineUploadPhase.publishing;
@@ -120,6 +156,10 @@ class RoutineUploadController extends ChangeNotifier {
 
     _phase = RoutineUploadPhase.publishing;
     _errorMessage = null;
+    _secondaryWarning = null;
+    _storageUploaded = false;
+    _routinePublished = false;
+    _historyRecorded = false;
     notifyListeners();
 
     try {
@@ -127,6 +167,9 @@ class RoutineUploadController extends ChangeNotifier {
         bytes,
         _semesterLabel ?? _fileName,
       );
+      _storageUploaded = true;
+      notifyListeners();
+
       // Replaces the whole routine in one transaction — the previous one is
       // cleared entirely, not just the batches this workbook happens to carry.
       final published = await _engineService.publishToRoutines(
@@ -138,14 +181,25 @@ class RoutineUploadController extends ChangeNotifier {
         notes: _fileName,
       );
       _publishedCount = published.rowCount;
-      await _engineService.recordRun(
-        semesterLabel: _semesterLabel,
-        filePath: _workbookPath,
-        stats: parsed.stats,
-        validation: parsed.validation,
-        rowCount: published.rowCount,
-        status: 'published',
-      );
+      _routinePublished = true;
+      notifyListeners();
+
+      // PHASE 5: Service Recovery Paradox — if secondary run-history or broadcast write
+      // fails after atomic publication succeeds, keep phase as published and surface a calm warning.
+      try {
+        await _engineService.recordRun(
+          semesterLabel: _semesterLabel,
+          filePath: _workbookPath,
+          stats: parsed.stats,
+          validation: parsed.validation,
+          rowCount: published.rowCount,
+          status: 'published',
+        );
+        _historyRecorded = true;
+      } catch (secondaryErr) {
+        _secondaryWarning =
+            'Routine is live (${published.rowCount} slots), but run-history log could not be recorded (${_clean(secondaryErr)}).';
+      }
 
       try {
         await NotificationService().createBroadcast(
@@ -175,6 +229,10 @@ class RoutineUploadController extends ChangeNotifier {
     _errorMessage = null;
     _publishedCount = null;
     _workbookPath = null;
+    _storageUploaded = false;
+    _routinePublished = false;
+    _historyRecorded = false;
+    _secondaryWarning = null;
     notifyListeners();
   }
 

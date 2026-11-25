@@ -1,3 +1,4 @@
+import 'package:universe/features/auth/widgets/auth_responsive_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/router/route_names.dart';
@@ -16,7 +17,7 @@ class ForgotPasswordScreen extends StatefulWidget {
 }
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
-  final _formKey   = GlobalKey<FormState>();
+  final _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
 
   bool _emailSent = false;
@@ -46,7 +47,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (success) {
       setState(() {
         _emailSent = true;
-        _cooldown  = 60;
+        _cooldown = 60;
       });
       _startCooldown();
     } else {
@@ -91,23 +92,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
         return Scaffold(
           backgroundColor: AppColors.bgPrimary,
-          appBar: AppBar(
-            backgroundColor: AppColors.bgPrimary,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(PhosphorIconsRegular.arrowLeft),
-              onPressed: () => context.backOr(RouteNames.emailLogin),
-            ),
-            title: Text('Reset password', style: AppTextStyles.h2),
-          ),
-          body: SafeArea(
-            child: Padding(
-              padding: AppSpacing.screenPadding,
-              child: _emailSent
-                  ? _buildSuccessState()
-                  : _buildFormState(isLoading),
-            ),
-          ),
+          body: // PHASE 3: Adaptive auth presentation preserves existing form and callback ownership.
+              AuthResponsiveShell(
+                  title: 'Reset password',
+                  onBack: () => context.backOr(RouteNames.emailLogin),
+                  child: SafeArea(
+                    child: Padding(
+                      padding: EdgeInsets.zero,
+                      child: _emailSent
+                          ? _buildSuccessState()
+                          : _buildFormState(isLoading),
+                    ),
+                  )),
         );
       },
     );
@@ -119,8 +115,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Spacer(flex: 2),
-
+          const SizedBox(height: AppSpacing.xxl),
           Container(
             width: 72,
             height: 72,
@@ -137,21 +132,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               size: 32,
             ),
           ),
-
           const SizedBox(height: AppSpacing.x3l),
-
           Text('Forgot your password?', style: AppTextStyles.h1),
-
           AppSpacing.lgGap,
-
           Text(
             'Enter your registered email address and we\'ll send '
             'you a link to reset your password.',
             style: AppTextStyles.bodySm,
           ),
-
           const SizedBox(height: AppSpacing.x3l),
-
           Text('Email address', style: AppTextStyles.label),
           AppSpacing.smGap,
           TextFormField(
@@ -205,9 +194,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               return null;
             },
           ),
-
-          const Spacer(flex: 3),
-
+          const SizedBox(height: AppSpacing.xxl),
           SizedBox(
             width: double.infinity,
             height: AppSpacing.buttonHeight,
@@ -234,9 +221,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   : Text('Send reset link', style: AppTextStyles.button),
             ),
           ),
-
           AppSpacing.lgGap,
-
           Center(
             child: TextButton(
               onPressed: () => context.backOr(RouteNames.emailLogin),
@@ -255,7 +240,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               ),
             ),
           ),
-
           AppSpacing.lgGap,
         ],
       ),
@@ -265,8 +249,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget _buildSuccessState() {
     return Column(
       children: [
-        const Spacer(flex: 2),
-
+        const SizedBox(height: AppSpacing.xxl),
         Container(
           width: 96,
           height: 96,
@@ -283,25 +266,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             size: 44,
           ),
         ),
-
         const SizedBox(height: AppSpacing.x3l),
-
         Text(
           'Check your inbox',
           style: AppTextStyles.h1,
           textAlign: TextAlign.center,
         ),
-
         AppSpacing.lgGap,
-
         Text(
           'We sent a password reset link to',
           style: AppTextStyles.bodySm,
           textAlign: TextAlign.center,
         ),
-
         AppSpacing.smGap,
-
         Container(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
@@ -330,18 +307,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ],
           ),
         ),
-
         AppSpacing.lgGap,
-
         Text(
           'Click the link in that email to set a new password. '
           'The link expires in 1 hour.',
           style: AppTextStyles.bodySm,
           textAlign: TextAlign.center,
         ),
-
-        const Spacer(flex: 2),
-
+        const SizedBox(height: AppSpacing.xxl),
         SizedBox(
           width: double.infinity,
           height: AppSpacing.buttonHeight,
@@ -355,20 +328,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               ),
             ),
             child: Text(
-              _cooldown > 0
-                  ? 'Resend in ${_cooldown}s'
-                  : 'Resend reset email',
+              _cooldown > 0 ? 'Resend in ${_cooldown}s' : 'Resend reset email',
               style: AppTextStyles.button.copyWith(
-                color: _cooldown > 0
-                    ? AppColors.textMuted
-                    : AppColors.textPrimary,
+                color:
+                    _cooldown > 0 ? AppColors.textMuted : AppColors.textPrimary,
               ),
             ),
           ),
         ),
-
         AppSpacing.lgGap,
-
         SizedBox(
           width: double.infinity,
           height: AppSpacing.buttonHeight,
@@ -384,7 +352,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             child: Text('Back to sign in', style: AppTextStyles.button),
           ),
         ),
-
         AppSpacing.lgGap,
       ],
     );

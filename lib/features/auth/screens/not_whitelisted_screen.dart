@@ -1,3 +1,6 @@
+import 'package:universe/features/auth/widgets/orbit_status.dart';
+import 'package:universe/shared/widgets/u_card.dart';
+import 'package:universe/features/auth/widgets/auth_responsive_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
@@ -19,14 +22,15 @@ class NotWhitelistedScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
-      body: SafeArea(
-        child: Padding(
-          padding: AppSpacing.screenPadding,
+      body: // PHASE 3: Adaptive auth presentation preserves existing form and callback ownership.
+          AuthResponsiveShell(
+              child: SafeArea(
+        child: UCard(
+          isTopLit: true,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Spacer(),
-
+              const SizedBox(height: AppSpacing.xxl),
               Container(
                 width: 88,
                 height: 88,
@@ -37,19 +41,14 @@ class NotWhitelistedScreen extends StatelessWidget {
                     color: AppColors.error.withValues(alpha: 0.3),
                   ),
                 ),
-                child: const Icon(
-                  PhosphorIconsRegular.lockSimple,
-                  color: AppColors.error,
-                  size: 40,
-                ),
+                child: const OrbitStatus(
+                    color: AppColors.error,
+                    child: Icon(PhosphorIconsRegular.lockSimple,
+                        color: AppColors.error, size: 40)),
               ),
-
               const SizedBox(height: AppSpacing.x3l),
-
               Text('Access Required', style: AppTextStyles.h2),
-
               AppSpacing.lgGap,
-
               Text(
                 'This account has not been added as a teacher or admin.',
                 style: AppTextStyles.body.copyWith(
@@ -57,9 +56,7 @@ class NotWhitelistedScreen extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-
               AppSpacing.smGap,
-
               if (email.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -78,18 +75,14 @@ class NotWhitelistedScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-
               AppSpacing.lgGap,
-
               Text(
                 'Teacher and admin accounts are added by your department '
                 'admin. Ask them to add this email, then sign in again.',
                 style: AppTextStyles.bodySm,
                 textAlign: TextAlign.center,
               ),
-
-              const Spacer(),
-
+              const SizedBox(height: AppSpacing.xxl),
               SizedBox(
                 width: double.infinity,
                 height: AppSpacing.buttonHeight,
@@ -114,12 +107,11 @@ class NotWhitelistedScreen extends StatelessWidget {
                   ),
                 ),
               ),
-
               AppSpacing.lgGap,
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 }

@@ -17,6 +17,7 @@ class NoDatabase extends TimetableConfigService {
 
 class Engine extends TimetableEngineService {
   Map<String, dynamic>? received;
+  Map<String, dynamic>? receivedSourceContract;
   bool valid = true;
   final download = Completer<Uint8List>();
   int uploads = 0;
@@ -33,8 +34,10 @@ class Engine extends TimetableEngineService {
       {required Uint8List fileBytes,
       required String filename,
       Map<String, dynamic>? config,
+      Map<String, dynamic>? sourceContract,
       double timeLimitS = 60}) async {
     received = config;
+    receivedSourceContract = sourceContract;
     return 'job';
   }
 
@@ -159,6 +162,59 @@ void main() {
     await c.generate();
     expect(c.phase, GenPhase.done);
     expect(e.pollAttempts, 3);
+    c.dispose();
+  });
+
+  test('controller selects accepted revision and forwards source contract to engine', () async {
+    final e = Engine();
+    final c = TimetableGenController(service: e, configService: FakeConfig(), pollInterval: Duration.zero);
+    final revision = PersistedDistributionRevision.fromMap({
+      'source_id': '10000000-0000-4000-8000-000000000001',
+      'revision_id': '20000000-0000-4000-8000-000000000001',
+      'revision_number': 1,
+      'revision_version': 2,
+      'status': 'accepted',
+      'source_sha256': 'a' * 64,
+      'source_bytes_base64': base64Encode([10, 20, 30]),
+      'corrections': <Map<String, dynamic>>[],
+    });
+
+    c.selectAcceptedRevision(revision);
+    expect(c.hasAcceptedRevision, isTrue);
+    expect(c.hasFile, isTrue);
+    expect(c.fileName, 'course_distribution_20000000-0000-4000-8000-000000000001.xlsx');
+    expect(c.sourceContract?['revision_id'], '20000000-0000-4000-8000-000000000001');
+
+    await c.generate();
+    expect(c.phase, GenPhase.done);
+    expect(e.receivedSourceContract, equals(revision.sourceContract));
+
+    c.clearAcceptedRevision();
+    expect(c.hasAcceptedRevision, isFalse);
+    expect(c.hasFile, isFalse);
+    c.dispose();
+  });
+
+  test('controller resets acceptedRevision when raw workbook is selected', () {
+    final e = Engine();
+    final c = TimetableGenController(service: e, configService: FakeConfig(), pollInterval: Duration.zero);
+    final revision = PersistedDistributionRevision.fromMap({
+      'source_id': '10000000-0000-4000-8000-000000000001',
+      'revision_id': '20000000-0000-4000-8000-000000000001',
+      'revision_number': 1,
+      'revision_version': 1,
+      'status': 'accepted',
+      'source_sha256': 'b' * 64,
+      'source_bytes_base64': base64Encode([1, 2]),
+      'corrections': <Map<String, dynamic>>[],
+    });
+
+    c.selectAcceptedRevision(revision);
+    expect(c.hasAcceptedRevision, isTrue);
+
+    c.selectDistribution(Uint8List.fromList([3, 4]), 'uploaded.xlsx');
+    expect(c.hasAcceptedRevision, isFalse);
+    expect(c.fileName, 'uploaded.xlsx');
     c.dispose();
   });
 

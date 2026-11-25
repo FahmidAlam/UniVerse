@@ -6,6 +6,7 @@ abstract class RouteNames {
   static const String emailSignup = '/signup/email';
   static const String verifyEmail = '/verify-email';
   static const String forgotPassword = '/forgot-password';
+  static const String authError = '/auth-error';
   static const String resetPassword = '/reset-password';
   static const String roleSelection = '/role-selection';
   static const String studentRegister = '/register/student';
@@ -31,6 +32,8 @@ abstract class RouteNames {
 
   static const String adminDashboard = '/admin/dashboard';
   static const String routineManagement = '/admin/routine';
+  static const String schedulingWorkspace = '/admin/scheduling';
+  static const String schedulingWorkspacePreview = '/preview/scheduling';
   static const String campusBroadcast = '/admin/broadcast';
   static const String adminRegistration = '/admin/registration';
   static const String manageUsers = '/admin/users';
@@ -38,10 +41,34 @@ abstract class RouteNames {
   static const String resourceLibrary = '/admin/resources/library';
   static const String broadcastHistory = '/admin/broadcast/history';
 
+  static const String manageCourses = '/admin/timetable/courses';
+  static const String manageBatches = '/admin/timetable/batches';
   static const String manageRooms = '/admin/timetable/rooms';
   static const String manageFaculty = '/admin/timetable/faculty';
   static const String manageCourseEligibility =
       '/admin/timetable/course-eligibility';
   static const String timetableSettings = '/admin/timetable/settings';
   static const String timetableGrid = '/admin/timetable/grid';
+  // PHASE 1: URI encoding preserves identifiers containing spaces, ampersands or slashes.
+  static String roomDetailLocation(String room) =>
+      Uri(path: roomDetail, queryParameters: {'room': room}).toString();
+  static String teacherDetailLocation(
+          {required String code,
+          required String name,
+          String dept = '',
+          String desig = ''}) =>
+      Uri(path: teacherDetail, queryParameters: {
+        'code': code,
+        'name': name,
+        'dept': dept,
+        'desig': desig
+      }).toString();
+
+  // The routine screen and sidebar share the same query/default contract.
+  static String routineTab(Uri uri) => switch (uri.queryParameters['tab']?.trim().toLowerCase()) {
+        'grid' => 'grid',
+        'generate' => 'generate',
+        'upload' => 'upload',
+        _ => 'manage',
+      };
 }

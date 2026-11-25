@@ -1,9 +1,10 @@
-import 'dart:async' show unawaited;
+import 'dart:async' show Timer, unawaited;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
+import 'package:supabase_flutter/supabase_flutter.dart'
+    show AuthException, AuthChangeEvent;
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/services/push_service.dart';
 import 'package:universe/features/auth/services/auth_service.dart';
@@ -17,11 +18,156 @@ enum AuthStatus {
   notWhitelisted,
   awaitingVerification,
   error,
+  profileError,
+  passwordRecovery,
 }
 
 class AuthController extends ChangeNotifier {
-  AuthController({AuthService? authService})
-      : _authService = authService ?? AuthService();
+  AuthController({
+    AuthService? authService,
+    this.initializationDelay = const Duration(milliseconds: 1800),
+    this.recoveryTimeout = const Duration(minutes: 10),
+  }) : _authService = authService ?? AuthService();
+
+  final Duration initializationDelay;
+  final Duration recoveryTimeout;
+  int _stateEpoch = 0;
+  bool _disposed = false;
+  Timer? _recoveryTimer;
+  String? _recoveryUserId;
+  bool _recoveryCompleted = false;
+  bool _updatingRecovery = false;
+  bool _resolvingInvitation = false;
+
+  /// Called only with events emitted by the authenticated Supabase client.
+  /// A route or URL flag alone never establishes recovery permission.
+  void handleAuthEvent(AuthChangeEvent event, String? sessionUserId) {
+    if (event == AuthChangeEvent.passwordRecovery) {
+      if (sessionUserId == null ||
+          sessionUserId != _authService.currentUser?.id) {
+        return;
+      }
+      _stateEpoch++;
+      _resolvingInvitation = false;
+      _recoveryTimer?.cancel();
+      _recoveryUserId = sessionUserId;
+      _recoveryCompleted = false;
+      _updatingRecovery = false;
+      _errorMessage = null;
+      _isLoading = false;
+      _status = AuthStatus.passwordRecovery;
+      _recoveryTimer = Timer(recoveryTimeout, () {
+        unawaited(signOut().catchError((Object _) {}));
+      });
+      notifyListeners();
+    } else if (event == AuthChangeEvent.signedOut ||
+        (_resolvingInvitation && event == AuthChangeEvent.signedIn) ||
+        (_recoveryUserId != null &&
+            sessionUserId != null &&
+            sessionUserId != _recoveryUserId)) {
+      _stateEpoch++;
+      _resolvingInvitation = false;
+      _clearRecovery();
+      _profile = null;
+      _pendingEmail = null;
+      clearPendingData();
+      _status = AuthStatus.unauthenticated;
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  int beginInvitationCallback() {
+    _stateEpoch++;
+    _clearRecovery();
+    _resolvingInvitation = true;
+    _profile = null;
+    _errorMessage = null;
+    _isLoading = true;
+    _status = AuthStatus.loading;
+    notifyListeners();
+    return _stateEpoch;
+  }
+
+  bool completeInvitationCallback(int epoch, String userId) {
+    if (epoch != _stateEpoch ||
+        !_resolvingInvitation ||
+        userId != _authService.currentUser?.id) {
+      return false;
+    }
+    handleAuthEvent(AuthChangeEvent.passwordRecovery, userId);
+    return _status == AuthStatus.passwordRecovery;
+  }
+
+  void reportCallbackFailure({int? epoch}) {
+    if (epoch != null && epoch != _stateEpoch) return;
+    _resolvingInvitation = false;
+    _stateEpoch++;
+    _clearRecovery();
+    _profile = null;
+    _isLoading = false;
+    _errorMessage =
+        'The invitation link could not be verified. Request a new invitation or sign out and retry.';
+    _status = AuthStatus.profileError;
+    notifyListeners();
+  }
+
+  void _clearRecovery() {
+    _recoveryTimer?.cancel();
+    _recoveryTimer = null;
+    _recoveryUserId = null;
+    _recoveryCompleted = false;
+    _updatingRecovery = false;
+  }
+
+  Future<AuthResult> updateRecoveryPassword(String password) async {
+    final epoch = _stateEpoch;
+    if (_status != AuthStatus.passwordRecovery ||
+        _recoveryCompleted ||
+        _updatingRecovery ||
+        _recoveryUserId == null ||
+        _recoveryUserId != _authService.currentUser?.id) {
+      return AuthResult.failure(
+          'Recovery session is missing or expired. Request a new reset email.');
+    }
+    _updatingRecovery = true;
+    final AuthResult result;
+    try {
+      result = await _authService.updatePassword(password);
+    } catch (_) {
+      if (epoch != _stateEpoch) {
+        return AuthResult.failure(
+            'Recovery session expired. Request a new reset email.');
+      }
+      _updatingRecovery = false;
+      _errorMessage = 'Password update failed. Please try again.';
+      notifyListeners();
+      return AuthResult.failure(_errorMessage!);
+    }
+    if (epoch != _stateEpoch ||
+        _recoveryUserId != _authService.currentUser?.id) {
+      return AuthResult.failure(
+          'Recovery session expired. Request a new reset email.');
+    }
+    _updatingRecovery = false;
+    _recoveryCompleted = result.success;
+    _errorMessage = result.errorMessage;
+    notifyListeners();
+    return result;
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _stateEpoch++;
+    _clearRecovery();
+    super.dispose();
+  }
 
   final AuthService _authService;
 
@@ -35,6 +181,7 @@ class AuthController extends ChangeNotifier {
   Map<String, dynamic>? _pendingStudentData;
   Map<String, dynamic>? _pendingFacultyData;
 
+  int get operationEpoch => _stateEpoch;
   AuthStatus get status => _status;
   Map<String, dynamic>? get profile => _profile;
   String? get errorMessage => _errorMessage;
@@ -84,43 +231,67 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> initialize() async {
+    if (_status == AuthStatus.passwordRecovery || _resolvingInvitation) return;
+    final epoch = ++_stateEpoch;
     _setLoading(true);
-    await Future.delayed(const Duration(milliseconds: 1800));
-
-    if (_authService.isLoggedIn) {
-      final user = _authService.currentUser!;
-
-      if (user.emailConfirmedAt == null &&
-          user.appMetadata['provider'] == 'email') {
-        _pendingEmail = user.email;
-        _status = AuthStatus.awaitingVerification;
-        _setLoading(false);
+    _clearError();
+    await Future<void>.delayed(initializationDelay);
+    if (epoch != _stateEpoch) return;
+    final user = _authService.currentUser;
+    if (user == null) {
+      _status = AuthStatus.unauthenticated;
+      _setLoading(false);
+      return;
+    }
+    if (user.emailConfirmedAt == null &&
+        user.appMetadata['provider'] == 'email') {
+      _pendingEmail = user.email;
+      _status = AuthStatus.awaitingVerification;
+      _setLoading(false);
+      return;
+    }
+    try {
+      final profile = await _authService.fetchProfile(user.id);
+      if (epoch != _stateEpoch || user.id != _authService.currentUser?.id) {
         return;
       }
-
-      try {
-        final profile = await _authService.fetchProfile(user.id);
-        if (profile != null) {
-          _profile = profile;
-          _status = AuthStatus.authenticated;
-          _registerPushToken(user.id);
-        } else {
-          _status = AuthStatus.registering;
+      if (profile != null) {
+        _profile = profile;
+        _status = AuthStatus.authenticated;
+        _registerPushToken(user.id);
+      } else {
+        final result = await _authService.handlePostLogin();
+        if (epoch != _stateEpoch || user.id != _authService.currentUser?.id) {
+          return;
         }
-      } catch (e) {
-        _status = AuthStatus.unauthenticated;
-        // Don't set error message, just treat as logged out so they can retry
+        if (result.success) {
+          _profile = result.profile;
+          _status = result.profile == null
+              ? AuthStatus.registering
+              : AuthStatus.authenticated;
+          if (result.profile != null) _registerPushToken(user.id);
+        } else if (result.errorMessage == 'not_whitelisted') {
+          _status = AuthStatus.notWhitelisted;
+        } else {
+          _errorMessage = result.errorMessage ??
+              'Could not load your account. Please retry.';
+          _status = AuthStatus.profileError;
+        }
       }
-    } else {
-      _status = AuthStatus.unauthenticated;
+    } catch (e) {
+      if (epoch != _stateEpoch) return;
+      _errorMessage = 'Could not load your account: $e';
+      _status = AuthStatus.profileError;
     }
-
-    _setLoading(false);
+    if (epoch == _stateEpoch) _setLoading(false);
   }
 
   void _registerPushToken(String userId) {
     if (kIsWeb) return;
-    unawaited(PushService.instance.registerToken(userId));
+    try {
+      unawaited(
+          PushService.instance.registerToken(userId).catchError((Object _) {}));
+    } catch (_) {}
   }
 
   // ===========================================================
@@ -128,18 +299,21 @@ class AuthController extends ChangeNotifier {
   // ===========================================================
 
   Future<void> signInWithGoogle() async {
+    final epoch = _stateEpoch;
     _setLoading(true);
     _clearError();
     final bool signedIn;
     try {
       signedIn = await _authService.signInWithGoogle();
     } catch (e) {
+      if (epoch != _stateEpoch) return;
       _isLoading = false;
       _setError(
         'Google sign-in failed: ${e is AuthException ? e.message : e}',
       );
       return;
     }
+    if (epoch != _stateEpoch) return;
     if (!signedIn) {
       _setLoading(false);
       return;
@@ -153,17 +327,25 @@ class AuthController extends ChangeNotifier {
   Future<void>? _postLoginInFlight;
 
   Future<void> handleOAuthCallback() {
+    if (_status == AuthStatus.passwordRecovery || _resolvingInvitation) {
+      return Future<void>.value();
+    }
     return _postLoginInFlight ??= _resolvePostLogin().whenComplete(() {
       _postLoginInFlight = null;
     });
   }
 
   Future<void> _resolvePostLogin() async {
+    final epoch = _stateEpoch;
+    final userId = _authService.currentUser?.id;
     _setLoading(true);
     _clearError();
 
     if (_pendingStudentData != null || _pendingFacultyData != null) {
       final ok = await _completeFromPendingData();
+      if (epoch != _stateEpoch || userId != _authService.currentUser?.id) {
+        return;
+      }
       // A refused teacher registration is final. Looking the profile up
       // afterwards would overwrite notWhitelisted with registering.
       if (ok || _status == AuthStatus.notWhitelisted) {
@@ -173,6 +355,7 @@ class AuthController extends ChangeNotifier {
     }
 
     final result = await _authService.handlePostLogin();
+    if (epoch != _stateEpoch || userId != _authService.currentUser?.id) return;
 
     if (result.success) {
       if (result.profile != null) {
@@ -184,8 +367,9 @@ class AuthController extends ChangeNotifier {
     } else if (result.errorMessage == 'not_whitelisted') {
       _status = AuthStatus.notWhitelisted;
     } else {
-      _setError(result.errorMessage ?? 'Sign-in failed.');
-      _status = AuthStatus.unauthenticated;
+      _errorMessage =
+          result.errorMessage ?? 'Could not load your account. Please retry.';
+      _status = AuthStatus.profileError;
     }
 
     _setLoading(false);
@@ -213,7 +397,6 @@ class AuthController extends ChangeNotifier {
     return false;
   }
 
-
   Future<bool> signUpWithEmail({
     required String email,
     required String password,
@@ -221,10 +404,13 @@ class AuthController extends ChangeNotifier {
     _setLoading(true);
     _clearError();
 
+    final epoch = _stateEpoch;
     final result = await _authService.signUpWithEmail(
       email: email,
       password: password,
     );
+
+    if (epoch != _stateEpoch) return false;
 
     _setLoading(false);
 
@@ -264,10 +450,13 @@ class AuthController extends ChangeNotifier {
     _setLoading(true);
     _clearError();
 
+    final epoch = _stateEpoch;
     final result = await _authService.signInWithEmail(
       email: email,
       password: password,
     );
+
+    if (epoch != _stateEpoch) return false;
 
     _setLoading(false);
 
@@ -301,10 +490,12 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<bool> sendPasswordReset(String email) async {
+    final epoch = _stateEpoch;
     _setLoading(true);
     _clearError();
 
     final result = await _authService.sendPasswordResetEmail(email);
+    if (epoch != _stateEpoch) return false;
 
     _setLoading(false);
 
@@ -314,10 +505,12 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<bool> resendVerificationEmail() async {
+    final epoch = _stateEpoch;
     if (_pendingEmail == null) return false;
     _setLoading(true);
 
     final result = await _authService.resendVerificationEmail(_pendingEmail!);
+    if (epoch != _stateEpoch) return false;
 
     _setLoading(false);
 
@@ -327,6 +520,7 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<bool> verifyEmailCode(String code) async {
+    final epoch = _stateEpoch;
     if (_pendingEmail == null) return false;
     _setLoading(true);
     _clearError();
@@ -335,6 +529,8 @@ class AuthController extends ChangeNotifier {
       email: _pendingEmail!,
       token: code,
     );
+
+    if (epoch != _stateEpoch) return false;
 
     if (!result.success) {
       _setLoading(false);
@@ -349,16 +545,19 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<bool> checkEmailVerified() async {
+    final epoch = _stateEpoch;
     _setLoading(true);
 
     try {
       await _authService.authStateChanges.first
           .timeout(const Duration(seconds: 15));
     } catch (_) {
+      if (epoch != _stateEpoch) return false;
       _setLoading(false);
       _setError('Verification timed out. Please try again.');
       return false;
     }
+    if (epoch != _stateEpoch) return false;
     final user = _authService.currentUser;
 
     if (user?.emailConfirmedAt != null) {
@@ -371,7 +570,6 @@ class AuthController extends ChangeNotifier {
     return false;
   }
 
-
   Future<bool> completeStudentRegistration({
     required String name,
     required String studentId,
@@ -381,12 +579,15 @@ class AuthController extends ChangeNotifier {
     _setLoading(true);
     _clearError();
 
+    final epoch = _stateEpoch;
     final result = await _authService.completeStudentRegistration(
       name: name,
       studentId: studentId,
       batch: batch,
       section: section,
     );
+
+    if (epoch != _stateEpoch) return false;
 
     _setLoading(false);
 
@@ -410,12 +611,15 @@ class AuthController extends ChangeNotifier {
     _setLoading(true);
     _clearError();
 
+    final epoch = _stateEpoch;
     final result = await _authService.completeFacultyRegistration(
       name: name,
       teacherCode: teacherCode,
       department: department,
       designation: designation,
     );
+
+    if (epoch != _stateEpoch) return false;
 
     _setLoading(false);
 
@@ -436,7 +640,6 @@ class AuthController extends ChangeNotifier {
     return false;
   }
 
-
   bool _isSigningOut = false;
 
   /// True for the whole sign-out (push-token removal + Supabase call), which
@@ -444,6 +647,9 @@ class AuthController extends ChangeNotifier {
   bool get isSigningOut => _isSigningOut;
 
   Future<void> signOut() async {
+    _stateEpoch++;
+    _resolvingInvitation = false;
+    _clearRecovery();
     _isSigningOut = true;
     _setLoading(true);
     try {

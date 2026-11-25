@@ -4,10 +4,13 @@ import 'package:universe/features/auth/controllers/auth_controller.dart';
 import 'package:universe/features/profile/services/profile_service.dart';
 
 class ProfileController extends SafeChangeNotifier {
-  final ProfileService _service = ProfileService();
+  final ProfileService _service;
   final AuthController authController;
 
-  ProfileController({required this.authController});
+  ProfileController({
+    required this.authController,
+    ProfileService? service,
+  }) : _service = service ?? ProfileService();
 
   Profile? _profile;
   bool _isLoading = false;
@@ -39,6 +42,41 @@ class ProfileController extends SafeChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  Future<bool> updateDisplayName(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) {
+      _errorMessage = 'Display name cannot be empty.';
+      notifyListeners();
+      return false;
+    }
+    final id = _profile?.id;
+    if (id == null) return false;
+    if (trimmed == _profile?.displayName.trim()) {
+      _errorMessage = null;
+      return true;
+    }
+    _errorMessage = null;
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final updated = await _service.updateProfile(
+        userId: id,
+        changes: {'name': trimmed},
+      );
+      if (updated != null) {
+        _profile = updated;
+      }
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (_) {
+      _errorMessage = 'Could not update display name.';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
   }
 
   Future<void> signOut() => authController.signOut();

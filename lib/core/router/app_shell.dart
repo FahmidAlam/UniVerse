@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:universe/core/constants/app_constants.dart';
+import 'package:universe/core/router/route_names.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
+import 'package:universe/features/admin/widgets/admin_desktop_shell.dart';
 import 'package:universe/features/auth/controllers/auth_controller.dart';
 import 'package:universe/features/notifications/controllers/notification_controller.dart';
 import 'package:universe/shared/widgets/app_bottom_nav.dart';
 import 'package:universe/shared/widgets/app_drawer.dart';
-import 'package:universe/shared/widgets/explore_fab_menu.dart';
+// PHASE 1: Desktop roles share shell chrome without changing mobile back semantics.
+import 'package:universe/shared/widgets/desktop_shell_scope.dart';
+import 'package:universe/shared/widgets/role_desktop_shell.dart';
 import 'package:universe/shared/widgets/shell_back_scope.dart';
 
 class AppShell extends StatefulWidget {
@@ -76,6 +81,19 @@ class _AppShellState extends State<AppShell> {
     // Then any screen with internal state to shed (open folder, selection mode).
     if (_backRegistry.handleBack()) return;
 
+    // PHASE 1: Pushed Campus details pop first; direct deep links recover to their directory.
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    if (_location == RouteNames.roomDetail ||
+        _location == RouteNames.teacherDetail) {
+      context.go(_location == RouteNames.roomDetail
+          ? RouteNames.rooms
+          : RouteNames.findTeacher);
+      return;
+    }
+
     if (_location != _home) {
       context.go(_home);
       return;
@@ -104,10 +122,14 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    _location = GoRouterState.of(context).matchedLocation;
-    // Each role's first tab is its dashboard, so this doubles as the "is this
-    // a dashboard" test the Explore FAB needs.
-    _home = AppBottomNav.destinationsFor(widget.authController.role).first.route;
+    try {
+      _location = GoRouterState.of(context).matchedLocation;
+    } catch (_) {
+      _location = '';
+    }
+    final role = widget.authController.role;
+    final destinations = AppBottomNav.destinationsFor(role);
+    _home = destinations.isNotEmpty ? destinations.first.route : '';
 
     return ListenableBuilder(
       listenable: Listenable.merge([
@@ -115,57 +137,67 @@ class _AppShellState extends State<AppShell> {
         widget.notificationController,
       ]),
       builder: (context, _) {
-        return PopScope(
-          canPop: false,
-          onPopInvokedWithResult: (didPop, _) {
-            if (!didPop) _onBackPressed();
-          },
-          child: ShellBackRegistryScope(
-            registry: _backRegistry,
-            child: Scaffold(
-              backgroundColor: AppColors.bgPrimary,
-              body: widget.child,
-              floatingActionButton:
-                  _location == _home ? const _ExploreFab() : null,
-              floatingActionButtonLocation:
-                  FloatingActionButtonLocation.endFloat,
-              bottomNavigationBar: AppBottomNav(
-                role: widget.authController.role,
-                currentRoute: _location,
-                unreadNotifCount: widget.notificationController.unreadCount,
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            // PHASE 1 RECONCILE: Navigation tier follows usable shell width, not the former 800px shortcut.
+            final tier = shellLayoutTierFor(constraints.maxWidth);
+            final isDesktop = tier != ShellLayoutTier.compact;
+            final isAdmin =
+                widget.authController.role == AppConstants.roleAdmin;
+
+            // Desktop administrator workbench
+            if (isAdmin && isDesktop) {
+              return AdminDesktopShell(
+                authController: widget.authController,
+                notificationController: widget.notificationController,
+                currentLocation: GoRouterState.of(context).uri.toString(),
+                compactNavigation: tier == ShellLayoutTier.medium,
+                child: widget.child,
+              );
+            }
+
+            // PHASE 1: At 800px every authenticated role uses persistent desktop navigation.
+            if (isDesktop) {
+              return ShellBackRegistryScope(
+                  registry: _backRegistry,
+                  child: RoleDesktopShell(
+                      role: role ?? 'student',
+                      currentLocation: _location,
+                      accountName:
+                          widget.authController.profile?['name'] as String? ??
+                              'Account',
+                      accountImageUrl: widget
+                          .authController.profile?['avatar_url'] as String?,
+                      unreadCount: widget.notificationController.unreadCount,
+                      onSignOut: widget.authController.signOut,
+                      compactNavigation: tier == ShellLayoutTier.medium,
+                      child: widget.child));
+            }
+
+            // Standard mobile / responsive app shell
+            return PopScope(
+              canPop: false,
+              onPopInvokedWithResult: (didPop, _) {
+                if (!didPop) _onBackPressed();
+              },
+              child: ShellBackRegistryScope(
+                registry: _backRegistry,
+                child: Scaffold(
+                  backgroundColor: AppColors.bgPrimary,
+                  // PHASE 1: Embedded UAppBars provide the mobile account action.
+                  body: DesktopShellScope(
+                      isDesktop: false, tier: tier, child: widget.child),
+                  bottomNavigationBar: AppBottomNav(
+                    role: widget.authController.role,
+                    currentRoute: _location,
+                    unreadNotifCount: widget.notificationController.unreadCount,
+                  ),
+                ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
-    );
-  }
-}
-
-/// The Explore FAB, folded away while the drawer is open.
-///
-/// The drawer slides in over this corner, so leaving the FAB up would float
-/// it on top of the menu. `drawerOpenNotifier` is set by each dashboard's
-/// `onEndDrawerChanged`; the scale animation makes it drop out and pop back
-/// rather than blink.
-class _ExploreFab extends StatelessWidget {
-  const _ExploreFab();
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: drawerOpenNotifier,
-      builder: (context, isDrawerOpen, child) => AnimatedScale(
-        scale: isDrawerOpen ? 0 : 1,
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOutBack,
-        child: AnimatedOpacity(
-          opacity: isDrawerOpen ? 0 : 1,
-          duration: const Duration(milliseconds: 140),
-          child: child,
-        ),
-      ),
-      child: const ExploreFabMenu(),
     );
   }
 }

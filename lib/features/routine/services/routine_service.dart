@@ -3,7 +3,8 @@ import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/routine_model.dart';
 
 class RoutineService {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  // PHASE 5: Lazy Supabase client getter so offline widget tests can instantiate RoutineService safely.
+  SupabaseClient get _supabase => Supabase.instance.client;
 
   Future<List<RoutineEntry>> fetchForStudent({
     required String batch,

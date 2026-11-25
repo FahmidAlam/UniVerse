@@ -14,11 +14,21 @@ import 'package:universe/features/admin/services/timetable_config_service.dart';
 /// as ineligible for everything — so filling this in one teacher at a time is
 /// safe and never fails a routine for the teachers not done yet.
 class CourseEligibilityController extends SafeChangeNotifier {
-  final TimetableConfigService _service = TimetableConfigService();
+  final TimetableConfigService _service;
 
-  List<TimetableFaculty> _faculty = [];
-  List<({String code, String title})> _catalog = [];
-  List<TimetableCourseEligibility> _all = [];
+  CourseEligibilityController({
+    TimetableConfigService? service,
+    List<TimetableFaculty>? initialFaculty,
+    List<({String code, String title})>? initialCatalog,
+    List<TimetableCourseEligibility>? initialEligibility,
+  })  : _service = service ?? TimetableConfigService(),
+        _faculty = initialFaculty ?? [],
+        _catalog = initialCatalog ?? [],
+        _all = initialEligibility ?? [];
+
+  List<TimetableFaculty> _faculty;
+  List<({String code, String title})> _catalog;
+  List<TimetableCourseEligibility> _all;
 
   bool _isLoading = false;
   bool _isSaving = false;
@@ -84,6 +94,10 @@ class CourseEligibilityController extends SafeChangeNotifier {
   }
 
   Future<void> load() async {
+    if (_catalog.isNotEmpty) {
+      notifyListeners();
+      return;
+    }
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();

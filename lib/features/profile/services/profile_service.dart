@@ -3,7 +3,10 @@ import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/profile_model.dart';
 
 class ProfileService {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final SupabaseClient? _client;
+  SupabaseClient get _supabase => _client ?? Supabase.instance.client;
+
+  ProfileService({SupabaseClient? client}) : _client = client;
 
   Future<Profile?> fetchProfile(String userId) async {
     final row = await _supabase

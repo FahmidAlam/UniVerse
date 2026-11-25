@@ -58,7 +58,7 @@ class Profile {
       id: map['id'] as String,
       email: (map['email'] as String?) ?? '',
       role: (map['role'] as String?) ?? AppConstants.roleStudent,
-      name: map['name'] as String?,
+      name: (map['name'] as String?) ?? (map['full_name'] as String?),
       avatarUrl: map['avatar_url'] as String?,
       batch: map['batch'] as String?,
       section: map['section'] as String?,

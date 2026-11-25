@@ -1,3 +1,5 @@
+import 'package:universe/features/auth/widgets/registration_lens_preview.dart';
+import 'package:universe/features/auth/widgets/auth_responsive_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
@@ -18,16 +20,22 @@ class StudentRegisterScreen extends StatefulWidget {
 }
 
 class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
-  final _formKey     = GlobalKey<FormState>();
-  final _nameCtrl    = TextEditingController();
-  final _idCtrl      = TextEditingController();
-  final _batchCtrl   = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _nameCtrl = TextEditingController();
+  final _idCtrl = TextEditingController();
+  final _batchCtrl = TextEditingController();
   final _sectionCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     widget.authController.addListener(_onAuthChange);
+    _batchCtrl.addListener(_refreshLens);
+    _sectionCtrl.addListener(_refreshLens);
+  }
+
+  void _refreshLens() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -139,174 +147,191 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
 
         return Scaffold(
           backgroundColor: AppColors.bgPrimary,
-          appBar: AppBar(
-            backgroundColor: AppColors.bgPrimary,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(PhosphorIconsRegular.arrowLeft),
-              onPressed: () => context.backOr(RouteNames.roleSelection),
-            ),
-            title: Text('Create account', style: AppTextStyles.h2),
-          ),
-          body: SafeArea(
-            child: SingleChildScrollView(
-              padding: AppSpacing.screenPaddingScrollable,
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.xs,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.roleStudent.withValues(alpha: 0.12),
-                        borderRadius: AppSpacing.radiusFull,
-                        border: Border.all(
-                          color: AppColors.roleStudent.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            PhosphorIconsRegular.graduationCap,
-                            color: AppColors.roleStudent,
-                            size: AppSpacing.iconSm,
-                          ),
-                          const SizedBox(width: AppSpacing.xs),
-                          Text(
-                            'Student',
-                            style: AppTextStyles.chip.copyWith(
-                              color: AppColors.roleStudent,
+          body: // PHASE 3: Adaptive auth presentation preserves existing form and callback ownership.
+              AuthResponsiveShell(
+                  previewBatch: _batchCtrl.text,
+                  previewSection: _sectionCtrl.text,
+                  title: 'Create account',
+                  onBack: () => context.backOr(RouteNames.roleSelection),
+                  stage: 1,
+                  child: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.md,
+                                vertical: AppSpacing.xs,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.roleStudent
+                                    .withValues(alpha: 0.12),
+                                borderRadius: AppSpacing.radiusFull,
+                                border: Border.all(
+                                  color: AppColors.roleStudent
+                                      .withValues(alpha: 0.3),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    PhosphorIconsRegular.graduationCap,
+                                    color: AppColors.roleStudent,
+                                    size: AppSpacing.iconSm,
+                                  ),
+                                  const SizedBox(width: AppSpacing.xs),
+                                  Text(
+                                    'Student',
+                                    style: AppTextStyles.chip.copyWith(
+                                      color: AppColors.roleStudent,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
 
-                    AppSpacing.lgGap,
+                            AppSpacing.lgGap,
 
-                    _buildLabel('Full name'),
-                    AppSpacing.smGap,
-                    _buildField(
-                      controller: _nameCtrl,
-                      hint: 'e.g. Fahmid Alam',
-                      icon: PhosphorIconsRegular.user,
-                      validator: (v) => v == null || v.trim().isEmpty
-                          ? 'Name is required'
-                          : null,
-                    ),
+                            _buildLabel('Full name'),
+                            AppSpacing.smGap,
+                            _buildField(
+                              controller: _nameCtrl,
+                              hint: 'e.g. Fahmid Alam',
+                              icon: PhosphorIconsRegular.user,
+                              validator: (v) => v == null || v.trim().isEmpty
+                                  ? 'Name is required'
+                                  : null,
+                            ),
 
-                    AppSpacing.lgGap,
+                            AppSpacing.lgGap,
 
-                    _buildLabel('Student ID'),
-                    AppSpacing.smGap,
-                    _buildField(
-                      controller: _idCtrl,
-                      hint: 'e.g. 0182320012101309',
-                      icon: PhosphorIconsRegular.identificationCard,
-                      validator: (v) => v == null || v.trim().isEmpty
-                          ? 'Student ID is required'
-                          : null,
-                    ),
+                            _buildLabel('Student ID'),
+                            AppSpacing.smGap,
+                            _buildField(
+                              controller: _idCtrl,
+                              hint: 'e.g. 0182320012101309',
+                              icon: PhosphorIconsRegular.identificationCard,
+                              validator: (v) => v == null || v.trim().isEmpty
+                                  ? 'Student ID is required'
+                                  : null,
+                            ),
 
-                    AppSpacing.lgGap,
+                            AppSpacing.lgGap,
 
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel('Batch'),
-                              AppSpacing.smGap,
-                              _buildField(
-                                controller: _batchCtrl,
-                                hint: 'e.g. 62',
-                                icon: PhosphorIconsRegular.users,
-                                validator: (v) =>
-                                    v == null || v.trim().isEmpty
-                                        ? 'Required'
-                                        : null,
+                            // PHASE 3: Local input preview describes matching, never fetched schedule data.
+                            ListenableBuilder(
+                              listenable:
+                                  Listenable.merge([_batchCtrl, _sectionCtrl]),
+                              builder: (context, _) => Semantics(
+                                  liveRegion: true,
+                                  child: RegistrationLensPreview(
+                                      identity:
+                                          '${_batchCtrl.text}:${_sectionCtrl.text}',
+                                      faculty: false,
+                                      child: Text(
+                                          'Routine Lens Preview · Batch ${_batchCtrl.text.trim().isEmpty ? '…' : _batchCtrl.text.trim()} · Section ${_sectionCtrl.text.trim().isEmpty ? '…' : _sectionCtrl.text.trim().toUpperCase()}\nLinks your profile to your published batch and section schedule, room lookups, and class updates.',
+                                          style: AppTextStyles.bodySm))),
+                            ),
+                            AppSpacing.lgGap,
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      _buildLabel('Batch'),
+                                      AppSpacing.smGap,
+                                      _buildField(
+                                        controller: _batchCtrl,
+                                        hint: 'e.g. 62',
+                                        icon: PhosphorIconsRegular.users,
+                                        validator: (v) =>
+                                            v == null || v.trim().isEmpty
+                                                ? 'Required'
+                                                : null,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.md),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      _buildLabel('Section'),
+                                      AppSpacing.smGap,
+                                      _buildField(
+                                        controller: _sectionCtrl,
+                                        hint: 'e.g. G',
+                                        icon: PhosphorIconsRegular.tag,
+                                        validator: (v) =>
+                                            v == null || v.trim().isEmpty
+                                                ? 'Required'
+                                                : null,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: AppSpacing.x3l),
+
+                            SizedBox(
+                              width: double.infinity,
+                              height: AppSpacing.buttonHeight,
+                              child: ElevatedButton(
+                                onPressed: isLoading
+                                    ? null
+                                    : signedIn
+                                        ? _finishRegistration
+                                        : _registerWithEmail,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  disabledBackgroundColor: AppColors.bgElevated,
+                                  shape: const RoundedRectangleBorder(
+                                      borderRadius: AppSpacing.radiusMd),
+                                  elevation: 0,
+                                ),
+                                child: Text(
+                                  signedIn
+                                      ? 'Finish registration'
+                                      : 'Register with Email',
+                                  style: AppTextStyles.button,
+                                ),
+                              ),
+                            ),
+
+                            if (!signedIn) ...[
+                              const SizedBox(height: AppSpacing.sm),
+                              GoogleSignInButton(
+                                onTap: isLoading ? null : _registerWithGoogle,
+                                isLoading: isLoading,
+                                label: 'Register with Google',
                               ),
                             ],
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel('Section'),
-                              AppSpacing.smGap,
-                              _buildField(
-                                controller: _sectionCtrl,
-                                hint: 'e.g. G',
-                                icon: PhosphorIconsRegular.tag,
-                                validator: (v) =>
-                                    v == null || v.trim().isEmpty
-                                        ? 'Required'
-                                        : null,
+
+                            AppSpacing.lgGap,
+
+                            Center(
+                              child: Text(
+                                'Your academic info must match your university records.',
+                                style: AppTextStyles.caption,
+                                textAlign: TextAlign.center,
                               ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: AppSpacing.x3l),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: AppSpacing.buttonHeight,
-                      child: ElevatedButton(
-                        onPressed: isLoading
-                            ? null
-                            : signedIn
-                                ? _finishRegistration
-                                : _registerWithEmail,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          disabledBackgroundColor: AppColors.bgElevated,
-                          shape: const RoundedRectangleBorder(
-                              borderRadius: AppSpacing.radiusMd),
-                          elevation: 0,
-                        ),
-                        child: Text(
-                          signedIn
-                              ? 'Finish registration'
-                              : 'Register with Email',
-                          style: AppTextStyles.button,
+                            ),
+                          ],
                         ),
                       ),
                     ),
-
-                    if (!signedIn) ...[
-                      const SizedBox(height: AppSpacing.sm),
-                      GoogleSignInButton(
-                        onTap: isLoading ? null : _registerWithGoogle,
-                        isLoading: isLoading,
-                        label: 'Register with Google',
-                      ),
-                    ],
-
-                    AppSpacing.lgGap,
-
-                    Center(
-                      child: Text(
-                        'Your academic info must match your university records.',
-                        style: AppTextStyles.caption,
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+                  )),
         );
       },
     );
@@ -344,15 +369,13 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
             borderSide: const BorderSide(color: AppColors.border)),
         focusedBorder: OutlineInputBorder(
             borderRadius: AppSpacing.radiusMd,
-            borderSide:
-                const BorderSide(color: AppColors.primary, width: 1.5)),
+            borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
         errorBorder: OutlineInputBorder(
             borderRadius: AppSpacing.radiusMd,
             borderSide: const BorderSide(color: AppColors.error)),
         focusedErrorBorder: OutlineInputBorder(
             borderRadius: AppSpacing.radiusMd,
-            borderSide:
-                const BorderSide(color: AppColors.error, width: 1.5)),
+            borderSide: const BorderSide(color: AppColors.error, width: 1.5)),
       ),
     );
   }

@@ -1,3 +1,5 @@
+import 'package:universe/features/auth/widgets/orbit_status.dart';
+import 'package:universe/features/auth/widgets/auth_responsive_shell.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -11,7 +13,10 @@ import 'package:universe/features/auth/controllers/auth_controller.dart';
 
 class VerifyEmailScreen extends StatefulWidget {
   final AuthController authController;
-  const VerifyEmailScreen({super.key, required this.authController});
+  // PHASE 3: Optional transport keeps refresh diagnostics independently testable.
+  final SupabaseClient? supabaseClient;
+  const VerifyEmailScreen(
+      {super.key, required this.authController, this.supabaseClient});
 
   @override
   State<VerifyEmailScreen> createState() => _VerifyEmailScreenState();
@@ -23,6 +28,9 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
   Timer? _pollTimer;
 
+  String? _pollNotice;
+  bool _refreshInFlight = false;
+  bool _verificationCancelled = false;
   bool _checkingVerification = false;
   bool _resentSuccessfully = false;
 
@@ -37,6 +45,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
   @override
   void dispose() {
+    _verificationCancelled = true;
     widget.authController.removeListener(_onAuthChange);
     _cooldownTimer?.cancel();
     _pollTimer?.cancel();
@@ -51,22 +60,52 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     }
   }
 
+  // PHASE 3: Keep five-second polling; unavailable sessions/errors remain actionable.
   void _startPolling() {
-    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      if (!mounted) return;
-      try {
-        await Supabase.instance.client.auth.refreshSession();
-        final user = Supabase.instance.client.auth.currentUser;
-        if (user?.emailConfirmedAt != null) {
-          _pollTimer?.cancel();
-          if (mounted) await _handleVerified();
+    _pollTimer =
+        Timer.periodic(const Duration(seconds: 5), (_) => _refreshStatus());
+  }
+
+  Future<void> _refreshStatus() async {
+    if (!mounted || _refreshInFlight || _verificationCancelled) return;
+    _refreshInFlight = true;
+    final epoch = widget.authController.operationEpoch;
+    try {
+      final auth = (widget.supabaseClient ?? Supabase.instance.client).auth;
+      if (auth.currentSession == null) {
+        if (mounted) {
+          setState(() => _pollNotice =
+              'No active session yet. Enter your 6–8 digit verification code, or retry Check status.');
         }
-      } catch (_) {
+        return;
       }
-    });
+      await auth.refreshSession();
+      if (!mounted ||
+          _verificationCancelled ||
+          epoch != widget.authController.operationEpoch) {
+        return;
+      }
+      if (auth.currentUser?.emailConfirmedAt != null) {
+        _pollTimer?.cancel();
+        await _handleVerified();
+      } else {
+        setState(() => _pollNotice =
+            'Not verified yet. Enter your 6–8 digit verification code or retry Check status.');
+      }
+    } catch (_) {
+      if (mounted &&
+          !_verificationCancelled &&
+          epoch == widget.authController.operationEpoch) {
+        setState(() => _pollNotice =
+            'We could not check verification right now. Enter your 6–8 digit verification code or retry Check status.');
+      }
+    } finally {
+      _refreshInFlight = false;
+    }
   }
 
   Future<void> _handleVerified() async {
+    if (!mounted || _verificationCancelled) return;
     setState(() => _checkingVerification = true);
     await widget.authController.handleOAuthCallback();
     if (mounted) setState(() => _checkingVerification = false);
@@ -74,24 +113,8 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
   Future<void> _checkManually() async {
     setState(() => _checkingVerification = true);
-    try {
-      await Supabase.instance.client.auth.refreshSession();
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user?.emailConfirmedAt != null) {
-        _pollTimer?.cancel();
-        await _handleVerified();
-        return;
-      }
-    } catch (_) {}
-
-    setState(() => _checkingVerification = false);
-
-    if (mounted) {
-      _showSnackbar(
-        'Not verified yet. Enter the code from the email or tap Resend.',
-        isError: true,
-      );
-    }
+    await _refreshStatus();
+    if (mounted) setState(() => _checkingVerification = false);
   }
 
   Future<void> _verifyCode() async {
@@ -179,319 +202,319 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
         return Scaffold(
           backgroundColor: AppColors.bgPrimary,
-          appBar: AppBar(
-            backgroundColor: AppColors.bgPrimary,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(PhosphorIconsRegular.arrowLeft),
-              onPressed: () async {
-                _pollTimer?.cancel();
-                await widget.authController.signOut();
-                if (context.mounted) context.go(RouteNames.login);
-              },
-            ),
-          ),
-          body: SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) => SingleChildScrollView(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: IntrinsicHeight(
-                    child: Padding(
-                      padding: AppSpacing.screenPadding,
-                      child: Column(
-                        children: [
-                          const Spacer(flex: 2),
-
-                          Container(
-                            width: 96,
-                            height: 96,
-                            decoration: BoxDecoration(
-                              color: AppColors.infoSoft,
-                              borderRadius: AppSpacing.radiusXl,
-                              border: Border.all(
-                                color: AppColors.info.withValues(alpha: 0.25),
-                              ),
-                            ),
-                            child: Stack(
-                              alignment: Alignment.center,
+          body: // PHASE 3: Adaptive auth presentation preserves existing form and callback ownership.
+              AuthResponsiveShell(
+                  onBack: () async {
+                    // PHASE 3: Invalidate pending refresh before awaiting sign-out.
+                    _verificationCancelled = true;
+                    _pollTimer?.cancel();
+                    await widget.authController.signOut();
+                    if (context.mounted) context.go(RouteNames.login);
+                  },
+                  child: SafeArea(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => SingleChildScrollView(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 0),
+                          child: Padding(
+                            padding: EdgeInsets.zero,
+                            child: Column(
                               children: [
-                                const Icon(
-                                  PhosphorIconsRegular.envelope,
-                                  color: AppColors.info,
-                                  size: 44,
-                                ),
-                                Positioned(
-                                  top: 18,
-                                  right: 18,
-                                  child: _PulsingDot(),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(height: AppSpacing.x3l),
-
-                          Text(
-                            'Check your inbox',
-                            style: AppTextStyles.h1,
-                            textAlign: TextAlign.center,
-                          ),
-
-                          AppSpacing.lgGap,
-
-                          Text(
-                            'We sent a verification code to',
-                            style: AppTextStyles.bodySm,
-                            textAlign: TextAlign.center,
-                          ),
-
-                          AppSpacing.smGap,
-
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.md,
-                              vertical: AppSpacing.sm,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.bgElevated,
-                              borderRadius: AppSpacing.radiusMd,
-                              border: Border.all(color: AppColors.border),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  PhosphorIconsRegular.envelope,
-                                  size: AppSpacing.iconSm,
-                                  color: AppColors.textMuted,
-                                ),
-                                const SizedBox(width: AppSpacing.xs),
-                                Text(
-                                  email,
-                                  style: AppTextStyles.bodyMedium.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          AppSpacing.lgGap,
-
-                          Text(
-                            'Enter the code below to activate your account. '
-                            'Check your spam folder if you don\'t see it.',
-                            style: AppTextStyles.bodySm,
-                            textAlign: TextAlign.center,
-                          ),
-
-                          AppSpacing.lgGap,
-
-                          TextField(
-                            controller: _codeController,
-                            enabled: !isLoading,
-                            keyboardType: TextInputType.number,
-                            maxLength: 8,
-                            textAlign: TextAlign.center,
-                            style: AppTextStyles.h1.copyWith(letterSpacing: 8),
-                            cursorColor: AppColors.primary,
-                            onSubmitted: (_) => _verifyCode(),
-                            decoration: InputDecoration(
-                              counterText: '',
-                              hintText: '········',
-                              hintStyle: AppTextStyles.h1.copyWith(
-                                color: AppColors.textMuted,
-                                letterSpacing: 8,
-                              ),
-                              filled: true,
-                              fillColor: AppColors.bgElevated,
-                              contentPadding: const EdgeInsets.symmetric(
-                                vertical: AppSpacing.md,
-                              ),
-                              enabledBorder: const OutlineInputBorder(
-                                borderRadius: AppSpacing.radiusMd,
-                                borderSide: BorderSide(color: AppColors.border),
-                              ),
-                              focusedBorder: const OutlineInputBorder(
-                                borderRadius: AppSpacing.radiusMd,
-                                borderSide: BorderSide(
-                                  color: AppColors.borderFocus,
-                                ),
-                              ),
-                              disabledBorder: const OutlineInputBorder(
-                                borderRadius: AppSpacing.radiusMd,
-                                borderSide: BorderSide(color: AppColors.border),
-                              ),
-                            ),
-                          ),
-
-                          if (_resentSuccessfully) ...[
-                            AppSpacing.lgGap,
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.md,
-                                vertical: AppSpacing.sm,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.successSoft,
-                                borderRadius: AppSpacing.radiusMd,
-                                border: Border.all(
-                                  color: AppColors.success.withValues(
-                                    alpha: 0.3,
-                                  ),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    PhosphorIconsRegular.checkCircle,
-                                    size: AppSpacing.iconSm,
-                                    color: AppColors.success,
-                                  ),
-                                  const SizedBox(width: AppSpacing.xs),
-                                  Text(
-                                    'New email sent successfully',
-                                    style: AppTextStyles.bodySm.copyWith(
-                                      color: AppColors.success,
+                                const SizedBox(height: AppSpacing.xxl),
+                                Container(
+                                  width: 96,
+                                  height: 96,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.infoSoft,
+                                    borderRadius: AppSpacing.radiusXl,
+                                    border: Border.all(
+                                      color: AppColors.info
+                                          .withValues(alpha: 0.25),
                                     ),
                                   ),
-                                ],
-                              ),
-                            ),
-                          ],
-
-                          const Spacer(flex: 2),
-
-                          SizedBox(
-                            width: double.infinity,
-                            height: AppSpacing.buttonHeight,
-                            child: ElevatedButton(
-                              onPressed: isLoading ? null : _verifyCode,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                disabledBackgroundColor: AppColors.bgElevated,
-                                shape: const RoundedRectangleBorder(
-                                  borderRadius: AppSpacing.radiusMd,
+                                  child: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      const OrbitStatus(
+                                          color: AppColors.info,
+                                          child: Icon(
+                                              PhosphorIconsRegular.envelope,
+                                              color: AppColors.info,
+                                              size: 44)),
+                                      Positioned(
+                                        top: 18,
+                                        right: 18,
+                                        child: _PulsingDot(),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                elevation: 0,
-                              ),
-                              child: isLoading
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation(
-                                          AppColors.textPrimary,
+                                const SizedBox(height: AppSpacing.x3l),
+                                Text(
+                                  'Check your inbox',
+                                  style: AppTextStyles.h1,
+                                  textAlign: TextAlign.center,
+                                ),
+                                AppSpacing.lgGap,
+                                Text(
+                                  'We sent a verification code to',
+                                  style: AppTextStyles.bodySm,
+                                  textAlign: TextAlign.center,
+                                ),
+                                AppSpacing.smGap,
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.md,
+                                    vertical: AppSpacing.sm,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.bgElevated,
+                                    borderRadius: AppSpacing.radiusMd,
+                                    border: Border.all(color: AppColors.border),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        PhosphorIconsRegular.envelope,
+                                        size: AppSpacing.iconSm,
+                                        color: AppColors.textMuted,
+                                      ),
+                                      const SizedBox(width: AppSpacing.xs),
+                                      Flexible(
+                                          child: Text(
+                                        email,
+                                        style:
+                                            AppTextStyles.bodyMedium.copyWith(
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      )),
+                                    ],
+                                  ),
+                                ),
+                                AppSpacing.lgGap,
+                                Text(
+                                  'Enter the code below to activate your account. '
+                                  'Check your spam folder if you don\'t see it.',
+                                  style: AppTextStyles.bodySm,
+                                  textAlign: TextAlign.center,
+                                ),
+                                AppSpacing.lgGap,
+                                TextField(
+                                  controller: _codeController,
+                                  enabled: !isLoading,
+                                  keyboardType: TextInputType.number,
+                                  maxLength: 8,
+                                  textAlign: TextAlign.center,
+                                  style: AppTextStyles.h1
+                                      .copyWith(letterSpacing: 8),
+                                  cursorColor: AppColors.primary,
+                                  onSubmitted: (_) => _verifyCode(),
+                                  decoration: InputDecoration(
+                                    counterText: '',
+                                    hintText: '········',
+                                    hintStyle: AppTextStyles.h1.copyWith(
+                                      color: AppColors.textMuted,
+                                      letterSpacing: 8,
+                                    ),
+                                    filled: true,
+                                    fillColor: AppColors.bgElevated,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      vertical: AppSpacing.md,
+                                    ),
+                                    enabledBorder: const OutlineInputBorder(
+                                      borderRadius: AppSpacing.radiusMd,
+                                      borderSide:
+                                          BorderSide(color: AppColors.border),
+                                    ),
+                                    focusedBorder: const OutlineInputBorder(
+                                      borderRadius: AppSpacing.radiusMd,
+                                      borderSide: BorderSide(
+                                        color: AppColors.borderFocus,
+                                      ),
+                                    ),
+                                    disabledBorder: const OutlineInputBorder(
+                                      borderRadius: AppSpacing.radiusMd,
+                                      borderSide:
+                                          BorderSide(color: AppColors.border),
+                                    ),
+                                  ),
+                                ),
+                                if (_pollNotice != null) ...[
+                                  AppSpacing.lgGap,
+                                  Semantics(
+                                      liveRegion: true,
+                                      child: Text(_pollNotice!,
+                                          style: AppTextStyles.bodySm,
+                                          textAlign: TextAlign.center)),
+                                ],
+                                if (_resentSuccessfully) ...[
+                                  AppSpacing.lgGap,
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: AppSpacing.md,
+                                      vertical: AppSpacing.sm,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.successSoft,
+                                      borderRadius: AppSpacing.radiusMd,
+                                      border: Border.all(
+                                        color: AppColors.success.withValues(
+                                          alpha: 0.3,
                                         ),
                                       ),
-                                    )
-                                  : Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
                                         const Icon(
                                           PhosphorIconsRegular.checkCircle,
-                                          size: AppSpacing.iconMd,
+                                          size: AppSpacing.iconSm,
+                                          color: AppColors.success,
                                         ),
-                                        const SizedBox(width: AppSpacing.sm),
+                                        const SizedBox(width: AppSpacing.xs),
                                         Text(
-                                          'Verify code',
-                                          style: AppTextStyles.button,
+                                          'New email sent successfully',
+                                          style: AppTextStyles.bodySm.copyWith(
+                                            color: AppColors.success,
+                                          ),
                                         ),
                                       ],
                                     ),
+                                  ),
+                                ],
+                                const SizedBox(height: AppSpacing.xxl),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: AppSpacing.buttonHeight,
+                                  child: ElevatedButton(
+                                    onPressed: isLoading ? null : _verifyCode,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.primary,
+                                      disabledBackgroundColor:
+                                          AppColors.bgElevated,
+                                      shape: const RoundedRectangleBorder(
+                                        borderRadius: AppSpacing.radiusMd,
+                                      ),
+                                      elevation: 0,
+                                    ),
+                                    child: isLoading
+                                        ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation(
+                                                AppColors.textPrimary,
+                                              ),
+                                            ),
+                                          )
+                                        : Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              const Icon(
+                                                PhosphorIconsRegular
+                                                    .checkCircle,
+                                                size: AppSpacing.iconMd,
+                                              ),
+                                              const SizedBox(
+                                                  width: AppSpacing.sm),
+                                              Text(
+                                                'Verify code',
+                                                style: AppTextStyles.button,
+                                              ),
+                                            ],
+                                          ),
+                                  ),
+                                ),
+                                AppSpacing.lgGap,
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: AppSpacing.buttonHeight,
+                                  child: OutlinedButton(
+                                    onPressed:
+                                        (_resendCooldown > 0 || isLoading)
+                                            ? null
+                                            : _resendEmail,
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(
+                                          color: AppColors.border),
+                                      disabledForegroundColor:
+                                          AppColors.textMuted,
+                                      shape: const RoundedRectangleBorder(
+                                        borderRadius: AppSpacing.radiusMd,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      _resendCooldown > 0
+                                          ? 'Resend in ${_resendCooldown}s'
+                                          : 'Resend verification email',
+                                      style: AppTextStyles.button.copyWith(
+                                        color: _resendCooldown > 0
+                                            ? AppColors.textMuted
+                                            : AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                AppSpacing.lgGap,
+                                Center(
+                                  child: TextButton(
+                                    onPressed:
+                                        isLoading ? null : _checkManually,
+                                    style: TextButton.styleFrom(
+                                      padding: EdgeInsets.zero,
+                                      minimumSize: Size.zero,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    child: Text(
+                                      'Verified some other way? Check status',
+                                      style: AppTextStyles.bodySm.copyWith(
+                                        color: AppColors.textMuted,
+                                        decoration: TextDecoration.underline,
+                                        decorationColor: AppColors.textMuted,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                AppSpacing.lgGap,
+                                Center(
+                                  child: TextButton(
+                                    onPressed: () async {
+                                      _verificationCancelled = true;
+                                      _pollTimer?.cancel();
+                                      await widget.authController.signOut();
+                                      if (context.mounted) {
+                                        context.go(RouteNames.emailSignup);
+                                      }
+                                    },
+                                    style: TextButton.styleFrom(
+                                      padding: EdgeInsets.zero,
+                                      minimumSize: Size.zero,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    child: Text(
+                                      'Wrong email? Sign up again',
+                                      style: AppTextStyles.bodySm.copyWith(
+                                        color: AppColors.textMuted,
+                                        decoration: TextDecoration.underline,
+                                        decorationColor: AppColors.textMuted,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                AppSpacing.lgGap,
+                              ],
                             ),
                           ),
-
-                          AppSpacing.lgGap,
-
-                          SizedBox(
-                            width: double.infinity,
-                            height: AppSpacing.buttonHeight,
-                            child: OutlinedButton(
-                              onPressed: (_resendCooldown > 0 || isLoading)
-                                  ? null
-                                  : _resendEmail,
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: AppColors.border),
-                                disabledForegroundColor: AppColors.textMuted,
-                                shape: const RoundedRectangleBorder(
-                                  borderRadius: AppSpacing.radiusMd,
-                                ),
-                              ),
-                              child: Text(
-                                _resendCooldown > 0
-                                    ? 'Resend in ${_resendCooldown}s'
-                                    : 'Resend verification email',
-                                style: AppTextStyles.button.copyWith(
-                                  color: _resendCooldown > 0
-                                      ? AppColors.textMuted
-                                      : AppColors.textPrimary,
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          AppSpacing.lgGap,
-
-                          Center(
-                            child: TextButton(
-                              onPressed: isLoading ? null : _checkManually,
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'Verified some other way? Check status',
-                                style: AppTextStyles.bodySm.copyWith(
-                                  color: AppColors.textMuted,
-                                  decoration: TextDecoration.underline,
-                                  decorationColor: AppColors.textMuted,
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          AppSpacing.lgGap,
-
-                          Center(
-                            child: TextButton(
-                              onPressed: () async {
-                                _pollTimer?.cancel();
-                                await widget.authController.signOut();
-                                if (context.mounted) {
-                                  context.go(RouteNames.emailSignup);
-                                }
-                              },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'Wrong email? Sign up again',
-                                style: AppTextStyles.bodySm.copyWith(
-                                  color: AppColors.textMuted,
-                                  decoration: TextDecoration.underline,
-                                  decorationColor: AppColors.textMuted,
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          AppSpacing.lgGap,
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+                  )),
         );
       },
     );
@@ -515,7 +538,7 @@ class _PulsingDotState extends State<_PulsingDot>
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
-    )..repeat(reverse: true);
+    );
     _scale = Tween<double>(
       begin: 0.8,
       end: 1.3,
@@ -526,6 +549,18 @@ class _PulsingDotState extends State<_PulsingDot>
     ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
+  // PHASE 3: Stop the envelope ticker and pin the final state for reduced motion.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.maybeOf(context)?.disableAnimations ?? false) {
+      _ctrl.stop();
+      _ctrl.value = 1;
+    } else {
+      _ctrl.repeat(reverse: true);
+    }
+  }
+
   @override
   void dispose() {
     _ctrl.dispose();
@@ -534,7 +569,8 @@ class _PulsingDotState extends State<_PulsingDot>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
+    return RepaintBoundary(
+        child: AnimatedBuilder(
       animation: _ctrl,
       builder: (_, __) => Transform.scale(
         scale: _scale.value,
@@ -550,6 +586,6 @@ class _PulsingDotState extends State<_PulsingDot>
           ),
         ),
       ),
-    );
+    ));
   }
 }

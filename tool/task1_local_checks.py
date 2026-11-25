@@ -148,7 +148,7 @@ def main():
 
     try:
         # Services irrelevant to database/Storage verification stay disabled.
-        local('start', '--exclude', 'studio,imgproxy,edge-runtime,logflare,vector,supavisor', quiet=True)
+        local('start', '--exclude', 'studio,imgproxy,edge-runtime,logflare,vector,supavisor')
         for iteration in (1, 2):
             print('Fresh public-namespace rebuild', iteration, 'of 2', flush=True)
             local('db', 'reset', '--local', '--no-seed', '--yes')
@@ -179,10 +179,18 @@ def main():
                 fingerprint = "select md5(jsonb_agg(to_jsonb(r) - array['scheduling_scope_id','cohort_id','student_group_id','faculty_id','room_id'] order by id)::text) from public.routines r;"
                 before = sql(fingerprint)
                 sql(task2_migration.read_text(encoding='utf-8'))
+                distribution_migration, = (ROOT / 'supabase/migrations').glob('*_course_distribution_contract.sql')
+                sql(distribution_migration.read_text(encoding='utf-8'))
                 if sql(fingerprint) != before:
                     raise RuntimeError('Academic migration changed legacy schedule content')
                 shutil.copyfile(ROOT / 'supabase/tests/academic_domain.test.sql', tests / 'academic_domain.test.sql')
                 local('test', 'db', '--local', 'supabase/tests/academic_domain.test.sql')
+                # Phase 2a contract tests run only against this freshly owned,
+                # disposable stack. They are never pointed at a hosted project.
+                for name in ('course_distribution_contract.test.sql',
+                             'course_distribution_authorization.test.sql'):
+                    shutil.copyfile(ROOT / 'supabase/tests' / name, tests / name)
+                    local('test', 'db', '--local', 'supabase/tests/' + name)
                 # Round-trip the mixed-calendar, program-scoped SQL snapshot
                 # through the same strict engine contract used by consumers.
                 fixture = (ROOT / 'supabase/tests/academic_domain.test.sql').read_text(encoding='utf-8')

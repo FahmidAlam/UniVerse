@@ -1,3 +1,4 @@
+import 'package:universe/features/auth/widgets/orbit_status.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/core/constants/app_constants.dart';
@@ -28,7 +29,9 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
     _setupAnimations();
-    _initializeApp();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _initializeApp();
+    });
   }
 
   void _setupAnimations() {
@@ -52,7 +55,7 @@ class _SplashScreenState extends State<SplashScreen>
     _logoScale = Tween<double>(begin: 0.75, end: 1.0).animate(
       CurvedAnimation(
         parent: _logoController,
-        curve: const Interval(0.0, 0.7, curve: Curves.easeOutBack),
+        curve: const Interval(0.0, 0.7, curve: Curves.easeOutCubic),
       ),
     );
 
@@ -62,11 +65,21 @@ class _SplashScreenState extends State<SplashScreen>
         curve: const Interval(0.5, 1.0, curve: Curves.easeOut),
       ),
     );
+  }
 
-    _logoController.forward();
-    Future.delayed(const Duration(milliseconds: 600), () {
-      if (mounted) _dotsController.repeat();
-    });
+  // PHASE 3: Presentation tickers follow accessibility; startup never waits for art.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.maybeOf(context)?.disableAnimations ?? false) {
+      _logoController.stop();
+      _logoController.value = 1;
+      _dotsController.stop();
+      _dotsController.value = 1;
+    } else {
+      _logoController.forward();
+      _dotsController.repeat();
+    }
   }
 
   Future<void> _initializeApp() async {
@@ -76,7 +89,10 @@ class _SplashScreenState extends State<SplashScreen>
 
     final status = widget.authController.status;
 
-    if (status == AuthStatus.authenticated ||
+    if (status == AuthStatus.loading ||
+        status == AuthStatus.passwordRecovery ||
+        status == AuthStatus.profileError ||
+        status == AuthStatus.authenticated ||
         status == AuthStatus.awaitingVerification ||
         status == AuthStatus.notWhitelisted) {
       return;
@@ -88,7 +104,7 @@ class _SplashScreenState extends State<SplashScreen>
     }
 
     final seenOnboarding = await widget.authController.hasSeenOnboarding();
-    if (!mounted) return;
+    if (!mounted || widget.authController.status != status) return;
 
     if (!seenOnboarding) {
       context.go(RouteNames.onboarding);
@@ -112,7 +128,6 @@ class _SplashScreenState extends State<SplashScreen>
         child: Column(
           children: [
             const Spacer(flex: 2),
-
             AnimatedBuilder(
               animation: _logoController,
               builder: (context, child) {
@@ -138,12 +153,10 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                     ),
                     child: const Center(
-                      child: _OrbitIcon(),
+                      child: OrbitStatus(size: 76, child: _OrbitIcon()),
                     ),
                   ),
-
                   AppSpacing.lgGap,
-
                   Text(
                     AppConstants.appName,
                     style: AppTextStyles.h1.copyWith(
@@ -152,9 +165,7 @@ class _SplashScreenState extends State<SplashScreen>
                       color: AppColors.textPrimary,
                     ),
                   ),
-
                   AppSpacing.smGap,
-
                   AnimatedBuilder(
                     animation: _logoController,
                     builder: (context, child) => FadeTransition(
@@ -171,9 +182,7 @@ class _SplashScreenState extends State<SplashScreen>
                 ],
               ),
             ),
-
             const Spacer(flex: 2),
-
             AnimatedBuilder(
               animation: _dotsController,
               builder: (context, _) {
@@ -185,7 +194,8 @@ class _SplashScreenState extends State<SplashScreen>
                     final scale = phase < 0.5
                         ? 1.0 + phase * 0.8
                         : 1.8 - (phase - 0.5) * 0.8;
-                    final opacity = 0.3 + (phase < 0.5 ? phase : 1.0 - phase) * 1.4;
+                    final opacity =
+                        0.3 + (phase < 0.5 ? phase : 1.0 - phase) * 1.4;
 
                     return Container(
                       margin: const EdgeInsets.symmetric(horizontal: 5),
@@ -202,7 +212,6 @@ class _SplashScreenState extends State<SplashScreen>
                 );
               },
             ),
-
             const SizedBox(height: AppSpacing.x5l),
           ],
         ),

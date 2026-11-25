@@ -1,3 +1,4 @@
+import 'package:universe/features/admin/widgets/admin_route_tabs.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
@@ -8,15 +9,19 @@ import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
 import 'package:universe/features/admin/controllers/broadcast_controller.dart';
 import 'package:universe/features/auth/controllers/auth_controller.dart';
+import 'package:universe/shared/widgets/desktop_shell_scope.dart';
 import 'package:universe/shared/widgets/u_app_bar.dart';
 import 'package:universe/shared/widgets/u_button.dart';
+import 'package:universe/shared/widgets/u_card.dart';
 import 'package:universe/shared/widgets/u_chip.dart';
 import 'package:universe/shared/widgets/u_text_field.dart';
 
 class CampusBroadcastScreen extends StatefulWidget {
   final AuthController authController;
+  final BroadcastController? controller;
 
-  const CampusBroadcastScreen({super.key, required this.authController});
+  const CampusBroadcastScreen(
+      {super.key, required this.authController, this.controller});
 
   @override
   State<CampusBroadcastScreen> createState() => _CampusBroadcastScreenState();
@@ -46,12 +51,13 @@ class _CampusBroadcastScreenState extends State<CampusBroadcastScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = BroadcastController(authController: widget.authController);
+    _controller = widget.controller ??
+        BroadcastController(authController: widget.authController);
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    if (widget.controller == null) _controller.dispose();
     _titleCtrl.dispose();
     _bodyCtrl.dispose();
     _batchCtrl.dispose();
@@ -95,96 +101,163 @@ class _CampusBroadcastScreenState extends State<CampusBroadcastScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktopShell = DesktopShellScope.isDesktopOf(context);
+
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
-      appBar: UAppBar(
-        title: 'Campus Broadcast',
-        showBackButton: false,
-        actions: [
-          IconButton(
-            tooltip: 'Sent broadcasts',
-            icon: const Icon(PhosphorIconsRegular.clockCounterClockwise,
-                color: AppColors.textPrimary),
-            onPressed: () => context.push(RouteNames.broadcastHistory),
-          ),
-        ],
-      ),
+      appBar: isDesktopShell
+          ? null
+          : UAppBar(
+              title: 'Campus Broadcast',
+              showBackButton: false,
+              actions: [
+                IconButton(
+                  tooltip: 'Sent broadcasts',
+                  icon: const Icon(
+                    PhosphorIconsRegular.clockCounterClockwise,
+                    color: AppColors.textPrimary,
+                  ),
+                  onPressed: () => context.push(RouteNames.broadcastHistory),
+                ),
+              ],
+            ),
       body: ListenableBuilder(
         listenable: _controller,
         builder: (context, _) {
-          return SingleChildScrollView(
-            padding: AppSpacing.screenPadding,
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _label('TYPE'),
-                  AppSpacing.smGap,
-                  _typeChips(),
-                  AppSpacing.sectionGap,
-                  _label('AUDIENCE'),
-                  AppSpacing.smGap,
-                  _audienceChips(),
-                  AppSpacing.smGap,
-                  Text(
-                    'Batch & section are optional and narrow a Students broadcast further.',
-                    style: AppTextStyles.caption,
-                  ),
-                  AppSpacing.mdGap,
-                  Row(
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 780),
+              child: SingleChildScrollView(
+                padding: AppSpacing.screenPadding,
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: _field(
-                          controller: _batchCtrl,
-                          label: 'Batch',
-                          hint: 'e.g. 62',
+                      Padding(
+                          padding: const EdgeInsets.all(AppSpacing.sm),
+                          child: AdminRouteTabs(
+                              selected: '/admin/broadcast',
+                              destinations: {
+                                '/admin/broadcast': 'Compose Broadcast',
+                                '/admin/broadcast/history': 'Sent History'
+                              })),
+                      if (isDesktopShell) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Campus Broadcast',
+                                      style: AppTextStyles.h2),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Send real-time alerts & announcements to students and faculty',
+                                    style: AppTextStyles.caption.copyWith(
+                                        color: AppColors.textSecondary),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            OutlinedButton.icon(
+                              onPressed: () =>
+                                  context.push(RouteNames.broadcastHistory),
+                              icon: const Icon(
+                                PhosphorIconsRegular.clockCounterClockwise,
+                                size: 16,
+                              ),
+                              label: const Text('Sent History'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                      ],
+                      UCard(
+                        isTopLit: true,
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _label('BROADCAST TYPE'),
+                            AppSpacing.smGap,
+                            _typeChips(),
+                            const Divider(
+                              color: AppColors.border,
+                              height: AppSpacing.xl,
+                              thickness: 1,
+                            ),
+                            _label('AUDIENCE'),
+                            AppSpacing.smGap,
+                            _audienceChips(),
+                            AppSpacing.smGap,
+                            Text(
+                              'Batch & section are optional and narrow a Students broadcast further.',
+                              style: AppTextStyles.caption,
+                            ),
+                            AppSpacing.mdGap,
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _field(
+                                    controller: _batchCtrl,
+                                    label: 'Batch',
+                                    hint: 'e.g. 62',
+                                  ),
+                                ),
+                                AppSpacing.smHGap,
+                                Expanded(
+                                  child: _field(
+                                    controller: _sectionCtrl,
+                                    label: 'Section',
+                                    hint: 'e.g. G',
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Divider(
+                              color: AppColors.border,
+                              height: AppSpacing.xl,
+                              thickness: 1,
+                            ),
+                            _label('ANNOUNCEMENT MESSAGE'),
+                            AppSpacing.smGap,
+                            _field(
+                              controller: _titleCtrl,
+                              label: 'Title',
+                              hint: 'Short headline',
+                              validator: _required,
+                            ),
+                            AppSpacing.mdGap,
+                            _field(
+                              controller: _bodyCtrl,
+                              label: 'Body',
+                              hint: 'What do you want to announce?',
+                              validator: _required,
+                              maxLines: 4,
+                            ),
+                            AppSpacing.lgGap,
+                            UButton(
+                              label: 'Send broadcast',
+                              icon: PhosphorIconsRegular.paperPlaneTilt,
+                              isLoading: _controller.isSending,
+                              onPressed: _send,
+                            ),
+                          ],
                         ),
                       ),
-                      AppSpacing.smHGap,
-                      Expanded(
-                        child: _field(
-                          controller: _sectionCtrl,
-                          label: 'Section',
-                          hint: 'e.g. G',
+                      AppSpacing.lgGap,
+                      Center(
+                        child: Text(
+                          'Broadcast notifications are delivered immediately via Realtime channel.',
+                          style: AppTextStyles.caption,
+                          textAlign: TextAlign.center,
                         ),
                       ),
                     ],
                   ),
-                  AppSpacing.sectionGap,
-                  _label('MESSAGE'),
-                  AppSpacing.smGap,
-                  _field(
-                    controller: _titleCtrl,
-                    label: 'Title',
-                    hint: 'Short headline',
-                    validator: _required,
-                  ),
-                  AppSpacing.mdGap,
-                  _field(
-                    controller: _bodyCtrl,
-                    label: 'Body',
-                    hint: 'What do you want to announce?',
-                    validator: _required,
-                    maxLines: 4,
-                  ),
-                  AppSpacing.sectionGap,
-                  UButton(
-                    label: 'Send broadcast',
-                    icon: PhosphorIconsRegular.paperPlaneTilt,
-                    isLoading: _controller.isSending,
-                    onPressed: _send,
-                  ),
-                  AppSpacing.lgGap,
-                  Center(
-                    child: Text(
-                      'Tap the history icon (top-right) to view & delete sent '
-                      'broadcasts.',
-                      style: AppTextStyles.caption,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           );
@@ -218,7 +291,7 @@ class _CampusBroadcastScreenState extends State<CampusBroadcastScreen> {
       children: [
         for (final t in _broadcastTypes)
           UChip(
-            label: t.label,
+            label: _typeLabel(t),
             isActive: _controller.type == t,
             onTap: () => _controller.setType(t),
           ),
@@ -241,4 +314,16 @@ class _CampusBroadcastScreenState extends State<CampusBroadcastScreen> {
     );
   }
 
+  String _typeLabel(NotifType t) {
+    switch (t) {
+      case NotifType.university:
+        return 'General announcement';
+      case NotifType.assignment:
+        return 'Assignment notice';
+      case NotifType.exam:
+        return 'Exam notice';
+      default:
+        return 'Notice';
+    }
+  }
 }

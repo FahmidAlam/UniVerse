@@ -3,9 +3,15 @@ import 'package:universe/core/utils/safe_change_notifier.dart';
 import 'package:universe/features/admin/services/admin_service.dart';
 
 class ManageUsersController extends SafeChangeNotifier {
-  final AdminService _service = AdminService();
+  final AdminService _service;
 
-  List<Profile> _all = [];
+  ManageUsersController({
+    AdminService? service,
+    List<Profile>? initialUsers,
+  })  : _service = service ?? AdminService(),
+        _all = initialUsers ?? [];
+
+  List<Profile> _all;
   bool _isLoading = false;
   String? _errorMessage;
   String? _roleFilter;
@@ -14,6 +20,7 @@ class ManageUsersController extends SafeChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   String? get roleFilter => _roleFilter;
+  List<Profile> get allUsers => List.unmodifiable(_all);
 
   List<Profile> get filtered {
     Iterable<Profile> list = _all;
@@ -31,6 +38,10 @@ class ManageUsersController extends SafeChangeNotifier {
   }
 
   Future<void> load() async {
+    if (_all.isNotEmpty) {
+      notifyListeners();
+      return;
+    }
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();

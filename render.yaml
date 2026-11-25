@@ -18,3 +18,15 @@ services:
       # Keep memory low on the 512 MB free instance (avoids OOM on solve).
       - key: SOLVER_WORKERS
         value: "2"
+      # Gradual-to-strict auth mode: "optional" during dual-client rollout, "enforced" for production.
+      - key: ENGINE_AUTH_MODE
+        value: optional
+      # Comma-separated exact browser origins (no trailing slash).
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false

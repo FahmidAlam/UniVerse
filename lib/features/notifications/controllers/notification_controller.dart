@@ -26,10 +26,12 @@ class NotificationController extends SafeChangeNotifier {
 
   bool _selectionMode = false;
   final Set<String> _selectedIds = <String>{};
+  DateTime? _lastChecked;
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   NotifType? get activeFilter => _activeFilter;
+  DateTime? get lastChecked => _lastChecked;
 
   List<NotificationItem> get _visible =>
       _items.where((n) => !_dismissedIds.contains(n.id)).toList();
@@ -105,6 +107,7 @@ class NotificationController extends SafeChangeNotifier {
 
     try {
       _items = await _service.fetchNotifications(me);
+      _lastChecked = DateTime.now();
     } catch (e) {
       _errorMessage = 'Could not load notifications.';
     }

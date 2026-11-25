@@ -1,0 +1,2431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UniVerse — Academic Ledger Phase 1A Visual Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    :root {
+      /* Fonts */
+      --font-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+      --font-sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+      /* Light Surfaces (OKLCH with verified sRGB hex fallbacks) */
+      --bg-canvas: #EFEDE7;
+      --bg-canvas: oklch(0.946 0.008 86);
+      --bg-surface: #F8F6F2;
+      --bg-surface: oklch(0.974 0.006 86);
+      --bg-elevated: #FEFEFC;
+      --bg-elevated: oklch(0.996 0.002 86);
+      --surface-hover: #F4F1ED;
+      --surface-hover: oklch(0.960 0.007 86);
+      --surface-active: #ECE9E3;
+      --surface-active: oklch(0.934 0.009 86);
+
+      /* Ink Hierarchy */
+      --ink-primary: #1A1611;
+      --ink-primary: oklch(0.205 0.012 75);
+      --ink-secondary: #4F4B45;
+      --ink-secondary: oklch(0.415 0.012 78);
+      --ink-muted: #696660;
+      --ink-muted: oklch(0.510 0.010 80);
+
+      /* Charcoal Ink Primary Action */
+      --action-primary: #1E1A14;
+      --action-primary: oklch(0.220 0.012 75);
+      --action-primary-hover: #2C2720;
+      --action-primary-hover: oklch(0.275 0.014 75);
+      --action-primary-active: #14110D;
+      --action-primary-active: oklch(0.180 0.010 75);
+      --action-primary-ink: #FCFBF9;
+      --action-primary-ink: oklch(0.988 0.003 86);
+
+      /* Provisional Deep Botanical Pine Accent */
+      --accent-pine: #1A5236;
+      --accent-pine: oklch(0.395 0.076 158);
+      --accent-pine-hover: #044529;
+      --accent-pine-hover: oklch(0.345 0.078 158);
+      --accent-pine-soft: #E3F0E7;
+      --accent-pine-soft: oklch(0.942 0.018 156);
+      --accent-pine-ink: #FCFCF9;
+      --accent-pine-ink: oklch(0.990 0.003 95);
+
+      /* Borders, Focus & Depth */
+      --border-subtle: rgba(26, 22, 17, 0.12);
+      --border-subtle: oklch(0.205 0.012 75 / 0.12);
+      --border-control: #7D7871;
+      --border-control: oklch(0.575 0.012 80);
+      --focus-ring: #1A5236;
+      --focus-ring: oklch(0.395 0.076 158);
+      --highlight-top: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+      --surface-sheen: linear-gradient(180deg, #FFFFFF, #FAF8F5);
+      --shadow-sheet: 0 1px 2px rgba(26, 22, 17, 0.06), 0 6px 18px rgba(26, 22, 17, 0.05);
+      --shadow-popover: 0 2px 6px rgba(26, 22, 17, 0.08), 0 14px 32px rgba(26, 22, 17, 0.10);
+
+      /* 4 Semantic Schedule Categories */
+      --sem-theory-bg: #E5F0FA;
+      --sem-theory-ink: #0E395D;
+      --sem-theory-bar: #316695;
+      --sem-lab-bg: #E1F1E7;
+      --sem-lab-ink: #15402A;
+      --sem-lab-bar: #206442;
+      --sem-joint-bg: #FAEEDB;
+      --sem-joint-ink: #613700;
+      --sem-joint-bar: #9F6713;
+      --sem-conflict-bg: #FAE8E7;
+      --sem-conflict-ink: #8A1C1F;
+      --sem-conflict-bar: #B83837;
+
+      /* Motion Timing */
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --t-enter: 200ms;
+      --t-exit: 155ms;
+      --t-press: 100ms;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0ms !important;
+        transition-duration: 0ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg-surface);
+      color: var(--ink-primary);
+      font-family: var(--font-sans);
+      font-size: 16px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    button, input, select {
+      font-family: inherit;
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 2px;
+    }
+
+    .mono {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .tabular {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Prototype Reviewer Switcher Bar */
+    .preview-chrome {
+      position: sticky;
+      top: 0;
+      z-index: 60;
+      background: var(--action-primary);
+      color: var(--action-primary-ink);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+      padding: 8px 16px;
+    }
+
+    .preview-chrome-inner {
+      max-width: 1360px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .preview-chrome-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+      min-width: 0;
+    }
+
+    .preview-pill-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #9FE2BF;
+      flex-shrink: 0;
+    }
+
+    .specimen-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .specimen-tab {
+      min-height: 36px;
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid rgba(252, 251, 249, 0.25);
+      background: transparent;
+      color: var(--action-primary-ink);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background var(--t-enter) var(--ease-out), transform var(--t-press) var(--ease-out);
+    }
+
+    .specimen-tab:hover {
+      background: rgba(255, 255, 255, 0.10);
+    }
+
+    .specimen-tab:active {
+      transform: scale(0.97);
+    }
+
+    .specimen-tab[aria-selected="true"] {
+      background: var(--bg-elevated);
+      color: var(--ink-primary);
+      border-color: var(--bg-elevated);
+      font-weight: 600;
+    }
+
+    /* Shared UI Controls & Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      min-height: 36px;
+      padding: 7px 16px;
+      border-radius: 6px;
+      font-size: 13.5px;
+      font-weight: 500;
+      line-height: 1;
+      cursor: pointer;
+      border: 1px solid transparent;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: background var(--t-enter) var(--ease-out), border-color var(--t-enter) var(--ease-out), transform var(--t-press) var(--ease-out);
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-lg {
+      min-height: 40px;
+      padding: 9px 20px;
+    }
+
+    .btn-primary {
+      background: var(--action-primary);
+      color: var(--action-primary-ink);
+      box-shadow: var(--highlight-top);
+    }
+
+    .btn-primary:hover {
+      background: var(--action-primary-hover);
+    }
+
+    .btn-primary:active {
+      background: var(--action-primary-active);
+    }
+
+    .btn-secondary {
+      background: var(--bg-elevated);
+      color: var(--ink-primary);
+      border-color: var(--border-control);
+      box-shadow: var(--highlight-top);
+    }
+
+    .btn-secondary:hover {
+      background: var(--surface-hover);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--ink-secondary);
+      border-color: transparent;
+      min-height: 32px;
+      padding: 5px 10px;
+      font-size: 12.5px;
+    }
+
+    .btn-ghost:hover {
+      background: var(--surface-hover);
+      color: var(--ink-primary);
+    }
+
+    .btn-pine {
+      background: var(--accent-pine);
+      color: var(--accent-pine-ink);
+      box-shadow: var(--highlight-top);
+    }
+
+    .btn-pine:hover {
+      background: var(--accent-pine-hover);
+    }
+
+    /* SVG icon baseline */
+    .ico {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      display: inline-block;
+    }
+
+    .ico-sm {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* Specimen Containers */
+    .specimen {
+      display: none;
+    }
+
+    .specimen.is-active {
+      display: block;
+      animation: panelEnter var(--t-enter) var(--ease-out);
+    }
+
+    @keyframes panelEnter {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Subtle Public Masthead Paper Grain (<= 1.8%) */
+    .paper-grain-zone {
+      position: relative;
+      background-color: var(--bg-surface);
+      background-image:
+        radial-gradient(rgba(26, 22, 17, 0.018) 1px, transparent 0),
+        linear-gradient(180deg, #F8F6F2 0%, #F4F1EA 100%);
+      background-size: 3px 3px, 100% 100%;
+    }
+
+    .ledger-ticks {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid var(--border-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 6px 0;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--ink-muted);
+      letter-spacing: 0.03em;
+    }
+
+    /* ========================= SPECIMEN A: PUBLIC / ========================= */
+    .pub-masthead {
+      border-bottom: 1px solid var(--border-subtle);
+      background: rgba(248, 246, 242, 0.94);
+    }
+
+    .pub-masthead-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 12px 32px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand-lockup {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 1px solid var(--border-control);
+      background: var(--bg-elevated);
+      display: grid;
+      place-items: center;
+      color: var(--accent-pine);
+      flex-shrink: 0;
+    }
+
+    .brand-name {
+      font-family: var(--font-serif);
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--ink-primary);
+      letter-spacing: -0.015em;
+    }
+
+    .brand-dept {
+      font-size: 12px;
+      color: var(--ink-muted);
+    }
+
+    .pub-nav {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .pub-nav a {
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--ink-secondary);
+      text-decoration: none;
+      padding: 6px 8px;
+      border-radius: 4px;
+    }
+
+    .pub-nav a:hover {
+      color: var(--ink-primary);
+      background: var(--surface-hover);
+    }
+
+    .pub-main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 36px 32px 48px;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.38fr);
+      gap: 36px;
+      align-items: start;
+      margin-top: 20px;
+    }
+
+    .hero-copy {
+      min-width: 0;
+    }
+
+    .hero-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      background: var(--accent-pine-soft);
+      color: var(--accent-pine);
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 14px;
+    }
+
+    .hero-title {
+      font-family: var(--font-serif);
+      font-size: clamp(2rem, 3.2vw, 2.75rem);
+      font-weight: 600;
+      line-height: 1.09;
+      letter-spacing: -0.025em;
+      color: var(--ink-primary);
+      margin: 0 0 16px;
+      text-wrap: balance;
+    }
+
+    .hero-body {
+      font-size: 16px;
+      line-height: 1.60;
+      color: var(--ink-secondary);
+      max-width: 56ch;
+      margin: 0 0 22px;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .hero-metrics {
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 14px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .hero-metric-item dt {
+      font-size: 11.5px;
+      color: var(--ink-muted);
+      margin-bottom: 2px;
+    }
+
+    .hero-metric-item dd {
+      margin: 0;
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--ink-primary);
+    }
+
+    /* Interactive 2D Specimen Frame */
+    .specimen-stage {
+      min-width: 0;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      box-shadow: var(--highlight-top), var(--shadow-sheet);
+      overflow: hidden;
+    }
+
+    .specimen-disclaimer {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 16px;
+      background: var(--bg-canvas);
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 12px;
+      color: var(--ink-secondary);
+    }
+
+    .specimen-disclaimer strong {
+      color: var(--ink-primary);
+      font-weight: 600;
+    }
+
+    .specimen-toolbar {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: var(--bg-elevated);
+    }
+
+    .constraint-toggles {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .toggle-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 36px;
+      padding: 6px 11px;
+      border-radius: 6px;
+      border: 1px solid var(--border-control);
+      background: var(--bg-surface);
+      color: var(--ink-secondary);
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background var(--t-enter) var(--ease-out), border-color var(--t-enter) var(--ease-out), transform var(--t-press) var(--ease-out);
+    }
+
+    .toggle-pill:hover {
+      background: var(--surface-hover);
+      color: var(--ink-primary);
+    }
+
+    .toggle-pill:active {
+      transform: scale(0.97);
+    }
+
+    .toggle-pill[aria-pressed="true"] {
+      background: var(--accent-pine-soft);
+      border-color: var(--accent-pine);
+      color: var(--accent-pine);
+      font-weight: 600;
+    }
+
+    .pill-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      border: 1px solid currentColor;
+      background: transparent;
+    }
+
+    .toggle-pill[aria-pressed="true"] .pill-dot {
+      background: var(--accent-pine);
+    }
+
+    .segmented {
+      display: inline-flex;
+      border: 1px solid var(--border-control);
+      border-radius: 6px;
+      background: var(--bg-canvas);
+      padding: 2px;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .segmented button {
+      min-height: 30px;
+      padding: 4px 10px;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--ink-secondary);
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background var(--t-enter) var(--ease-out), color var(--t-enter) var(--ease-out);
+    }
+
+    .segmented button[aria-pressed="true"] {
+      background: var(--bg-elevated);
+      color: var(--ink-primary);
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(26, 22, 17, 0.08);
+    }
+
+    .grid-controls-sub {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: var(--bg-surface);
+    }
+
+    .grid-scroll-wrap {
+      width: 100%;
+      overflow-x: auto;
+      padding: 12px 16px 16px;
+    }
+
+    .timetable-matrix {
+      min-width: 620px;
+      display: grid;
+      grid-template-columns: 84px repeat(6, minmax(0, 1fr));
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      overflow: hidden;
+      background: var(--bg-elevated);
+    }
+
+    .timetable-matrix.has-p7 {
+      min-width: 730px;
+      grid-template-columns: 84px repeat(7, minmax(0, 1fr));
+    }
+
+    .tt-corner, .tt-head-cell {
+      padding: 8px 8px;
+      background: var(--bg-canvas);
+      border-bottom: 1px solid var(--border-subtle);
+      border-right: 1px solid var(--border-subtle);
+      font-size: 11px;
+    }
+
+    .tt-head-cell:last-child {
+      border-right: 0;
+    }
+
+    .tt-head-slot {
+      font-weight: 600;
+      color: var(--ink-primary);
+      font-family: var(--font-mono);
+    }
+
+    .tt-head-time {
+      color: var(--ink-muted);
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      display: block;
+      margin-top: 2px;
+    }
+
+    .tt-row-label {
+      padding: 10px 8px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-subtle);
+      border-right: 1px solid var(--border-subtle);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink-primary);
+    }
+
+    .tt-row-sub {
+      display: block;
+      font-weight: 400;
+      font-size: 11px;
+      color: var(--ink-muted);
+      font-family: var(--font-mono);
+      margin-top: 2px;
+    }
+
+    .tt-cell {
+      padding: 6px;
+      min-height: 74px;
+      border-bottom: 1px solid var(--border-subtle);
+      border-right: 1px solid var(--border-subtle);
+      background: var(--bg-elevated);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tt-cell-inner {
+      position: relative;
+      flex: 1;
+      border-radius: 5px;
+      padding: 6px 8px;
+      border: 1px solid var(--border-subtle);
+      border-left-width: 3px;
+      font-size: 11.5px;
+      line-height: 1.3;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 3px;
+    }
+
+    .cat-theory {
+      background: var(--sem-theory-bg);
+      color: var(--sem-theory-ink);
+      border-left-color: var(--sem-theory-bar);
+    }
+
+    .cat-lab {
+      background: var(--sem-lab-bg);
+      color: var(--sem-lab-ink);
+      border-left-color: var(--sem-lab-bar);
+    }
+
+    .cat-joint {
+      background: var(--sem-joint-bg);
+      color: var(--sem-joint-ink);
+      border-left-color: var(--sem-joint-bar);
+    }
+
+    .cat-block {
+      background: var(--sem-conflict-bg);
+      color: var(--sem-conflict-ink);
+      border-left-color: var(--sem-conflict-bar);
+      background-image: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 6px,
+        rgba(184, 56, 55, 0.06) 6px,
+        rgba(184, 56, 55, 0.06) 12px
+      );
+    }
+
+    .tt-code {
+      font-family: var(--font-mono);
+      font-weight: 500;
+      font-size: 11.5px;
+    }
+
+    .tt-meta {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      opacity: 0.92;
+    }
+
+    .tt-empty {
+      flex: 1;
+      display: grid;
+      place-items: center;
+      color: var(--ink-muted);
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    /* Corner-Triangle Override Marker + Tooltip */
+    .override-corner {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 0;
+      height: 0;
+      border-style: solid;
+      border-width: 0 12px 12px 0;
+      border-color: transparent var(--sem-joint-bar) transparent transparent;
+    }
+
+    .has-tooltip {
+      position: relative;
+      cursor: help;
+    }
+
+    .tooltip-pop {
+      position: absolute;
+      bottom: calc(100% + 6px);
+      right: 0;
+      width: 210px;
+      padding: 7px 9px;
+      border-radius: 6px;
+      background: var(--action-primary);
+      color: var(--action-primary-ink);
+      font-family: var(--font-sans);
+      font-size: 11.5px;
+      line-height: 1.35;
+      box-shadow: var(--shadow-popover);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(3px);
+      transition: opacity 150ms var(--ease-out), transform 150ms var(--ease-out);
+      z-index: 25;
+    }
+
+    .has-tooltip:hover .tooltip-pop,
+    .has-tooltip:focus-within .tooltip-pop {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Compact List View */
+    .compact-list-view {
+      display: none;
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .compact-list-view.is-open {
+      display: block;
+    }
+
+    .timetable-matrix.is-hidden {
+      display: none;
+    }
+
+    .cl-row {
+      display: grid;
+      grid-template-columns: 96px 115px minmax(0, 1fr) 92px 86px;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 13px;
+      background: var(--bg-elevated);
+    }
+
+    .cl-row:last-child {
+      border-bottom: 0;
+    }
+
+    .cl-row-head {
+      background: var(--bg-canvas);
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--ink-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .specimen-footer-legend {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 16px;
+      border-top: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      font-size: 12px;
+      color: var(--ink-secondary);
+    }
+
+    .legend-items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .legend-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+
+    /* Mobile Companion Strip */
+    .companion-strip {
+      margin-top: 32px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      box-shadow: var(--highlight-top), var(--shadow-sheet);
+      padding: 20px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .companion-title {
+      font-family: var(--font-serif);
+      font-size: 19px;
+      font-weight: 600;
+      margin: 0 0 4px;
+      color: var(--ink-primary);
+    }
+
+    .companion-text {
+      margin: 0;
+      font-size: 14px;
+      color: var(--ink-secondary);
+      max-width: 64ch;
+    }
+
+    .platform-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .platform-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      color: var(--ink-primary);
+      font-size: 12.5px;
+      font-weight: 500;
+    }
+
+    /* ========================= SPECIMEN B: AUTH ========================= */
+    .auth-shell {
+      min-height: calc(100vh - 54px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.95fr);
+    }
+
+    .auth-context {
+      background: var(--bg-canvas);
+      border-right: 1px solid var(--border-subtle);
+      padding: 40px 44px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 28px;
+    }
+
+    .auth-panel {
+      background: var(--bg-surface);
+      padding: 40px 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+    }
+
+    .auth-mode-bar {
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .auth-card {
+      width: 100%;
+      max-width: 440px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      box-shadow: var(--highlight-top), var(--shadow-sheet);
+      padding: 28px;
+    }
+
+    .auth-card-title {
+      font-family: var(--font-serif);
+      font-size: 24px;
+      font-weight: 600;
+      margin: 0 0 6px;
+      color: var(--ink-primary);
+    }
+
+    .auth-card-sub {
+      margin: 0 0 18px;
+      font-size: 13.5px;
+      color: var(--ink-secondary);
+    }
+
+    .form-field {
+      margin-bottom: 14px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ink-primary);
+      margin-bottom: 6px;
+    }
+
+    .form-input {
+      width: 100%;
+      min-height: 40px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-control);
+      background: var(--bg-elevated);
+      color: var(--ink-primary);
+      font-size: 14px;
+    }
+
+    .form-input::placeholder {
+      color: var(--ink-muted);
+    }
+
+    .auth-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 16px 0;
+      font-size: 12px;
+      color: var(--ink-muted);
+    }
+
+    .auth-divider::before,
+    .auth-divider::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--border-subtle);
+    }
+
+    .recovery-banner {
+      display: none;
+      margin-bottom: 16px;
+      padding: 12px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--sem-conflict-bar);
+      border-left-width: 3px;
+      background: var(--sem-conflict-bg);
+      color: var(--sem-conflict-ink);
+      font-size: 13px;
+    }
+
+    .recovery-banner.is-visible {
+      display: block;
+      animation: shakeErr 260ms var(--ease-out);
+    }
+
+    @keyframes shakeErr {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-4px); }
+      75% { transform: translateX(4px); }
+    }
+
+    .pw-checklist {
+      margin: 10px 0 16px;
+      padding: 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      list-style: none;
+      display: grid;
+      gap: 6px;
+      font-size: 12.5px;
+    }
+
+    .pw-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--ink-muted);
+    }
+
+    .pw-item.is-met {
+      color: var(--accent-pine);
+      font-weight: 500;
+    }
+
+    .pw-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      border: 1.5px solid var(--border-control);
+      display: grid;
+      place-items: center;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+
+    .pw-item.is-met .pw-dot {
+      background: var(--accent-pine);
+      border-color: var(--accent-pine);
+      color: var(--accent-pine-ink);
+    }
+
+    .policy-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      background: var(--bg-surface);
+      overflow: hidden;
+    }
+
+    .policy-list li {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+    }
+
+    .policy-list li:last-child {
+      border-bottom: 0;
+    }
+
+    /* ========================= SPECIMEN C: ADMIN ========================= */
+    .admin-preview-strip {
+      background: var(--sem-joint-bg);
+      color: var(--sem-joint-ink);
+      border-bottom: 1px solid var(--sem-joint-bar);
+      padding: 8px 20px;
+      font-size: 12.5px;
+      font-weight: 500;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .admin-layout {
+      min-height: calc(100vh - 90px);
+      display: grid;
+      grid-template-columns: 240px minmax(0, 1fr);
+      background: var(--bg-surface);
+    }
+
+    .admin-rail {
+      background: var(--bg-canvas);
+      border-right: 1px solid var(--border-subtle);
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .rail-group-title {
+      padding: 0 10px 6px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--ink-muted);
+    }
+
+    .rail-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 2px;
+    }
+
+    .rail-link {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 0;
+      background: transparent;
+      color: var(--ink-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .rail-link:hover {
+      background: var(--surface-hover);
+      color: var(--ink-primary);
+    }
+
+    .rail-link.is-active {
+      background: var(--bg-elevated);
+      color: var(--ink-primary);
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(26, 22, 17, 0.06);
+      border-left: 3px solid var(--accent-pine);
+      padding-left: 7px;
+    }
+
+    .cap-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      color: var(--ink-muted);
+      flex-shrink: 0;
+    }
+
+    .cap-tag-locked {
+      background: var(--sem-conflict-bg);
+      color: var(--sem-conflict-ink);
+      border-color: rgba(184, 56, 55, 0.25);
+    }
+
+    .admin-main {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .admin-topbar {
+      min-height: 52px;
+      padding: 8px 24px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-elevated);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px 12px;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .drawer-btn {
+      display: none;
+      min-height: 36px;
+      min-width: 36px;
+      padding: 6px;
+      border-radius: 6px;
+      border: 1px solid var(--border-control);
+      background: var(--bg-surface);
+      color: var(--ink-primary);
+      cursor: pointer;
+    }
+
+    .topbar-crumb {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ink-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .engine-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      color: var(--ink-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .account-trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 36px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border-control);
+      background: var(--bg-elevated);
+      color: var(--ink-primary);
+      font-size: 12.5px;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .account-popover {
+      display: none;
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      width: 260px;
+      padding: 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-elevated);
+      box-shadow: var(--highlight-top), var(--shadow-popover);
+      z-index: 45;
+    }
+
+    .account-popover.is-open {
+      display: block;
+      animation: panelEnter 160ms var(--ease-out);
+    }
+
+    .admin-content {
+      padding: 24px;
+      max-width: 1120px;
+      width: 100%;
+      margin: 0 auto;
+      display: grid;
+      gap: 20px;
+    }
+
+    .admin-header-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .admin-h1 {
+      margin: 0 0 4px;
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      line-height: 1.22;
+      color: var(--ink-primary);
+    }
+
+    .alert-eligibility {
+      padding: 14px 18px;
+      border-radius: 8px;
+      border: 1px solid rgba(184, 56, 55, 0.35);
+      border-left: 3px solid var(--sem-conflict-bar);
+      background: var(--sem-conflict-bg);
+      color: var(--sem-conflict-ink);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13.5px;
+    }
+
+    /* Dissolved Ledger Table Container */
+    .ledger-panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      box-shadow: var(--highlight-top), var(--shadow-sheet);
+      overflow: hidden;
+    }
+
+    .ledger-panel-head {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .ledger-row {
+      display: grid;
+      grid-template-columns: 36px 40px minmax(0, 1fr) 150px 160px;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 18px;
+      border-bottom: 1px solid var(--border-subtle);
+      transition: background 140ms var(--ease-out);
+    }
+
+    .ledger-row:last-child {
+      border-bottom: 0;
+    }
+
+    .ledger-row:hover {
+      background: var(--surface-hover);
+    }
+
+    .ledger-row.is-inactive {
+      background: var(--bg-surface);
+      color: var(--ink-muted);
+    }
+
+    .ledger-row.is-inactive .row-title {
+      color: var(--ink-muted);
+    }
+
+    .row-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+      opacity: 0;
+      transition: opacity 150ms var(--ease-out);
+    }
+
+    .ledger-row:hover .row-actions,
+    .ledger-row:focus-within .row-actions {
+      opacity: 1;
+    }
+
+    .bulk-tray {
+      display: none;
+      padding: 10px 18px;
+      background: var(--accent-pine-soft);
+      border-bottom: 1px solid rgba(26, 82, 54, 0.25);
+      color: var(--accent-pine);
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .bulk-tray.is-visible {
+      display: flex;
+      animation: panelEnter 160ms var(--ease-out);
+    }
+
+    /* Mini Chart Demonstrating Recharts Spec (Explicit Axes, Flat Tops, Sibling Dimming) */
+    .chart-box {
+      padding: 16px 18px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      box-shadow: var(--highlight-top), var(--shadow-sheet);
+    }
+
+    .bars-group:hover .chart-bar:not(:hover) {
+      opacity: 0.35;
+      transition: opacity 160ms var(--ease-out);
+    }
+
+    .chart-bar {
+      transition: opacity 160ms var(--ease-out);
+      cursor: pointer;
+    }
+
+    /* Modal & Toast */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(26, 22, 17, 0.38);
+      z-index: 80;
+      padding: 20px;
+      place-items: center;
+    }
+
+    .modal-backdrop.is-open {
+      display: grid;
+    }
+
+    .modal-box {
+      width: 100%;
+      max-width: 460px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 24px;
+      box-shadow: var(--highlight-top), var(--shadow-popover);
+      animation: panelEnter var(--t-enter) var(--ease-out);
+    }
+
+    .recovery-toast {
+      display: none;
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 90;
+      max-width: 380px;
+      background: var(--action-primary);
+      color: var(--action-primary-ink);
+      border-radius: 8px;
+      padding: 12px 16px;
+      box-shadow: var(--shadow-popover);
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      font-size: 13px;
+    }
+
+    .recovery-toast.is-open {
+      display: flex;
+      animation: panelEnter var(--t-enter) var(--ease-out);
+    }
+
+    /* Responsive Breakpoints */
+    @media (max-width: 1099px) {
+      .hero-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .admin-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .admin-rail {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 260px;
+        z-index: 75;
+        box-shadow: var(--shadow-popover);
+        overflow-y: auto;
+      }
+
+      .admin-rail.is-drawer-open {
+        display: flex;
+      }
+
+      .drawer-btn {
+        display: inline-grid;
+        place-items: center;
+      }
+    }
+
+    @media (max-width: 1023px) {
+      .auth-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .auth-context {
+        border-right: 0;
+        border-bottom: 1px solid var(--border-subtle);
+        padding: 28px 24px;
+      }
+
+      .auth-panel {
+        padding: 28px 20px;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .pub-masthead-inner, .pub-main {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+
+      .admin-topbar, .admin-content {
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+
+      .ledger-row {
+        grid-template-columns: 28px minmax(0, 1fr);
+        gap: 8px;
+      }
+
+      .ledger-row .row-num {
+        display: none;
+      }
+
+      .ledger-row .row-status,
+      .ledger-row .row-actions {
+        grid-column: 2;
+        justify-content: flex-start;
+        opacity: 1;
+      }
+
+      .cl-row {
+        grid-template-columns: 78px minmax(0, 1fr) 72px;
+      }
+
+      .cl-row > :nth-child(2),
+      .cl-row > :nth-child(4) {
+        display: none;
+      }
+
+      .hero-metrics {
+        grid-template-columns: 1fr;
+      }
+
+      .btn, .toggle-pill, .account-trigger {
+        min-height: 44px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Reviewer Specimen Switcher -->
+  <header class="preview-chrome" aria-label="Prototype Specimen Switcher">
+    <div class="preview-chrome-inner">
+      <div class="preview-chrome-label">
+        <span class="preview-pill-dot" aria-hidden="true"></span>
+        <span><strong>UniVerse Academic Ledger</strong> · Phase 1A Static Design Prototype (Disconnected from Backend)</span>
+      </div>
+      <div class="specimen-tabs" role="tablist" aria-label="Select Specimen View">
+        <button class="specimen-tab" role="tab" aria-selected="true" data-specimen="a">Specimen A · Public /</button>
+        <button class="specimen-tab" role="tab" aria-selected="false" data-specimen="b">Specimen B · Auth /login</button>
+        <button class="specimen-tab" role="tab" aria-selected="false" data-specimen="c">Specimen C · Admin Dashboard</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== SPECIMEN A: PUBLIC / ==================== -->
+  <section id="specimen-a" class="specimen is-active" aria-label="Specimen A Public Institutional Entry">
+    <div class="paper-grain-zone">
+      <header class="pub-masthead">
+        <div class="pub-masthead-inner">
+          <div class="brand-lockup">
+            <div class="brand-mark" aria-hidden="true">
+              <svg class="ico" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="18">
+                <rect x="36" y="44" width="184" height="168" rx="16" />
+                <line x1="36" y1="96" x2="220" y2="96" />
+                <line x1="96" y1="96" x2="96" y2="212" />
+                <circle cx="158" cy="154" r="22" />
+              </svg>
+            </div>
+            <div>
+              <div class="brand-name">UniVerse</div>
+              <div class="brand-dept">Leading University · Dept. of CSE Routine Operations</div>
+            </div>
+          </div>
+          <nav class="pub-nav" aria-label="Public Navigation">
+            <a href="#specimen-grid">Schedule Specimen</a>
+            <a href="#mobile-apps">Mobile Companion</a>
+            <button type="button" class="btn btn-primary" data-jump-specimen="b">Admin Sign In</button>
+          </nav>
+        </div>
+      </header>
+
+      <main class="pub-main">
+        <div class="ledger-ticks">
+          <span>LU / CSE · ARCHIVAL REGISTRAR · LIGHT-FIRST LEDGER</span>
+          <span>R1–R16 CONSTRAINT ENGINE PREVIEW</span>
+        </div>
+
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <div class="hero-kicker">
+              <svg class="ico-sm" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="20" aria-hidden="true">
+                <path d="M40 128h176M128 40v176" />
+              </svg>
+              Academic Routine Engine
+            </div>
+            <h1 class="hero-title">Institutional timetable clarity, governed by committee rules.</h1>
+            <p class="hero-body">
+              Built for Leading University CSE routine coordinators and committee administrators to reconcile course distribution workbooks, faculty off-days, lab capacities, and Friday blocks into verified academic schedules.
+            </p>
+            <div class="hero-actions">
+              <button type="button" class="btn btn-primary btn-lg" data-jump-specimen="b">
+                Sign In as Administrator
+              </button>
+              <button type="button" class="btn btn-secondary btn-lg" data-jump-specimen="c">
+                Inspect Admin Specimen
+              </button>
+            </div>
+            <dl class="hero-metrics">
+              <div class="hero-metric-item">
+                <dt>Constraint Solver</dt>
+                <dd>OR-Tools CP-SAT</dd>
+              </div>
+              <div class="hero-metric-item">
+                <dt>Schedule Lenses</dt>
+                <dd>Section · Faculty · Room</dd>
+              </div>
+              <div class="hero-metric-item">
+                <dt>Daily Client</dt>
+                <dd>Android &amp; iOS Flutter</dd>
+              </div>
+            </dl>
+          </div>
+
+          <!-- Interactive Flat 2D Timetable Specimen -->
+          <div id="specimen-grid" class="specimen-stage">
+            <div class="specimen-disclaimer">
+              <span><strong>Illustrative sample schedule — interactive preview only, not a live CP-SAT solver run.</strong></span>
+              <span class="mono" id="a-slot-summary">Showing 14 sample slots</span>
+            </div>
+
+            <div class="specimen-toolbar">
+              <div class="constraint-toggles" role="group" aria-label="Illustrative Constraint Controls">
+                <button type="button" class="toggle-pill" id="tog-jummah" aria-pressed="true">
+                  <span class="pill-dot" aria-hidden="true"></span>
+                  <span>Fri P4 Jummah Block</span>
+                </button>
+                <button type="button" class="toggle-pill" id="tog-r7" aria-pressed="true">
+                  <span class="pill-dot" aria-hidden="true"></span>
+                  <span>R7 Off-Day (EBH Thu–Fri)</span>
+                </button>
+                <button type="button" class="toggle-pill" id="tog-r15" aria-pressed="false">
+                  <span class="pill-dot" aria-hidden="true"></span>
+                  <span>R15 7-Slot (+P7 Online)</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="grid-controls-sub">
+              <div class="segmented" role="group" aria-label="Operational Lens">
+                <button type="button" data-lens="section" aria-pressed="true">Section</button>
+                <button type="button" data-lens="faculty" aria-pressed="false">Faculty</button>
+                <button type="button" data-lens="room" aria-pressed="false">Room</button>
+              </div>
+              <div class="segmented" role="group" aria-label="Display Mode">
+                <button type="button" data-view="matrix" aria-pressed="true">Matrix</button>
+                <button type="button" data-view="list" aria-pressed="false">Compact List</button>
+              </div>
+            </div>
+
+            <div class="grid-scroll-wrap">
+              <div id="a-matrix" class="timetable-matrix" role="region" aria-label="Illustrative 2D Academic Timetable"></div>
+              <div id="a-list" class="compact-list-view" role="region" aria-label="Illustrative Compact Schedule List"></div>
+            </div>
+
+            <div class="specimen-footer-legend">
+              <div class="legend-items">
+                <span class="legend-chip"><span class="legend-swatch" style="background: var(--sem-theory-bar);"></span>Theory</span>
+                <span class="legend-chip"><span class="legend-swatch" style="background: var(--sem-lab-bar);"></span>Lab / Sessional</span>
+                <span class="legend-chip"><span class="legend-swatch" style="background: var(--sem-joint-bar);"></span>Joint B+C / Override</span>
+                <span class="legend-chip"><span class="legend-swatch" style="background: var(--sem-conflict-bar);"></span>Hard Block / R7 Rule</span>
+              </div>
+              <span class="mono" style="font-size: 11px;">Corner triangle = audited override tooltip</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobile Companion Strip -->
+        <aside id="mobile-apps" class="companion-strip" aria-label="Student and Faculty Mobile App Guidance">
+          <div>
+            <h2 class="companion-title">Students &amp; Teachers: Use the UniVerse Mobile App</h2>
+            <p class="companion-text">
+              Live daily schedules, next-class tracking, instant date-scoped class cancellation alerts, room vacancy lookup, and teacher location live in the <strong>UniVerse Flutter Mobile app</strong> across both <strong>Android and iOS</strong>. Web v1 is scoped strictly for Routine Committee Administrators.
+            </p>
+          </div>
+          <div class="platform-badges">
+            <span class="platform-badge">Android App (Active Release)</span>
+            <span class="platform-badge">iOS App (Compatibility Maintained)</span>
+          </div>
+        </aside>
+      </main>
+    </div>
+  </section>
+
+  <!-- ==================== SPECIMEN B: AUTH /login ==================== -->
+  <section id="specimen-b" class="specimen" aria-label="Specimen B Authentication Flow">
+    <div class="auth-shell">
+      <aside class="auth-context">
+        <div>
+          <div class="brand-lockup" style="margin-bottom: 24px;">
+            <div class="brand-mark" aria-hidden="true">
+              <svg class="ico" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="18">
+                <rect x="36" y="44" width="184" height="168" rx="16" />
+                <line x1="36" y1="96" x2="220" y2="96" />
+                <line x1="96" y1="96" x2="96" y2="212" />
+              </svg>
+            </div>
+            <div>
+              <div class="brand-name">UniVerse Operations Console</div>
+              <div class="brand-dept">Leading University · Routine Committee Entry</div>
+            </div>
+          </div>
+
+          <h1 style="font-family: var(--font-serif); font-size: 28px; font-weight: 600; line-height: 1.15; margin: 0 0 12px;">
+            Verified coordinator access for academic scheduling.
+          </h1>
+          <p style="font-size: 14.5px; color: var(--ink-secondary); max-width: 48ch; margin: 0 0 22px;">
+            Web console access requires an approved <code class="mono">public.whitelists</code> entry paired with an <code class="mono">admin</code> role in <code class="mono">public.profiles</code>. Students and faculty sign in on the UniVerse Android &amp; iOS mobile app.
+          </p>
+
+          <ul class="policy-list">
+            <li>
+              <span>Standard Web Auth Flow</span>
+              <span class="mono" style="color: var(--ink-primary);">Supabase PKCE</span>
+            </li>
+            <li>
+              <span>Admin Invitation Bridge</span>
+              <span class="mono" style="color: var(--ink-primary);">Scrubbed Hash + 10m Recovery</span>
+            </li>
+            <li>
+              <span>Non-Admin Role Handling</span>
+              <span class="mono" style="color: var(--accent-pine);">Routed to Mobile Guidance</span>
+            </li>
+          </ul>
+        </div>
+
+        <div style="font-size: 12.5px; color: var(--ink-muted);">
+          Static Auth Specimen · Existing Supabase PKCE &amp; invite-admin contracts remain unchanged.
+        </div>
+      </aside>
+
+      <main class="auth-panel">
+        <div class="auth-mode-bar">
+          <div class="segmented" role="group" aria-label="Auth Specimen State">
+            <button type="button" id="b-mode-login" aria-pressed="true">/login</button>
+            <button type="button" id="b-mode-reset" aria-pressed="false">/reset-password</button>
+          </div>
+          <button type="button" class="btn btn-secondary" id="b-sim-error">Simulate Recovery Error</button>
+        </div>
+
+        <!-- Login Form Card -->
+        <div id="b-card-login" class="auth-card">
+          <h2 class="auth-card-title">Administrator Sign In</h2>
+          <p class="auth-card-sub">Use institutional Google OAuth or whitelisted coordinator credentials.</p>
+
+          <div id="b-err-banner" class="recovery-banner" role="alert">
+            <strong>Sign-in paused (Service Recovery):</strong> Your entered email was preserved. Verify credentials, request a recovery link, or retry authentication.
+            <div style="margin-top: 8px; display: flex; gap: 8px;">
+              <button type="button" class="btn btn-secondary" id="b-retry-btn" style="min-height: 32px; padding: 4px 10px; font-size: 12px;">1-Click Retry</button>
+            </div>
+          </div>
+
+          <button type="button" class="btn btn-secondary btn-lg" style="width: 100%;" id="b-google-btn">
+            Continue with Google OAuth
+          </button>
+
+          <div class="auth-divider">or email credentials</div>
+
+          <form onsubmit="return false;">
+            <div class="form-field">
+              <label class="form-label" for="b-email">Institutional Email</label>
+              <input class="form-input" id="b-email" type="email" value="routine.chair@lus.ac.bd" />
+            </div>
+            <div class="form-field">
+              <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                <label class="form-label" for="b-pass">Password</label>
+                <button type="button" class="btn-ghost" id="b-to-reset" style="font-size: 12px; color: var(--accent-pine);">Forgot / Reset password?</button>
+              </div>
+              <input class="form-input" id="b-pass" type="password" value="••••••••••••" />
+            </div>
+            <button type="button" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 4px;" id="b-submit-login">
+              Sign In to Operations Console
+            </button>
+          </form>
+        </div>
+
+        <!-- Reset Password Card with Live Checklist -->
+        <div id="b-card-reset" class="auth-card" style="display: none;">
+          <h2 class="auth-card-title">Set New Admin Password</h2>
+          <p class="auth-card-sub">Recovery session active (bounded 10-minute window). Requirements update live as you type.</p>
+
+          <form onsubmit="return false;">
+            <div class="form-field">
+              <label class="form-label" for="b-new-pw">New Password</label>
+              <input class="form-input" id="b-new-pw" type="password" placeholder="Type at least 8 chars, 1 uppercase, 1 digit" value="Ledger2026" />
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="b-confirm-pw">Confirm Password</label>
+              <input class="form-input" id="b-confirm-pw" type="password" placeholder="Re-enter password" value="Ledger2026" />
+            </div>
+
+            <ul class="pw-checklist" aria-label="Password Requirements">
+              <li class="pw-item is-met" id="pw-len"><span class="pw-dot">✓</span>At least 8 characters</li>
+              <li class="pw-item is-met" id="pw-upper"><span class="pw-dot">✓</span>Contains an uppercase letter (A–Z)</li>
+              <li class="pw-item is-met" id="pw-num"><span class="pw-dot">✓</span>Contains a number (0–9)</li>
+              <li class="pw-item is-met" id="pw-match"><span class="pw-dot">✓</span>Matches confirmation field</li>
+            </ul>
+
+            <button type="button" class="btn btn-primary btn-lg" style="width: 100%;" id="b-save-pw">
+              Update Password &amp; Return to Login
+            </button>
+          </form>
+        </div>
+      </main>
+    </div>
+  </section>
+
+  <!-- ==================== SPECIMEN C: ADMIN DASHBOARD ==================== -->
+  <section id="specimen-c" class="specimen" aria-label="Specimen C Administrative Dashboard">
+    <div class="admin-preview-strip">
+      <span><strong>ILLUSTRATIVE DISCONNECTED PREVIEW:</strong> Static Phase 1A design prototype — does not reflect live Supabase or FastAPI connections.</span>
+      <span class="mono">Target Readiness: Production snapshot (796 routines · 0 eligibility rows)</span>
+    </div>
+
+    <div class="admin-layout">
+      <!-- 240px Left Rail -->
+      <aside id="c-rail" class="admin-rail" aria-label="Admin Navigation Rail">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 8px;">
+          <div class="brand-lockup">
+            <div class="brand-mark" style="width: 24px; height: 24px;" aria-hidden="true">
+              <svg class="ico-sm" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="20">
+                <rect x="36" y="44" width="184" height="168" rx="16" />
+                <line x1="36" y1="100" x2="220" y2="100" />
+              </svg>
+            </div>
+            <span class="brand-name" style="font-size: 16px;">UniVerse</span>
+          </div>
+          <button type="button" class="btn-ghost drawer-btn" id="c-close-drawer" aria-label="Close Navigation Drawer">✕</button>
+        </div>
+
+        <div>
+          <div class="rail-group-title">Timetable Engine</div>
+          <ul class="rail-list">
+            <li><button type="button" class="rail-link is-active"><span>Dashboard</span></button></li>
+            <li><button type="button" class="rail-link"><span>Routine Operations</span></button></li>
+            <li><button type="button" class="rail-link"><span>2D Routine Matrix</span></button></li>
+            <li><button type="button" class="rail-link"><span>Scheduling Workbench</span><span class="cap-tag cap-tag-locked">LOCKED</span></button></li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="rail-group-title">Configuration</div>
+          <ul class="rail-list">
+            <li><button type="button" class="rail-link"><span>Room Pools</span></button></li>
+            <li><button type="button" class="rail-link"><span>Faculty</span></button></li>
+            <li><button type="button" class="rail-link"><span>Course Eligibility</span><span class="cap-tag cap-tag-locked">0 ROWS</span></button></li>
+            <li><button type="button" class="rail-link"><span>Timetable Settings</span></button></li>
+            <li><button type="button" class="rail-link"><span>Catalog Courses</span><span class="cap-tag">STAGED</span></button></li>
+            <li><button type="button" class="rail-link"><span>Batches &amp; Sections</span><span class="cap-tag">STAGED</span></button></li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="rail-group-title">Communication &amp; Users</div>
+          <ul class="rail-list">
+            <li><button type="button" class="rail-link"><span>Campus Broadcast</span></button></li>
+            <li><button type="button" class="rail-link"><span>User Whitelist</span></button></li>
+            <li><button type="button" class="rail-link"><span>Resources</span></button></li>
+          </ul>
+        </div>
+      </aside>
+
+      <div class="admin-main">
+        <!-- 52px Top Bar -->
+        <header class="admin-topbar">
+          <div class="topbar-left">
+            <button type="button" class="drawer-btn" id="c-open-drawer" aria-label="Open Navigation Rail">☰</button>
+            <span class="topbar-crumb">Operations Dashboard</span>
+          </div>
+
+          <div class="topbar-right">
+            <span class="engine-pill mono">Engine: Offline (Preview)</span>
+            <button type="button" class="account-trigger" id="c-account-btn" aria-expanded="false" aria-haspopup="true">
+              <span>Routine Chair</span>
+              <span style="font-size: 11px; color: var(--ink-muted);">▾</span>
+            </button>
+
+            <div id="c-account-pop" class="account-popover" role="dialog" aria-label="Administrator Account Popover">
+              <div style="font-weight: 600; font-size: 13.5px; color: var(--ink-primary);">Dr. Routine Coordinator</div>
+              <div class="mono" style="font-size: 11.5px; color: var(--ink-muted); margin-bottom: 10px;">chair.cse@lus.ac.bd · role: admin</div>
+              <div style="border-top: 1px solid var(--border-subtle); padding-top: 10px; display: grid; gap: 6px;">
+                <button type="button" class="btn btn-secondary" style="width: 100%; justify-content: flex-start;">Account Profile</button>
+                <button type="button" class="btn btn-ghost" style="width: 100%; justify-content: flex-start; color: var(--sem-conflict-ink);" id="c-signout-demo">Sign Out (Preview)</button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main class="admin-content">
+          <div class="admin-header-row">
+            <div>
+              <h1 class="admin-h1">Routine Readiness &amp; System Health</h1>
+              <p style="margin: 0; font-size: 13.5px; color: var(--ink-secondary);">
+                Readiness metrics derive exclusively from verified backend tables in live mode.
+                <span class="mono" id="c-last-checked" style="color: var(--ink-muted); margin-left: 6px;">Last checked: 20:10:04</span>
+              </p>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              <button type="button" class="btn btn-secondary" id="c-refresh-btn">Refresh</button>
+              <button type="button" class="btn btn-secondary" id="c-open-modal">Confirm Publish Modal</button>
+              <button type="button" class="btn btn-primary" id="c-toast-btn">Recovery Toast Demo</button>
+            </div>
+          </div>
+
+          <!-- Verified Empty Course Eligibility Warning -->
+          <div class="alert-eligibility" role="alert">
+            <div>
+              <strong>Action required: Course Eligibility has 0 configured records.</strong>
+              In the verified production snapshot, rooms (<span class="mono">30</span>), faculty (<span class="mono">76</span>), and active routines (<span class="mono">796</span>) exist, while eligibility remains empty.
+            </div>
+            <button type="button" class="btn btn-secondary" style="min-height: 32px; font-size: 12.5px;">Configure Eligibility</button>
+          </div>
+
+          <!-- Dissolved Readiness & Row Operations Table -->
+          <div class="ledger-panel">
+            <div class="ledger-panel-head">
+              <div>
+                <div style="font-size: 15px; font-weight: 600;">4-Stage Routine Readiness &amp; Track Registry</div>
+                <div style="font-size: 12px; color: var(--ink-muted);">Upfront option counts · Inactive-row dimming · Hover/focus-revealed actions</div>
+              </div>
+              <div class="constraint-toggles" role="group" aria-label="Filter Rows With Upfront Counts">
+                <button type="button" class="toggle-pill c-filter-pill" data-filter="all" aria-pressed="true">All (5)</button>
+                <button type="button" class="toggle-pill c-filter-pill" data-filter="ready" aria-pressed="false">Configured (3)</button>
+                <button type="button" class="toggle-pill c-filter-pill" data-filter="attention" aria-pressed="false">Needs Input / Staged (2)</button>
+              </div>
+            </div>
+
+            <div id="c-bulk-tray" class="bulk-tray">
+              <span id="c-bulk-count">0 stages selected</span>
+              <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn btn-secondary" style="min-height: 30px; font-size: 12px;" id="c-bulk-clear">Clear Selection</button>
+                <button type="button" class="btn btn-pine" style="min-height: 30px; font-size: 12px;" id="c-bulk-export">Export Diagnostics</button>
+              </div>
+            </div>
+
+            <div id="c-rows">
+              <div class="ledger-row" data-status="ready">
+                <input type="checkbox" class="c-row-check" aria-label="Select Stage 01 Room Pools" />
+                <span class="mono row-num" style="color: var(--ink-muted); font-size: 12px;">01</span>
+                <div style="min-width: 0;">
+                  <div class="row-title" style="font-weight: 600; font-size: 13.5px;">Room &amp; Lab Pools <span class="mono" style="font-size: 12px; color: var(--ink-muted);">public.timetable_rooms</span></div>
+                  <div style="font-size: 12.5px; color: var(--ink-secondary);">Classroom, ECL &amp; ACL capacities calibrated</div>
+                </div>
+                <div class="row-status mono" style="font-size: 12px; color: var(--accent-pine); font-weight: 500;">30 active rooms</div>
+                <div class="row-actions">
+                  <button type="button" class="btn btn-ghost c-copy-btn" data-copy="public.timetable_rooms">Copy ID</button>
+                  <button type="button" class="btn btn-secondary" style="min-height: 30px; padding: 4px 10px; font-size: 12px;">Inspect</button>
+                </div>
+              </div>
+
+              <div class="ledger-row" data-status="ready">
+                <input type="checkbox" class="c-row-check" aria-label="Select Stage 02 Faculty" />
+                <span class="mono row-num" style="color: var(--ink-muted); font-size: 12px;">02</span>
+                <div style="min-width: 0;">
+                  <div class="row-title" style="font-weight: 600; font-size: 13.5px;">Faculty Directory &amp; Off-Days <span class="mono" style="font-size: 12px; color: var(--ink-muted);">public.timetable_faculty</span></div>
+                  <div style="font-size: 12.5px; color: var(--ink-secondary);">Acronyms, R7 off-days &amp; designations</div>
+                </div>
+                <div class="row-status mono" style="font-size: 12px; color: var(--accent-pine); font-weight: 500;">76 faculty rows</div>
+                <div class="row-actions">
+                  <button type="button" class="btn btn-ghost c-copy-btn" data-copy="public.timetable_faculty">Copy ID</button>
+                  <button type="button" class="btn btn-secondary" style="min-height: 30px; padding: 4px 10px; font-size: 12px;">Inspect</button>
+                </div>
+              </div>
+
+              <div class="ledger-row" data-status="attention">
+                <input type="checkbox" class="c-row-check" aria-label="Select Stage 03 Eligibility" />
+                <span class="mono row-num" style="color: var(--ink-muted); font-size: 12px;">03</span>
+                <div style="min-width: 0;">
+                  <div class="row-title" style="font-weight: 600; font-size: 13.5px;">Course Eligibility &amp; Time Grid <span class="mono" style="font-size: 12px; color: var(--ink-muted);">timetable_course_eligibility</span></div>
+                  <div style="font-size: 12.5px; color: var(--ink-secondary);">No hardcoded workbook SHA placeholder — derived strictly from DB</div>
+                </div>
+                <div class="row-status mono" style="font-size: 12px; color: var(--sem-conflict-ink); font-weight: 600;">0 eligibility rows</div>
+                <div class="row-actions">
+                  <button type="button" class="btn btn-ghost c-copy-btn" data-copy="timetable_course_eligibility">Copy ID</button>
+                  <button type="button" class="btn btn-secondary" style="min-height: 30px; padding: 4px 10px; font-size: 12px;">Grid</button>
+                </div>
+              </div>
+
+              <div class="ledger-row" data-status="ready">
+                <input type="checkbox" class="c-row-check" aria-label="Select Stage 04 Active Routine" />
+                <span class="mono row-num" style="color: var(--ink-muted); font-size: 12px;">04</span>
+                <div style="min-width: 0;">
+                  <div class="row-title" style="font-weight: 600; font-size: 13.5px;">Active Routine Publication <span class="mono" style="font-size: 12px; color: var(--ink-muted);">public.routines</span></div>
+                  <div style="font-size: 12.5px; color: var(--ink-secondary);">6 recorded routine_versions · 23 runs logged</div>
+                </div>
+                <div class="row-status mono" style="font-size: 12px; color: var(--ink-primary); font-weight: 500;">796 active slots</div>
+                <div class="row-actions">
+                  <button type="button" class="btn btn-ghost c-copy-btn" data-copy="publish_routine">Copy ID</button>
+                  <button type="button" class="btn btn-secondary" style="min-height: 30px; padding: 4px 10px; font-size: 12px;">Open Grid</button>
+                </div>
+              </div>
+
+              <div class="ledger-row is-inactive" data-status="attention">
+                <input type="checkbox" class="c-row-check" aria-label="Select Track 2 Staged Catalog" />
+                <span class="mono row-num" style="font-size: 12px;">05</span>
+                <div style="min-width: 0;">
+                  <div class="row-title" style="font-weight: 600; font-size: 13.5px;">Track 2 Course Distribution Workbench <span class="cap-tag cap-tag-locked" style="margin-left: 6px;">GATES A–D LOCKED</span></div>
+                  <div style="font-size: 12.5px;">Inactive / fail-closed row demonstration preserving 5.67:1 muted ink contrast</div>
+                </div>
+                <div class="row-status mono" style="font-size: 12px;">Staged for Phase 4</div>
+                <div class="row-actions">
+                  <button type="button" class="btn btn-ghost c-copy-btn" data-copy="read_course_distribution_revision">Copy RPC</button>
+                  <button type="button" class="btn btn-secondary" style="min-height: 30px; padding: 4px 10px; font-size: 12px;">Details</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chart Spec Specimen: Explicit Axes, Flat Bar Tops, Sibling-Bar Hover Dimming -->
+          <div class="chart-box">
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px;">
+              <div style="font-size: 14px; font-weight: 600;">Illustrative Room Utilization Spec (Recharts Style)</div>
+              <div style="font-size: 12px; color: var(--ink-muted);">Explicit X/Y axes · Flat bar tops · Sibling-bar hover dimming</div>
+            </div>
+            <svg viewBox="0 0 640 155" style="width: 100%; height: auto; display: block;" role="img" aria-label="Illustrative bar chart showing flat top bars with explicit axes">
+              <line x1="48" y1="15" x2="48" y2="125" stroke="#7D7871" stroke-width="1" />
+              <line x1="48" y1="125" x2="620" y2="125" stroke="#7D7871" stroke-width="1" />
+              <text x="38" y="24" text-anchor="end" font-size="10.5" fill="#696660" class="mono">100%</text>
+              <text x="38" y="75" text-anchor="end" font-size="10.5" fill="#696660" class="mono">50%</text>
+              <text x="38" y="125" text-anchor="end" font-size="10.5" fill="#696660" class="mono">0%</text>
+              <g class="bars-group">
+                <g class="chart-bar">
+                  <rect x="80" y="34" width="64" height="91" fill="#1A5236" />
+                  <text x="112" y="143" text-anchor="middle" font-size="11" fill="#4F4B45" class="mono">ACL-1</text>
+                </g>
+                <g class="chart-bar">
+                  <rect x="190" y="48" width="64" height="77" fill="#1A5236" />
+                  <text x="222" y="143" text-anchor="middle" font-size="11" fill="#4F4B45" class="mono">ACL-2</text>
+                </g>
+                <g class="chart-bar">
+                  <rect x="300" y="61" width="64" height="64" fill="#316695" />
+                  <text x="332" y="143" text-anchor="middle" font-size="11" fill="#4F4B45" class="mono">RAB-302</text>
+                </g>
+                <g class="chart-bar">
+                  <rect x="410" y="42" width="64" height="83" fill="#316695" />
+                  <text x="442" y="143" text-anchor="middle" font-size="11" fill="#4F4B45" class="mono">RAB-404</text>
+                </g>
+                <g class="chart-bar">
+                  <rect x="520" y="74" width="64" height="51" fill="#9F6713" />
+                  <text x="552" y="143" text-anchor="middle" font-size="11" fill="#4F4B45" class="mono">ECL-1</text>
+                </g>
+              </g>
+            </svg>
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- Confirmation Modal -->
+  <div id="c-modal-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="c-modal-title">
+    <div class="modal-box">
+      <h2 id="c-modal-title" style="margin: 0 0 8px; font-size: 18px; font-weight: 600;">Confirm Guarded Publication</h2>
+      <p style="margin: 0 0 16px; font-size: 13.5px; color: var(--ink-secondary);">
+        Consistent confirmation grammar shared across admin screens: invoking <code class="mono">publish_routine()</code> atomically replaces all active student/teacher rows and archives the source workbook.
+      </p>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" class="btn btn-secondary" id="c-modal-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="c-modal-confirm">Confirm &amp; Archive</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Service Recovery Toast -->
+  <div id="c-toast" class="recovery-toast" role="status" aria-live="polite">
+    <span id="c-toast-msg">Row update queued locally (preview).</span>
+    <button type="button" class="btn btn-secondary" id="c-toast-undo" style="min-height: 28px; padding: 3px 10px; font-size: 12px;">Undo / Dismiss</button>
+  </div>
+
+  <script>
+    (function () {
+      // ===== Specimen Tab Switching =====
+      var tabs = document.querySelectorAll('.specimen-tab');
+      var specimens = {
+        a: document.getElementById('specimen-a'),
+        b: document.getElementById('specimen-b'),
+        c: document.getElementById('specimen-c')
+      };
+
+      function showSpecimen(key) {
+        Object.keys(specimens).forEach(function (k) {
+          specimens[k].classList.toggle('is-active', k === key);
+        });
+        tabs.forEach(function (t) {
+          t.setAttribute('aria-selected', t.dataset.specimen === key ? 'true' : 'false');
+        });
+      }
+
+      tabs.forEach(function (t) {
+        t.addEventListener('click', function () { showSpecimen(t.dataset.specimen); });
+      });
+
+      document.querySelectorAll('[data-jump-specimen]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          showSpecimen(btn.getAttribute('data-jump-specimen'));
+        });
+      });
+
+      // ===== Specimen A: Illustrative User-Controlled Timetable =====
+      var stateA = {
+        jummah: true,
+        r7: true,
+        r15: false,
+        lens: 'section',
+        view: 'matrix'
+      };
+
+      var PERIODS = [
+        { key: 'P1', time: '08:50–10:05' },
+        { key: 'P2', time: '10:15–11:30' },
+        { key: 'P3', time: '11:40–12:55' },
+        { key: 'P4', time: '13:30–14:45' },
+        { key: 'P5', time: '14:55–16:10' },
+        { key: 'P6', time: '16:20–17:35' },
+        { key: 'P7', time: '19:00–20:20' }
+      ];
+
+      function buildIllustrativeRows() {
+        var rows = [
+          { section: '58-A (Sun)', faculty: 'MSR', room: 'RAB-302', period: 'P1', code: 'CSE-3101', title: 'Operating Systems', cat: 'theory', override: '' },
+          { section: '58-A (Sun)', faculty: 'EBH', room: 'ACL-1', period: 'P2', code: 'CSE-3102', title: 'OS Sessional', cat: 'lab', override: '' },
+          { section: '58-A (Sun)', faculty: 'NTR', room: 'RAB-404', period: 'P4', code: 'CSE-3205', title: 'Computer Networks', cat: 'theory', override: '' },
+
+          { section: '58-B+C (Tue)', faculty: 'TAH', room: 'ACL-2', period: 'P2', code: 'CSE-3107', title: 'Joint Algorithms Lab', cat: 'joint', override: 'Audited Override: Merged 58-B+C in ACL-2 (R10 lab rule)' },
+          { section: '58-B+C (Tue)', faculty: 'SMK', room: 'RAB-302', period: 'P5', code: 'CSE-3311', title: 'Compiler Design', cat: 'theory', override: '' },
+
+          { section: '59-A (Fri)', faculty: 'EBH', room: 'RAB-301', period: stateA.r7 ? 'P1' : 'P3', code: 'CSE-2201', title: 'Data Structures', cat: stateA.r7 ? 'theory' : 'block', override: stateA.r7 ? '' : 'R7 Conflict: EBH Thu–Fri Off-Day triggered' },
+          { section: '59-A (Fri)', faculty: 'FMR', room: 'ECL-1', period: 'P3', code: 'EEE-2104', title: 'Digital Logic Lab', cat: 'lab', override: '' },
+          { section: '59-A (Fri)', faculty: 'BLOCK', room: 'ALL', period: 'P4', code: stateA.jummah ? 'JUMMAH-BLOCK' : 'CSE-2211', title: stateA.jummah ? 'Friday P4 Hard Block' : 'Numerical Methods', cat: stateA.jummah ? 'block' : 'theory', override: '' }
+        ];
+
+        if (stateA.r15) {
+          rows.push({ section: '58-A (Sun)', faculty: 'MSR', room: 'ONLINE', period: 'P7', code: 'CSE-3999', title: 'Online Seminar Slot', cat: 'theory', override: '' });
+          rows.push({ section: '58-B+C (Tue)', faculty: 'NTR', room: 'ONLINE', period: 'P7', code: 'GED-3104', title: 'Evening Theory (R15)', cat: 'theory', override: '' });
+        }
+        return rows;
+      }
+
+      function renderSpecimenA() {
+        var rows = buildIllustrativeRows();
+        var visiblePeriods = stateA.r15 ? PERIODS : PERIODS.slice(0, 6);
+        var matrixEl = document.getElementById('a-matrix');
+        var listEl = document.getElementById('a-list');
+        document.getElementById('a-slot-summary').textContent = 'Showing ' + rows.length + ' illustrative slots (' + visiblePeriods.length + '-slot grid)';
+
+        // Group rows by chosen lens
+        var groups = {};
+        rows.forEach(function (r) {
+          var key = stateA.lens === 'section' ? r.section : (stateA.lens === 'faculty' ? (r.faculty === 'BLOCK' ? 'SYSTEM-BLOCK' : r.faculty) : r.room);
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(r);
+        });
+        var groupKeys = Object.keys(groups);
+
+        matrixEl.className = 'timetable-matrix' + (stateA.r15 ? ' has-p7' : '') + (stateA.view === 'list' ? ' is-hidden' : '');
+        listEl.className = 'compact-list-view' + (stateA.view === 'list' ? ' is-open' : '');
+
+        var html = '<div class="tt-corner mono" style="font-weight:600; color:var(--ink-secondary);">' + stateA.lens.toUpperCase() + '</div>';
+        visiblePeriods.forEach(function (p) {
+          html += '<div class="tt-head-cell"><span class="tt-head-slot">' + p.key + '</span><span class="tt-head-time">' + p.time + '</span></div>';
+        });
+
+        groupKeys.forEach(function (gk) {
+          html += '<div class="tt-row-label">' + gk + '<span class="tt-row-sub">' + groups[gk].length + ' item(s)</span></div>';
+          visiblePeriods.forEach(function (p) {
+            var match = groups[gk].find(function (item) { return item.period === p.key; });
+            if (!match) {
+              html += '<div class="tt-cell"><span class="tt-empty">—</span></div>';
+            } else {
+              var cls = 'cat-' + match.cat + (match.override ? ' has-tooltip' : '');
+              var tab = match.override ? ' tabindex="0"' : '';
+              html += '<div class="tt-cell"><div class="tt-cell-inner ' + cls + '"' + tab + '>' +
+                (match.override ? '<span class="override-corner" aria-hidden="true"></span><span class="tooltip-pop" role="tooltip">' + match.override + '</span>' : '') +
+                '<span class="tt-code">' + match.code + '</span>' +
+                '<span>' + match.title + '</span>' +
+                '<span class="tt-meta">' + match.faculty + ' · ' + match.room + '</span>' +
+                '</div></div>';
+            }
+          });
+        });
+        matrixEl.innerHTML = html;
+
+        // Compact List
+        var listHtml = '<div class="cl-row cl-row-head"><span>Period</span><span>Group</span><span>Course &amp; Rules</span><span>Faculty</span><span>Room</span></div>';
+        rows.forEach(function (r) {
+          listHtml += '<div class="cl-row">' +
+            '<span class="mono" style="font-weight:500;">' + r.period + '</span>' +
+            '<span class="mono" style="font-size:12px;">' + r.section + '</span>' +
+            '<span><strong class="mono">' + r.code + '</strong> · ' + r.title + (r.override ? ' <span class="cap-tag">OVERRIDE</span>' : '') + '</span>' +
+            '<span class="mono">' + r.faculty + '</span>' +
+            '<span class="mono">' + r.room + '</span>' +
+            '</div>';
+        });
+        listEl.innerHTML = listHtml;
+      }
+
+      document.getElementById('tog-jummah').addEventListener('click', function () {
+        stateA.jummah = !stateA.jummah;
+        this.setAttribute('aria-pressed', String(stateA.jummah));
+        renderSpecimenA();
+      });
+      document.getElementById('tog-r7').addEventListener('click', function () {
+        stateA.r7 = !stateA.r7;
+        this.setAttribute('aria-pressed', String(stateA.r7));
+        renderSpecimenA();
+      });
+      document.getElementById('tog-r15').addEventListener('click', function () {
+        stateA.r15 = !stateA.r15;
+        this.setAttribute('aria-pressed', String(stateA.r15));
+        renderSpecimenA();
+      });
+      document.querySelectorAll('[data-lens]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          stateA.lens = b.getAttribute('data-lens');
+          document.querySelectorAll('[data-lens]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+          renderSpecimenA();
+        });
+      });
+      document.querySelectorAll('[data-view]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          stateA.view = b.getAttribute('data-view');
+          document.querySelectorAll('[data-view]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+          renderSpecimenA();
+        });
+      });
+      renderSpecimenA();
+
+      // ===== Specimen B: Auth /login & /reset-password Live Checklist =====
+      var loginCard = document.getElementById('b-card-login');
+      var resetCard = document.getElementById('b-card-reset');
+      var btnLogin = document.getElementById('b-mode-login');
+      var btnReset = document.getElementById('b-mode-reset');
+      var errBanner = document.getElementById('b-err-banner');
+
+      function setAuthMode(mode) {
+        var isReset = mode === 'reset';
+        loginCard.style.display = isReset ? 'none' : 'block';
+        resetCard.style.display = isReset ? 'block' : 'none';
+        btnLogin.setAttribute('aria-pressed', String(!isReset));
+        btnReset.setAttribute('aria-pressed', String(isReset));
+      }
+
+      btnLogin.addEventListener('click', function () { setAuthMode('login'); });
+      btnReset.addEventListener('click', function () { setAuthMode('reset'); });
+      document.getElementById('b-to-reset').addEventListener('click', function () { setAuthMode('reset'); });
+      document.getElementById('b-sim-error').addEventListener('click', function () {
+        setAuthMode('login');
+        errBanner.classList.remove('is-visible');
+        void errBanner.offsetWidth;
+        errBanner.classList.add('is-visible');
+      });
+      document.getElementById('b-retry-btn').addEventListener('click', function () {
+        errBanner.classList.remove('is-visible');
+      });
+
+      var pw1 = document.getElementById('b-new-pw');
+      var pw2 = document.getElementById('b-confirm-pw');
+      function updatePwChecklist() {
+        var v1 = pw1.value;
+        var v2 = pw2.value;
+        var rules = [
+          ['pw-len', v1.length >= 8],
+          ['pw-upper', /[A-Z]/.test(v1)],
+          ['pw-num', /[0-9]/.test(v1)],
+          ['pw-match', v1.length > 0 && v1 === v2]
+        ];
+        rules.forEach(function (pair) {
+          var el = document.getElementById(pair[0]);
+          el.classList.toggle('is-met', pair[1]);
+          el.querySelector('.pw-dot').textContent = pair[1] ? '✓' : '';
+        });
+      }
+      pw1.addEventListener('input', updatePwChecklist);
+      pw2.addEventListener('input', updatePwChecklist);
+      updatePwChecklist();
+
+      // ===== Specimen C: Admin Dashboard Interactions =====
+      var rail = document.getElementById('c-rail');
+      var accBtn = document.getElementById('c-account-btn');
+      var accPop = document.getElementById('c-account-pop');
+      var modal = document.getElementById('c-modal-backdrop');
+      var toast = document.getElementById('c-toast');
+
+      function showToast(msg) {
+        document.getElementById('c-toast-msg').textContent = msg;
+        toast.classList.add('is-open');
+      }
+
+      document.getElementById('c-open-drawer').addEventListener('click', function () { rail.classList.add('is-drawer-open'); });
+      document.getElementById('c-close-drawer').addEventListener('click', function () { rail.classList.remove('is-drawer-open'); });
+
+      accBtn.addEventListener('click', function () {
+        var open = accPop.classList.toggle('is-open');
+        accBtn.setAttribute('aria-expanded', String(open));
+      });
+
+      document.getElementById('c-refresh-btn').addEventListener('click', function () {
+        var now = new Date();
+        var hh = String(now.getHours()).padStart(2, '0');
+        var mm = String(now.getMinutes()).padStart(2, '0');
+        var ss = String(now.getSeconds()).padStart(2, '0');
+        document.getElementById('c-last-checked').textContent = 'Last checked: ' + hh + ':' + mm + ':' + ss;
+        showToast('Preview refresh simulated (still disconnected from backend).');
+      });
+
+      document.querySelectorAll('.c-filter-pill').forEach(function (pill) {
+        pill.addEventListener('click', function () {
+          var f = pill.dataset.filter;
+          document.querySelectorAll('.c-filter-pill').forEach(function (p) { p.setAttribute('aria-pressed', String(p === pill)); });
+          document.querySelectorAll('#c-rows .ledger-row').forEach(function (row) {
+            row.style.display = (f === 'all' || row.dataset.status === f) ? 'grid' : 'none';
+          });
+        });
+      });
+
+      function syncBulkBar() {
+        var count = document.querySelectorAll('.c-row-check:checked').length;
+        document.getElementById('c-bulk-count').textContent = count + ' row(s) selected';
+        document.getElementById('c-bulk-tray').classList.toggle('is-visible', count > 0);
+      }
+      document.querySelectorAll('.c-row-check').forEach(function (cb) { cb.addEventListener('change', syncBulkBar); });
+      document.getElementById('c-bulk-clear').addEventListener('click', function () {
+        document.querySelectorAll('.c-row-check').forEach(function (cb) { cb.checked = false; });
+        syncBulkBar();
+      });
+      document.getElementById('c-bulk-export').addEventListener('click', function () {
+        showToast('Diagnostics JSON preview prepared locally (read-only).');
+      });
+
+      document.querySelectorAll('.c-copy-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var id = btn.getAttribute('data-copy');
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(id).catch(function () {});
+          }
+          btn.textContent = 'Copied';
+          setTimeout(function () { btn.textContent = id.indexOf('revision') !== -1 ? 'Copy RPC' : 'Copy ID'; }, 1000);
+        });
+      });
+
+      document.getElementById('c-open-modal').addEventListener('click', function () { modal.classList.add('is-open'); });
+      document.getElementById('c-modal-cancel').addEventListener('click', function () { modal.classList.remove('is-open'); });
+      document.getElementById('c-modal-confirm').addEventListener('click', function () {
+        modal.classList.remove('is-open');
+        showToast('Modal confirmation grammar previewed cleanly.');
+      });
+
+      document.getElementById('c-toast-btn').addEventListener('click', function () {
+        showToast('Transient Supabase write error simulated — form inputs preserved for retry.');
+      });
+      document.getElementById('c-toast-undo').addEventListener('click', function () {
+        toast.classList.remove('is-open');
+      });
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+          accPop.classList.remove('is-open');
+          accBtn.setAttribute('aria-expanded', 'false');
+          modal.classList.remove('is-open');
+          rail.classList.remove('is-drawer-open');
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

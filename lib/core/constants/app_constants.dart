@@ -32,6 +32,7 @@ abstract class AppConstants {
 
   static const String appName     = 'UniVerse';
   static const String appSubtitle = 'A Campus Companion';
+  static const String appVersion  = '1.0.0';
   static const String university  = 'Leading University, Sylhet';
   static const String department  = 'Computer Science and Engineering';
   static const String course      = 'CSE-3240 · Project I';

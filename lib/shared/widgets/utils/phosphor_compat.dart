@@ -38,7 +38,9 @@ class PhosphorIcons {
   static const x = Icons.close;
   static const check = Icons.check;
   static const plus = Icons.add;
+  static const plusCircle = Icons.add_circle_outline;
   static const minus = Icons.remove;
+  static const bug = Icons.bug_report_outlined;
   static const trash = Icons.delete_outline;
   static const pencil = Icons.edit_outlined;
   static const eye = Icons.visibility_outlined;
@@ -138,6 +140,24 @@ class PhosphorIcons {
   static const wrench = Icons.build_outlined;
   static const sortAscending = Icons.sort;
   static const empty = Icons.check_box_outline_blank;
+  static const database = Icons.storage_outlined;
+  static const arrowsClockwise = Icons.refresh;
+  static const sidebarSimple = Icons.view_sidebar_outlined;
+  static const funnelX = Icons.filter_alt_off_outlined;
+  static const userCircleDashed = Icons.account_circle_outlined;
+  static const layers = Icons.layers_outlined;
+  static const function = Icons.functions;
+  static const lightning = Icons.bolt_outlined;
+  static const cursorClick = Icons.touch_app_outlined;
+  static const fileText = Icons.description_outlined;
+  static const cpu = Icons.memory_outlined;
+  static const play = Icons.play_arrow_outlined;
+  static const arrowSquareOut = Icons.open_in_new_outlined;
+  static const gitDiff = Icons.difference_outlined;
+  static const checkFat = Icons.verified_outlined;
+  static const rows = Icons.table_rows_outlined;
+  static const laptop = Icons.laptop_outlined;
+  static const desktop = Icons.desktop_windows_outlined;
 }
 
 class PhosphorIconsRegular {
@@ -178,7 +198,9 @@ class PhosphorIconsRegular {
   static const x = Icons.close;
   static const check = Icons.check;
   static const plus = Icons.add;
+  static const plusCircle = Icons.add_circle_outline;
   static const minus = Icons.remove;
+  static const bug = Icons.bug_report_outlined;
   static const trash = Icons.delete_outline;
   static const pencil = Icons.edit_outlined;
   static const eye = Icons.visibility_outlined;
@@ -278,4 +300,22 @@ class PhosphorIconsRegular {
   static const wrench = Icons.build_outlined;
   static const sortAscending = Icons.sort;
   static const empty = Icons.check_box_outline_blank;
+  static const database = Icons.storage_outlined;
+  static const arrowsClockwise = Icons.refresh;
+  static const sidebarSimple = Icons.view_sidebar_outlined;
+  static const funnelX = Icons.filter_alt_off_outlined;
+  static const userCircleDashed = Icons.account_circle_outlined;
+  static const layers = Icons.layers_outlined;
+  static const function = Icons.functions;
+  static const lightning = Icons.bolt_outlined;
+  static const cursorClick = Icons.touch_app_outlined;
+  static const fileText = Icons.description_outlined;
+  static const cpu = Icons.memory_outlined;
+  static const play = Icons.play_arrow_outlined;
+  static const arrowSquareOut = Icons.open_in_new_outlined;
+  static const gitDiff = Icons.difference_outlined;
+  static const checkFat = Icons.verified_outlined;
+  static const rows = Icons.table_rows_outlined;
+  static const laptop = Icons.laptop_outlined;
+  static const desktop = Icons.desktop_windows_outlined;
 }

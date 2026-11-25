@@ -1,3 +1,4 @@
+import 'package:universe/features/admin/widgets/admin_route_tabs.dart';
 import 'package:flutter/material.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/constants/app_constants.dart';
@@ -6,6 +7,7 @@ import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
 import 'package:universe/features/admin/controllers/manage_users_controller.dart';
+import 'package:universe/shared/widgets/desktop_shell_scope.dart';
 import 'package:universe/shared/widgets/u_app_bar.dart';
 import 'package:universe/shared/widgets/u_avatar.dart';
 import 'package:universe/shared/widgets/u_card.dart';
@@ -15,7 +17,9 @@ import 'package:universe/shared/widgets/u_loading.dart';
 import 'package:universe/shared/widgets/u_text_field.dart';
 
 class ManageUsersScreen extends StatefulWidget {
-  const ManageUsersScreen({super.key});
+  final ManageUsersController? controller;
+
+  const ManageUsersScreen({super.key, this.controller});
 
   @override
   State<ManageUsersScreen> createState() => _ManageUsersScreenState();
@@ -23,6 +27,7 @@ class ManageUsersScreen extends StatefulWidget {
 
 class _ManageUsersScreenState extends State<ManageUsersScreen> {
   late final ManageUsersController _controller;
+  late final bool _ownsController;
   final _searchCtrl = TextEditingController();
 
   static const List<({String? role, String label})> _filters = [
@@ -35,13 +40,16 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = ManageUsersController();
+    _ownsController = widget.controller == null;
+    _controller = widget.controller ?? ManageUsersController();
     _controller.load();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    if (_ownsController) {
+      _controller.dispose();
+    }
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -72,8 +80,10 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
           children: [
             Padding(
               padding: AppSpacing.screenPadding,
-              child: Text('Change role · ${p.displayName}',
-                  style: AppTextStyles.h3),
+              child: Text(
+                'Change role · ${p.displayName}',
+                style: AppTextStyles.h3,
+              ),
             ),
             for (final r in const [
               AppConstants.roleStudent,
@@ -127,28 +137,124 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktopShell = DesktopShellScope.isDesktopOf(context);
+
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
-      appBar: const UAppBar(title: 'Manage Users', showBackButton: false),
+      appBar: isDesktopShell
+          ? null
+          : const UAppBar(title: 'Manage Users', showBackButton: false),
       body: ListenableBuilder(
         listenable: _controller,
         builder: (context, _) {
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenH, AppSpacing.sm, AppSpacing.screenH, 0),
-                child: UTextField(
-                  controller: _searchCtrl,
-                  label: '',
-                  hint: 'Search by name, email or ID',
-                  prefixIcon: PhosphorIconsRegular.magnifyingGlass,
-                  onChanged: _controller.setQuery,
-                ),
+          final count = _controller.filtered.length;
+          final total = _controller.allUsers.length;
+
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1040),
+              child: Column(
+                children: [
+                  Padding(
+                      padding: const EdgeInsets.all(AppSpacing.sm),
+                      child: AdminRouteTabs(
+                          selected: '/admin/users',
+                          destinations: {
+                            '/admin/users': 'User Directory',
+                            '/admin/registration': 'Admin Invites & Whitelist'
+                          })),
+                  if (isDesktopShell) ...[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.screenH,
+                        AppSpacing.lg,
+                        AppSpacing.screenH,
+                        AppSpacing.xs,
+                      ),
+                      child: Row(
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Manage Users', style: AppTextStyles.h2),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Role assignments & directory access control',
+                                style: AppTextStyles.caption
+                                    .copyWith(color: AppColors.textSecondary),
+                              ),
+                            ],
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md,
+                              vertical: AppSpacing.xs,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.bgSubtle,
+                              borderRadius: AppSpacing.radiusFull,
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Text(
+                              'Showing $count of $total users',
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screenH,
+                      AppSpacing.sm,
+                      AppSpacing.screenH,
+                      0,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: UTextField(
+                            controller: _searchCtrl,
+                            label: '',
+                            hint: 'Search by name, email or ID...',
+                            prefixIcon: PhosphorIconsRegular.magnifyingGlass,
+                            onChanged: _controller.setQuery,
+                          ),
+                        ),
+                        if (!isDesktopShell) ...[
+                          const SizedBox(width: AppSpacing.sm),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md,
+                              vertical: AppSpacing.xs,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.bgSubtle,
+                              borderRadius: AppSpacing.radiusFull,
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Text(
+                              '$count users',
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  _buildFilterBar(),
+                  Expanded(child: _buildBody()),
+                ],
               ),
-              _buildFilterBar(),
-              Expanded(child: _buildBody()),
-            ],
+            ),
           );
         },
       ),
@@ -197,48 +303,80 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
       );
     }
 
-    return ListView.separated(
-      padding: AppSpacing.screenPadding,
-      itemCount: items.length,
-      separatorBuilder: (_, __) => AppSpacing.cardGap,
-      itemBuilder: (context, i) => _userTile(items[i]),
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.screenH,
+        vertical: AppSpacing.xs,
+      ),
+      child: UCard(
+        isTopLit: true,
+        padding: EdgeInsets.zero,
+        child: ClipRRect(
+          borderRadius: AppSpacing.radiusMd,
+          child: ListView.separated(
+            padding: EdgeInsets.zero,
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const Divider(
+              height: 1,
+              thickness: 1,
+              color: AppColors.border,
+            ),
+            itemBuilder: (context, i) => _userRow(items[i]),
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _userTile(Profile p) {
-    return UCard(
-      onTap: () => _changeRoleSheet(p),
-      child: Row(
-        children: [
-          UAvatar(
-            name: p.displayName,
-            imageUrl: p.avatarUrl,
-            size: AppSpacing.avatarMd,
+  Widget _userRow(Profile p) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _changeRoleSheet(p),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.md,
           ),
-          AppSpacing.mdGap,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  p.displayName,
-                  style: AppTextStyles.bodyMedium,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          child: Row(
+            children: [
+              UAvatar(
+                name: p.displayName,
+                imageUrl: p.avatarUrl,
+                size: AppSpacing.avatarMd,
+              ),
+              AppSpacing.mdGap,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      p.displayName,
+                      style: AppTextStyles.bodyMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    AppSpacing.xsGap,
+                    Text(
+                      p.email,
+                      style: AppTextStyles.caption,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-                AppSpacing.xsGap,
-                Text(
-                  p.email,
-                  style: AppTextStyles.caption,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
+              ),
+              AppSpacing.smHGap,
+              _rolePill(p.role),
+              const SizedBox(width: AppSpacing.sm),
+              const Icon(
+                PhosphorIconsRegular.caretRight,
+                size: 16,
+                color: AppColors.textMuted,
+              ),
+            ],
           ),
-          AppSpacing.smHGap,
-          _rolePill(p.role),
-        ],
+        ),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'package:universe/features/auth/widgets/auth_responsive_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/core/constants/app_constants.dart';
@@ -51,7 +52,6 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     }
-
   }
 
   Future<void> _handleGoogleSignIn() async {
@@ -67,14 +67,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
         return Scaffold(
           backgroundColor: AppColors.bgPrimary,
-          body: SafeArea(
+          body: // PHASE 3: Adaptive auth presentation preserves existing form and callback ownership.
+              AuthResponsiveShell(
+                  child: SafeArea(
             child: Padding(
-              padding: AppSpacing.screenPadding,
+              padding: EdgeInsets.zero,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Spacer(flex: 2),
-
+                  const SizedBox(height: AppSpacing.xxl),
                   Center(
                     child: Column(
                       children: [
@@ -92,9 +93,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: _MiniOrbit(),
                           ),
                         ),
-
                         AppSpacing.lgGap,
-
                         Text(
                           AppConstants.appName,
                           style: AppTextStyles.h1.copyWith(
@@ -105,32 +104,24 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                   ),
-
-                  const Spacer(),
-
+                  const SizedBox(height: AppSpacing.xxl),
                   Text(
                     'Welcome back',
                     style: AppTextStyles.h1,
                   ),
-
                   AppSpacing.smGap,
-
                   Text(
                     'Sign in with your university Google account to continue.',
                     style: AppTextStyles.bodySm.copyWith(
                       color: AppColors.textSecondary,
                     ),
                   ),
-
                   const SizedBox(height: AppSpacing.x3l),
-
                   GoogleSignInButton(
                     onTap: isLoading ? null : _handleGoogleSignIn,
                     isLoading: isLoading,
                   ),
-
                   const SizedBox(height: AppSpacing.md),
-
                   SizedBox(
                     width: double.infinity,
                     height: AppSpacing.buttonHeight,
@@ -150,9 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: AppSpacing.xl),
-
                   Row(
                     children: [
                       const Expanded(
@@ -172,9 +161,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: AppSpacing.xl),
-
                   SizedBox(
                     width: double.infinity,
                     height: AppSpacing.buttonHeight,
@@ -194,9 +181,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ),
-
-                  const Spacer(),
-
+                  const SizedBox(height: AppSpacing.xxl),
                   Center(
                     child: Text(
                       'Admin access is granted by your department head.',
@@ -206,12 +191,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       textAlign: TextAlign.center,
                     ),
                   ),
-
                   AppSpacing.lgGap,
                 ],
               ),
             ),
-          ),
+          )),
         );
       },
     );

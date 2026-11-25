@@ -2,16 +2,23 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/constants/app_enums.dart';
 import 'package:universe/core/models/routine_model.dart';
+import 'package:universe/core/utils/date_utils.dart';
 import 'package:universe/features/notifications/services/notification_service.dart';
 
-class TeacherService {
-  final SupabaseClient _supabase = Supabase.instance.client;
-  final NotificationService _notifications = NotificationService();
+// PHASE 4: Explicit outcome for two-step class cancellation + cohort notification broadcast.
+enum CancellationOutcome {
+  fullSuccess,
+  partialSuccessNotificationFailed,
+  failed,
+}
 
-  static String dateKey(DateTime d) =>
-      '${d.year.toString().padLeft(4, '0')}-'
-      '${d.month.toString().padLeft(2, '0')}-'
-      '${d.day.toString().padLeft(2, '0')}';
+class TeacherService {
+  SupabaseClient get _supabase => Supabase.instance.client;
+  NotificationService? _notificationsInstance;
+  NotificationService get _notifications =>
+      _notificationsInstance ??= NotificationService();
+
+  static String dateKey(DateTime d) => AppDateUtils.dateKey(d);
 
   Future<Set<String>> fetchUpcomingCancellationKeys(
     List<String> routineIds,
@@ -27,7 +34,8 @@ class TeacherService {
         .toSet();
   }
 
-  Future<void> cancelClass({
+  // PHASE 4: Separates cancellation persistence from broadcast notification failure ("Service Recovery Paradox").
+  Future<CancellationOutcome> cancelClassWithOutcome({
     required RoutineEntry entry,
     required DateTime date,
     required String reason,
@@ -47,7 +55,11 @@ class TeacherService {
         'time_start': entry.timeStart,
         'cancelled_by': userId,
       });
+    } on PostgrestException catch (e) {
+      throw Exception(e.message);
+    }
 
+    try {
       await _notifications.createBroadcast(
         type: NotifType.classCancel,
         title: 'Class Cancelled: ${entry.subject}',
@@ -57,9 +69,24 @@ class TeacherService {
         targetBatch: entry.batch,
         targetSection: entry.section,
       );
-    } on PostgrestException catch (e) {
-      throw Exception(e.message);
+      return CancellationOutcome.fullSuccess;
+    } catch (_) {
+      return CancellationOutcome.partialSuccessNotificationFailed;
     }
+  }
+
+  Future<void> cancelClass({
+    required RoutineEntry entry,
+    required DateTime date,
+    required String reason,
+    required String userId,
+  }) async {
+    await cancelClassWithOutcome(
+      entry: entry,
+      date: date,
+      reason: reason,
+      userId: userId,
+    );
   }
 
   Future<void> undoCancel({

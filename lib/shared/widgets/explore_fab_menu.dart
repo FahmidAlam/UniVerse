@@ -5,56 +5,42 @@ import 'package:universe/core/router/route_names.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
+import 'package:universe/shared/widgets/u_adaptive_overlay.dart';
 
 class ExploreFabMenu extends StatelessWidget {
   const ExploreFabMenu({super.key});
 
   void _showExploreMenu(BuildContext context) {
-    showModalBottomSheet(
+    showUAdaptiveModal<void>(
       context: context,
-      backgroundColor: AppColors.bgCard,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppSpacing.radiusXlD),
-        ),
-      ),
-      builder: (context) {
-        return Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.lg,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Explore',
-                style: AppTextStyles.h3.copyWith(color: AppColors.textPrimary),
-              ),
-              SizedBox(height: AppSpacing.lg),
-              _MenuOption(
-                icon: PhosphorIconsRegular.door,
-                title: 'Rooms',
-                subtitle: 'Check room availability',
-                onTap: () {
-                  Navigator.pop(context);
-                  context.push(RouteNames.rooms);
-                },
-              ),
-              SizedBox(height: AppSpacing.md),
-              _MenuOption(
-                icon: PhosphorIconsRegular.person,
-                title: 'Find Teacher',
-                subtitle: 'Locate teacher by room',
-                onTap: () {
-                  Navigator.pop(context);
-                  context.push(RouteNames.findTeacher);
-                },
-              ),
-              SizedBox(height: AppSpacing.lg),
-            ],
-          ),
+      title: 'Explore',
+      subtitle: 'Quick campus lookup shortcuts',
+      icon: PhosphorIconsRegular.magnifyingGlass,
+      builder: (sheetContext) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _MenuOption(
+              icon: PhosphorIconsRegular.door,
+              title: 'Rooms',
+              subtitle: 'Check room availability',
+              onTap: () {
+                Navigator.pop(sheetContext);
+                context.push(RouteNames.rooms);
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _MenuOption(
+              icon: PhosphorIconsRegular.person,
+              title: 'Find Teacher',
+              subtitle: 'Locate teacher by room',
+              onTap: () {
+                Navigator.pop(sheetContext);
+                context.push(RouteNames.findTeacher);
+              },
+            ),
+          ],
         );
       },
     );

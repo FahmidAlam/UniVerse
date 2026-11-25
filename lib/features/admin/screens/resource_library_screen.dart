@@ -1,3 +1,5 @@
+import 'package:universe/features/admin/widgets/admin_route_tabs.dart';
+import 'package:universe/shared/widgets/desktop_shell_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
 import 'package:universe/core/constants/app_constants.dart';
@@ -6,194 +8,177 @@ import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
 import 'package:universe/features/admin/controllers/resource_admin_controller.dart';
-import 'package:universe/shared/widgets/scrollable_empty.dart';
 import 'package:universe/shared/widgets/u_app_bar.dart';
 import 'package:universe/shared/widgets/u_card.dart';
 import 'package:universe/shared/widgets/u_empty_state.dart';
 import 'package:universe/shared/widgets/u_loading.dart';
 
-class ResourceLibraryScreen extends StatefulWidget {
-  const ResourceLibraryScreen({super.key});
+import 'package:universe/shared/widgets/u_chip.dart';
+import 'package:universe/shared/widgets/u_adaptive_overlay.dart';
 
+class ResourceLibraryScreen extends StatefulWidget {
+  final ResourceAdminController? controller;
+  const ResourceLibraryScreen({super.key, this.controller});
   @override
   State<ResourceLibraryScreen> createState() => _ResourceLibraryScreenState();
 }
 
 class _ResourceLibraryScreenState extends State<ResourceLibraryScreen> {
   late final ResourceAdminController _controller;
-  int? _openSemester;
-
+  int? _semester;
+  String? _type;
   @override
   void initState() {
     super.initState();
-    _controller = ResourceAdminController();
+    _controller = widget.controller ?? ResourceAdminController();
     _controller.load();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    if (widget.controller == null) _controller.dispose();
     super.dispose();
   }
 
-  void _snack(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg, style: AppTextStyles.bodySm),
-        backgroundColor: AppColors.bgElevated,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
   Future<void> _confirmDelete(Resource r) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgCard,
-        shape: RoundedRectangleBorder(borderRadius: AppSpacing.radiusLg),
-        title: Text('Delete resource?', style: AppTextStyles.h3),
-        content: Text(
-          '"${r.title}" will be removed for everyone.',
-          style: AppTextStyles.bodySm,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel',
-                style: AppTextStyles.bodyMedium
-                    .copyWith(color: AppColors.textSecondary)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Delete', style: AppTextStyles.danger),
-          ),
-        ],
-      ),
-    );
+    final confirmed = await showUAdaptiveModal<bool>(
+        context: context,
+        title: 'Delete resource?',
+        builder: (ctx) => Column(mainAxisSize: MainAxisSize.min, children: [
+              Text('"${r.title}" will be removed for everyone.',
+                  style: AppTextStyles.bodySm),
+              Wrap(spacing: 12, children: [
+                TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Cancel')),
+                TextButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Delete'))
+              ]),
+            ]));
     if (confirmed == true) {
       final ok = await _controller.delete(r.id);
-      _snack(ok ? 'Resource deleted.' : 'Could not delete.');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(ok ? 'Resource deleted.' : 'Could not delete.')));
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    final open = _openSemester;
-    return PopScope(
-      canPop: open == null,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) setState(() => _openSemester = null);
-      },
-      child: Scaffold(
+  Widget build(BuildContext context) => Scaffold(
         backgroundColor: AppColors.bgPrimary,
-        appBar: open == null
-            ? const UAppBar(title: 'Uploaded Resources')
-            : UAppBar(
-                title: 'Semester $open',
-                leading: IconButton(
-                  icon: const Icon(PhosphorIconsRegular.arrowLeft,
-                      color: AppColors.textPrimary),
-                  onPressed: () => setState(() => _openSemester = null),
-                ),
-              ),
+        appBar: DesktopShellScope.isDesktopOf(context)
+            ? null
+            : const UAppBar(title: 'Resource Library'),
         body: ListenableBuilder(
-          listenable: _controller,
-          builder: (context, _) {
-            return RefreshIndicator(
-              color: AppColors.primary,
-              backgroundColor: AppColors.bgCard,
-              onRefresh: _controller.load,
-              child:
-                  open == null ? _buildFolderGrid() : _buildSemesterList(open),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFolderGrid() {
-    if (_controller.isLoading && _controller.all.isEmpty) {
-      return const Center(child: ULoading.spinner());
-    }
-    return GridView.count(
-      padding: AppSpacing.screenPadding,
-      physics: const AlwaysScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      mainAxisSpacing: AppSpacing.md,
-      crossAxisSpacing: AppSpacing.md,
-      childAspectRatio: 1.15,
-      children: [
-        for (final s in AppConstants.semesters) _folderCard(s),
-      ],
-    );
-  }
-
-  Widget _folderCard(int semester) {
-    final count = _controller.all.where((r) => r.semester == semester).length;
-    return UCard(
-      onTap: () => setState(() => _openSemester = semester),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: AppSpacing.x4l,
-            height: AppSpacing.x4l,
-            decoration: BoxDecoration(
-              color: AppColors.primarySoft,
-              borderRadius: AppSpacing.radiusMd,
-            ),
-            child: const Icon(PhosphorIconsRegular.folder,
-                color: AppColors.primary, size: AppSpacing.iconLg),
-          ),
-          const Spacer(),
-          Text('Semester $semester', style: AppTextStyles.h4),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            count == 0 ? 'No files yet' : '$count file${count == 1 ? '' : 's'}',
-            style: AppTextStyles.caption,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSemesterList(int semester) {
-    if (_controller.isLoading && _controller.all.isEmpty) {
-      return ListView.separated(
-        padding: const EdgeInsets.all(AppSpacing.screenH),
-        itemCount: 6,
-        separatorBuilder: (_, __) => AppSpacing.cardGap,
-        itemBuilder: (_, __) => const ULoading.skeleton(skeletonHeight: 64),
+            listenable: _controller,
+            builder: (context, _) {
+              final items = _controller.all
+                  .where((r) =>
+                      (_semester == null || r.semester == _semester) &&
+                      (_type == null || r.category == _type))
+                  .toList();
+              return Center(
+                  child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1160),
+                      child: Column(children: [
+                        Padding(
+                            padding: AppSpacing.screenPadding,
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const AdminRouteTabs(
+                                      selected: '/admin/resources/library',
+                                      destinations: {
+                                        '/admin/resources': 'Manage & Upload',
+                                        '/admin/resources/library':
+                                            'Resource Library'
+                                      }),
+                                  AppSpacing.mdGap,
+                                  Wrap(spacing: 8, runSpacing: 8, children: [
+                                    UChip(
+                                        label: 'All semesters',
+                                        isActive: _semester == null,
+                                        onTap: () =>
+                                            setState(() => _semester = null)),
+                                    for (final sem in AppConstants.semesters)
+                                      UChip(
+                                          label: 'Sem $sem',
+                                          isActive: _semester == sem,
+                                          onTap: () =>
+                                              setState(() => _semester = sem)),
+                                  ]),
+                                  AppSpacing.smGap,
+                                  Wrap(spacing: 8, runSpacing: 8, children: [
+                                    UChip(
+                                        label: 'All types',
+                                        isActive: _type == null,
+                                        onTap: () =>
+                                            setState(() => _type = null)),
+                                    for (final type
+                                        in ResourceAdminController.categories)
+                                      UChip(
+                                          label: type,
+                                          isActive: _type == type,
+                                          onTap: () =>
+                                              setState(() => _type = type)),
+                                  ]),
+                                  AppSpacing.smGap,
+                                  AdminMatchCount(
+                                      label:
+                                          'Showing ${items.length} resources'),
+                                ])),
+                        Expanded(
+                            child: _controller.isLoading
+                                ? const ULoading.spinner()
+                                : _controller.errorMessage != null
+                                    ? Center(
+                                        child: SingleChildScrollView(
+                                            child: UEmptyState.error(
+                                                message:
+                                                    _controller.errorMessage!,
+                                                onRetry: _controller.load)))
+                                    : items.isEmpty
+                                        ? Center(
+                                            child: SingleChildScrollView(
+                                                child: UEmptyState.noMatches(
+                                                    title: _controller.all.isEmpty
+                                                        ? 'No resources yet'
+                                                        : 'No matching resources',
+                                                    onClearFilters: () =>
+                                                        setState(() {
+                                                          _semester = null;
+                                                          _type = null;
+                                                        }))))
+                                        : Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: AppSpacing.screenH),
+                                            child: UCard(
+                                                isTopLit: true,
+                                                padding: EdgeInsets.zero,
+                                                child: RefreshIndicator(
+                                                    onRefresh: _controller.load,
+                                                    child: ListView.separated(
+                                                        physics:
+                                                            const AlwaysScrollableScrollPhysics(),
+                                                        itemCount: items.length,
+                                                        separatorBuilder: (_,
+                                                                __) =>
+                                                            const Divider(
+                                                                height: 1,
+                                                                thickness: 1,
+                                                                color: AppColors
+                                                                    .border),
+                                                        itemBuilder: (context,
+                                                                i) =>
+                                                            _AdminResourceTile(
+                                                                resource:
+                                                                    items[i],
+                                                                onDelete: () =>
+                                                                    _confirmDelete(items[i]))))))),
+                      ])));
+            }),
       );
-    }
-
-    final items =
-        _controller.all.where((r) => r.semester == semester).toList();
-    if (items.isEmpty) {
-      return const ScrollableEmpty(
-        child: UEmptyState(
-          icon: PhosphorIconsRegular.folderOpen,
-          title: 'No resources yet',
-          message: 'Resources uploaded for this semester will appear here.',
-        ),
-      );
-    }
-
-    return ListView.separated(
-      padding: AppSpacing.screenPadding,
-      physics: const AlwaysScrollableScrollPhysics(),
-      itemCount: items.length,
-      separatorBuilder: (_, __) => AppSpacing.cardGap,
-      itemBuilder: (context, i) {
-        final r = items[i];
-        return _AdminResourceTile(
-            resource: r, onDelete: () => _confirmDelete(r));
-      },
-    );
-  }
 }
 
 class _AdminResourceTile extends StatelessWidget {
@@ -206,7 +191,7 @@ class _AdminResourceTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isPdf = resource.isPdf;
     final color = isPdf ? AppColors.error : AppColors.info;
-    return UCard(
+    return Padding(
       padding: AppSpacing.cardPaddingH,
       child: Row(
         children: [
@@ -246,6 +231,7 @@ class _AdminResourceTile extends StatelessWidget {
             ),
           ),
           IconButton(
+            tooltip: 'Delete resource',
             icon: const Icon(PhosphorIconsRegular.trash,
                 size: AppSpacing.iconMd, color: AppColors.error),
             onPressed: onDelete,

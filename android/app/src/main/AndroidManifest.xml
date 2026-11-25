@@ -32,6 +32,9 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
+            <!-- app_links/Supabase own auth callback processing. -->
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="false" />
+
             <!-- Google OAuth + Email verification deep link -->
             <!-- Fires when Supabase redirects back after sign-in or email confirm -->
             <intent-filter android:autoVerify="true">

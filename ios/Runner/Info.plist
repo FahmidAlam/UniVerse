@@ -46,6 +46,9 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<!-- URL Scheme for Supabase OAuth callback -->
+	<!-- app_links/Supabase own auth callbacks; do not also route their token URI. -->
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -54,6 +57,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>io.supabase.universe</string>
+				<string>com.example.universe</string>
 			</array>
 		</dict>
 	</array>

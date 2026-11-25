@@ -98,7 +98,8 @@ def _batch_cell(batch: str):
 
 
 def render_bytes(rows: list[dict], cohorts: list[str], config: dict,
-                 template_path: Path | None = None) -> bytes:
+                 template_path: Path | None = None,
+                 source_contract: dict | None = None) -> bytes:
     tpl = template_path or TEMPLATE
     if not Path(tpl).exists():
         raise FileNotFoundError(
@@ -204,6 +205,13 @@ def render_bytes(rows: list[dict], cohorts: list[str], config: dict,
             cell.alignment = Alignment(vertical="center", horizontal="left")
 
     _strip_legacy_scaffolding(wb)
+    if source_contract is not None:
+        source_hash = source_contract['source_sha256']
+        revision = source_contract['revision']
+        revision_id = source_contract.get('revision_id')
+        identity = f'; revision_id={revision_id}' if revision_id else ''
+        wb.properties.subject = (
+            f'UniVerse source revision={revision}{identity}; sha256={source_hash}')
 
     buf = io.BytesIO()
     wb.save(buf)

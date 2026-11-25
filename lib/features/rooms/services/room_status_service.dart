@@ -3,7 +3,10 @@ import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/models/routine_model.dart';
 
 class RoomStatusService {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final SupabaseClient? _client;
+  SupabaseClient get _supabase => _client ?? Supabase.instance.client;
+
+  RoomStatusService({SupabaseClient? client}) : _client = client;
 
   Future<List<RoutineEntry>> fetchAllRoutines() async {
     final rows = await _supabase

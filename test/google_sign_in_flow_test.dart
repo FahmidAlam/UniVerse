@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'
-    show AuthException, PostgrestException;
+    show AuthException, PostgrestException, User;
 import 'package:universe/core/router/app_router.dart';
 import 'package:universe/core/router/route_names.dart';
 import 'package:universe/features/auth/controllers/auth_controller.dart';
@@ -305,6 +305,16 @@ class _FakeAuthService implements AuthService {
   final AuthResult postLogin;
   final AuthResult faculty;
   int postLoginCalls = 0;
+
+  // Profile resolution now binds delayed results to the active session.
+  @override
+  User get currentUser => User(
+        id: 'synthetic-google-user',
+        appMetadata: const {},
+        userMetadata: const {},
+        aud: 'authenticated',
+        createdAt: '',
+      );
 
   @override
   Future<bool> signInWithGoogle() => _signIn();

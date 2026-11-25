@@ -1,3 +1,5 @@
+import 'package:flutter/services.dart';
+import 'package:universe/features/admin/widgets/admin_card_grid.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:universe/shared/utils/phosphor_compat.dart';
@@ -7,12 +9,14 @@ import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
 import 'package:universe/features/admin/controllers/timetable_gen_controller.dart';
 import 'package:universe/features/admin/services/timetable_engine_service.dart';
+import 'package:universe/features/admin/services/timetable_config_service.dart';
 import 'package:universe/features/admin/screens/timetable_grid_screen.dart';
 import 'package:universe/shared/widgets/stat_card.dart';
 import 'package:universe/shared/widgets/u_app_bar.dart';
 import 'package:universe/shared/widgets/u_button.dart';
 import 'package:universe/shared/widgets/u_card.dart';
 import 'package:universe/shared/widgets/u_loading.dart';
+import 'package:universe/shared/widgets/u_segmented_control.dart';
 
 class GenerateTimetableScreen extends StatefulWidget {
   final bool embedded;
@@ -32,11 +36,37 @@ class GenerateTimetableScreen extends StatefulWidget {
 
 class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
   late final TimetableGenController _controller;
+  int _inputMode = 0; // 0: Native UI Catalog, 1: Excel Workbook (.xlsx)
+  final TimetableConfigService _configService = TimetableConfigService();
+  int _courseCount = 8;
+  int _batchCount = 4;
+  int _sectionCount = 7;
+  int _facultyCount = 6;
+  int _roomCount = 6;
+  bool _synthesizing = false;
 
   @override
   void initState() {
     super.initState();
     _controller = widget.controller ?? TimetableGenController();
+    _loadCatalogCounts();
+  }
+
+  Future<void> _loadCatalogCounts() async {
+    try {
+      final courses = await _configService.fetchCatalogCourses();
+      final batches = await _configService.fetchBatches();
+      final faculty = await _configService.fetchFaculty();
+      final rooms = await _configService.fetchRooms();
+      if (!mounted) return;
+      setState(() {
+        _courseCount = courses.length;
+        _batchCount = batches.length;
+        _sectionCount = batches.fold(0, (sum, b) => sum + b.sections.length);
+        _facultyCount = faculty.length;
+        _roomCount = rooms.where((r) => r.isActive).length;
+      });
+    } catch (_) {}
   }
 
   @override
@@ -50,22 +80,51 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
     final body = ListenableBuilder(
       listenable: _controller,
       builder: (context, _) {
-        return ListView(
-          padding: AppSpacing.screenPadding,
-          children: [
-            _introCard(),
-            AppSpacing.mdGap,
-            if (widget.showConfigurationLinks) _configRow(),
-            AppSpacing.mdGap,
-            _profileCard(),
-            AppSpacing.sectionGap,
-            ..._phaseContent(),
-          ],
-        );
+        return LayoutBuilder(builder: (context, constraints) {
+          final setup = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildStageOneCard(context),
+              AppSpacing.lgGap,
+              _baselineReadiness(),
+            ],
+          );
+          final telemetry = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (!_controller.isBusy) ...[
+                _progressCard(),
+                AppSpacing.lgGap,
+              ],
+              ..._phaseContent(),
+              if (_controller.phase != GenPhase.done) ...[
+                AppSpacing.lgGap,
+                _publicationGate(),
+              ],
+            ],
+          );
+          return ListView(
+            padding: AppSpacing.screenPadding,
+            children: [
+              if (constraints.maxWidth >= 960)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 58, child: setup),
+                    const SizedBox(width: AppSpacing.lg),
+                    Expanded(flex: 42, child: telemetry),
+                  ],
+                )
+              else ...[setup, AppSpacing.lgGap, telemetry],
+            ],
+          );
+        });
       },
     );
 
-    if (widget.embedded) return body;
+    if (widget.embedded) {
+      return Material(color: AppColors.bgPrimary, child: body);
+    }
 
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
@@ -77,93 +136,487 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
     );
   }
 
-  Widget _introCard() {
+  Widget _buildStageOneCard(BuildContext context) {
+    final name = _controller.fileName;
     return UCard(
-      child: Row(
+      isTopLit: true,
+      padding: EdgeInsets.zero,
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: AppColors.primarySoft,
-              borderRadius: AppSpacing.radiusMd,
-            ),
-            child: const Icon(PhosphorIconsRegular.magicWand,
-                color: AppColors.primary, size: AppSpacing.iconLg),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Automatic Timetable', style: AppTextStyles.h3),
-                AppSpacing.xsGap,
-                Text(
-                  'Upload the semester’s Course Distribution workbook. The '
-                  'engine builds a conflict-free routine — no teacher, section '
-                  'or room double-booking, day-offs and Friday rules honoured.',
-                  style: AppTextStyles.bodySm,
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: AppColors.primarySoft,
+                    borderRadius: AppSpacing.radiusMd,
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: const Icon(
+                    PhosphorIconsRegular.magicWand,
+                    color: AppColors.primary,
+                    size: AppSpacing.iconMd,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: AppSpacing.sm,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            'STAGE 1 · INPUT SOURCE & BASELINE READINESS',
+                            style: AppTextStyles.labelCaps.copyWith(
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.successSoft,
+                              borderRadius: AppSpacing.radiusSm,
+                            ),
+                            child: Text(
+                              'ENGINE WORKFLOW',
+                              style: AppTextStyles.caption.copyWith(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.success,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Upload the semester’s Course Distribution workbook. The engine builds a conflict-free routine — no teacher, section or room double-booking, day-offs and Friday rules honoured.',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
+          if (widget.showConfigurationLinks) ...[
+            const Divider(color: AppColors.border, height: 1),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.md,
+              ),
+              child: _configRow(),
+            ),
+          ],
+          const Divider(color: AppColors.border, height: 1),
+          // Co-existence Input Mode Switcher (Phase B1)
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.sm,
+            ),
+            child: USegmentedControl<int>(
+              selected: _inputMode,
+              onChanged: (v) => setState(() => _inputMode = v),
+              segments: const [
+                USegment(
+                  value: 0,
+                  label: 'UI Catalog & Batch Offerings (Native)',
+                  icon: PhosphorIconsRegular.database,
+                ),
+                USegment(
+                  value: 1,
+                  label: 'Excel Workbook (.xlsx)',
+                  icon: PhosphorIconsRegular.fileXls,
+                ),
+              ],
+            ),
+          ),
+          const Divider(color: AppColors.border, height: 1),
+          if (_inputMode == 0) ...[
+            // Native UI Catalog Readiness & Synthesis View
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: AppColors.roleTeacher.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(
+                          PhosphorIconsRegular.checkCircle,
+                          color: AppColors.roleTeacher,
+                          size: 16,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Native UI Catalog Ready for Engine Synthesis',
+                          style: AppTextStyles.bodySm.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgSubtle,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Text(
+                      '$_courseCount Courses · $_batchCount Batches ($_sectionCount Sections) · $_facultyCount Faculty · $_roomCount Active Pool Rooms · 7-Day Grid (Jummah Blocked)',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      UButton(
+                        label: 'Synthesize & Generate Routine',
+                        icon: PhosphorIconsRegular.lightning,
+                        isLoading: _synthesizing,
+                        fullWidth: false,
+                        onPressed: () async {
+                          setState(() => _synthesizing = true);
+                          try {
+                            final records = await _configService.synthesizeDistributionFromCatalog();
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Synthesized ${records.length} distribution records directly from UI Catalog.',
+                                ),
+                                backgroundColor: AppColors.roleTeacher,
+                              ),
+                            );
+                            _controller.generate();
+                          } finally {
+                            if (mounted) setState(() => _synthesizing = false);
+                          }
+                        },
+                      ),
+                      UButton(
+                        label: 'Export .xlsx Summary',
+                        variant: UButtonVariant.secondary,
+                        icon: PhosphorIconsRegular.downloadSimple,
+                        fullWidth: false,
+                        onPressed: () async {
+                          final summary = await _configService.exportCatalogToWorkbookSummary();
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Catalog exported: ${summary['totalRecords']} records across ${summary['totalBatches']} batches.',
+                              ),
+                              backgroundColor: AppColors.info,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            // Run Profile row
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.md,
+              ),
+              child: _profileSection(),
+            ),
+            const Divider(color: AppColors.border, height: 1),
+            _sourceIdentity(),
+            const Divider(color: AppColors.border, height: 1),
+            // Distribution Workbook Picker row
+            InkWell(
+              onTap: _controller.isBusy ? null : _controller.pickFile,
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Row(
+                  children: [
+                    Icon(
+                      name == null
+                          ? PhosphorIconsRegular.filePlus
+                          : PhosphorIconsRegular.fileXls,
+                      color:
+                          name == null ? AppColors.textMuted : AppColors.success,
+                      size: AppSpacing.iconLg,
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name ?? 'Choose distribution file',
+                            style: AppTextStyles.bodyMedium,
+                          ),
+                          Text(
+                            name == null
+                                ? 'Main_Distribution_*.xlsx'
+                                : 'Tap to change workbook',
+                            style: AppTextStyles.caption,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      PhosphorIconsRegular.folderOpen,
+                      size: AppSpacing.iconMd,
+                      color: AppColors.textMuted,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
+  // PHASE 5: Provenance comes only from the accepted source contract.
+  Widget _sourceIdentity() {
+    final hash = _controller.sourceContract?['source_sha256']?.toString();
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('SOURCE SHA-256', style: AppTextStyles.labelCaps),
+        AppSpacing.smGap,
+        Row(children: [
+          Expanded(
+              child: SelectableText(hash ?? 'Available after source validation',
+                  style: AppTextStyles.caption)),
+          IconButton(
+            tooltip: 'Copy source SHA-256',
+            onPressed: hash == null
+                ? null
+                : () async {
+                    await Clipboard.setData(ClipboardData(text: hash));
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Source hash copied')));
+                    }
+                  },
+            icon: const Icon(Icons.copy, size: AppSpacing.iconSm),
+          ),
+        ]),
+      ]),
+    );
+  }
+
+  Widget _baselineReadiness() {
+    final config = _controller.runProfile?.engineConfig;
+    final resources = [
+      ('Rooms', 'rooms'),
+      ('Faculty', 'teachers'),
+      ('Course Eligibility', 'eligibility')
+    ];
+    return UCard(
+        isTopLit: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Baseline resource readiness', style: AppTextStyles.h4),
+            AppSpacing.smGap,
+            Text(
+                config == null
+                    ? 'Database resources are verified by the engine during ingest.'
+                    : 'Counts from the bound private profile; hosted readiness is not implied.',
+                style: AppTextStyles.caption),
+            AppSpacing.mdGap,
+            for (final resource in resources) ...[
+              Builder(builder: (context) {
+                final value = config?[resource.$2];
+                final count = value is List
+                    ? value.length
+                    : value is Map
+                        ? value.length
+                        : null;
+                return Padding(
+                    padding:
+                        const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                    child: Row(children: [
+                      Icon(
+                          count == 0
+                              ? Icons.warning_amber_rounded
+                              : Icons.circle_outlined,
+                          size: AppSpacing.iconSm,
+                          color: count == 0
+                              ? AppColors.warning
+                              : AppColors.textMuted),
+                      AppSpacing.smHGap,
+                      Expanded(
+                          child:
+                              Text(resource.$1, style: AppTextStyles.bodySm)),
+                      Text(
+                          count == null ? 'Not inspected' : '$count in profile',
+                          style: AppTextStyles.captionMedium.copyWith(
+                              color: count == 0
+                                  ? AppColors.warning
+                                  : AppColors.textSecondary)),
+                    ]));
+              }),
+              const Divider(height: 1, color: AppColors.border),
+            ],
+          ],
+        ));
+  }
+
+  Widget _publicationGate() => UCard(
+      isTopLit: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Validation & publication gate', style: AppTextStyles.h4),
+          AppSpacing.smGap,
+          Text(
+              'A completed result and academic validation are required. Publication remains controlled by the existing server contract.',
+              style: AppTextStyles.bodySm),
+          AppSpacing.mdGap,
+          Row(children: [
+            const Icon(Icons.lock_outline,
+                size: AppSpacing.iconSm, color: AppColors.textMuted),
+            AppSpacing.smHGap,
+            Expanded(
+                child: Text('Waiting for validated candidate',
+                    style: AppTextStyles.captionMedium)),
+          ]),
+        ],
+      ));
+
   Widget _configRow() {
-    return Row(
+    return Wrap(
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
       children: [
         _configBtn('Rooms', PhosphorIconsRegular.door, RouteNames.manageRooms),
-        AppSpacing.smHGap,
-        _configBtn('Faculty', PhosphorIconsRegular.usersThree,
-            RouteNames.manageFaculty),
-        AppSpacing.smHGap,
-        _configBtn('Courses', PhosphorIconsRegular.checkSquare,
-            RouteNames.manageCourseEligibility),
-        AppSpacing.smHGap,
-        _configBtn('Settings', PhosphorIconsRegular.sliders,
-            RouteNames.timetableSettings),
+        _configBtn(
+          'Faculty',
+          PhosphorIconsRegular.usersThree,
+          RouteNames.manageFaculty,
+        ),
+        _configBtn(
+          'Courses',
+          PhosphorIconsRegular.checkSquare,
+          RouteNames.manageCourseEligibility,
+        ),
+        _configBtn(
+          'Settings',
+          PhosphorIconsRegular.sliders,
+          RouteNames.timetableSettings,
+        ),
       ],
     );
   }
 
-  Widget _profileCard() => UCard(
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(_controller.runProfile?.label ?? 'Run profile (optional)',
-            style: AppTextStyles.bodyMedium),
-        Text(
-            _controller.runProfile?.provenance ??
-                'Use current settings, or import a source-matched profile for a private rehearsal.',
-            style: AppTextStyles.caption),
-        if (_controller.runProfile != null)
+  Widget _profileSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _controller.runProfile?.label ?? 'Run profile (optional)',
+                  style: AppTextStyles.bodySmMedium,
+                ),
+                Text(
+                  _controller.runProfile?.provenance ??
+                      'Use current settings, or import a source-matched profile for a private rehearsal.',
+                  style: AppTextStyles.caption,
+                ),
+              ],
+            ),
+            TextButton(
+              onPressed: _controller.isBusy ? null : _controller.pickRunProfile,
+              child: const Text('Import run profile (.json)'),
+            ),
+          ],
+        ),
+        if (_controller.runProfile != null) ...[
+          const SizedBox(height: 4),
           Text(
-              'Private preview • ${_controller.runProfile!.countPolicy == 'distribution' ? 'Meeting counts from source' : 'Explicit fixed meeting count'} • Database settings unchanged',
-              style: AppTextStyles.caption),
-        if (_controller.profileError != null)
-          Text(_controller.profileError!, style: AppTextStyles.bodyError),
-        TextButton(
-            onPressed: _controller.isBusy ? null : _controller.pickRunProfile,
-            child: const Text('Import run profile (.json)')),
-        if (_controller.runProfile != null)
+            'Private preview • ${_controller.runProfile!.countPolicy == 'distribution' ? 'Meeting counts from source' : 'Explicit fixed meeting count'} • Database settings unchanged',
+            style: AppTextStyles.caption.copyWith(color: AppColors.info),
+          ),
           TextButton(
-              onPressed:
-                  _controller.isBusy ? null : _controller.clearRunProfile,
-              child: const Text('Use database settings instead')),
-      ]));
+            onPressed: _controller.isBusy ? null : _controller.clearRunProfile,
+            child: const Text('Use database settings instead'),
+          ),
+        ],
+        if (_controller.profileError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              _controller.profileError!,
+              style: AppTextStyles.bodyError,
+            ),
+          ),
+      ],
+    );
+  }
 
   Widget _configBtn(String label, IconData icon, String route) {
-    return Expanded(
-      child: UCard(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-        onTap: () => context.push(route),
-        child: Column(
+    return InkWell(
+      onTap: () => context.push(route),
+      borderRadius: AppSpacing.radiusSm,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.bgElevated,
+          borderRadius: AppSpacing.radiusSm,
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: AppColors.textSecondary, size: AppSpacing.iconMd),
-            AppSpacing.xsGap,
-            Text(label, style: AppTextStyles.caption),
+            Icon(icon, color: AppColors.textSecondary, size: 15),
+            const SizedBox(width: 6),
+            Text(label, style: AppTextStyles.captionMedium),
           ],
         ),
       ),
@@ -173,62 +626,19 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
   List<Widget> _phaseContent() {
     switch (_controller.phase) {
       case GenPhase.idle:
-        return [_filePicker(), AppSpacing.lgGap, _generateButton()];
+        return [_generateButton()];
       case GenPhase.generating:
       case GenPhase.polling:
         return [_progressCard()];
       case GenPhase.error:
         return [
-          _messageCard(
-            icon: PhosphorIconsRegular.warningCircle,
-            color: AppColors.error,
-            soft: AppColors.errorSoft,
-            title: 'Generation failed',
-            body: _controller.errorMessage ??
-                'Something went wrong. Check that the engine is running.',
-          ),
-          AppSpacing.lgGap,
-          _filePicker(),
+          _buildServiceRecoveryCard(),
           AppSpacing.lgGap,
           _generateButton(label: 'Try Again'),
         ];
       case GenPhase.done:
         return _doneContent(_controller.result!);
     }
-  }
-
-  Widget _filePicker() {
-    final name = _controller.fileName;
-    return UCard(
-      onTap: _controller.pickFile,
-      child: Row(
-        children: [
-          Icon(
-            name == null
-                ? PhosphorIconsRegular.filePlus
-                : PhosphorIconsRegular.fileXls,
-            color: name == null ? AppColors.textMuted : AppColors.success,
-            size: AppSpacing.iconLg,
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name ?? 'Choose distribution file',
-                    style: AppTextStyles.bodyMedium),
-                Text(
-                  name == null ? 'Main_Distribution_*.xlsx' : 'Tap to change',
-                  style: AppTextStyles.caption,
-                ),
-              ],
-            ),
-          ),
-          const Icon(PhosphorIconsRegular.folderOpen,
-              size: AppSpacing.iconMd, color: AppColors.textMuted),
-        ],
-      ),
-    );
   }
 
   Widget _generateButton({String label = 'Generate Timetable'}) {
@@ -239,36 +649,120 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
     );
   }
 
+  // PHASE 5: Stage 2 — 4-Node Visual Timeline for Solver Execution
   Widget _progressCard() {
     final isUploading = _controller.phase == GenPhase.generating;
+    final state = _controller.activeJobState;
+    final busy = _controller.isBusy;
+    final completed = _controller.phase == GenPhase.done;
+
+    const stages = [
+      ('queued', '1. Queued', 'Job registered with engine worker'),
+      (
+        'ingesting',
+        '2. Ingesting & Validating',
+        'Parsing Course Distribution & verifying teacher/room readiness'
+      ),
+      (
+        'solving',
+        '3. CP-SAT Session & Room Placement',
+        'Running OR-Tools constraint solver across sections & labs'
+      ),
+      (
+        'rendering',
+        '4. Rendering Timetable',
+        'Building workbook sheets & auditing academic constraints'
+      ),
+    ];
+
+    int activeIdx = 0;
+    for (int i = 0; i < stages.length; i++) {
+      if (stages[i].$1 == state) {
+        activeIdx = i;
+        break;
+      }
+    }
+    if (isUploading) activeIdx = 0;
+    if (!busy) activeIdx = completed ? stages.length : -1;
+
     return UCard(
+      isTopLit: true,
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 36, child: ULoading.spinner()),
+          Row(
+            children: [
+              if (busy)
+                const SizedBox(width: 24, height: 24, child: ULoading.spinner())
+              else
+                Icon(completed ? Icons.check_circle_outline : Icons.timeline,
+                    color: AppColors.textMuted),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'STAGE 2 · SOLVER EXECUTION TIMELINE',
+                      style: AppTextStyles.labelCaps.copyWith(
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isUploading
+                          ? 'Waking the engine & uploading…'
+                          : 'Solving with CP-SAT…',
+                      style: AppTextStyles.h4,
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.bgElevated,
+                  borderRadius: AppSpacing.radiusSm,
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Text(
+                  busy
+                      ? '${(_controller.progress * 100).round()}%'
+                      : (completed ? 'Result ready' : 'Not running'),
+                  style: AppTextStyles.numeric.copyWith(
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
           AppSpacing.mdGap,
-          Text(
-            isUploading
-                ? 'Waking the engine & uploading…'
-                : 'Solving with CP-SAT…',
-            style: AppTextStyles.h4,
-            textAlign: TextAlign.center,
-          ),
-          AppSpacing.xsGap,
-          Text(
-            'Generation can take several minutes, including engine startup and validation.',
-            style: AppTextStyles.caption,
-            textAlign: TextAlign.center,
-          ),
-          AppSpacing.lgGap,
-          const ClipRRect(
-            borderRadius: AppSpacing.radiusFull,
-            child: LinearProgressIndicator(
-              minHeight: 6,
-              color: AppColors.primary,
-              backgroundColor: AppColors.bgElevated,
+          if (busy)
+            ClipRRect(
+              borderRadius: AppSpacing.radiusFull,
+              child: LinearProgressIndicator(
+                value:
+                    isUploading ? null : _controller.progress.clamp(0.0, 1.0),
+                minHeight: 6,
+                color: AppColors.primary,
+                backgroundColor: AppColors.bgElevated,
+              ),
             ),
-          ),
-          AppSpacing.mdGap,
+          AppSpacing.lgGap,
+          for (int i = 0; i < stages.length; i++) ...[
+            _buildTimelineNode(
+              title: stages[i].$2,
+              subtitle: stages[i].$3,
+              isCompleted: i < activeIdx,
+              isActive: i == activeIdx,
+              isLast: i == stages.length - 1,
+            ),
+          ],
+          const Divider(height: 24, color: AppColors.border),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -286,6 +780,176 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimelineNode({
+    required String title,
+    required String subtitle,
+    required bool isCompleted,
+    required bool isActive,
+    required bool isLast,
+  }) {
+    final dotColor = isCompleted
+        ? AppColors.success
+        : (isActive ? AppColors.primary : AppColors.border);
+    final textColor =
+        isCompleted || isActive ? AppColors.textPrimary : AppColors.textMuted;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : AppSpacing.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              color: isCompleted
+                  ? AppColors.successSoft
+                  : (isActive ? AppColors.primarySoft : AppColors.bgElevated),
+              shape: BoxShape.circle,
+              border: Border.all(color: dotColor, width: isActive ? 2 : 1),
+            ),
+            alignment: Alignment.center,
+            child: Icon(
+              isCompleted
+                  ? PhosphorIconsRegular.check
+                  : PhosphorIconsRegular.circle,
+              size: isActive ? 8 : 12,
+              color: isCompleted
+                  ? AppColors.success
+                  : (isActive ? AppColors.primary : AppColors.textMuted),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: AppTextStyles.bodyMedium.copyWith(color: textColor),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: AppTextStyles.caption.copyWith(
+                    color: isActive
+                        ? AppColors.textSecondary
+                        : AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // PHASE 5: Service Recovery Paradox Card when solver/network fails
+  Widget _buildServiceRecoveryCard() {
+    return UCard(
+      isTopLit: true,
+      border: Border.all(color: AppColors.error.withValues(alpha: 0.45)),
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.errorSoft,
+                    borderRadius: AppSpacing.radiusSm,
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    PhosphorIconsRegular.warningCircle,
+                    color: AppColors.error,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Generation could not complete',
+                        style:
+                            AppTextStyles.h4.copyWith(color: AppColors.error),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _controller.errorMessage ?? 'Unknown error',
+                        style: AppTextStyles.bodySm,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, thickness: 1, color: AppColors.border),
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      PhosphorIconsRegular.shieldCheck,
+                      size: 16,
+                      color: AppColors.info,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        _controller.hasFile
+                            ? 'Input preserved: "${_controller.fileName}" remains loaded in memory — no re-upload required.'
+                            : 'Your baseline settings remain intact. Select a Course Distribution workbook to retry.',
+                        style: AppTextStyles.captionMedium.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    _configBtn(
+                      'Inspect Settings',
+                      PhosphorIconsRegular.slidersHorizontal,
+                      RouteNames.timetableSettings,
+                    ),
+                    _configBtn(
+                      'Manage Rooms',
+                      PhosphorIconsRegular.door,
+                      RouteNames.manageRooms,
+                    ),
+                    _configBtn(
+                      'Course Eligibility',
+                      PhosphorIconsRegular.graduationCap,
+                      RouteNames.manageCourseEligibility,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -425,7 +1089,7 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
       _reportCard(result),
       AppSpacing.sectionGap,
       UButton(
-        label: 'View Full Grid',
+        label: 'Open Full Grid Preview',
         variant: UButtonVariant.secondary,
         icon: PhosphorIconsRegular.gridFour,
         onPressed: () => context.push(RouteNames.timetableGrid,
@@ -471,7 +1135,7 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
             }
           }),
       AppSpacing.sectionGap,
-      if (published)
+      if (published) ...[
         _messageCard(
           icon: PhosphorIconsRegular.checkCircle,
           color: AppColors.success,
@@ -479,8 +1143,18 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
           title: 'Published to the app',
           body: '${_controller.publishedCount} classes are now live across all '
               'cohorts. Students and teachers can see the routine.',
-        )
-      else ...[
+        ),
+        if (_controller.publishSecondaryWarning != null) ...[
+          AppSpacing.smGap,
+          _messageCard(
+            icon: PhosphorIconsRegular.info,
+            color: AppColors.warning,
+            soft: AppColors.warningSoft,
+            title: 'Routine is live · Secondary log notice',
+            body: _controller.publishSecondaryWarning!,
+          ),
+        ],
+      ] else ...[
         if (_controller.publishError != null) ...[
           Text(_controller.publishError!, style: AppTextStyles.bodyError),
           AppSpacing.smGap,
@@ -537,13 +1211,7 @@ class _GenerateTimetableScreenState extends State<GenerateTimetableScreen> {
         color: AppColors.primary,
       ),
     ];
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: AppSpacing.md,
-      crossAxisSpacing: AppSpacing.md,
-      childAspectRatio: 1.7,
+    return AdminCardGrid(
       children: cards,
     );
   }

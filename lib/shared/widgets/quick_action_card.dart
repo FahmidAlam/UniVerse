@@ -27,6 +27,7 @@ class QuickActionCard extends StatelessWidget {
     final actionColor = color ?? AppColors.primary;
 
     return UCard(
+      isTopLit: true,
       onTap: onTap,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -76,8 +77,7 @@ class QuickActionCard extends StatelessWidget {
           AppSpacing.smGap,
           Text(
             label,
-            style: AppTextStyles.chip
-                .copyWith(color: AppColors.textSecondary),
+            style: AppTextStyles.chip.copyWith(color: AppColors.textSecondary),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

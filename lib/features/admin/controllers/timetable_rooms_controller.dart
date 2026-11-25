@@ -1,11 +1,18 @@
+// PHASE A: TimetableRoomsController with Room Classification and Availability Matrix support
 import 'package:flutter/material.dart';
 import 'package:universe/core/models/timetable_config_model.dart';
 import 'package:universe/features/admin/services/timetable_config_service.dart';
 
 class TimetableRoomsController extends ChangeNotifier {
-  final TimetableConfigService _service = TimetableConfigService();
+  final TimetableConfigService _service;
 
-  List<TimetableRoom> _rooms = [];
+  TimetableRoomsController({
+    TimetableConfigService? service,
+    List<TimetableRoom>? initialRooms,
+  })  : _service = service ?? TimetableConfigService(),
+        _rooms = initialRooms ?? [];
+
+  List<TimetableRoom> _rooms;
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -18,7 +25,11 @@ class TimetableRoomsController extends ChangeNotifier {
   List<TimetableRoom> get theoryRooms =>
       _rooms.where((r) => !r.isLab).toList();
 
-  Future<void> load() async {
+  Future<void> load({bool force = false}) async {
+    if (_rooms.isNotEmpty && !force) {
+      notifyListeners();
+      return;
+    }
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -38,13 +49,27 @@ class TimetableRoomsController extends ChangeNotifier {
       } else {
         await _service.updateRoom(existing.id, data);
       }
-      await load();
+      _rooms = await _service.fetchRooms();
+      notifyListeners();
       return true;
     } catch (_) {
       _errorMessage = 'Could not save the room.';
       notifyListeners();
       return false;
     }
+  }
+
+  Future<bool> saveRoom(TimetableRoom room) async {
+    final existing = _rooms.where((r) => r.id == room.id).firstOrNull;
+    return save(existing: existing, data: room.toMap());
+  }
+
+  Future<bool> toggleActive(TimetableRoom room) async {
+    final newActive = !room.isActive;
+    return save(existing: room, data: {
+      'is_active': newActive,
+      'in_active_semester_pool': newActive,
+    });
   }
 
   Future<void> delete(String id) async {
@@ -58,3 +83,4 @@ class TimetableRoomsController extends ChangeNotifier {
     }
   }
 }
+

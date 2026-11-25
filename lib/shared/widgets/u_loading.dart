@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 
+// PHASE 2: Cohesive loading presenters (spinner and skeleton shimmer),
+// aligned to Obsidian Orbit surface tokens and respecting reduced motion.
 class ULoading extends StatefulWidget {
   final bool _isSkeleton;
   final Color? color;
@@ -38,12 +40,27 @@ class _ULoadingState extends State<ULoading>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
+    );
 
     _colorAnim = ColorTween(
-      begin: AppColors.bgCard,
-      end: AppColors.bgElevated,
+      begin: AppColors.surface,
+      end: AppColors.surfaceElevated,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final bool disableAnims =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    if (disableAnims) {
+      if (_controller.isAnimating) {
+        _controller.stop();
+      }
+      _controller.value = 1.0;
+    } else if (widget._isSkeleton && !_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    }
   }
 
   @override
@@ -58,9 +75,23 @@ class _ULoadingState extends State<ULoading>
       return Center(
         child: CircularProgressIndicator(
           strokeWidth: 2.5,
-          valueColor: AlwaysStoppedAnimation(
+          valueColor: AlwaysStoppedAnimation<Color>(
             widget.color ?? AppColors.primary,
           ),
+        ),
+      );
+    }
+
+    final bool disableAnims =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+
+    if (disableAnims) {
+      return Container(
+        width: widget.skeletonWidth ?? double.infinity,
+        height: widget.skeletonHeight ?? AppSpacing.cardMinHeight,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceElevated,
+          borderRadius: widget.skeletonRadius ?? AppSpacing.radiusMd,
         ),
       );
     }
