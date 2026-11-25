@@ -1,7 +1,14 @@
 # CLAUDE.md — UniVerse Engineering Context
 
 **Authoritative Roadmaps:** [`docs/architecture/WEB_IMPLEMENTATION_ROADMAP.md`](docs/architecture/WEB_IMPLEMENTATION_ROADMAP.md) & [`docs/implementation/UniVerse_Implementation_Master_Plan_v1_1.md`](docs/implementation/UniVerse_Implementation_Master_Plan_v1_1.md)
-**Active Checkpoint:** Standalone React Web v1 (`apps/web/`, Phases 0–4B + Theme v3 `X-Grade Carbon Obsidian` Dark / `Crisp Daylight` Light / `X-Azure`), Phase 5A (`engine/auth.py` dual-client JWT + CORS), Phase 5B RLS/storage hardening (`20261122160000` verified on Staging `oqwvxplteqtlrhktsplj`), and 5-job CI (`.github/workflows/validate.yml`) are complete. Immediate next: GitHub Push + Cloudflare Pages **Environment A** (Committee Review) → Owner-gated Production Cutover (**Environment B** + Phase 4A-1/5B SQL promotion on `yxqyrjyzxitrgkhgauli`) → **Wave 2** (`Phase 4A-2` R1–R16 CP-SAT & Gate C/D backend, `Phase 3B` FastAPI parse endpoint, post-cutover Flutter Web pruning).
+
+**Active Checkpoint:**
+- **Completed & Live:** Standalone React Web v1 (`apps/web/`, Phases 0–4B + Theme v3 `X-Grade Carbon Obsidian` Dark / `Crisp Daylight` Light / `X-Azure`) live on Cloudflare Pages **Environment A** (`https://universe-bfi.pages.dev`) connected to Staging Supabase (`oqwvxplteqtlrhktsplj`); Phase 5A (`engine/auth.py` dual-client JWT + `ALLOWED_ORIGINS`) live on Render (`https://universe-timetable-engine.onrender.com`, commit `7ec652a`, `ENGINE_AUTH_MODE=optional`); Phase 5B RLS & Storage hardening (`20261122160000`) live & verified on Staging (`oqwvxplteqtlrhktsplj`); 5-job GitHub Actions CI (`.github/workflows/validate.yml`) green.
+- **Immediate Next Sequence:**
+  1. **Stage 1.5 (Skills & CI Hygiene):** Maintain `system-security-and-hardening`, `backend-evolution-and-resilience`, and `fullstack-verification-and-ci`; keep `.github/workflows/supabase_keep_alive.yml` secret-backed (`${{ secrets.SUPABASE_ANON_KEY }}`).
+  2. **Stage 2 (Published Routines Archive v1 — Frontend-Only):** Add `/admin/routine?tab=archive` correlating `routine_versions`, `timetable_runs`, and `timetables` Storage `.xlsx` files with direct download & validation inspector; verify on Environment A.
+  3. **Stage 3 (Owner-Gated Production Cutover):** Promote `20261022140809` + `20261106130000` + `20261122160000` to Production (`yxqyrjyzxitrgkhgauli`), launch **Environment B** on Cloudflare Pages, and flip Render to Production Supabase + `ENGINE_AUTH_MODE=enforced`.
+  4. **Stages 4–5 (Wave 2):** Phase 3B additive FastAPI `.xlsx` parse endpoint + Archive v2a grid preview → Phase 4A-2 (Gate C persistent catalogs/policies, R1–R16 CP-SAT solver, Gate D durable jobs, co-teachers `teacher_codes`, archiving `publish_routine()` + Archive v2b rollback) → post-cutover Flutter Web pruning.
 
 ## 1. Permanent Project Constraints (Non-Negotiable)
 
@@ -32,8 +39,8 @@ Do **not** read the entire master plan or all specialist references before every
     - [`16-committee-traceability-2026-11-04.md`](docs/timetable-audit-2026-10-20/16-committee-traceability-2026-11-04.md) (detailed R1–R16 traceability matrix).
     - [`02-workbook-and-rules.md`](docs/timetable-audit-2026-10-20/02-workbook-and-rules.md) (workbook structure, formulas, anomalies).
   - Subsystem references when editing that subsystem: [`engine/README.md`](engine/README.md), [`docs/backend-setup.md`](docs/backend-setup.md), [`PROJECT_STRUCTURE.md`](PROJECT_STRUCTURE.md), [`docs/architecture/WEB_ARCHITECTURE_DESIGN_BLUEPRINT.md`](docs/architecture/WEB_ARCHITECTURE_DESIGN_BLUEPRINT.md), and [`docs/deployment/CLOUDFLARE_PAGES_AND_CUTOVER_RUNBOOK.md`](docs/deployment/CLOUDFLARE_PAGES_AND_CUTOVER_RUNBOOK.md).
-- **Step 4 — Task-Scoped UI/UX Skills (Before Any UI/UX Work):**
-  - Six specialized UI/UX skills exist in `.agents/skills/`. Do **not** load all six. Consult the routing table in §5, load only the specific combination required, and read each relevant skill's `SKILL.md` before writing code or proposing UI changes.
+- **Step 4 — Task-Scoped Skills (Before Any Work):**
+  - Thirteen active skills live in `.agents/skills/`. Do **not** load all of them. Consult the **Skill-Routing Table** in §5, load only the matching row, and read each relevant skill's `SKILL.md` before writing code or proposing UI changes.
 - **Step 5 — Historical / On-Demand Only:**
   - `docs/archive/**` and historical audit checkpoints `docs/timetable-audit-2026-10-20/01`–`15`. Do not load during routine implementation.
 
@@ -49,8 +56,8 @@ Do **not** read the entire master plan or all specialist references before every
   - **Ingestion & Solver:** `engine/ingest.py` binds headers on row 5 of `Course Distribution`, preserves `B+C` joint sections and split/co-teacher arrays, and feeds `engine/solver.py` (CP-SAT) → validation in `engine/solver.py` → `engine/render.py`.
   - **Clock & Publication:** Clock normalization uses `ClockTime` (`HH:MM:SS` in DB, `HH:MM` in engine). `publish_routine()` atomically replaces global active routine rows (refusing empty payloads); manual CRUD via `RoutineAdminController` still writes directly until Phase 3 unifies server-authoritative validation across generation, upload, manual edits, and publication.
 - **Supabase Security & Schema:**
-  - Historical chain `001`–`016` (no `010`), `20261022140809_academic_catalog.sql`, and `20261106130000_course_distribution_contract.sql`.
-  - Every table or RPC change requires matching Dart models/services, least-privilege grants/RLS, `set search_path = ''` on `SECURITY DEFINER` functions, and negative authorization tests. Never weaken RLS to bypass permission errors.
+  - Historical chain `001`–`016` (no `010`), `20261022140809_academic_catalog.sql`, `20261106130000_course_distribution_contract.sql`, and `20261122160000_phase_5b_rls_and_storage_hardening.sql`.
+  - Every table or RPC change requires matching Dart/TS contracts, least-privilege grants/RLS, `set search_path = ''` on `SECURITY DEFINER` functions, and negative authorization tests. Never weaken RLS to bypass permission errors.
 - **UI Conventions:**
   - Use `package:universe/...` imports, `AppColors`, `AppTextStyles`, `AppSpacing`, `AppTheme.dark`, global Inter typography, `shared/utils/phosphor_compat.dart` icon shim, and `DropdownButtonFormField.initialValue`.
 
@@ -73,34 +80,36 @@ From `engine/`:
 
 ## 5. UI/UX & Engineering Skills (`.agents/skills/`)
 
-Ten active repository-local skills live in `.agents/skills/` (the retired `flutter-web-responsive-ui` skill is archived under `docs/archive/agent_skills_history/`). Read only the specific `SKILL.md` combination matching your task:
+Thirteen active repository-local skills live in `.agents/skills/` (the retired `flutter-web-responsive-ui` skill is archived under `docs/archive/agent_skills_history/`). Read only the specific `SKILL.md` combination matching your task:
 
-1. [`react-web-academic-design-system`](.agents/skills/react-web-academic-design-system/SKILL.md) — React Web (`apps/web/`) Theme v3 OKLCH tokens (`X-Grade Carbon Obsidian` Dark + `Crisp Daylight` Light + `X-Azure`), typography, dense tables, Landscape A4 print, and anti-slop gate.
-2. [`react-web-motion-and-craft`](.agents/skills/react-web-motion-and-craft/SKILL.md) — React Web (`apps/web/`) public specimen, `motion/react` physics, Course Distribution Studio, progressive disclosure, and async states.
-3. [`react-admin-backend-contracts`](.agents/skills/react-admin-backend-contracts/SKILL.md) — React Web (`apps/web/`) PKCE + invite bridge, FastAPI JWT/CORS, Supabase persistence truth, and 4-table Gate A–D boundaries.
-4. [`ui-backend-policy-correlation`](.agents/skills/ui-backend-policy-correlation/SKILL.md) — Strict 1:1 correlation between UI controls (`apps/web/` & `lib/`), backend contracts, and Routine Committee rules (`R1`–`R16`, `D1`–`D6`, `CD1`).
-5. [`universe-implementation`](.agents/skills/universe-implementation/SKILL.md) — Multi-layer coordinator with 5 role references (`web-platform`, `admin-distribution-ui`, `scheduling-cp-sat`, `backend-data-integrity`, `testing-reliability`).
-6. [`universe-ux-principles`](.agents/skills/universe-ux-principles/SKILL.md) — Product-level UX reasoning, journeys, hierarchy, and the 6 unglamorous states across Mobile and Web.
-7. [`universe-visual-design-system`](.agents/skills/universe-visual-design-system/SKILL.md) — Flutter Mobile (`lib/`) dark Obsidian Orbit tokens (`AppColors`, `AppTheme.dark`) and shared `U*` widgets.
-8. [`flutter-interaction-motion`](.agents/skills/flutter-interaction-motion/SKILL.md) — Flutter Mobile (`lib/`) `AppMotion` timing, tactile press feedback, and reduced-motion safeguards.
-9. [`accessibility-performance`](.agents/skills/accessibility-performance/SKILL.md) — Flutter Mobile (`lib/`) WCAG AA contrast, `Semantics`, keyboard traversal, and rebuild minimization.
-10. [`visual-ui-qa`](.agents/skills/visual-ui-qa/SKILL.md) — Dual-client evidence-based visual QA (Playwright/DevTools for `apps/web/`, widget/golden checks for `lib/`).
+1. [`system-security-and-hardening`](.agents/skills/system-security-and-hardening/SKILL.md) — Zero-trust Auth/PKCE/invite-bridge, Edge Functions, Postgres `SET search_path = ''` + RLS, Storage bounds, untrusted `.xlsx` safety, FastAPI `429`/CORS, CSP `_headers`, and CI secret hygiene.
+2. [`backend-evolution-and-resilience`](.agents/skills/backend-evolution-and-resilience/SKILL.md) — Expand–contract SQL migrations, `supabase/reconciliation/` rollbacks, 4-layer serialization contracts, durable Postgres solver jobs, direct Storage downloads, and pure `engine/` domain boundaries.
+3. [`fullstack-verification-and-ci`](.agents/skills/fullstack-verification-and-ci/SKILL.md) — Targeted Vitest/Playwright/pytest/Deno/SQL/Flutter verification matrix, Dart↔Python fixture parity, and 5-job CI / pre-commit leak checks.
+4. [`react-web-academic-design-system`](.agents/skills/react-web-academic-design-system/SKILL.md) — React Web (`apps/web/`) Theme v3 OKLCH tokens (`X-Grade Carbon Obsidian` Dark + `Crisp Daylight` Light + `X-Azure`), typography, dense tables, Landscape A4 print, and anti-slop gate.
+5. [`react-web-motion-and-craft`](.agents/skills/react-web-motion-and-craft/SKILL.md) — React Web (`apps/web/`) public specimen, `motion/react` physics, Course Distribution Studio, progressive disclosure, and async states.
+6. [`react-admin-backend-contracts`](.agents/skills/react-admin-backend-contracts/SKILL.md) — React Web (`apps/web/`) PKCE + invite bridge, FastAPI JWT/CORS, Supabase persistence truth, and 4-table Gate A–D boundaries.
+7. [`ui-backend-policy-correlation`](.agents/skills/ui-backend-policy-correlation/SKILL.md) — Strict 1:1 correlation between UI controls (`apps/web/` & `lib/`), backend contracts, and Routine Committee rules (`R1`–`R16`, `D1`–`D6`, `CD1`).
+8. [`universe-implementation`](.agents/skills/universe-implementation/SKILL.md) — Multi-layer coordinator with 5 role references (`web-platform`, `admin-distribution-ui`, `scheduling-cp-sat`, `backend-data-integrity`, `testing-reliability`).
+9. [`universe-ux-principles`](.agents/skills/universe-ux-principles/SKILL.md) — Product-level UX reasoning, journeys, hierarchy, and the 6 unglamorous states across Mobile and Web.
+10. [`universe-visual-design-system`](.agents/skills/universe-visual-design-system/SKILL.md) — Flutter Mobile (`lib/`) dark Obsidian Orbit tokens (`AppColors`, `AppTheme.dark`) and shared `U*` widgets.
+11. [`flutter-interaction-motion`](.agents/skills/flutter-interaction-motion/SKILL.md) — Flutter Mobile (`lib/`) `AppMotion` timing, tactile press feedback, and reduced-motion safeguards.
+12. [`accessibility-performance`](.agents/skills/accessibility-performance/SKILL.md) — Flutter Mobile (`lib/`) WCAG AA contrast, `Semantics`, keyboard traversal, and rebuild minimization.
+13. [`visual-ui-qa`](.agents/skills/visual-ui-qa/SKILL.md) — Dual-client evidence-based visual QA (Playwright/DevTools for `apps/web/`, widget/golden checks for `lib/`).
 
-### Skill-Routing Table
+### Skill-Routing Table (Sync in `AGENTS.md` §4 & `CLAUDE.md` §5)
 
-| Work type | Skills to load |
-|---|---|
-| UX research, user journey, or workflow redesign | `universe-ux-principles` + `universe-visual-design-system` |
-| Visual redesign or new components | `universe-visual-design-system` + `universe-ux-principles` |
-| Animation or interaction work | `flutter-interaction-motion` + `universe-ux-principles` |
-| Accessibility or performance improvements | `accessibility-performance` |
-| Final visual inspection or UI review | `visual-ui-qa` + relevant implementation skills |
-| Complete UI/UX task | Only the relevant combination of skills |
-| Any React Web (`apps/web/`) design, layout, color, typography, or component work | `react-web-academic-design-system` + `react-web-motion-and-craft` |
-| Any React Web (`apps/web/`) auth, Supabase query/RPC, FastAPI engine, or admin persistence work | `react-admin-backend-contracts` (Mandatory before writing API/state code) |
-| React Web (`apps/web/`) visual/DOM inspection & QA | `visual-ui-qa` + `react-web-academic-design-system` (via Chrome DevTools) |
+| Work Type | Required Skills to Load (Load Only Matching Row) |
+| :--- | :--- |
+| **Auth, RLS, Storage, Edge Functions, FastAPI JWT/CORS/rate-limits, `.xlsx` security, CSP, or CI secrets** | `system-security-and-hardening` (Mandatory before editing security boundaries) |
+| **SQL migrations, RPCs, FastAPI endpoints (Phase 3B / Gate C–D / R1–R16), durable jobs, or cross-client contracts** | `backend-evolution-and-resilience` + `universe-implementation` (load single matching role reference) |
+| **Any UI control, form, table, or admin view touching backend data or Committee Rules (`R1`–`R16`, `D1`–`D6`, `CD1`)** | `ui-backend-policy-correlation` + `universe-ux-principles` (+ `react-admin-backend-contracts` for `apps/web/`) |
+| **React Web (`apps/web/`) design, layout, OKLCH tokens, typography, motion, or print** | `react-web-academic-design-system` + `react-web-motion-and-craft` |
+| **React Web (`apps/web/`) Auth, Supabase queries/RPCs, FastAPI client, or capability gates** | `react-admin-backend-contracts` |
+| **Flutter Mobile (`lib/`) UI, tokens, motion, or accessibility** | `universe-visual-design-system` + `flutter-interaction-motion` + `accessibility-performance` |
+| **Full-stack testing, fixture parity, SQL negative RLS checks, or CI pipelines** | `fullstack-verification-and-ci` |
+| **Visual/DOM screenshot & responsive QA (`apps/web/` or `lib/`)** | `visual-ui-qa` + active client design skill |
 
-> **Context Efficiency Rule:** Do **not** load all six skills for every task. Load only the specific combination matching the active work type.
+> **Context Efficiency Rule:** Do **not** load all skills for every task. Load only the specific row matching the active work type.
 
 ## 6. Reusable UI/UX Workflow & Design System Governance
 
@@ -133,14 +142,14 @@ All UI/UX work must respect the separated client architecture:
 Scheduling Workspace fixtures and simulated mutations are Design Preview only. An accepted database revision does not establish operational reader, correction, policy, generation, or publication wiring. In legacy Flutter web, `/admin/routine` acted as the operational generator/uploader; new browser administration targets standalone React Web (`apps/web/`). See [Phase 0 baseline and decisions](docs/archive/flutter_ui_history/phase_0_redesign_baseline_and_decisions.md).
 
 ## Phase 3.5 approved visual direction (Flutter Mobile Scope)
+
 The Product Owner previously approved the specified full-bleed auth/onboarding overhaul for the Flutter app (`lib/`). All permanent auth/backend, hosted-service, Git, and scheduling gates remain enforced.
 
-| **Any UI/UX feature, form, table, or admin control touching backend data, solver rules, or Routine Committee requirements** | `ui-backend-policy-correlation` + `universe-ux-principles` (Mandatory before writing any UI code; prohibits unbacked UI matrices and enforces 1:1 model/backend binding) |
-
 ## React Web v1 Approved Visual Direction (UniVerse Academic Ledger)
+
 Standalone React Web (`apps/web/`, Administrator Operations Console + Public Institutional Entry `/` + Mobile-App Guidance for student/teacher sessions) uses **UniVerse Academic Ledger**, combining **Precision Ledger** (administrative ergonomics), **Campus Atelier** (comfortable long-session usability), and **Archival Registrar** (institutional public presentation).
 
 - **Interchangeable Light + Dark (Light / Dark / System):** React Web v1 ships full-parity Crisp Daylight Light and X-Grade Carbon Obsidian Dark modes under UniVerse Academic Ledger. Completely separate from Flutter's dark-orange Obsidian Orbit (`#0B0C0E` + `#FF7A00`), and must **not** inherit the superseded dark-cyan Spatial Orbit Engine prototype.
 - **Typography:** `Source Serif 4` (editorial headlines), `IBM Plex Sans` (UI and dense operational tables), `IBM Plex Mono` (course codes, time slots, and tabular numerals).
 - **Color Tokens:** 4-layer near-achromatic Carbon-Obsidian (Dark, `C <= 0.006`) + Crisp Daylight (Light, `C <= 0.004`) + 10-step **X-Azure Blue** (`H = 246°–248°`, `--brand-50`..`--brand-950`) OKLCH token architecture with neutral dot-pill status badges, raised monochrome active tabs, and perceptually uniform OKLCH charts, verified via automated WCAG AA checks over actual opaque sRGB foreground/background pairs (tokenized centrally in `tokens.css`).
-- **Timetable & Craft:** Custom CSS Grid + React scheduling timetable (not a Gregorian calendar library), restrained Motion/CSS transitions respecting `prefers-reduced-motion`, user-controlled illustrative public timetable, invisible UI in dense operational tables, and backend-derived dashboard readiness. Flutter mobile (`lib/`) remains on Obsidian Orbit (`#0B0C0E` + `#FF7A00`).
+- **Timetable & Craft:** Custom CSS Grid + React scheduling timetable (not a Gregorian calendar library), dynamic midday break, restrained Motion/CSS transitions respecting `prefers-reduced-motion`, user-controlled illustrative public timetable, invisible UI in dense operational tables, and backend-derived dashboard readiness. Flutter mobile (`lib/`) remains on Obsidian Orbit (`#0B0C0E` + `#FF7A00`).

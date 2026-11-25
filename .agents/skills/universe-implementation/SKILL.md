@@ -9,13 +9,16 @@ Coordinate multi-layer UniVerse engineering across **Standalone React Web (`apps
 
 ## Operating Rules
 
-1. **Ground Truth & Active Roadmaps:**
+1. **Ground Truth & Active Checkpoint:**
    - Start from [`AGENTS.md`](../../../AGENTS.md) / [`CLAUDE.md`](../../../CLAUDE.md).
-   - Consult [`docs/architecture/WEB_IMPLEMENTATION_ROADMAP.md`](../../../docs/architecture/WEB_IMPLEMENTATION_ROADMAP.md) for React Web / Cutover / Wave 2 sequencing and [`docs/implementation/UniVerse_Implementation_Master_Plan_v1_1.md`](../../../docs/implementation/UniVerse_Implementation_Master_Plan_v1_1.md) for core scheduling & database specifications (read only the relevant section).
+   - **Live Today:** Environment A (`https://universe-bfi.pages.dev`) connected to Staging Supabase (`oqwvxplteqtlrhktsplj`, Phase 5B `20261122160000` verified); Render Phase 5A (`https://universe-timetable-engine.onrender.com`, commit `7ec652a`, `ENGINE_AUTH_MODE=optional`); 5-job GitHub Actions CI green.
+   - **4-Stage Sequence:** Stage 1.5 (Skills & CI Hygiene) → Stage 2 (Published Routines Archive v1 `/admin/routine?tab=archive`) → Stage 3 (Owner-Gated Production Cutover: Environment B + Production SQL promotion on `yxqyrjyzxitrgkhgauli` + `ENGINE_AUTH_MODE=enforced`) → Stages 4–5 (Wave 2: Phase 3B `.xlsx` parse endpoint, Phase 4A-2 R1–R16 CP-SAT & Gate C/D durable jobs, post-cutover Flutter Web pruning).
+   - Consult [`docs/architecture/WEB_IMPLEMENTATION_ROADMAP.md`](../../../docs/architecture/WEB_IMPLEMENTATION_ROADMAP.md) and [`docs/implementation/UniVerse_Implementation_Master_Plan_v1_1.md`](../../../docs/implementation/UniVerse_Implementation_Master_Plan_v1_1.md) (only the relevant phase section).
    - **Archive Exclusion:** Never scan or load `docs/archive/**` unless explicitly requested by the user.
-2. **Platform & Governance Invariants:**
-   - **Web vs. Mobile Split:** All web work belongs exclusively in `apps/web/` (**UniVerse Academic Ledger** — Theme v3: X-Grade Carbon Obsidian Dark + Crisp Daylight Light + X-Azure). Flutter Mobile (`lib/`, **Obsidian Orbit**) serves Android and iOS Students/Teachers (continuous iOS compatibility is mandatory). Legacy Flutter Web (`web/`, `lib/features/admin/`) is **frozen** as a read-only fallback until Production Cutover + Phase 3B complete.
+2. **Platform, Security & Verification Invariants:**
+   - **Web vs. Mobile Split:** All web work belongs exclusively in `apps/web/` (**UniVerse Academic Ledger**). Flutter Mobile (`lib/`, **Obsidian Orbit**) serves Android and iOS Students/Teachers (continuous iOS compatibility is mandatory). Legacy Flutter Web (`web/`, `lib/features/admin/`) is **frozen** as a read-only fallback until Production Cutover + Phase 3B complete.
    - **Mandatory UI/UX Approval Gate:** Present grounded alternatives and wait for explicit owner approval before major UI/workflow redesigns. Load only the matching skills from the routing table in [`AGENTS.md`](../../../AGENTS.md) / [`CLAUDE.md`](../../../CLAUDE.md).
+   - **Companion Core Skills:** Enforce [`system-security-and-hardening`](../system-security-and-hardening/SKILL.md) on all auth/RLS/Storage/API/CI boundaries, [`backend-evolution-and-resilience`](../backend-evolution-and-resilience/SKILL.md) on migrations/RPCs/contracts/durable jobs, and [`fullstack-verification-and-ci`](../fullstack-verification-and-ci/SKILL.md) before handoff.
    - **No Supabase CLI & Hosted Safety:** Never install or run Supabase CLI. Never mutate Production (`yxqyrjyzxitrgkhgauli`), Staging (`oqwvxplteqtlrhktsplj`), Render, or Cloudflare without explicit owner authorization.
    - **Single-Writer & Git Safety:** Keep gitignored workbooks (`engine/routine generation files/*.xlsx`), `.env.local`, `dart_defines.json`, and uncommitted work safe; never run `git push`, `git reset`, `git clean`, or `git stash`.
 3. **Selective Specialist Loading:**
