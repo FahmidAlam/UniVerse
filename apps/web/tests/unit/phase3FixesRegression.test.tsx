@@ -73,7 +73,7 @@ function renderWithRouter(initialEntry: string) {
 }
 
 describe("Phase 3 visual & UX fixes regression checks", () => {
-  it("keeps active tab exclusive and renders readable Phase 3B badge on Upload Routine", () => {
+  it("keeps active tab exclusive and renders live Upload Routine tab without stale Phase 3B gate badge", async () => {
     renderWithRouter("/admin/routine?tab=upload");
 
     const uploadTab = screen.getByRole("tab", { name: /Upload Routine/i });
@@ -85,9 +85,8 @@ describe("Phase 3 visual & UX fixes regression checks", () => {
     expect(generateTab.getAttribute("aria-selected")).toBe("false");
     expect(generateTab.className).not.toContain("bg-[var(--bg-raised)]");
 
-    const phaseBadge = screen.getByText("Phase 3B");
-    expect(phaseBadge.className).toContain("bg-[var(--bg-surface)]");
-    expect(phaseBadge.className).toContain("text-[var(--ink-secondary)]");
+    expect(screen.queryByText("Phase 3B")).toBeNull();
+    expect(await screen.findByTestId("upload-routine-view")).toBeTruthy();
   });
 
   it("removes sticky topbar clipping, avoids duplicate Generate Routine CTAs on routine/grid routes, and dismisses toasts on navigation", () => {

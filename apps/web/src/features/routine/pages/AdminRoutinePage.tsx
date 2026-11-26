@@ -8,21 +8,27 @@ import {
   Table,
   UploadSimple,
 } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import { motion, useReducedMotion } from "motion/react";
 import { lazy, Suspense } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { LedgerTableSkeleton } from "@/components/ui/AsyncStates";
 import { Badge } from "@/components/ui/Badge";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { AcademicTimetableMatrix } from "@/features/routine/components/AcademicTimetableMatrix";
 import { DistributionStudioTab } from "@/features/routine/components/DistributionStudioTab";
 import { GenerateRoutineTab } from "@/features/routine/components/GenerateRoutineTab";
 import { ManagePublishedTab } from "@/features/routine/components/ManagePublishedTab";
-import { UploadRoutineGatedTab } from "@/features/routine/components/UploadRoutineGatedTab";
 import { useRoutineOperationsStore } from "@/features/routine/store/routineOperationsStore";
+import { probeLiveSchedulingCapabilities } from "@/features/scheduling/services/schedulingCapabilities";
 import { cn } from "@/lib/utils";
 
 const RoutineArchiveTab = lazy(
   () => import("@/features/routine/components/RoutineArchiveTab"),
+);
+
+const UploadRoutineTab = lazy(
+  () => import("@/features/routine/components/UploadRoutineTab"),
 );
 
 export type RoutineTabId =
@@ -44,12 +50,7 @@ const ROUTINE_TABS: readonly {
   { id: "manage", label: "Manage Published", Icon: ListChecks },
   { id: "generate", label: "Generate Routine", Icon: Play },
   { id: "archive", label: "Archive", Icon: ClockCounterClockwise },
-  {
-    id: "upload",
-    label: "Upload Routine",
-    Icon: UploadSimple,
-    badge: "Phase 3B",
-  },
+  { id: "upload", label: "Upload Routine", Icon: UploadSimple },
 ];
 
 function resolveRoutineTab(raw: string | null): RoutineTabId {
@@ -66,11 +67,28 @@ function resolveRoutineTab(raw: string | null): RoutineTabId {
 }
 
 export function AdminRoutinePage() {
+  const { isDevPreview } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = resolveRoutineTab(searchParams.get("tab"));
   const { solverPhase, setActiveSource, setGenerateInputMode } =
     useRoutineOperationsStore();
   const prefersReducedMotion = useReducedMotion() ?? false;
+
+  const gateProbeQuery = useQuery({
+    queryKey: ["scheduling-live-gates", isDevPreview],
+    queryFn: () => probeLiveSchedulingCapabilities(isDevPreview),
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const gates = gateProbeQuery.data;
+  const gatesABLive = Boolean(gates?.gateA.unlocked && gates?.gateB.unlocked);
+  const gateAOnlyLive = Boolean(gates?.gateA.unlocked && !gates?.gateB.unlocked);
+  const workbenchBadgeLabel = gatesABLive
+    ? "Gates A–B Live · C–D Locked"
+    : gateAOnlyLive
+      ? "Gate A Live · B–D Locked"
+      : "Locked · Gates A–D";
 
   const selectTab = (tab: RoutineTabId) => {
     setSearchParams({ tab }, { replace: false });
@@ -85,21 +103,35 @@ export function AdminRoutinePage() {
           </h1>
           <p className="mt-1 max-w-[68ch] text-[13.5px] leading-[1.55] text-[var(--ink-secondary)]">
             Track 1 operational console for inspecting the 2D weekly timetable,
-            managing published class slots, and running CP-SAT schedule
-            generation.
+            managing published class slots, uploading rendered workbooks, and
+            running CP-SAT schedule generation.
           </p>
         </div>
 
-        {/* Compact non-intrusive Track 2 Workbench status link */}
+        {/* Compact truthful Track 2 Workbench gate status link */}
         <Link
           to="/admin/scheduling"
+          data-testid="track2-workbench-status-link"
           className="inline-flex h-[34px] items-center gap-2 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-3 text-[12px] font-medium text-[var(--ink-secondary)] no-underline hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]"
         >
           <LockSimple size={13} aria-hidden="true" />
           <span>Track 2 Workbench</span>
-          <Badge tone="joint" dot={false} mono>
-            <span className="h-1.5 w-1.5 rounded-full bg-[var(--sem-joint-bar)]" aria-hidden="true" />
-            Locked · Gates A–D
+          <Badge
+            tone={gatesABLive || gateAOnlyLive ? "theory" : "joint"}
+            dot={false}
+            mono
+            data-testid="track2-workbench-gate-badge"
+          >
+            <span
+              className={cn(
+                "h-1.5 w-1.5 rounded-full",
+                gatesABLive || gateAOnlyLive
+                  ? "bg-[var(--sem-pine-bar)]"
+                  : "bg-[var(--sem-joint-bar)]",
+              )}
+              aria-hidden="true"
+            />
+            {workbenchBadgeLabel}
           </Badge>
         </Link>
       </header>
@@ -202,7 +234,15 @@ export function AdminRoutinePage() {
             <RoutineArchiveTab />
           </Suspense>
         )}
-        {activeTab === "upload" && <UploadRoutineGatedTab />}
+        {activeTab === "upload" && (
+          <Suspense
+            fallback={
+              <LedgerTableSkeleton rows={5} label="Loading routine uploader" />
+            }
+          >
+            <UploadRoutineTab />
+          </Suspense>
+        )}
       </motion.div>
     </div>
   );

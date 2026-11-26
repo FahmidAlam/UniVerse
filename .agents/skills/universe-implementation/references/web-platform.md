@@ -8,9 +8,9 @@ Load [`system-security-and-hardening`](../../system-security-and-hardening/SKILL
 
 - **Standalone React Web (`apps/web/`):** React 19 + TypeScript + Vite Admin Operations Console (`/admin/*`), Public Institutional Entry (`/`), auth flows (`/login`, `/forgot-password`, `/reset-password`, `/access-required`), and `public/` assets (`_headers` CSP, `_redirects` SPA fallback, `theme-init.js` anti-FOUC Light/Dark/System bootstrap).
 - **Cloudflare Pages Deployment (`docs/deployment/CLOUDFLARE_PAGES_AND_CUTOVER_RUNBOOK.md`):**
-  - **Environment A (Live):** `https://universe-bfi.pages.dev`, bound to Staging Supabase (`oqwvxplteqtlrhktsplj`) + Render engine (`https://universe-timetable-engine.onrender.com`, `7ec652a`, `ENGINE_AUTH_MODE=optional`).
-  - **Environment B (Stage 3 Production Cutover):** Gated on owner-executed Phase 4A-1 + Phase 5B SQL promotion on Production (`yxqyrjyzxitrgkhgauli`) and flipping `ENGINE_AUTH_MODE=enforced` + exact `ALLOWED_ORIGINS`.
-- **Frozen Flutter Web Fallback (`web/`, `lib/features/admin/`):** Preserved strictly read-only until Environment B Cutover and Wave 2 **Phase 3B** (additive FastAPI rendered-workbook parse endpoint replacing Dart `RoutineWorkbookParser`) are verified in production.
+  - **Environment B (Production — LIVE):** `https://universe-admin-exi.pages.dev`, bound to hardened Production Supabase (`yxqyrjyzxitrgkhgauli`, 37 tables + Phase 5B RLS/Storage limits) + Render engine (`https://universe-timetable-engine.onrender.com`, `ENGINE_AUTH_MODE=enforced`, strict `ALLOWED_ORIGINS`).
+  - **Environment A (Staging — LIVE):** `https://universe-bfi.pages.dev`, bound to Staging Supabase (`oqwvxplteqtlrhktsplj`); local Staging engine tests use local `uvicorn` because shared Render enforces Production JWTs.
+- **Frozen Flutter Web Fallback (`web/`, `lib/features/admin/`):** Environment B Cutover and Wave 2A **Phase 3B** (`POST /api/timetable/parse-rendered-workbook`, `?tab=upload`, Archive v2a 2D Grid Preview) are implemented; keep Flutter admin/web files strictly read-only until explicit owner authorization for Stage 5 post-cutover pruning.
 
 ## Role-Specific Guardrails
 

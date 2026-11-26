@@ -180,10 +180,14 @@ function resolvePeriodIdx(
 }
 
 export interface AcademicTimetableMatrixProps {
-  /** Optional read-only candidate rows (e.g., Stage 5 Design Preview) bypassing live Supabase queries. */
+  /** Optional read-only candidate rows (e.g., Upload preview, Archive v2a preview, Stage 5 Design Preview) bypassing live Supabase queries. */
   overrideRows?: readonly RoutineRow[];
   /** Optional label displayed in candidate preview mode. */
   overrideSourceLabel?: string;
+  /** Suppress the default "Viewing unpublished candidate schedule" banner when caller renders its own header banner. */
+  hideCandidateBanner?: boolean;
+  /** Optional custom period definitions for override mode (inferred from rows when omitted). */
+  overridePeriods?: readonly PeriodDefinition[];
 }
 
 const BACK_LINK_BY_ORIGIN: Record<string, { label: string; to: string }> = {
@@ -197,6 +201,8 @@ const BACK_LINK_BY_ORIGIN: Record<string, { label: string; to: string }> = {
 export function AcademicTimetableMatrix({
   overrideRows,
   overrideSourceLabel,
+  hideCandidateBanner = false,
+  overridePeriods,
 }: AcademicTimetableMatrixProps = {}) {
   const isOverrideMode = Boolean(overrideRows);
   const { isDevPreview } = useAuth();
@@ -459,6 +465,9 @@ export function AcademicTimetableMatrix({
   }, [activeSourceRows, lens]);
 
   const configuredPeriods = useMemo(() => {
+    if (overridePeriods && overridePeriods.length > 0) {
+      return [...overridePeriods];
+    }
     if (!settings) return [];
     const { regularPeriods, onlinePeriod } = partitionPeriods(settings);
     const activeRegular = regularPeriods.filter(
@@ -468,8 +477,49 @@ export function AcademicTimetableMatrix({
     if (settings.allow_online_periods && onlinePeriod) {
       list.push(onlinePeriod);
     }
+    if (isOverrideMode && overrideRows && overrideRows.length > 0) {
+      const unmatched = new Map<string, { start: string; end: string }>();
+      for (const r of overrideRows) {
+        if (resolvePeriodIdx(r, list) === null) {
+          const s = ClockTime.toHm(r.time_start);
+          const e = ClockTime.toHm(r.time_end);
+          const key = `${s}-${e}`;
+          if (
+            !unmatched.has(key) &&
+            ClockTime.toMinutes(s) !== null &&
+            ClockTime.toMinutes(e) !== null
+          ) {
+            unmatched.set(key, { start: s, end: e });
+          }
+        }
+      }
+      if (unmatched.size > 0) {
+        let nextIdx = Math.max(0, ...list.map((p) => p.idx)) + 1;
+        const cols = ["D", "E", "F", "H", "I", "J", "K", "L", "M", "N"];
+        const merged = [...list];
+        for (const slot of Array.from(unmatched.values()).sort(
+          (a, b) =>
+            (ClockTime.toMinutes(a.start) ?? 0) -
+            (ClockTime.toMinutes(b.start) ?? 0),
+        )) {
+          merged.push({
+            idx: nextIdx,
+            col: cols[nextIdx - 1] ?? `P${nextIdx}`,
+            start: slot.start,
+            end: slot.end,
+            label: `${slot.start}-${slot.end}`,
+          });
+          nextIdx += 1;
+        }
+        return merged.sort(
+          (a, b) =>
+            (ClockTime.toMinutes(a.start) ?? 0) -
+            (ClockTime.toMinutes(b.start) ?? 0),
+        );
+      }
+    }
     return list;
-  }, [settings]);
+  }, [isOverrideMode, overridePeriods, overrideRows, settings]);
 
   // Identify midday break divider index & window dynamically from period clock gaps
   const middayBreak = useMemo(
@@ -1039,7 +1089,7 @@ export function AcademicTimetableMatrix({
   return (
     <div className="space-y-4">
       {/* Unpublished Candidate Disclosure Banner */}
-      {effectiveSource === "candidate" && (
+      {effectiveSource === "candidate" && !hideCandidateBanner && (
         <div
           role="status"
           data-testid="candidate-preview-banner"

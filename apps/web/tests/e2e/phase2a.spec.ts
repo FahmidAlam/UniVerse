@@ -143,9 +143,9 @@ test.describe("UniVerse Academic Ledger — Sub-Phase 2A E2E & Visual QA", () =>
     await expectNoHorizontalOverflow(page, "Dashboard 1440x900");
     await saveScreenshot(page, "01_dashboard_1440x900.png");
 
-    // 4. Dashboard Feature Governance ledger shows "Rendered Routine Upload" / "Gated · Phase 3B"
+    // 4. Dashboard Feature Governance ledger shows "Rendered Routine Upload" as Live Persisted (Phase 3B unlocked)
     await expect(page.getByText("Rendered Routine Upload")).toBeVisible();
-    await expect(page.getByText("Gated · Phase 3B")).toBeVisible();
+    await expect(page.getByText("Gated · Phase 3B")).toHaveCount(0);
 
     expect(remoteRequests).toEqual([]);
     expect(pageErrors).toEqual([]);

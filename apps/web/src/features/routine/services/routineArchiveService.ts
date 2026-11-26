@@ -838,6 +838,38 @@ export async function fetchRoutineArchive(
 }
 
 /**
+ * Fetches a workbook Blob directly from Supabase Storage (`timetables` bucket).
+ * Never proxies Storage reads through the Render engine.
+ */
+export async function downloadArchiveWorkbookBlob(
+  objectKey: string,
+  isDevPreview: boolean,
+): Promise<{ blob: Blob; normalizedKey: string }> {
+  const normalizedKey = normalizeTimetableObjectKey(objectKey);
+  if (!normalizedKey) {
+    throw new Error("Invalid workbook storage path.");
+  }
+
+  if (isDevPreview || !isSupabaseConfigured || !supabase) {
+    const blob = new Blob(
+      [`UniVerse Dev Preview illustrative workbook placeholder: ${normalizedKey}\n`],
+      {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      },
+    );
+    return { blob, normalizedKey };
+  }
+
+  const { data, error } = await supabase.storage
+    .from("timetables")
+    .download(normalizedKey);
+  if (error || !data) {
+    throw new Error(error?.message || "Unable to download workbook from Storage.");
+  }
+  return { blob: data, normalizedKey };
+}
+
+/**
  * Streams a direct `.xlsx` download from Supabase Storage (`timetables` bucket).
  * Never proxies through the Render engine.
  */
@@ -846,28 +878,10 @@ export async function downloadArchiveWorkbook(
   fileName: string,
   isDevPreview: boolean,
 ): Promise<void> {
-  const normalizedKey = normalizeTimetableObjectKey(objectKey);
-  if (!normalizedKey) {
-    throw new Error("Invalid workbook storage path.");
-  }
-
-  let blob: Blob;
-  if (isDevPreview || !isSupabaseConfigured || !supabase) {
-    blob = new Blob(
-      [`UniVerse Dev Preview illustrative workbook placeholder: ${normalizedKey}\n`],
-      {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      },
-    );
-  } else {
-    const { data, error } = await supabase.storage
-      .from("timetables")
-      .download(normalizedKey);
-    if (error || !data) {
-      throw new Error(error?.message || "Unable to download workbook from Storage.");
-    }
-    blob = data;
-  }
+  const { blob, normalizedKey } = await downloadArchiveWorkbookBlob(
+    objectKey,
+    isDevPreview,
+  );
 
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");

@@ -68,13 +68,13 @@ export const CAPABILITY_REGISTRY: readonly CapabilityDescriptor[] = [
     iconKey: "routine",
     status: "live-persisted",
     implementedInPhase1A: false,
-    plannedPhaseLabel: "Phase 3A Active",
+    plannedPhaseLabel: "Phase 3B Active",
     summary:
-      "Manage published timetable slots, inspect the 2D weekly matrix, and launch CP-SAT schedule generation.",
+      "Manage published timetable slots, inspect the 2D weekly matrix, upload rendered .xlsx routines, inspect historical archives, and launch CP-SAT schedule generation.",
     governanceNote:
-      "Track 1 operational console active; rendered .xlsx upload remains gated pending Phase 3B.",
+      "Track 1 operational console active with Phase 3B rendered .xlsx upload and Archive v2a 2D grid preview.",
     backendContract:
-      "POST /api/timetable/generate, GET /api/timetable/status|result|download/{job_id}, RPC publish_routine, storage bucket timetables",
+      "POST /api/timetable/generate, POST /api/timetable/parse-rendered-workbook, GET /api/timetable/status|result|download/{job_id}, RPC publish_routine, storage bucket timetables",
   },
   {
     id: "admin.routine-grid",
@@ -274,9 +274,9 @@ export const SUBFEATURE_CAPABILITIES: readonly SecondaryFeatureCapability[] = [
   {
     id: "track1.workbook-upload",
     label: "Rendered Routine Upload",
-    status: "fail-closed-gate",
-    badgeLabel: "Gated · Phase 3B",
-    summary: "Locked pending server upload endpoint verification.",
+    status: "live-persisted",
+    summary:
+      "Parse, validate, preview in 2D, and publish pre-rendered Excel routine workbooks via Phase 3B server parser.",
   },
   {
     id: "track2.course-distribution",
