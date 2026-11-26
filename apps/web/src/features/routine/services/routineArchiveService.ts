@@ -5,7 +5,7 @@ export const ARCHIVE_ROUTINE_VERSION_COLUMNS =
   "id, semester_label, source, is_active, row_count, stats, validation, notes, published_at, published_by, created_at";
 
 export const ARCHIVE_TIMETABLE_RUN_COLUMNS =
-  "id, semester_label, source, row_count, stats, validation, file_path, notes, created_by, created_at";
+  "id, semester_label, file_path, status, row_count, stats, validation, created_by, created_at";
 
 export const ARCHIVE_PROFILE_COLUMNS = "id, name, email";
 
@@ -19,12 +19,11 @@ export type ArchiveCategory = "version" | "run" | "storage-only";
 export interface TimetableRunRecord {
   id: string;
   semester_label: string | null;
-  source: string | null;
+  file_path: string | null;
+  status: string | null;
   row_count: number | null;
   stats: Record<string, unknown> | null;
   validation: Record<string, unknown> | null;
-  file_path: string | null;
-  notes: string | null;
   created_by: string | null;
   created_at: string;
 }
@@ -297,7 +296,7 @@ export function correlateRoutineArchive(params: {
       timestamp: version.published_at ?? version.created_at,
       actorName: resolveActorName(actorId, profilesById),
       actorId,
-      notes: version.notes ?? bestRun?.notes ?? null,
+      notes: version.notes ?? null,
       objectKey: storageFile ? rawKey : null,
       fileName: storageFile ? extractFileName(rawKey) : null,
       fileSizeBytes: storageFile?.size_bytes ?? null,
@@ -332,14 +331,14 @@ export function correlateRoutineArchive(params: {
     items.push({
       id: `run:${run.id}`,
       category: "run",
-      source: normalizeSource(run.source),
+      source: "engine",
       isActive: false,
       semesterLabel: run.semester_label?.trim() || "Unlabeled Run",
       rowCount: run.row_count,
       timestamp: run.created_at,
       actorName: resolveActorName(run.created_by, profilesById),
       actorId: run.created_by,
-      notes: run.notes,
+      notes: null,
       objectKey: storageFile ? rawKey : null,
       fileName: storageFile ? extractFileName(rawKey) : null,
       fileSizeBytes: storageFile?.size_bytes ?? null,
@@ -682,19 +681,19 @@ const DEV_PREVIEW_RUNS: TimetableRunRecord[] = [
   {
     id: "preview-run-1",
     semester_label: "Spring 2026 · v2026.2",
-    source: "engine",
+    file_path: "timetables/spring_2026_v2026_2_routine.xlsx",
+    status: "published",
     row_count: 14,
     stats: DEV_PREVIEW_VERSIONS[0]!.stats,
     validation: DEV_PREVIEW_VERSIONS[0]!.validation,
-    file_path: "timetables/spring_2026_v2026_2_routine.xlsx",
-    notes: "Matched within 30s of publish",
     created_by: "dev-preview-admin",
     created_at: "2026-11-20T09:29:30.000Z",
   },
   {
     id: "preview-run-2",
     semester_label: "Spring 2026 · Dry Run Draft",
-    source: "engine",
+    file_path: "spring_2026_dry_run_draft.xlsx",
+    status: "generated",
     row_count: 142,
     stats: { status: "OPTIMAL", solve_ms: 9420, meetings: 142 },
     validation: {
@@ -713,8 +712,6 @@ const DEV_PREVIEW_RUNS: TimetableRunRecord[] = [
         ],
       },
     },
-    file_path: "spring_2026_dry_run_draft.xlsx",
-    notes: "Unpublished candidate run saved to Storage.",
     created_by: "dev-preview-admin",
     created_at: "2026-11-19T16:40:00.000Z",
   },

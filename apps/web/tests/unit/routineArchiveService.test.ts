@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  ARCHIVE_TIMETABLE_RUN_COLUMNS,
   correlateRoutineArchive,
   extractStatsEntries,
   normalizeTimetableObjectKey,
@@ -8,6 +9,11 @@ import {
   type TimetableStorageObject,
 } from "@/features/routine/services/routineArchiveService";
 import type { RoutineVersionRecord } from "@/features/routine/types";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.doUnmock("@/services/supabase");
+});
 
 describe("normalizeTimetableObjectKey", () => {
   it("normalizes bare filenames, bucket-prefixed paths, and full Storage URLs", () => {
@@ -147,73 +153,67 @@ describe("correlateRoutineArchive (43-file / 23-run / 6-version cardinality)", (
       {
         id: "run-1",
         semester_label: "Spring 2026",
-        source: "engine",
+        file_path: "file_01.xlsx",
+        status: "published",
         row_count: 150,
         stats: { status: "OPTIMAL" },
         validation: { ok: true },
-        file_path: "file_01.xlsx",
-        notes: null,
         created_by: "admin-1",
         created_at: new Date(baseMs - 90_000).toISOString(), // 1.5m before ver-1
       },
       {
         id: "run-2",
         semester_label: "autumn 2025", // case-insensitive match
-        source: "engine",
+        file_path:
+          "https://example.supabase.co/storage/v1/object/public/timetables/file_02.xlsx",
+        status: "published",
         row_count: 140,
         stats: null,
         validation: null,
-        file_path:
-          "https://example.supabase.co/storage/v1/object/public/timetables/file_02.xlsx",
-        notes: null,
         created_by: "admin-1",
         created_at: new Date(baseMs - 86_400_000 + 299_000).toISOString(), // +4m59s
       },
       {
         id: "run-3",
         semester_label: "Summer 2025",
-        source: "upload",
+        file_path: "timetables/file_03.xlsx",
+        status: "published",
         row_count: 130,
         stats: null,
         validation: null,
-        file_path: "timetables/file_03.xlsx",
-        notes: null,
         created_by: null,
         created_at: new Date(baseMs - 2 * 86_400_000 - 120_000).toISOString(),
       },
       {
         id: "run-4",
         semester_label: "Spring 2025",
-        source: "engine",
+        file_path: "file_04.xlsx",
+        status: "generated",
         row_count: 120,
         stats: null,
         validation: null,
-        file_path: "file_04.xlsx",
-        notes: null,
         created_by: null,
         created_at: new Date(baseMs - 3 * 86_400_000 - 360_000).toISOString(), // 6m -> outside ±5m
       },
       {
         id: "run-5",
         semester_label: "Fall 2024",
-        source: "engine",
+        file_path: "file_05.xlsx",
+        status: "generated",
         row_count: 999, // mismatch row_count
         stats: null,
         validation: null,
-        file_path: "file_05.xlsx",
-        notes: null,
         created_by: null,
         created_at: new Date(baseMs - 5 * 86_400_000).toISOString(),
       },
       ...Array.from({ length: 18 }, (_, i): TimetableRunRecord => ({
         id: `run-${i + 6}`,
         semester_label: `Draft Run ${i + 6}`,
-        source: "engine",
+        file_path: `file_${String(i + 6).padStart(2, "0")}.xlsx`,
+        status: "generated",
         row_count: 100 + i,
         stats: null,
         validation: null,
-        file_path: `file_${String(i + 6).padStart(2, "0")}.xlsx`,
-        notes: null,
         created_by: null,
         created_at: new Date(baseMs - (i + 10) * 86_400_000).toISOString(),
       })),
@@ -351,5 +351,76 @@ describe("parseValidationJsonb & extractStatsEntries (3 historical schemas)", ()
     expect(parsed.sourceContract).toEqual({ source_sha256: "abc123", revision: 2 });
     expect(parsed.details).toHaveLength(1);
     expect(parsed.details[0]?.items).toHaveLength(2);
+  });
+});
+
+describe("fetchRoutineArchive Supabase query contracts", () => {
+  it("selects only valid timetable_runs columns and does not select source or notes", async () => {
+    const selectedColumns = ARCHIVE_TIMETABLE_RUN_COLUMNS.split(",").map((c) =>
+      c.trim(),
+    );
+    expect(selectedColumns).not.toContain("source");
+    expect(selectedColumns).not.toContain("notes");
+    expect(selectedColumns).toEqual([
+      "id",
+      "semester_label",
+      "file_path",
+      "status",
+      "row_count",
+      "stats",
+      "validation",
+      "created_by",
+      "created_at",
+    ]);
+
+    vi.resetModules();
+
+    const selectCallsByTable: Record<string, string> = {};
+    const makeTableBuilder = (table: string) => ({
+      select: (columns: string) => {
+        selectCallsByTable[table] = columns;
+        return {
+          order: () => ({
+            limit: async () => ({ data: [], error: null }),
+          }),
+          in: async () => ({ data: [], error: null }),
+        };
+      },
+    });
+
+    vi.doMock("@/services/supabase", () => ({
+      isSupabaseConfigured: true,
+      supabase: {
+        from: (table: string) => makeTableBuilder(table),
+        storage: {
+          from: () => ({
+            list: async () => ({ data: [], error: null }),
+          }),
+        },
+      },
+    }));
+
+    const mod = await import(
+      "@/features/routine/services/routineArchiveService"
+    );
+    const dataset = await mod.fetchRoutineArchive(false);
+
+    expect(dataset.isPreviewFixture).toBe(false);
+    const runSelect = selectCallsByTable.timetable_runs;
+    expect(runSelect).toBeDefined();
+    const runSelectCols = runSelect!.split(",").map((c) => c.trim());
+    expect(runSelectCols).not.toContain("source");
+    expect(runSelectCols).not.toContain("notes");
+    expect(runSelectCols).toEqual([
+      "id",
+      "semester_label",
+      "file_path",
+      "status",
+      "row_count",
+      "stats",
+      "validation",
+      "created_by",
+      "created_at",
+    ]);
   });
 });
