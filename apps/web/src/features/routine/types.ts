@@ -223,10 +223,31 @@ export interface EngineResultResponse {
   has_workbook: boolean;
 }
 
+export interface ParsedWorkbookStats {
+  meetings: number;
+  service_meetings: number;
+  total_meetings: number;
+  cohorts: number;
+  teachers: number;
+  days: number;
+  sheets_parsed: number;
+  [key: string]: unknown;
+}
+
+export interface ParsedRenderedWorkbookResponse {
+  rows: RoutineRow[];
+  service_rows: RoutineRow[];
+  warnings: string[];
+  stats: ParsedWorkbookStats;
+  validation: EngineValidation;
+  detected_format: string;
+  sheet_names: string[];
+}
+
 export interface RetryAuditParams {
   semesterLabel: string | null;
   filePath: string | null;
-  stats: EngineStats;
+  stats: EngineStats | Record<string, unknown>;
   validation: EngineValidation;
   rowCount: number;
   createdBy: string | null;

@@ -556,7 +556,7 @@ test.describe("UniVerse Academic Ledger — Phase 3 Operational Routine Console 
       "Routine is live (3 slots published)",
     );
 
-    // --- 4. UPLOAD ROUTINE GATED TAB (?tab=upload) ---
+    // --- 4. UPLOAD ROUTINE LIVE TAB (?tab=upload) ---
     await page.getByRole("tab", { name: /Upload Routine/i }).click();
     await expect(page).toHaveURL(/\/admin\/routine\?tab=upload/);
     await expect(
@@ -565,10 +565,8 @@ test.describe("UniVerse Academic Ledger — Phase 3 Operational Routine Console 
     await expect(
       page.getByRole("tab", { name: /Generate Routine/i }),
     ).toHaveAttribute("aria-selected", "false");
-    await expect(page.getByTestId("upload-gated-card")).toContainText(
-      "Gated · Phase 3B",
-    );
-    await expect(page.locator('main input[type="file"]')).toHaveCount(0);
+    await expect(page.getByTestId("upload-routine-view")).toBeVisible();
+    await expect(page.getByTestId("upload-routine-file-input")).toHaveCount(1);
     await page.evaluate(() => window.scrollTo(0, 0));
     await saveScreenshot(
       page,

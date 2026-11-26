@@ -25,9 +25,13 @@ jobs:
           fi
 
           echo "Pinging Supabase to keep it awake..."
+          auth_args=()
+          if [[ "${SUPABASE_ANON_KEY}" == eyJ* ]]; then
+            auth_args=(-H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
+          fi
           status=$(curl -sS -o /dev/null -w "%{http_code}" -X GET "${SUPABASE_URL}/rest/v1/" \
             -H "apikey: ${SUPABASE_ANON_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
+            "${auth_args[@]}")
 
           echo "Supabase keep-alive HTTP status: ${status}"
           if [ "${status}" -lt 200 ] || [ "${status}" -ge 500 ]; then

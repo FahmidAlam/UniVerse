@@ -62,14 +62,51 @@ def _extract_bearer_token(authorization: str | None) -> str | None:
     return token or None
 
 
+def _is_opaque_supabase_key(key: str) -> bool:
+    """True for Supabase 2027 opaque API keys (`sb_publishable_...`, `sb_secret_...`)."""
+    return key.strip().startswith("sb_")
+
+
 def _supabase_credentials() -> tuple[str, str, str] | None:
     url = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
-    service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
-    anon_key = os.environ.get("SUPABASE_ANON_KEY", "").strip()
+    service_key = (
+        os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+        or os.environ.get("SUPABASE_SECRET_KEY", "").strip()
+    )
+    anon_key = (
+        os.environ.get("SUPABASE_ANON_KEY", "").strip()
+        or os.environ.get("SUPABASE_PUBLISHABLE_KEY", "").strip()
+    )
     api_key = service_key or anon_key
     if not url or not api_key:
         return None
     return url, api_key, service_key
+
+
+def _build_profile_headers(
+    *,
+    api_key: str,
+    service_key: str,
+    caller_token: str,
+) -> dict[str, str]:
+    """Construct PostgREST headers compatible with legacy JWT and 2027 `sb_` keys.
+
+    - Always sends `apikey`.
+    - When `service_key` is an opaque `sb_secret_...` key, omits `Authorization: Bearer`
+      so PostgREST does not attempt to parse an opaque secret key as a JWT (`401`).
+    - When `service_key` is a legacy JWT (`eyJ...`), sends `Authorization: Bearer <service_key>`.
+    - When no `service_key` is configured, falls back to caller's user JWT (`Authorization: Bearer <caller_token>`).
+    """
+    headers: dict[str, str] = {
+        "apikey": service_key or api_key,
+        "Accept": "application/json",
+    }
+    if service_key:
+        if not _is_opaque_supabase_key(service_key):
+            headers["Authorization"] = f"Bearer {service_key}"
+    else:
+        headers["Authorization"] = f"Bearer {caller_token}"
+    return headers
 
 
 def verify_supabase_token(token: str) -> VerifiedCaller:
@@ -105,15 +142,15 @@ def verify_supabase_token(token: str) -> VerifiedCaller:
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid session user payload.")
 
-        profile_bearer = service_key or token
+        profile_headers = _build_profile_headers(
+            api_key=api_key,
+            service_key=service_key,
+            caller_token=token,
+        )
         profile_resp = client.get(
             f"{supabase_url}/rest/v1/profiles",
             params={"id": f"eq.{user_id}", "select": "role"},
-            headers={
-                "apikey": api_key,
-                "Authorization": f"Bearer {profile_bearer}",
-                "Accept": "application/json",
-            },
+            headers=profile_headers,
         )
         if profile_resp.status_code != 200:
             raise HTTPException(status_code=503, detail="Unable to verify caller role.")

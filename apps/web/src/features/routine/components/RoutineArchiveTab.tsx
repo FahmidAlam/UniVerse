@@ -1,13 +1,16 @@
 import {
+  ArrowLeft,
   ArrowsClockwise,
   CaretDown,
   CaretRight,
   Check,
+  CircleNotch,
   ClockCounterClockwise,
   Copy,
   DownloadSimple,
   Eye,
   FileXls,
+  GridFour,
   MagnifyingGlass,
   WarningCircle,
 } from "@phosphor-icons/react";
@@ -28,8 +31,10 @@ import {
 } from "@/components/ui/DataLedgerTable";
 import { MasterDetailShell } from "@/components/ui/MasterDetailShell";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { AcademicTimetableMatrix } from "@/features/routine/components/AcademicTimetableMatrix";
 import {
   downloadArchiveWorkbook,
+  downloadArchiveWorkbookBlob,
   extractStatsEntries,
   fetchRoutineArchive,
   parseValidationJsonb,
@@ -37,6 +42,10 @@ import {
   type ArchiveSource,
   type RoutineArchiveItem,
 } from "@/features/routine/services/routineArchiveService";
+import {
+  buildDevPreviewParsedWorkbook,
+  parseRenderedWorkbook,
+} from "@/features/routine/services/timetableEngineService";
 import { cn } from "@/lib/utils";
 
 type ArchiveFilterTab = "all" | "version" | "run" | "storage-only";
@@ -83,6 +92,7 @@ export function RoutineArchiveTab() {
   const [onlyWithXlsx, setOnlyWithXlsx] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [previewItem, setPreviewItem] = useState<RoutineArchiveItem | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [expandedDetailKeys, setExpandedDetailKeys] = useState<Record<string, boolean>>({});
@@ -91,6 +101,37 @@ export function RoutineArchiveTab() {
     queryKey: [...ROUTINE_ARCHIVE_QUERY_KEY, isDevPreview],
     queryFn: () => fetchRoutineArchive(isDevPreview),
     staleTime: 30_000,
+  });
+
+  const archivePreviewQuery = useQuery({
+    queryKey: [
+      "archive-workbook-preview",
+      previewItem?.objectKey ?? null,
+      isDevPreview,
+    ],
+    enabled: Boolean(previewItem?.objectKey),
+    staleTime: 10 * 60 * 1000,
+    retry: false,
+    queryFn: async () => {
+      if (!previewItem?.objectKey) {
+        throw new Error("No workbook attached to this archive record.");
+      }
+      if (isDevPreview) {
+        return buildDevPreviewParsedWorkbook(previewItem.semesterLabel);
+      }
+      const { blob } = await downloadArchiveWorkbookBlob(
+        previewItem.objectKey,
+        false,
+      );
+      const file = new File(
+        [blob],
+        previewItem.fileName ?? "archive_routine.xlsx",
+        {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        },
+      );
+      return parseRenderedWorkbook(file);
+    },
   });
 
   const dataset = archiveQuery.data;
@@ -439,16 +480,27 @@ export function RoutineArchiveTab() {
           renderRowActions={(row) => (
             <div className="flex items-center gap-1">
               {row.hasXlsx && row.objectKey && (
-                <button
-                  type="button"
-                  aria-label={`Download ${row.fileName ?? row.objectKey}`}
-                  disabled={downloadingId === row.id}
-                  onClick={() => void handleDownload(row)}
-                  className="inline-flex h-7 items-center gap-1 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 text-[11.5px] font-medium text-[var(--ink-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-50"
-                >
-                  <DownloadSimple size={13} aria-hidden="true" />
-                  <span>.xlsx</span>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    aria-label={`Preview ${row.semesterLabel} in 2D Grid`}
+                    onClick={() => setPreviewItem(row)}
+                    className="inline-flex h-7 items-center gap-1 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 text-[11.5px] font-medium text-[var(--ink-primary)] hover:bg-[var(--surface-hover)]"
+                  >
+                    <GridFour size={13} aria-hidden="true" />
+                    <span>2D Grid</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Download ${row.fileName ?? row.objectKey}`}
+                    disabled={downloadingId === row.id}
+                    onClick={() => void handleDownload(row)}
+                    className="inline-flex h-7 items-center gap-1 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 text-[11.5px] font-medium text-[var(--ink-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-50"
+                  >
+                    <DownloadSimple size={13} aria-hidden="true" />
+                    <span>.xlsx</span>
+                  </button>
+                </>
               )}
               {(row.objectKey || row.fileName) && (
                 <button
@@ -518,17 +570,30 @@ export function RoutineArchiveTab() {
 
       <div className="flex flex-wrap items-center gap-2">
         {selectedItem.hasXlsx && selectedItem.objectKey && (
-          <Button
-            variant="primary"
-            size="sm"
-            disabled={downloadingId === selectedItem.id}
-            onClick={() => void handleDownload(selectedItem)}
-          >
-            <DownloadSimple size={14} aria-hidden="true" />
-            <span>
-              {downloadingId === selectedItem.id ? "Downloading…" : "Download .xlsx"}
-            </span>
-          </Button>
+          <>
+            <Button
+              variant="primary"
+              size="sm"
+              data-testid="archive-preview-grid-btn"
+              onClick={() => setPreviewItem(selectedItem)}
+            >
+              <GridFour size={14} aria-hidden="true" />
+              <span>Preview in 2D Grid</span>
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={downloadingId === selectedItem.id}
+              onClick={() => void handleDownload(selectedItem)}
+            >
+              <DownloadSimple size={14} aria-hidden="true" />
+              <span>
+                {downloadingId === selectedItem.id
+                  ? "Downloading…"
+                  : "Download .xlsx"}
+              </span>
+            </Button>
+          </>
         )}
         {(selectedItem.objectKey || selectedItem.fileName) && (
           <Button
@@ -735,12 +800,149 @@ export function RoutineArchiveTab() {
         )}
       </section>
 
-      {/* Single Muted Wave 2 Disclosure Footer */}
+      {/* Single Muted Wave 2B Disclosure Footer */}
       <footer className="border-t border-[var(--border-subtle)] pt-3 text-[11.5px] leading-[1.5] text-[var(--ink-muted)]">
-        2D archive grid preview unlocks in Phase 3B; 1-click version rollback unlocks in Gate D.
+        1-click PostgreSQL version rollback unlocks in Gate D (Phase 4A-2).
       </footer>
     </div>
   ) : null;
+
+  if (previewItem) {
+    const previewRows = archivePreviewQuery.data
+      ? [
+          ...archivePreviewQuery.data.rows,
+          ...archivePreviewQuery.data.service_rows,
+        ]
+      : [];
+
+    return (
+      <div className="space-y-4" data-testid="archive-grid-preview-panel">
+        {/* Historical Archive Preview — Read-Only Banner */}
+        <section
+          role="status"
+          data-testid="archive-grid-preview-banner"
+          className="no-print ledger-card flex flex-wrap items-center justify-between gap-3 border-l-[3px] border-l-[var(--accent-brand)] px-4 py-3"
+        >
+          <div className="min-w-0 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone="theory" mono>
+                Historical Archive Preview — Read-Only
+              </Badge>
+              {archivePreviewQuery.data && (
+                <>
+                  <span className="font-mono-tabular text-[12px] text-[var(--ink-secondary)]">
+                    {previewRows.length} slots
+                  </span>
+                  {archivePreviewQuery.data.validation.ok ? (
+                    <Badge tone="pine" mono>
+                      Pass
+                    </Badge>
+                  ) : (
+                    <Badge tone="conflict" mono>
+                      Flagged
+                    </Badge>
+                  )}
+                </>
+              )}
+            </div>
+            <div className="flex flex-wrap items-baseline gap-2">
+              <h2 className="text-[15px] font-semibold text-[var(--ink-primary)]">
+                {previewItem.semesterLabel}
+              </h2>
+              {(previewItem.fileName || previewItem.objectKey) && (
+                <span className="font-mono-tabular truncate text-[12px] text-[var(--ink-muted)]">
+                  {previewItem.fileName ?? previewItem.objectKey}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              data-testid="archive-back-to-ledger-btn"
+              onClick={() => setPreviewItem(null)}
+            >
+              <ArrowLeft size={14} aria-hidden="true" />
+              <span>Back to Archive Ledger</span>
+            </Button>
+            {previewItem.objectKey && (
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                data-testid="archive-preview-download-btn"
+                disabled={downloadingId === previewItem.id}
+                onClick={() => void handleDownload(previewItem)}
+              >
+                <DownloadSimple size={14} aria-hidden="true" />
+                <span>
+                  {downloadingId === previewItem.id
+                    ? "Downloading…"
+                    : "Download .xlsx"}
+                </span>
+              </Button>
+            )}
+          </div>
+        </section>
+
+        {archivePreviewQuery.isLoading ? (
+          <div
+            role="status"
+            data-testid="archive-preview-loading"
+            className="ledger-card flex items-center gap-3 p-6 text-[13px] text-[var(--ink-secondary)]"
+          >
+            <CircleNotch
+              size={18}
+              className="shrink-0 animate-spin text-[var(--accent-brand)]"
+              aria-hidden="true"
+            />
+            <span>
+              Streaming{" "}
+              <code className="font-mono-tabular">
+                {previewItem.fileName ?? previewItem.objectKey}
+              </code>{" "}
+              from Storage and parsing 2D grid… (Render cold-start may take
+              30–50 seconds).
+            </span>
+          </div>
+        ) : archivePreviewQuery.isError ? (
+          <div className="space-y-3">
+            <LedgerErrorRecovery
+              title="Unable to render 2D archive preview"
+              message={
+                archivePreviewQuery.error instanceof Error
+                  ? archivePreviewQuery.error.message
+                  : "Failed to download or parse the archived workbook."
+              }
+              onRetry={() => void archivePreviewQuery.refetch()}
+            />
+            {previewItem.objectKey && (
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void handleDownload(previewItem)}
+                >
+                  <DownloadSimple size={14} aria-hidden="true" />
+                  <span>Download .xlsx Directly Instead</span>
+                </Button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <AcademicTimetableMatrix
+            overrideRows={previewRows}
+            overrideSourceLabel={previewItem.semesterLabel}
+            hideCandidateBanner
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <MasterDetailShell

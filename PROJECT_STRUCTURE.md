@@ -286,15 +286,18 @@ This document provides a comprehensive, complete index of all folders and files 
 ## ⚙️ Timetable Constraint Engine (`engine/`)
 
 ### Core Python Modules
+- `engine/auth.py` — Dual-client Supabase Bearer JWT + `profiles.role == 'admin'` verification (`ENGINE_AUTH_MODE=optional|enforced`), 2027 `sb_secret_...`/`sb_publishable_...` key compatibility, and exact-origin `ALLOWED_ORIGINS` parser.
 - `engine/config.json` — Solver configuration defining campus day shifts, slot durations, room mappings, and penalty weights.
 - `engine/distribution.py` — Phase 2a immutable Course Distribution contract, validating course offerings, credit hours, and section allocations.
 - `engine/domain.py` — Domain models for teachers, rooms, courses, time slots, and schedule variables.
 - `engine/ingest.py` — Ingestion pipeline parsing raw university distribution workbooks into structured solver inputs.
 - `engine/legacy_mapping.py` — Translation layer mapping legacy Excel abbreviations to canonical database course and teacher IDs.
-- `engine/main.py` — FastAPI HTTP server entrypoint exposing endpoints for solver execution, health checks, and Excel export.
+- `engine/main.py` — FastAPI HTTP server entrypoint exposing solver execution, Phase 3B rendered-workbook parsing, health checks, and Excel export.
+- `engine/parse_rendered.py` — Phase 3B strictly non-mutating rendered-workbook parser (Leading University 7-day sheets + tabular fallback) with 1:1 Dart `RoutineWorkbookParser` parity.
 - `engine/Procfile` — Web process command specifying the Gunicorn/Uvicorn startup configuration for Render deployment.
 - `engine/render.py` — Formats and renders solver results into stylized, printable university Excel timetable templates.
 - `engine/room_policy.py` — Enforces physical room constraints (capacity limits, theory vs. lab assignments, and floor proximity).
+- `engine/security_guards.py` — Zero-trust OOXML `.xlsx` upload preflight (size/ZIP-bomb/macro/encryption checks), sliding-window per-caller `429` rate limiting, and concurrent-solve capacity guard.
 - `engine/solver.py` — Google OR-Tools CP-SAT constraint programming engine assembling optimal, conflict-free university routines.
 - `engine/runtime.txt` — Specifies the Python runtime version (`python-3.11.x`) for server deployment.
 - `engine/requirements.txt` — Production Python dependencies (`ortools`, `fastapi`, `uvicorn`, `openpyxl`, `pandas`, `pydantic`).
@@ -414,10 +417,13 @@ This document provides a comprehensive, complete index of all folders and files 
 
 ## 📖 Governance, Skills & Documentation
 
-### Agent Skills (`.agents/skills/`)
+### Agent Skills (`.agents/skills/` — 13 Active Skills)
+- `.agents/skills/system-security-and-hardening/` — Zero-trust Auth/PKCE/invite-bridge, Edge Functions, Postgres `SET search_path = ''` + RLS, Storage bounds, 2027 `sb_` API keys, untrusted `.xlsx` preflight & FastAPI `429`/CORS, CSP `_headers`, and CI secret hygiene.
+- `.agents/skills/backend-evolution-and-resilience/` — Expand–contract SQL migrations, `supabase/reconciliation/` rollbacks, 4-layer serialization contracts, durable Postgres solver jobs, direct Storage downloads, and pure `engine/` domain boundaries.
+- `.agents/skills/fullstack-verification-and-ci/` — Targeted Vitest/Playwright/pytest/Deno/SQL/Flutter verification matrix, Dart↔Python fixture parity, and 5-job CI / pre-commit leak checks.
 - `.agents/skills/react-web-academic-design-system/` — Governs **UniVerse Academic Ledger** Theme v3 OKLCH tokens (`X-Grade Carbon Obsidian` Dark + `Crisp Daylight` Light + `X-Azure`), typography (`Source Serif 4`, `IBM Plex Sans`, `IBM Plex Mono`), opaque-sRGB WCAG AA checks, and Landscape A4 print for `apps/web/`.
 - `.agents/skills/react-web-motion-and-craft/` — Governs restrained `motion/react` + CSS animations, `prefers-reduced-motion`, user-controlled public specimen, Course Distribution Studio, and async states in `apps/web/`.
-- `.agents/skills/react-admin-backend-contracts/` — Governs Supabase PKCE + invite bridge, FastAPI JWT/CORS (`engine/auth.py`), public `/` isolation, and 4-table Gate A–D persistence truth for `apps/web/`.
+- `.agents/skills/react-admin-backend-contracts/` — Governs Supabase PKCE + invite bridge, FastAPI JWT/CORS (`engine/auth.py`), Phase 3B `.xlsx` parsing, public `/` isolation, and 4-table Gate A–D persistence truth for `apps/web/`.
 - `.agents/skills/ui-backend-policy-correlation/` — Enforces 1:1 correlation between UI controls (`apps/web/` & `lib/`), backend contracts, and Routine Committee rules (`R1`–`R16`, `D1`–`D6`, `CD1`).
 - `.agents/skills/universe-implementation/` — Multi-layer implementation coordinator with 5 role references (`web-platform`, `admin-distribution-ui`, `scheduling-cp-sat`, `backend-data-integrity`, `testing-reliability`).
 - `.agents/skills/universe-ux-principles/` — Governs product-level UX reasoning, academic task clarity, and the 6 unglamorous states across Mobile and Web.
@@ -482,7 +488,7 @@ apps/web/
 │   │   ├── admin/                    # AdminShell, Dashboard, Rooms, Faculty, Eligibility, Settings, Users, Broadcast, Resources, Profile
 │   │   ├── auth/                     # AuthProvider, PKCE + invite hash bridge, Landing, Login, Forgot/Reset Password, AccessRequired
 │   │   ├── onboarding/               # Public AcademicLedgerPreview & illustrative schedule fixtures
-│   │   ├── routine/                  # Track 1 Operational Console: 2D Matrix, Committee Day Sheet (Landscape A4 print), Manage, Generate, Upload
+│   │   ├── routine/                  # Track 1 Operational Console: 2D Matrix, Committee Day Sheet (Landscape A4 print), Manage, Generate, Archive v2a (`RoutineArchiveTab.tsx`, `routineArchiveService.ts`), Upload (`UploadRoutineTab.tsx`)
 │   │   └── scheduling/               # Track 2 Committee Scheduling Workbench (Gates A–D, Course Distribution Studio, R1–R16 Policy, Review)
 │   ├── services/                     # supabase.ts, engineHealth.ts
 │   ├── shared/

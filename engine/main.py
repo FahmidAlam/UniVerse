@@ -5,13 +5,15 @@ import json
 import uuid
 from threading import Thread
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
 import auth
 import distribution
+import parse_rendered
 import render
+import security_guards
 import solver
 
 app = FastAPI(title="UniVerse Timetable Engine", version="2.0.0")
@@ -25,6 +27,16 @@ app.add_middleware(
 )
 
 JOBS: dict[str, dict] = {}
+GENERATE_RATE_LIMITER, PARSE_RATE_LIMITER, SOLVE_CONCURRENCY_GUARD = (
+    security_guards.build_default_guards()
+)
+
+
+def _caller_rate_key(request: Request, caller: auth.VerifiedCaller | None) -> str:
+    if caller is not None and caller.user_id:
+        return f"user:{caller.user_id}"
+    host = request.client.host if request.client else "unknown"
+    return f"ip:{host}"
 
 
 def normalize_generation_distribution(file_bytes: bytes, cfg: dict,
@@ -101,6 +113,8 @@ def _run_job(job_id: str, file_bytes: bytes, config_override: dict | None,
         job["state"] = "failed"
         job["error"] = str(e)
         job["progress"] = 1.0
+    finally:
+        SOLVE_CONCURRENCY_GUARD.release()
 
 
 @app.get("/")
@@ -113,17 +127,59 @@ def health() -> dict:
     }
 
 
+@app.post("/api/timetable/parse-rendered-workbook")
+async def parse_rendered_workbook_endpoint(
+    request: Request,
+    file: UploadFile = File(...),
+    config: str | None = Form(None),
+    subject_titles: str | None = Form(None),
+    _caller: auth.VerifiedCaller | None = Depends(auth.require_admin_caller),
+) -> dict:
+    """Phase 3B strictly non-mutating rendered-workbook parser & validator."""
+    PARSE_RATE_LIMITER.check(_caller_rate_key(request, _caller))
+    file_bytes = await file.read()
+    security_guards.validate_xlsx_upload(file.filename, file_bytes)
+
+    config_obj = None
+    if config:
+        try:
+            config_obj = json.loads(config)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="config is not valid JSON.")
+        if not isinstance(config_obj, dict):
+            raise HTTPException(status_code=400, detail="config must be a JSON object.")
+
+    titles_obj = None
+    if subject_titles:
+        try:
+            titles_obj = json.loads(subject_titles)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="subject_titles is not valid JSON.")
+        if not isinstance(titles_obj, dict):
+            raise HTTPException(status_code=400, detail="subject_titles must be a JSON object.")
+
+    try:
+        return parse_rendered.parse_rendered_workbook(
+            file_bytes,
+            config=config_obj,
+            subject_titles=titles_obj,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @app.post("/api/timetable/generate")
 async def generate(
+    request: Request,
     file: UploadFile = File(...),
     config: str | None = Form(None),
     source_contract: str | None = Form(None),
     time_limit_s: float = Form(60.0),
     _caller: auth.VerifiedCaller | None = Depends(auth.require_admin_caller),
 ) -> dict:
-    if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls")):
-        raise HTTPException(status_code=400, detail="Upload a .xlsx distribution file.")
+    GENERATE_RATE_LIMITER.check(_caller_rate_key(request, _caller))
     file_bytes = await file.read()
+    security_guards.validate_xlsx_upload(file.filename, file_bytes)
     config_override = None
     if config:
         try:
@@ -139,11 +195,17 @@ async def generate(
         if not isinstance(persisted_contract, dict):
             raise HTTPException(status_code=400, detail="source_contract must be a JSON object.")
 
+    SOLVE_CONCURRENCY_GUARD.acquire_or_reject()
     job_id = uuid.uuid4().hex[:12]
     JOBS[job_id] = {"state": "queued", "progress": 0.0}
-    Thread(target=_run_job,
-           args=(job_id, file_bytes, config_override, time_limit_s, persisted_contract),
-           daemon=True).start()
+    try:
+        Thread(target=_run_job,
+               args=(job_id, file_bytes, config_override, time_limit_s, persisted_contract),
+               daemon=True).start()
+    except Exception:
+        SOLVE_CONCURRENCY_GUARD.release()
+        JOBS.pop(job_id, None)
+        raise
     return {"job_id": job_id}
 
 

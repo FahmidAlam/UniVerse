@@ -36,17 +36,20 @@ Enforce defense-in-depth across browser, API gateway, database, object storage, 
    - Write access on `storage.objects` must remain strictly scoped per bucket (Phase 5B `20261122160000`): `timetables` (`public.is_admin()` only), `resources` (`teacher` or `admin`), `avatars` and `assignments` (`(storage.foldername(name))[1] = auth.uid()::text` or authorized staff).
    - When configuring or promoting buckets, enforce explicit `file_size_limit` (e.g., `<= 15 MiB` for `.xlsx` routines, `<= 50 MiB` for `resources`) and `allowed_mime_types`—never leave buckets unbounded (`null`) in production.
    - Sanitize user-provided filenames (strip path traversal `..`, `/`, `\`, control chars) before constructing storage paths.
-2. **Untrusted Workbook & XML Bomb Protection (`engine/` & `apps/web/`):**
+2. **Untrusted Workbook & XML Bomb Protection (`engine/security_guards.py` & `apps/web/`):**
    - Treat every `.xlsx` file as untrusted ZIP/XML input.
-   - Before invoking `openpyxl.load_workbook(...)` in `engine/distribution.py`, `engine/ingest.py`, or Phase 3B's parse endpoint: verify `.xlsx` extension/magic bytes, enforce max compressed upload size (`<= 15 MiB`) and max uncompressed XML entry ratio/size (prevent ZIP bombs), open read-only (`read_only=True` where feasible), never evaluate external links or macros, and preserve original source bytes/SHA-256 unchanged.
+   - Before invoking `openpyxl.load_workbook(...)` or OOXML XML readers in `engine/distribution.py`, `engine/ingest.py`, or Phase 3B `engine/parse_rendered.py`, enforce `security_guards.validate_xlsx_upload(...)`: verify `.xlsx` extension & `PK\x03\x04` ZIP magic bytes, cap compressed upload size (`<= 15 MiB`), cap total uncompressed archive size (`<= 100 MiB`) & max compression ratio (ZIP/XML bomb protection), cap worksheet count (`<= 100`), reject macro-bearing (`xl/vbaProject.bin`), encrypted (`EncryptedPackage`/OLE2), ActiveX, or embedded executable payloads, never evaluate external links or macros, and preserve original source bytes/SHA-256 unchanged.
 
-## 4. FastAPI Abuse Prevention, CORS & Browser CSP
+## 4. FastAPI Abuse Prevention, 2027 Supabase Keys, CORS & Browser CSP
 
-1. **Compute Exhaustion & Rate Limiting (`engine/main.py`):**
-   - Render runs on 512 MB RAM (`SOLVER_WORKERS=2`). Protect expensive endpoints (`POST /api/timetable/generate` and Phase 3B `POST /api/timetable/parse-rendered`) with bounded request sizes, concurrent-job caps, and per-admin rate limiting returning `HTTP 429` with `Retry-After` (which React Web and Flutter polling clients already handle cleanly).
+1. **Compute Exhaustion & Rate Limiting (`engine/security_guards.py` + `engine/main.py`):**
+   - Render runs on 512 MB RAM (`SOLVER_WORKERS=2`). Protect expensive endpoints (`POST /api/timetable/generate` and `POST /api/timetable/parse-rendered-workbook`) with `validate_xlsx_upload`, `ConcurrencyGuard` concurrent-solve caps (`MAX_CONCURRENT_SOLVES=2`), and sliding-window per-caller `RateLimiter` returning `HTTP 429` with `Retry-After` (handled cleanly by React Web and Flutter clients).
    - Keep `GET /` unauthenticated and lightweight for health probes; require `Depends(auth.require_admin_caller)` on all `/api/timetable/*` endpoints (`ENGINE_AUTH_MODE=enforced` in Production).
-2. **Exact-Origin CORS & Strict CSP:**
+2. **2027 Supabase API Key Standard (`engine/auth.py` + `.github/workflows/supabase_keep_alive.yml`):**
+   - Legacy `eyJ...` anon/service_role JWTs retire in early 2027 in favor of opaque `sb_publishable_...` and `sb_secret_...` keys.
+   - Always pass API keys in the `apikey` header. Against `/auth/v1/user`, send `apikey: <key>` + `Authorization: Bearer <caller_user_jwt>` (user session tokens remain JWTs). Against PostgREST (`/rest/v1/*`), **never** place an opaque `sb_secret_...` or `sb_publishable_...` key inside `Authorization: Bearer` (which triggers PostgREST `401` JWT parse errors); attach `Authorization: Bearer` only for legacy `eyJ...` keys or end-user JWTs.
+3. **Exact-Origin CORS & Strict CSP:**
    - Never restore `allow_origins=["*"]`. Configure `ALLOWED_ORIGINS` with exact `https://` origins (no trailing slashes).
    - Maintain `apps/web/public/_headers` CSP with `script-src 'self'` (zero `'unsafe-inline'`, relying on external `/theme-init.js`), `frame-ancestors 'none'`, `object-src 'none'`, and explicit `connect-src` allowlists.
-3. **Secret & PII Hygiene:**
+4. **Secret & PII Hygiene:**
    - Never commit `.env.local`, `dart_defines.json`, raw workbooks (`engine/routine generation files/*.xlsx`), `SUPABASE_SERVICE_ROLE_KEY`, `FCM_SERVICE_ACCOUNT`, or hardcoded JWTs in `.github/workflows/*.yml` (always read `${{ secrets.* }}`).

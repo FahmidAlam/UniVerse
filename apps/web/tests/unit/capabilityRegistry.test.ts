@@ -26,7 +26,7 @@ describe("Centralized CapabilityRegistry contract", () => {
     expect(batches?.sidebarBadge).toBe("STAGED");
   });
 
-  it("marks Scheduling Workbench & Track 1 upload as fail-closed-gate", () => {
+  it("marks Scheduling Workbench as fail-closed-gate and Track 1 upload as live-persisted (Phase 3B)", () => {
     const workbench = getCapabilityByPath("/admin/scheduling");
     expect(workbench?.status).toBe("fail-closed-gate");
     expect(workbench?.sidebarBadge).toBe("GATED");
@@ -34,9 +34,9 @@ describe("Centralized CapabilityRegistry contract", () => {
     const upload = SUBFEATURE_CAPABILITIES.find(
       (s) => s.id === "track1.workbook-upload",
     );
-    expect(upload?.status).toBe("fail-closed-gate");
+    expect(upload?.status).toBe("live-persisted");
     expect(upload?.label).toBe("Rendered Routine Upload");
-    expect(upload?.badgeLabel).toBe("Gated · Phase 3B");
+    expect(upload?.badgeLabel).toBeUndefined();
   });
 
   it("marks Routine Matrix as read-only without READ-ONLY sidebar pill and marks Profile live-persisted", () => {

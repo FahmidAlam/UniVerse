@@ -3,10 +3,12 @@
 ## Scope
 
 - **Deterministic Normalization (`engine/distribution.py`, `engine/domain.py`, `engine/ingest.py`):** Parse row-5 `Course Distribution` headers, preserve `B+C` joint sections and split/co-teacher arrays, validate formula + cached provenance on columns `J` and `L`, and bind solver runs to immutable source revisions.
-- **API Auth & CORS (`engine/main.py`, `engine/auth.py`, `render.yaml`):** Dual-client Supabase Bearer JWT + `profiles.role == 'admin'` verification (`ENGINE_AUTH_MODE=optional|enforced`) and `ALLOWED_ORIGINS` exact-origin CORS (whitespace & trailing slashes stripped). `GET /` remains public for health checks.
-- **Wave 2 Authorized Targets (Require Explicit Owner Go-Ahead Before Editing `solver.py` / `render.py`):**
-  - **Phase 4A-2:** Full `R1`–`R16` & `D1`–`D6` CP-SAT constraint modeling, structured solver conflict diagnostics (`OPTIMAL`, `FEASIBLE`, `INFEASIBLE`, `TIME_LIMIT_EXHAUSTED`, `INPUT_ERROR`), and durable job storage replacing in-memory `JOBS`.
-  - **Phase 3B:** Additive, non-mutating FastAPI rendered-workbook parse/validation endpoint achieving fixture-verified equivalence with Flutter's `RoutineWorkbookParser`.
+- **API Auth, Security Guards & Phase 3B Parser (`engine/main.py`, `engine/auth.py`, `engine/security_guards.py`, `engine/parse_rendered.py`, `render.yaml`):**
+  - Dual-client Supabase Bearer JWT + `profiles.role == 'admin'` verification (`ENGINE_AUTH_MODE=enforced` in Production) supporting both legacy `eyJ...` and 2027 opaque `sb_publishable_...`/`sb_secret_...` keys, plus exact-origin `ALLOWED_ORIGINS` CORS (`GET /` remains public for health checks).
+  - Zero-trust OOXML upload preflight (`validate_xlsx_upload`: ≤ 15 MiB compressed, ≤ 100 MiB uncompressed, ZIP-bomb ratio bound, macro/encrypted/ActiveX rejection), sliding-window per-caller `RateLimiter` (`429` + `Retry-After`), and `ConcurrencyGuard` (`MAX_CONCURRENT_SOLVES=2`).
+  - **Phase 3B (Implemented):** Additive, strictly non-mutating `POST /api/timetable/parse-rendered-workbook` (`engine/parse_rendered.py`) achieving fixture-verified 1:1 parity with Flutter's `RoutineWorkbookParser`.
+- **Wave 2B Authorized Targets (Require Explicit Owner Go-Ahead Before Editing `solver.py` / `render.py`):**
+  - **Phase 4A-2:** Full `R1`–`R16` & `D1`–`D6` CP-SAT constraint modeling, structured solver conflict diagnostics (`OPTIMAL`, `FEASIBLE`, `INFEASIBLE`, `TIME_LIMIT_EXHAUSTED`, `INPUT_ERROR`), and durable Postgres job storage replacing in-memory `JOBS`.
 
 ## Guardrails
 

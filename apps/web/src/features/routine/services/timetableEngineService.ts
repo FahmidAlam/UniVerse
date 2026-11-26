@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { ClockTime } from "@/core/utils/clockTime";
-import { replaceDevPreviewRoutines } from "@/features/routine/services/routineService";
+import {
+  fetchRoutines,
+  replaceDevPreviewRoutines,
+} from "@/features/routine/services/routineService";
 import {
   assessBaselineConfigForPublish,
   blockingValidationErrorFor,
@@ -13,6 +16,7 @@ import type {
   EngineStats,
   EngineStatusResponse,
   EngineValidation,
+  ParsedRenderedWorkbookResponse,
   PublishPipelineResult,
   RetryAuditParams,
   RoutineRow,
@@ -21,6 +25,7 @@ import { getEngineBaseUrl } from "@/services/engineHealth";
 import { isSupabaseConfigured, supabase } from "@/services/supabase";
 
 const ENGINE_REQUEST_TIMEOUT_MS = 90_000;
+export const MAX_WORKBOOK_UPLOAD_BYTES = 15 * 1024 * 1024;
 export const DEFAULT_SOLVE_TIME_LIMIT_S = 180;
 export const DEFAULT_POLL_INTERVAL_MS = 2_000;
 export const DEFAULT_MAX_POLLS = 240;
@@ -31,6 +36,7 @@ export type EngineErrorKind =
   | "auth"
   | "engine-restart"
   | "rate-limited"
+  | "payload-too-large"
   | "solver-failed"
   | "network"
   | "timeout"
@@ -39,12 +45,19 @@ export type EngineErrorKind =
 export class EngineJobError extends Error {
   readonly kind: EngineErrorKind;
   readonly status?: number;
+  readonly retryAfterSeconds?: number;
 
-  constructor(kind: EngineErrorKind, message: string, status?: number) {
+  constructor(
+    kind: EngineErrorKind,
+    message: string,
+    status?: number,
+    retryAfterSeconds?: number,
+  ) {
     super(message);
     this.name = "EngineJobError";
     this.kind = kind;
     this.status = status;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
@@ -124,6 +137,170 @@ const EngineResultSchema = z.object({
     .passthrough(),
   has_workbook: z.boolean().default(false),
 });
+
+const ParsedRenderedWorkbookSchema = z.object({
+  rows: z.array(EngineRowSchema),
+  service_rows: z.array(EngineRowSchema).default([]),
+  warnings: z.array(z.string()).default([]),
+  stats: z.record(z.string(), z.unknown()).default({}),
+  validation: z
+    .object({
+      ok: z.boolean(),
+    })
+    .passthrough(),
+  detected_format: z.string().default("UniVerse day sheets"),
+  sheet_names: z.array(z.string()).default([]),
+});
+
+function parseRetryAfterHeader(res: Response): number | undefined {
+  const raw = res.headers.get("Retry-After") ?? res.headers.get("retry-after");
+  if (!raw) return undefined;
+  const parsed = Number.parseInt(raw.trim(), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+/**
+ * Deterministic zero-network parsed workbook fixture for Dev Preview mode.
+ */
+export async function buildDevPreviewParsedWorkbook(
+  label?: string,
+): Promise<ParsedRenderedWorkbookResponse> {
+  const allRows = await fetchRoutines(true);
+  const rows = allRows.filter((r) => !r.is_service);
+  const serviceRows = allRows.filter((r) => r.is_service);
+  const cohorts = new Set(allRows.map((r) => `${r.batch}-${r.section}`));
+  const teachers = new Set(
+    allRows
+      .map((r) => r.teacher_code)
+      .filter((c): c is string => Boolean(c && c.trim())),
+  );
+  const days = new Set(allRows.map((r) => r.day));
+
+  return {
+    rows,
+    service_rows: serviceRows,
+    warnings: label
+      ? [`Dev Preview fixture loaded for ${label} (zero remote network requests).`]
+      : [],
+    stats: {
+      meetings: rows.length,
+      service_meetings: serviceRows.length,
+      total_meetings: allRows.length,
+      cohorts: cohorts.size,
+      teachers: teachers.size,
+      days: days.size,
+      sheets_parsed: days.size,
+    },
+    validation: {
+      ok: true,
+      teacher_clashes: 0,
+      cohort_clashes: 0,
+      room_clashes: 0,
+      invalid_time_slots: 0,
+      pending_faculty_assignments: 0,
+      unresolved_faculty_names: 0,
+      unavailable_room_assignments: 0,
+      blocked_period_violations: 0,
+      details: {},
+    },
+    detected_format: "UniVerse day sheets",
+    sheet_names: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+  };
+}
+
+/**
+ * Phase 3B non-mutating rendered-workbook parser (`POST /api/timetable/parse-rendered-workbook`).
+ * Sends Bearer JWT when signed in and maps 401/403/413/429 (with Retry-After) cleanly.
+ */
+export async function parseRenderedWorkbook(
+  file: File | Blob,
+  options?: {
+    filename?: string;
+    config?: EngineConfigPayload | Record<string, unknown>;
+    subjectTitles?: Record<string, string>;
+    signal?: AbortSignal;
+  },
+): Promise<ParsedRenderedWorkbookResponse> {
+  if (file.size > MAX_WORKBOOK_UPLOAD_BYTES) {
+    throw new EngineJobError(
+      "payload-too-large",
+      "Workbook exceeds the 15 MiB upload limit.",
+      413,
+    );
+  }
+
+  const baseUrl = getEngineBaseUrl();
+  const form = new FormData();
+  const resolvedName =
+    options?.filename ||
+    (file instanceof File && file.name ? file.name : "routine.xlsx");
+  const safeFilename = resolvedName.toLowerCase().endsWith(".xlsx")
+    ? resolvedName
+    : `${resolvedName}.xlsx`;
+  form.append("file", file, safeFilename);
+  if (options?.config) {
+    form.append("config", JSON.stringify(options.config));
+  }
+  if (options?.subjectTitles && Object.keys(options.subjectTitles).length > 0) {
+    form.append("subject_titles", JSON.stringify(options.subjectTitles));
+  }
+
+  const authHeaders = await getEngineAuthHeaders();
+  const res = await fetchWithTimeout(
+    `${baseUrl}/api/timetable/parse-rendered-workbook`,
+    {
+      method: "POST",
+      ...(Object.keys(authHeaders).length > 0 ? { headers: authHeaders } : {}),
+      body: form,
+    },
+    options?.signal,
+  );
+
+  if (!res.ok) {
+    const detail = await readErrorDetail(res);
+    if (res.status === 401 || res.status === 403) {
+      throw new EngineJobError(
+        "auth",
+        `Engine authorization failed (${res.status}): ${detail}`,
+        res.status,
+      );
+    }
+    if (res.status === 413) {
+      throw new EngineJobError(
+        "payload-too-large",
+        detail || "Workbook exceeds the 15 MiB upload or archive safety limit.",
+        413,
+      );
+    }
+    if (res.status === 429) {
+      const retryAfter = parseRetryAfterHeader(res);
+      const retryHint = retryAfter
+        ? ` Please retry in ${retryAfter}s.`
+        : " Please wait a moment and retry.";
+      throw new EngineJobError(
+        "rate-limited",
+        `${detail || "Workbook parser rate limit reached."}${retryHint}`,
+        429,
+        retryAfter,
+      );
+    }
+    throw new EngineJobError(
+      "http",
+      `Workbook parsing failed (${res.status}): ${detail}`,
+      res.status,
+    );
+  }
+
+  const parsed = ParsedRenderedWorkbookSchema.safeParse(await res.json());
+  if (!parsed.success) {
+    throw new EngineJobError(
+      "http",
+      `Parsed workbook response schema mismatch: ${parsed.error.issues[0]?.message ?? "invalid payload"}`,
+    );
+  }
+
+  return parsed.data as unknown as ParsedRenderedWorkbookResponse;
+}
 
 async function fetchWithTimeout(
   url: string,
@@ -565,10 +742,14 @@ export async function publishRoutinePipeline({
   isPrivatePreview,
   createdBy,
   isDevPreview,
+  source = "engine",
+  allowEmptyBaselineConfirm = false,
   onStepChange,
 }: {
   jobId: string | null;
-  result: EngineResultResponse;
+  result: Pick<EngineResultResponse, "rows" | "service_rows" | "validation"> & {
+    stats: EngineStats | Record<string, unknown>;
+  };
   workbookBlob: Blob | null;
   semesterLabel: string | null;
   notes?: string | null;
@@ -577,6 +758,8 @@ export async function publishRoutinePipeline({
   isPrivatePreview: boolean;
   createdBy: string | null;
   isDevPreview: boolean;
+  source?: "engine" | "upload";
+  allowEmptyBaselineConfirm?: boolean;
   onStepChange?: (step: "uploading" | "publishing" | "recording") => void;
 }): Promise<PublishPipelineResult> {
   if (isPrivatePreview) {
@@ -605,7 +788,7 @@ export async function publishRoutinePipeline({
   }
 
   const configCheck = assessBaselineConfigForPublish(baselineCounts);
-  if (!configCheck.canPublish) {
+  if (!configCheck.canPublish && !allowEmptyBaselineConfirm) {
     throw new Error(
       `Empty-config pre-publish guard blocked publication: ${configCheck.blockingReasons.join(" ")}`,
     );
@@ -650,11 +833,11 @@ export async function publishRoutinePipeline({
     replaceDevPreviewRoutines(normalizedRows, {
       id: versionId,
       semester_label: semesterLabel ?? "Spring 2026",
-      source: "engine",
+      source,
       is_active: true,
       row_count: normalizedRows.length,
-      stats: result.stats as unknown as Record<string, unknown>,
-      validation: result.validation as unknown as Record<string, unknown>,
+      stats: result.stats as Record<string, unknown>,
+      validation: result.validation as Record<string, unknown>,
       notes: notes?.trim() || null,
       published_at: new Date().toISOString(),
       published_by: createdBy,
@@ -664,7 +847,7 @@ export async function publishRoutinePipeline({
     const { data, error: rpcError } = await supabase.rpc("publish_routine", {
       p_rows: rpcRows,
       p_semester_label: semesterLabel,
-      p_source: "engine",
+      p_source: source,
       p_stats: result.stats,
       p_validation: result.validation,
       p_notes: notes?.trim() || null,
