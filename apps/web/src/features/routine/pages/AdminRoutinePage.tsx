@@ -82,13 +82,18 @@ export function AdminRoutinePage() {
   });
 
   const gates = gateProbeQuery.data;
+  const gatesABCLive = Boolean(
+    gates?.gateA.unlocked && gates?.gateB.unlocked && gates?.gateC.unlocked,
+  );
   const gatesABLive = Boolean(gates?.gateA.unlocked && gates?.gateB.unlocked);
   const gateAOnlyLive = Boolean(gates?.gateA.unlocked && !gates?.gateB.unlocked);
-  const workbenchBadgeLabel = gatesABLive
-    ? "Gates A–B Live · C–D Locked"
-    : gateAOnlyLive
-      ? "Gate A Live · B–D Locked"
-      : "Locked · Gates A–D";
+  const workbenchBadgeLabel = gatesABCLive
+    ? "Gates A–C Live · D Locked"
+    : gatesABLive
+      ? "Gates A–B Live · C–D Locked"
+      : gateAOnlyLive
+        ? "Gate A Live · B–D Locked"
+        : "Locked · Gates A–D";
 
   const selectTab = (tab: RoutineTabId) => {
     setSearchParams({ tab }, { replace: false });

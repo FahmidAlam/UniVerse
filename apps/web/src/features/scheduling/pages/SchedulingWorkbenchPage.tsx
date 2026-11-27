@@ -48,6 +48,7 @@ export function SchedulingWorkbenchPage() {
     liveSelectedRevisionId,
     liveRecords,
     liveArtifactFreshness,
+    livePreflightReport,
     previewRevision,
     previewRecords,
     previewArtifactFreshness,
@@ -195,9 +196,11 @@ export function SchedulingWorkbenchPage() {
   const headerFreshness = isPreview
     ? previewArtifactFreshness
     : liveArtifactFreshness;
-  const criticalCount = previewReadinessItems.filter(
-    (i) => i.severity === "critical" && !i.isResolved,
-  ).length;
+  const criticalCount = isPreview
+    ? previewReadinessItems.filter(
+        (i) => i.severity === "critical" && !i.isResolved,
+      ).length
+    : (livePreflightReport?.blockers.length ?? 0);
 
   return (
     <div className="space-y-4">
@@ -245,13 +248,22 @@ export function SchedulingWorkbenchPage() {
           )}
 
           {activeStage === "policy" && (
-            <PolicyStudioStage mode={mode} gateC={liveGates.gateC} />
+            <PolicyStudioStage
+              mode={mode}
+              gateC={liveGates.gateC}
+              revision={activeLiveRevision}
+              onJumpToStage={selectStage}
+            />
           )}
 
           {activeStage === "readiness" && (
             <PreflightReadinessStage
               mode={mode}
               gateC={liveGates.gateC}
+              gateD={liveGates.gateD}
+              revision={activeLiveRevision}
+              liveRecords={liveRecords}
+              liveFreshness={liveArtifactFreshness}
               onJumpToStage={selectStage}
             />
           )}

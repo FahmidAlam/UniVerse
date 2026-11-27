@@ -37,21 +37,33 @@ import { StickyDirtyBar } from "@/components/ui/StickyDirtyBar";
 import { Switch } from "@/components/ui/Switch";
 import { useWorkspaceShortcuts } from "@/core/hooks/useWorkspaceShortcuts";
 import {
+  DaySlotMatrixPicker,
+  type SlotMatrixEntry,
+} from "@/features/admin/components/DaySlotMatrixPicker";
+import {
   ACADEMIC_WEEK_DAYS,
   bulkSetFacultyActive,
   createFaculty,
   deleteFacultyRecords,
+  evaluateR7FacultyPolicy,
   FACULTY_DESIGNATIONS,
   fetchFaculty,
   INSTITUTIONAL_DEPARTMENTS,
+  isFacultyExtendedSchemaLive,
   isR7OffDayOutsideBounds,
   updateFaculty,
+  type FacultyEmploymentType,
   type TimetableFacultyRecord,
 } from "@/features/admin/services/facultyService";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { cn } from "@/lib/utils";
 
 type FacultyFilter = "all" | "active" | "inactive" | "r7-advisory";
+
+const slotEntrySchema = z.object({
+  day: z.string(),
+  period_idx: z.number().int().min(1).max(12),
+});
 
 const facultySchema = z.object({
   acronym: z
@@ -65,6 +77,12 @@ const facultySchema = z.object({
   off_days: z.array(z.string()),
   courses: z.array(z.string()),
   is_active: z.boolean(),
+  employment_type: z.enum(["permanent", "adjunct", "guest"]),
+  allow_three_off_days: z.boolean(),
+  is_sust_adjunct: z.boolean(),
+  external_blocked_slots: z.array(slotEntrySchema),
+  available_slots: z.array(slotEntrySchema),
+  preferred_slots: z.array(slotEntrySchema),
 });
 
 type FacultyFormValues = z.infer<typeof facultySchema>;
@@ -79,6 +97,12 @@ function toFormValues(fac: TimetableFacultyRecord | null): FacultyFormValues {
       off_days: ["Thursday", "Friday"],
       courses: [],
       is_active: true,
+      employment_type: "permanent",
+      allow_three_off_days: false,
+      is_sust_adjunct: false,
+      external_blocked_slots: [],
+      available_slots: [],
+      preferred_slots: [],
     };
   }
   return {
@@ -89,6 +113,12 @@ function toFormValues(fac: TimetableFacultyRecord | null): FacultyFormValues {
     off_days: [...fac.off_days],
     courses: [...fac.courses],
     is_active: fac.is_active,
+    employment_type: fac.employment_type ?? "permanent",
+    allow_three_off_days: Boolean(fac.allow_three_off_days),
+    is_sust_adjunct: Boolean(fac.is_sust_adjunct),
+    external_blocked_slots: [...(fac.external_blocked_slots ?? [])],
+    available_slots: [...(fac.available_slots ?? [])],
+    preferred_slots: [...(fac.preferred_slots ?? [])],
   };
 }
 
@@ -129,6 +159,15 @@ export function ManageFacultyPage() {
     retry: false,
   });
 
+  const extendedLiveQuery = useQuery({
+    queryKey: ["admin-faculty-extended-live", isDevPreview],
+    queryFn: () => isFacultyExtendedSchemaLive(isDevPreview),
+    retry: false,
+  });
+  const isExtendedLive = extendedLiveQuery.data ?? false;
+  const [showExternalPicker, setShowExternalPicker] = useState(false);
+  const [showPreferredPicker, setShowPreferredPicker] = useState(false);
+
   const selectedFaculty = useMemo(
     () =>
       selectedId && selectedId !== "new"
@@ -154,6 +193,11 @@ export function ManageFacultyPage() {
 
   const watchedOffDays = watch("off_days");
   const watchedCourses = watch("courses");
+  const watchedEmploymentType = watch("employment_type");
+  const watchedAllowThreeOffDays = watch("allow_three_off_days");
+  const watchedExternalSlots = watch("external_blocked_slots");
+  const watchedAvailableSlots = watch("available_slots");
+  const watchedPreferredSlots = watch("preferred_slots");
 
   const openInspector = (target: string | "new" | null) => {
     if (isDirty && target !== selectedId) {
@@ -164,9 +208,13 @@ export function ManageFacultyPage() {
     setCourseInput("");
     if (target === "new") {
       reset(toFormValues(null));
+      setShowExternalPicker(false);
+      setShowPreferredPicker(false);
     } else if (target) {
       const rec = faculty.find((f) => f.id === target) ?? null;
       reset(toFormValues(rec));
+      setShowExternalPicker((rec?.external_blocked_slots?.length ?? 0) > 0);
+      setShowPreferredPicker((rec?.preferred_slots?.length ?? 0) > 0);
     }
   };
 
@@ -193,6 +241,12 @@ export function ManageFacultyPage() {
         off_days: values.off_days,
         courses: values.courses,
         is_active: values.is_active,
+        employment_type: values.employment_type as FacultyEmploymentType,
+        allow_three_off_days: values.allow_three_off_days,
+        is_sust_adjunct: values.is_sust_adjunct,
+        external_blocked_slots: values.external_blocked_slots as SlotMatrixEntry[],
+        available_slots: values.available_slots as SlotMatrixEntry[],
+        preferred_slots: values.preferred_slots as SlotMatrixEntry[],
       };
       if (selectedId === "new" || !selectedFaculty) {
         return createFaculty(input, isDevPreview);
@@ -931,12 +985,211 @@ export function ManageFacultyPage() {
               />
             </label>
 
-            <StagedFeatureNotice
-              title="Staged Faculty Rules (R4, R5, R8, R9)"
-              description="External service blocks (R4), adjunct guest 2-day windows (R5), preferred teaching slots (R8), and SUST half-day compactness flags (R9) remain staged pending database schema promotion."
-            />
+            {isExtendedLive ? (
+              <div className="flex flex-col gap-3">
+                {/* Employment Type Segmented Control (R4-R9) */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[12.5px] font-semibold text-[var(--ink-primary)]">
+                    Appointment Category (R5–R9)
+                  </span>
+                  <Controller
+                    name="employment_type"
+                    control={control}
+                    render={({ field }) => (
+                      <div
+                        role="group"
+                        aria-label="Faculty employment category"
+                        className="inline-flex h-[36px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-surface)] p-0.5"
+                      >
+                        {(
+                          [
+                            { id: "permanent", label: "Permanent" },
+                            { id: "adjunct", label: "Adjunct" },
+                            { id: "guest", label: "Guest / External" },
+                          ] as const
+                        ).map((opt) => (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            aria-pressed={field.value === opt.id}
+                            onClick={() => field.onChange(opt.id)}
+                            className={cn(
+                              "flex-1 rounded-[5px] px-2.5 text-[12px] font-medium transition-colors",
+                              field.value === opt.id
+                                ? "bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)]"
+                                : "text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
+                            )}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  />
+                </div>
+
+                {watchedEmploymentType === "permanent" && (
+                  <div className="flex flex-col gap-2 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
+                    <label
+                      htmlFor="faculty-allow-three-off"
+                      className="flex cursor-pointer items-center justify-between gap-3 text-[12.5px]"
+                    >
+                      <div>
+                        <div className="font-medium text-[var(--ink-primary)]">
+                          Authorize 3 Weekly Off-Days (R7 / D3)
+                        </div>
+                        <div className="text-[11.5px] text-[var(--ink-muted)]">
+                          {evaluateR7FacultyPolicy({
+                            employment_type: "permanent",
+                            off_days: watchedOffDays,
+                            allow_three_off_days: watchedAllowThreeOffDays,
+                          }).message}
+                        </div>
+                      </div>
+                      <Controller
+                        name="allow_three_off_days"
+                        control={control}
+                        render={({ field }) => (
+                          <Switch
+                            id="faculty-allow-three-off"
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        )}
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {watchedEmploymentType === "adjunct" && (
+                  <div className="flex flex-col gap-2 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3">
+                    <label
+                      htmlFor="faculty-is-sust"
+                      className="flex cursor-pointer items-center justify-between gap-3 text-[12.5px]"
+                    >
+                      <div>
+                        <div className="font-medium text-[var(--ink-primary)]">
+                          SUST Adjunct Compactness (R9)
+                        </div>
+                        <div className="text-[11.5px] text-[var(--ink-muted)]">
+                          Prefer single half-day grouping (R6 bands: 2→2d, 3→3–4d, 4+→4–5d)
+                        </div>
+                      </div>
+                      <Controller
+                        name="is_sust_adjunct"
+                        control={control}
+                        render={({ field }) => (
+                          <Switch
+                            id="faculty-is-sust"
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        )}
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {watchedEmploymentType === "guest" && (
+                  <div className="space-y-2">
+                    <DaySlotMatrixPicker
+                      testId="faculty-guest-available-slots"
+                      label="Guest Declared Available Slots (R5)"
+                      description="Guest faculty have zero implicit availability; select approved slots."
+                      value={watchedAvailableSlots}
+                      onChange={(next) =>
+                        setValue("available_slots", next, { shouldDirty: true })
+                      }
+                      tone="lab"
+                    />
+                    {watchedAvailableSlots.length === 0 && (
+                      <div
+                        role="status"
+                        className="flex items-start gap-2 rounded-[var(--r-control)] border border-[var(--sem-conflict-border)] bg-[var(--sem-conflict-bg)] px-3 py-2 text-[12px] text-[var(--sem-conflict-ink)]"
+                      >
+                        <WarningCircle size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
+                        <span>
+                          R5 Blocker: Guest faculty with 0 available slots cannot be scheduled in preflight.
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Checkbox Off = Gray Progressive Disclosure for R4 & R8 */}
+                <div className="space-y-2">
+                  <label
+                    className={cn(
+                      "flex cursor-pointer items-center justify-between gap-3 rounded-[var(--r-control)] border px-3 py-2 text-[12.5px] transition-colors",
+                      showExternalPicker || watchedExternalSlots.length > 0
+                        ? "border-[var(--sem-joint-border)] bg-[var(--sem-joint-bg)]/35 text-[var(--ink-primary)]"
+                        : "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--ink-muted)]",
+                    )}
+                  >
+                    <span>
+                      R4 External-Dept Teaching Blocks ({watchedExternalSlots.length})
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={showExternalPicker || watchedExternalSlots.length > 0}
+                      onChange={(e) => setShowExternalPicker(e.target.checked)}
+                      className="h-3.5 w-3.5 accent-[var(--accent-brand)]"
+                    />
+                  </label>
+                  {(showExternalPicker || watchedExternalSlots.length > 0) && (
+                    <DaySlotMatrixPicker
+                      testId="faculty-external-blocked-slots"
+                      label="External Teaching Blocks (R4)"
+                      description="Slots reserved by external department obligations."
+                      value={watchedExternalSlots}
+                      onChange={(next) =>
+                        setValue("external_blocked_slots", next, { shouldDirty: true })
+                      }
+                      tone="joint"
+                    />
+                  )}
+
+                  <label
+                    className={cn(
+                      "flex cursor-pointer items-center justify-between gap-3 rounded-[var(--r-control)] border px-3 py-2 text-[12.5px] transition-colors",
+                      showPreferredPicker || watchedPreferredSlots.length > 0
+                        ? "border-[var(--accent-brand-border)] bg-[var(--accent-brand-soft)]/50 text-[var(--ink-primary)]"
+                        : "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--ink-muted)]",
+                    )}
+                  >
+                    <span>
+                      R8 Preferred Teaching Slots ({watchedPreferredSlots.length})
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={showPreferredPicker || watchedPreferredSlots.length > 0}
+                      onChange={(e) => setShowPreferredPicker(e.target.checked)}
+                      className="h-3.5 w-3.5 accent-[var(--accent-brand)]"
+                    />
+                  </label>
+                  {(showPreferredPicker || watchedPreferredSlots.length > 0) && (
+                    <DaySlotMatrixPicker
+                      testId="faculty-preferred-slots"
+                      label="Preferred Teaching Windows (R8)"
+                      description="Soft preference slots prioritized in objective weighting."
+                      value={watchedPreferredSlots}
+                      onChange={(next) =>
+                        setValue("preferred_slots", next, { shouldDirty: true })
+                      }
+                      tone="brand"
+                    />
+                  )}
+                </div>
+              </div>
+            ) : (
+              <StagedFeatureNotice
+                title="Staged Faculty Rules (R4, R5, R8, R9)"
+                description="External service blocks (R4), adjunct guest 2-day windows (R5), preferred teaching slots (R8), and SUST half-day compactness flags (R9) remain staged pending Stage 5A database schema promotion."
+              />
+            )}
 
             <StickyDirtyBar
+              docked
               isDirty={isDirty}
               isSaving={saveMutation.isPending}
               formId="faculty-inspector-form"

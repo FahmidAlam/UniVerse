@@ -11,7 +11,9 @@ from fastapi.responses import Response
 
 import auth
 import distribution
+import domain
 import parse_rendered
+import preflight
 import render
 import security_guards
 import solver
@@ -168,6 +170,39 @@ async def parse_rendered_workbook_endpoint(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+def _parse_config_policy_snapshot(config_override: dict | None) -> domain.CommitteePolicySnapshot | None:
+    if not config_override or "policy_snapshot" not in config_override:
+        return None
+    raw_snapshot = config_override.get("policy_snapshot")
+    if raw_snapshot is None:
+        return None
+    if not isinstance(raw_snapshot, dict):
+        raise HTTPException(status_code=400, detail="config.policy_snapshot must be a JSON object.")
+    try:
+        return domain.CommitteePolicySnapshot.from_dict(raw_snapshot)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid config.policy_snapshot: {exc}") from exc
+
+
+@app.post("/api/timetable/validate-policy-readiness")
+async def validate_policy_readiness_endpoint(
+    request: Request,
+    _caller: auth.VerifiedCaller | None = Depends(auth.require_admin_caller),
+) -> dict:
+    """Stage 5A (Gate C) strictly non-mutating server preflight validator."""
+    PARSE_RATE_LIMITER.check(_caller_rate_key(request, _caller))
+    try:
+        body = await request.json()
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail="Request body must be valid JSON.") from exc
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Request body must be a JSON object.")
+    try:
+        return preflight.validate_policy_readiness(body)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @app.post("/api/timetable/generate")
 async def generate(
     request: Request,
@@ -186,6 +221,7 @@ async def generate(
             config_override = json.loads(config)
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="config is not valid JSON.")
+    _parse_config_policy_snapshot(config_override)
     persisted_contract = None
     if source_contract:
         try:

@@ -81,18 +81,31 @@ export interface BaselineConfigCounts {
   hasSettings: boolean;
 }
 
+export interface EngineSlotWindow {
+  day: string;
+  period_idx: number;
+}
+
 export interface EngineConfigPayload {
   rooms: Array<{
     name: string;
     is_lab: boolean;
     is_gallery: boolean;
     capacity?: number;
+    room_pool_role?: string;
+    available_slots?: EngineSlotWindow[];
   }>;
   teachers: Array<{
     acronym: string;
     full_name: string | null;
     dept: string | null;
     off_days: string[];
+    employment_type?: string;
+    allow_three_off_days?: boolean;
+    is_sust_adjunct?: boolean;
+    external_blocked_slots?: EngineSlotWindow[];
+    available_slots?: EngineSlotWindow[];
+    preferred_slots?: EngineSlotWindow[];
   }>;
   eligibility: Array<{
     acronym: string;
@@ -102,6 +115,24 @@ export interface EngineConfigPayload {
   }>;
   days?: string[];
   room_aliases?: Record<string, string>;
+  policy_snapshot?: Record<string, unknown>;
+  sections?: Array<{
+    batch: string;
+    section: string;
+    calendar_system: string;
+    weekend_override_days: string[] | null;
+    student_count: number | null;
+  }>;
+  courses?: Array<{
+    code: string;
+    title: string;
+    dept_code: string;
+    credit: number;
+    class_type: string;
+    is_service: boolean;
+    is_physics_lab: boolean;
+    default_weekly_sessions: number | null;
+  }>;
   settings: {
     semester_label: string | null;
     periods: Array<{
