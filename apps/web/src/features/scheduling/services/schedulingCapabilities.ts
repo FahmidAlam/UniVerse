@@ -21,6 +21,9 @@ export interface LiveGateProbeInput {
   sectionPoliciesAvailable?: boolean;
   facultyExtendedAvailable?: boolean;
   roomsExtendedAvailable?: boolean;
+  solverJobsAvailable?: boolean;
+  routineVersionSnapshotAvailable?: boolean;
+  routineTeacherCodesAvailable?: boolean;
 }
 
 /**
@@ -29,7 +32,8 @@ export interface LiveGateProbeInput {
  * and `read_course_distribution_revision` RPC contract pass.
  * Unlocks Gate C only when Gate A passes AND Stage 5A `policy_snapshots` +
  * `course_distribution_artifacts.payload` contracts are verified live.
- * Keeps Gate D unconditionally locked until Wave 2B Phase 4A-2 Stage 5C ships.
+ * Unlocks Gate D only when Gate C passes AND Stage 5C `solver_jobs` +
+ * `routine_versions.snapshot_rows` contracts are verified live.
  */
 export function resolveLiveSchedulingGates(
   probe: LiveGateProbeInput,
@@ -44,12 +48,17 @@ export function resolveLiveSchedulingGates(
     gateAUnlocked &&
     Boolean(probe.policySnapshotsAvailable) &&
     Boolean(probe.validationArtifactPayloadAvailable);
+  const gateDUnlocked =
+    gateCUnlocked &&
+    Boolean(probe.solverJobsAvailable) &&
+    Boolean(probe.routineVersionSnapshotAvailable);
 
   const catalogs: CatalogCapabilityState = {
     coursesLive: canAttemptLive && Boolean(probe.catalogCoursesAvailable),
     batchesLive: canAttemptLive && Boolean(probe.sectionPoliciesAvailable),
     facultyExtendedLive: canAttemptLive && Boolean(probe.facultyExtendedAvailable),
     roomsExtendedLive: canAttemptLive && Boolean(probe.roomsExtendedAvailable),
+    coTeacherStorageLive: canAttemptLive && Boolean(probe.routineTeacherCodesAvailable),
   };
 
   const gateA: GateStatusInfo = {
@@ -97,10 +106,13 @@ export function resolveLiveSchedulingGates(
     key: "gateD",
     code: "D",
     label: "CP-SAT Solve & Archive Publish",
-    contractName: "Phase 4A · Archiving publish_routine()",
-    unlocked: false,
-    reason:
-      "Fail-closed in Stage 5A: revision-bound solver pipeline and archiving publish_routine() await Stage 5C Gate D backend authorization.",
+    contractName: "solver_jobs + archiving publish_routine()",
+    unlocked: gateDUnlocked,
+    reason: gateDUnlocked
+      ? "Verified durable Postgres solver_jobs, archiving publish_routine(), and routine_versions snapshot rollback."
+      : !gateCUnlocked
+        ? "Requires Gate C before revision-bound CP-SAT solve and archiving publish can unlock."
+        : "Stage 5C solver_jobs and routine_versions.snapshot_rows schema contracts are not yet active on this Supabase project.",
   };
 
   return { gateA, gateB, gateC, gateD, catalogs, probedAt };
@@ -166,6 +178,9 @@ export async function probeLiveSchedulingCapabilities(
   let sectionPoliciesAvailable = false;
   let facultyExtendedAvailable = false;
   let roomsExtendedAvailable = false;
+  let solverJobsAvailable = false;
+  let routineVersionSnapshotAvailable = false;
+  let routineTeacherCodesAvailable = false;
 
   try {
     const [
@@ -179,6 +194,9 @@ export async function probeLiveSchedulingCapabilities(
       sectionsQuery,
       facultyExtQuery,
       roomsExtQuery,
+      solverJobsQuery,
+      routineVersionSnapshotQuery,
+      routineTeacherCodesQuery,
     ] = await Promise.all([
       supabase
         .from("course_distribution_revisions")
@@ -220,6 +238,18 @@ export async function probeLiveSchedulingCapabilities(
         .from("timetable_rooms")
         .select("id, room_pool_role, available_slots")
         .limit(1),
+      supabase
+        .from("solver_jobs")
+        .select("job_id, state")
+        .limit(1),
+      supabase
+        .from("routine_versions")
+        .select("id, snapshot_rows")
+        .limit(1),
+      supabase
+        .from("routines")
+        .select("id, teacher_codes")
+        .limit(1),
     ]);
 
     const coreSchemaReadable = !revQuery.error && !srcQuery.error;
@@ -253,6 +283,9 @@ export async function probeLiveSchedulingCapabilities(
     sectionPoliciesAvailable = !sectionsQuery.error;
     facultyExtendedAvailable = !facultyExtQuery.error;
     roomsExtendedAvailable = !roomsExtQuery.error;
+    solverJobsAvailable = !solverJobsQuery.error;
+    routineVersionSnapshotAvailable = !routineVersionSnapshotQuery.error;
+    routineTeacherCodesAvailable = !routineTeacherCodesQuery.error;
   } catch {
     return ALL_GATES_LOCKED_STATE;
   }
@@ -270,5 +303,8 @@ export async function probeLiveSchedulingCapabilities(
     sectionPoliciesAvailable,
     facultyExtendedAvailable,
     roomsExtendedAvailable,
+    solverJobsAvailable,
+    routineVersionSnapshotAvailable,
+    routineTeacherCodesAvailable,
   });
 }

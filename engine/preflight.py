@@ -169,8 +169,30 @@ def validate_policy_readiness(payload: dict[str, Any]) -> dict[str, Any]:
 
     # ── R4 / R5 / R6 / R7 / R9: Faculty policies ───────────────────────────
     active_faculty = [f for f in faculty_list if f.is_active]
+    assigned_faculty_set: set[str] | None = None
+    if isinstance(raw_offerings, list) and raw_offerings:
+        import re as _re
+        assigned_faculty_set = set()
+        for row in raw_offerings:
+            if not isinstance(row, dict):
+                continue
+            raw_t = row.get("teacher")
+            if raw_t is None and isinstance(row.get("teachers"), list):
+                raw_t = ",".join(str(t) for t in row["teachers"])
+            if _is_pending_teacher(raw_t):
+                continue
+            for tok in _re.split(r"[,/+]+", _norm_str(raw_t)):
+                clean_tok = tok.strip().upper()
+                if clean_tok:
+                    assigned_faculty_set.add(clean_tok)
+
+    checked_faculty = [
+        f for f in active_faculty
+        if assigned_faculty_set is None or f.acronym in assigned_faculty_set
+    ]
+
     guest_missing_slots = [
-        f.acronym for f in active_faculty
+        f.acronym for f in checked_faculty
         if f.employment_type == "guest" and len(f.available_slots) == 0
     ]
     if guest_missing_slots:
@@ -184,23 +206,29 @@ def validate_policy_readiness(payload: dict[str, Any]) -> dict[str, Any]:
             affected_entities=guest_missing_slots,
         ))
     else:
-        guest_count = sum(1 for f in active_faculty if f.employment_type == "guest")
+        guest_count = sum(1 for f in checked_faculty if f.employment_type == "guest")
         record(_make_check(
             check_id="r5-guest-availability",
             rule_id="R5",
             category="Guest Availability (R5)",
             status="passed",
             title="Guest Faculty Availability Windows Verified",
-            description=f"{guest_count} active guest instructor(s) carry explicit available_slots whitelists.",
+            description=f"{guest_count} active assigned guest instructor(s) carry explicit available_slots whitelists.",
         ))
 
     r7_offenders: list[str] = []
-    for f in active_faculty:
+    r7_hybrid_candidates: list[str] = []
+    for f in checked_faculty:
         if f.employment_type != "permanent":
             continue
         off_count = len(f.off_days)
-        if off_count < 2 or off_count > 3 or (off_count == 3 and not f.allow_three_off_days):
+        if off_count > 3 or (off_count == 3 and not f.allow_three_off_days):
             r7_offenders.append(f"{f.acronym} ({off_count} off-days)")
+        elif off_count < 2:
+            if policy.auto_resolve_undeclared_off_days:
+                r7_hybrid_candidates.append(f"{f.acronym} ({off_count}/2 declared)")
+            else:
+                r7_offenders.append(f"{f.acronym} ({off_count} off-days)")
 
     if r7_offenders:
         record(_make_check(
@@ -209,11 +237,27 @@ def validate_policy_readiness(payload: dict[str, Any]) -> dict[str, Any]:
             category="Permanent Faculty Off-Days (R7/D3)",
             status="blocker",
             title="Permanent Faculty Off-Day Authorization Required",
-            description="Permanent faculty require exactly 2 off-days unless allow_three_off_days is explicitly authorized for 3 off-days.",
+            description=(
+                "Permanent faculty require exactly 2 off-days unless allow_three_off_days is explicitly authorized for 3 off-days"
+                + (" (strict explicit R7 mode active)." if not policy.auto_resolve_undeclared_off_days else ".")
+            ),
             affected_entities=r7_offenders,
         ))
+    elif r7_hybrid_candidates:
+        record(_make_check(
+            check_id="r7-permanent-offdays",
+            rule_id="R7",
+            category="Permanent Faculty Off-Days (R7/D3)",
+            status="warning",
+            title="Hybrid R7: Undeclared/Partial Permanent Off-Days Will Auto-Resolve",
+            description=(
+                f"Hybrid R7: {len(r7_hybrid_candidates)} permanent faculty have undeclared/partial off-days "
+                "that CP-SAT will auto-resolve to 2 off-days."
+            ),
+            affected_entities=r7_hybrid_candidates,
+        ))
     else:
-        perm_count = sum(1 for f in active_faculty if f.employment_type == "permanent")
+        perm_count = sum(1 for f in checked_faculty if f.employment_type == "permanent")
         record(_make_check(
             check_id="r7-permanent-offdays",
             rule_id="R7",

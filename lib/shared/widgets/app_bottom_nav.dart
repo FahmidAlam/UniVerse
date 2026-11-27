@@ -46,25 +46,10 @@ class AppBottomNav extends StatelessWidget {
     if (role == AppConstants.roleAdmin) {
       return const [
         AppNavDest(
-            icon: PhosphorIconsRegular.house,
-            label: 'Overview',
-            route: RouteNames.adminDashboard),
-        AppNavDest(
-            icon: PhosphorIconsRegular.calendarBlank,
-            // PHASE 1 RECONCILE: This preserves the operational, non-preview routine route.
-            label: 'Routine Operations',
-            route: RouteNames.routineManagement),
-        AppNavDest(
-            icon: PhosphorIconsRegular.stack,
-            // PHASE 1 RECONCILE: The destination remains visibly simulation-only.
-            label: 'Scheduling Workbench · Preview',
-            route: RouteNames.schedulingWorkspace),
-        AppNavDest(
-            icon: PhosphorIconsRegular.bellRinging,
-            label: 'Broadcast',
-            route: RouteNames.campusBroadcast),
-        AppNavDest(
-            icon: PhosphorIconsRegular.dotsThree, label: 'More', route: ''),
+          icon: PhosphorIconsRegular.globe,
+          label: 'Web Console',
+          route: RouteNames.adminDashboard,
+        ),
       ];
     }
     if (role == AppConstants.roleTeacher) {
@@ -128,22 +113,9 @@ class AppBottomNav extends StatelessWidget {
             : -1;
   }
 
-  // PHASE 1: Mobile admin tools stay reachable through existing guarded routes.
+  // PHASE 1: Mobile admin routes now redirect to the Web Console notice screen.
   static const adminTools = <({String label, String route})>[
-    (label: 'Courses', route: RouteNames.manageCourses),
-    (label: 'Batches & Sections', route: RouteNames.manageBatches),
-    (label: 'Users', route: RouteNames.manageUsers),
-    (label: 'Registration', route: RouteNames.adminRegistration),
-    (label: 'Faculty', route: RouteNames.manageFaculty),
-    (label: 'Rooms', route: RouteNames.manageRooms),
-    (label: 'Course Eligibility', route: RouteNames.manageCourseEligibility),
-    (label: 'Settings', route: RouteNames.timetableSettings),
-    (label: 'Resources', route: RouteNames.manageResources),
-    (label: 'Resource Library', route: RouteNames.resourceLibrary),
-    (label: 'Routine Preview', route: RouteNames.timetableGrid),
-    (label: 'Broadcast History', route: RouteNames.broadcastHistory),
-    (label: 'Campus Lookup', route: RouteNames.rooms),
-    (label: 'Profile', route: RouteNames.profile),
+    (label: 'Web Console', route: RouteNames.adminDashboard),
   ];
 
   @override

@@ -14,6 +14,7 @@ export interface PolicySnapshotPayload {
   daily_slot_count: 6 | 7;
   allow_online_slot: boolean;
   friday_no_p4: boolean;
+  auto_resolve_undeclared_off_days: boolean;
   faculty_preference_weight: number;
   sust_adjunct_single_half_day: boolean;
   sust_adjunct_max_gap: number;
@@ -114,6 +115,7 @@ export const DEFAULT_POLICY_SNAPSHOT_FORM: SavePolicySnapshotInput = {
     daily_slot_count: 7,
     allow_online_slot: false,
     friday_no_p4: true,
+    auto_resolve_undeclared_off_days: true,
     faculty_preference_weight: 85,
     sust_adjunct_single_half_day: true,
     sust_adjunct_max_gap: 2,
@@ -184,6 +186,10 @@ function normalizePolicySnapshotRow(
         rawPayload.allow_online_slot ?? defaults.allow_online_slot,
       ),
       friday_no_p4: Boolean(rawPayload.friday_no_p4 ?? defaults.friday_no_p4),
+      auto_resolve_undeclared_off_days: Boolean(
+        rawPayload.auto_resolve_undeclared_off_days ??
+          defaults.auto_resolve_undeclared_off_days,
+      ),
       faculty_preference_weight: Number(
         rawPayload.faculty_preference_weight ??
           defaults.faculty_preference_weight,

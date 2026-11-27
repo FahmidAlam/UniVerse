@@ -1,8 +1,13 @@
-import type { RoutineVersionRecord } from "@/features/routine/types";
+import type {
+  RoutineRow,
+  RoutineVersionRecord,
+} from "@/features/routine/types";
 import { isSupabaseConfigured, supabase } from "@/services/supabase";
 
 export const ARCHIVE_ROUTINE_VERSION_COLUMNS =
   "id, semester_label, source, is_active, row_count, stats, validation, notes, published_at, published_by, created_at";
+
+export const ARCHIVE_ROUTINE_VERSION_EXTENDED_COLUMNS = `${ARCHIVE_ROUTINE_VERSION_COLUMNS}, scheduling_scope_id, revision_id, revision_version, policy_snapshot_id, storage_path, snapshot_rows, restored_from_version_id`;
 
 export const ARCHIVE_TIMETABLE_RUN_COLUMNS =
   "id, semester_label, file_path, status, row_count, stats, validation, created_by, created_at";
@@ -13,7 +18,12 @@ export const ROUTINE_ARCHIVE_QUERY_KEY = ["admin-routine-archive"] as const;
 
 const CORRELATION_WINDOW_MS = 5 * 60 * 1000; // ±5 minutes
 
-export type ArchiveSource = "engine" | "upload" | "manual" | "storage-only";
+export type ArchiveSource =
+  | "engine"
+  | "upload"
+  | "manual"
+  | "rollback"
+  | "storage-only";
 export type ArchiveCategory = "version" | "run" | "storage-only";
 
 export interface TimetableRunRecord {
@@ -45,9 +55,14 @@ export interface ProfileSummary {
 
 export interface RoutineArchiveItem {
   id: string;
+  versionId: string | null;
   category: ArchiveCategory;
   source: ArchiveSource;
   isActive: boolean;
+  hasSnapshot: boolean;
+  canRestore: boolean;
+  restoredFromVersionId: string | null;
+  snapshotRows: RoutineRow[] | null;
   semesterLabel: string;
   rowCount: number | null;
   timestamp: string | null;
@@ -63,6 +78,14 @@ export interface RoutineArchiveItem {
   version: RoutineVersionRecord | null;
   run: TimetableRunRecord | null;
   storageFile: TimetableStorageObject | null;
+}
+
+export interface RestoreRoutineVersionResult {
+  versionId: string;
+  restoredFromVersionId: string;
+  rowCount: number;
+  archivedCount?: number;
+  storagePath?: string | null;
 }
 
 export interface RoutineArchiveCounts {
@@ -150,7 +173,12 @@ export function normalizeTimetableObjectKey(
 
 function normalizeSource(raw: string | null | undefined): ArchiveSource {
   const lower = (raw ?? "").trim().toLowerCase();
-  if (lower === "engine" || lower === "upload" || lower === "manual") {
+  if (
+    lower === "engine" ||
+    lower === "upload" ||
+    lower === "manual" ||
+    lower === "rollback"
+  ) {
     return lower;
   }
   return "engine";
@@ -265,13 +293,21 @@ export function correlateRoutineArchive(params: {
       matchedRunIds.add(bestRun.id);
     }
 
-    const rawKey = normalizeTimetableObjectKey(bestRun?.file_path);
+    const actorId = version.published_by ?? bestRun?.created_by ?? null;
+    const rawKey = normalizeTimetableObjectKey(
+      bestRun?.file_path ?? version.storage_path ?? null,
+    );
     const storageFile = rawKey ? (storageByKey.get(rawKey) ?? null) : null;
     if (rawKey && storageFile) {
       matchedStorageKeys.add(rawKey);
     }
 
-    const actorId = version.published_by ?? bestRun?.created_by ?? null;
+    const rawSnapshot = Array.isArray(version.snapshot_rows)
+      ? (version.snapshot_rows as RoutineRow[])
+      : null;
+    const hasSnapshot = Boolean(rawSnapshot && rawSnapshot.length > 0);
+    const canRestore = Boolean(!version.is_active && hasSnapshot);
+
     const stats =
       isPlainRecord(version.stats) && Object.keys(version.stats).length > 0
         ? version.stats
@@ -288,19 +324,24 @@ export function correlateRoutineArchive(params: {
 
     items.push({
       id: `version:${version.id}`,
+      versionId: version.id,
       category: "version",
       source: normalizeSource(version.source),
       isActive: Boolean(version.is_active),
+      hasSnapshot,
+      canRestore,
+      restoredFromVersionId: version.restored_from_version_id ?? null,
+      snapshotRows: rawSnapshot,
       semesterLabel: version.semester_label?.trim() || "Untitled Semester",
       rowCount: version.row_count,
       timestamp: version.published_at ?? version.created_at,
       actorName: resolveActorName(actorId, profilesById),
       actorId,
       notes: version.notes ?? null,
-      objectKey: storageFile ? rawKey : null,
-      fileName: storageFile ? extractFileName(rawKey) : null,
+      objectKey: storageFile ? rawKey : rawKey,
+      fileName: storageFile ? extractFileName(rawKey) : extractFileName(rawKey),
       fileSizeBytes: storageFile?.size_bytes ?? null,
-      hasXlsx: Boolean(storageFile && rawKey),
+      hasXlsx: Boolean(rawKey && (storageFile || version.storage_path)),
       stats,
       validation,
       version,
@@ -330,9 +371,14 @@ export function correlateRoutineArchive(params: {
 
     items.push({
       id: `run:${run.id}`,
+      versionId: null,
       category: "run",
       source: "engine",
       isActive: false,
+      hasSnapshot: false,
+      canRestore: false,
+      restoredFromVersionId: null,
+      snapshotRows: null,
       semesterLabel: run.semester_label?.trim() || "Unlabeled Run",
       rowCount: run.row_count,
       timestamp: run.created_at,
@@ -358,9 +404,14 @@ export function correlateRoutineArchive(params: {
 
     items.push({
       id: `storage:${key}`,
+      versionId: null,
       category: "storage-only",
       source: "storage-only",
       isActive: false,
+      hasSnapshot: false,
+      canRestore: false,
+      restoredFromVersionId: null,
+      snapshotRows: null,
       semesterLabel: extractFileName(key) ?? key,
       rowCount: null,
       timestamp: file.updated_at ?? file.created_at,
@@ -747,6 +798,21 @@ const DEV_PREVIEW_STORAGE: TimetableStorageObject[] = [
   },
 ];
 
+function isMissingStage5cArchiveColumnError(err: {
+  code?: string;
+  message?: string;
+} | null): boolean {
+  if (!err) return false;
+  const code = err.code ?? "";
+  const msg = (err.message ?? "").toLowerCase();
+  return (
+    code === "42703" ||
+    code === "PGRST204" ||
+    msg.includes("does not exist") ||
+    msg.includes("could not find")
+  );
+}
+
 export async function fetchRoutineArchive(
   isDevPreview: boolean,
 ): Promise<RoutineArchiveDataset> {
@@ -760,10 +826,10 @@ export async function fetchRoutineArchive(
     });
   }
 
-  const [versionsRes, runsRes, storageRes] = await Promise.all([
+  const [versionsExtRes, runsRes, storageRes] = await Promise.all([
     supabase
       .from("routine_versions")
-      .select(ARCHIVE_ROUTINE_VERSION_COLUMNS)
+      .select(ARCHIVE_ROUTINE_VERSION_EXTENDED_COLUMNS)
       .order("created_at", { ascending: false })
       .limit(50),
     supabase
@@ -777,8 +843,20 @@ export async function fetchRoutineArchive(
     }),
   ]);
 
-  if (versionsRes.error) {
-    throw new Error(`Failed to load routine versions: ${versionsRes.error.message}`);
+  let versionsData = versionsExtRes.data as RoutineVersionRecord[] | null;
+  let versionsError = versionsExtRes.error;
+  if (versionsError && isMissingStage5cArchiveColumnError(versionsError)) {
+    const fallback = await supabase
+      .from("routine_versions")
+      .select(ARCHIVE_ROUTINE_VERSION_COLUMNS)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    versionsData = fallback.data as RoutineVersionRecord[] | null;
+    versionsError = fallback.error;
+  }
+
+  if (versionsError) {
+    throw new Error(`Failed to load routine versions: ${versionsError.message}`);
   }
   if (runsRes.error) {
     throw new Error(`Failed to load timetable runs: ${runsRes.error.message}`);
@@ -787,7 +865,7 @@ export async function fetchRoutineArchive(
     throw new Error(`Failed to list timetables storage: ${storageRes.error.message}`);
   }
 
-  const versions = (versionsRes.data ?? []) as RoutineVersionRecord[];
+  const versions = (versionsData ?? []) as RoutineVersionRecord[];
   const runs = (runsRes.data ?? []) as TimetableRunRecord[];
   const storageFiles: TimetableStorageObject[] = (storageRes.data ?? []).map(
     (obj) => {
@@ -891,4 +969,71 @@ export async function downloadArchiveWorkbook(
   anchor.click();
   anchor.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/**
+ * Stage 5C Gate D Archive v2b 1-click PostgreSQL snapshot rollback.
+ * Calls `public.restore_routine_version(p_version_id, p_notes)` without
+ * deleting prior versions or routine history.
+ */
+export async function restoreRoutineVersion({
+  versionId,
+  notes,
+  isDevPreview,
+}: {
+  versionId: string;
+  notes?: string | null;
+  isDevPreview: boolean;
+}): Promise<RestoreRoutineVersionResult> {
+  if (!versionId) {
+    throw new Error("A target routine version ID is required for restoration.");
+  }
+
+  if (isDevPreview || !isSupabaseConfigured || !supabase) {
+    const targetIdx = DEV_PREVIEW_VERSIONS.findIndex((v) => v.id === versionId);
+    if (targetIdx === -1) {
+      throw new Error(`Unknown preview routine version: ${versionId}`);
+    }
+    const target = DEV_PREVIEW_VERSIONS[targetIdx]!;
+    for (const v of DEV_PREVIEW_VERSIONS) {
+      v.is_active = false;
+    }
+    const newId = `preview-rollback-${Date.now()}`;
+    DEV_PREVIEW_VERSIONS.unshift({
+      ...target,
+      id: newId,
+      source: "rollback",
+      is_active: true,
+      notes:
+        notes?.trim() ||
+        `Restored from ${target.semester_label ?? target.id}`,
+      published_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      restored_from_version_id: target.id,
+    });
+    return {
+      versionId: newId,
+      restoredFromVersionId: target.id,
+      rowCount: target.row_count,
+      archivedCount: 0,
+      storagePath: target.storage_path ?? null,
+    };
+  }
+
+  const { data, error } = await supabase.rpc("restore_routine_version", {
+    p_version_id: versionId,
+    p_notes: notes?.trim() || null,
+  });
+  if (error) {
+    throw new Error(`restore_routine_version RPC failed: ${error.message}`);
+  }
+  const res = (data ?? {}) as Record<string, unknown>;
+  return {
+    versionId: String(res.version_id ?? ""),
+    restoredFromVersionId: String(res.restored_from_version_id ?? versionId),
+    rowCount: typeof res.row_count === "number" ? res.row_count : 0,
+    archivedCount:
+      typeof res.archived_count === "number" ? res.archived_count : undefined,
+    storagePath: res.storage_path ? String(res.storage_path) : null,
+  };
 }

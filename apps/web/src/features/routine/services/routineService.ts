@@ -11,6 +11,8 @@ import { isSupabaseConfigured, supabase } from "@/services/supabase";
 export const ROUTINE_SELECT_COLUMNS =
   "id, day, time_start, time_end, subject, subject_code, teacher_name, teacher_code, room, batch, section, semester, is_active, is_service, routine_version_id";
 
+export const ROUTINE_EXTENDED_SELECT_COLUMNS = `${ROUTINE_SELECT_COLUMNS}, teacher_codes`;
+
 export const ROUTINE_VERSION_SELECT_COLUMNS =
   "id, semester_label, source, is_active, row_count, stats, validation, notes, published_at, published_by, created_at";
 
@@ -32,6 +34,7 @@ export interface RoutineWritePayload {
   subject_code: string;
   teacher_name: string | null;
   teacher_code: string | null;
+  teacher_codes?: string[];
   room: string;
   batch: string;
   section: string;
@@ -41,8 +44,24 @@ export interface RoutineWritePayload {
   routine_version_id?: string | null;
 }
 
+function isMissingTeacherCodesColumnError(err: {
+  code?: string;
+  message?: string;
+} | null): boolean {
+  if (!err) return false;
+  const code = err.code ?? "";
+  const msg = (err.message ?? "").toLowerCase();
+  return (
+    code === "42703" ||
+    code === "PGRST204" ||
+    (msg.includes("teacher_codes") && msg.includes("does not exist")) ||
+    (msg.includes("teacher_codes") && msg.includes("could not find"))
+  );
+}
+
 export function toRoutineWritePayload(
   input: RoutineWriteInput,
+  includeTeacherCodes = false,
 ): RoutineWritePayload {
   const timeStart = ClockTime.toHms(input.time_start);
   const timeEnd = ClockTime.toHms(input.time_end);
@@ -64,9 +83,20 @@ export function toRoutineWritePayload(
     throw new Error("Batch and section are required.");
   }
 
-  const teacherCode = input.teacher_code?.trim()
-    ? input.teacher_code.trim().toUpperCase()
-    : null;
+  const orderedCodes = Array.from(
+    new Set(
+      [
+        ...(input.teacher_codes ?? []),
+        ...(input.teacher_code ? [input.teacher_code] : []),
+      ]
+        .map((c) => c.trim().toUpperCase())
+        .filter((c) => c.length > 0),
+    ),
+  );
+  const teacherCode =
+    (input.teacher_code?.trim()
+      ? input.teacher_code.trim().toUpperCase()
+      : orderedCodes[0]) ?? null;
   const teacherName = input.teacher_name?.trim()
     ? input.teacher_name.trim()
     : null;
@@ -79,6 +109,7 @@ export function toRoutineWritePayload(
     subject_code: subjectCode,
     teacher_name: teacherName,
     teacher_code: teacherCode,
+    ...(includeTeacherCodes ? { teacher_codes: orderedCodes } : {}),
     room,
     batch,
     section,
@@ -112,9 +143,11 @@ function timesOverlap(
 
 function normalizedTeacherCodes(row: {
   teacher_code?: string | null;
+  teacher_codes?: string[];
   teachers?: string[];
 }): string[] {
   const raw = [
+    ...(row.teacher_codes ?? []),
     ...(row.teachers ?? []),
     ...(row.teacher_code ? [row.teacher_code] : []),
   ];
@@ -485,18 +518,49 @@ export function replaceDevPreviewRoutines(
   devPreviewActiveVersion = structuredClone(version);
 }
 
+export async function isRoutineTeacherCodesLive(
+  isDevPreview: boolean,
+): Promise<boolean> {
+  if (isDevPreview || !isSupabaseConfigured || !supabase) {
+    return false;
+  }
+  try {
+    const { error } = await supabase
+      .from("routines")
+      .select("id, teacher_codes")
+      .limit(1);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
 export async function fetchRoutines(
   isDevPreview: boolean,
 ): Promise<RoutineRow[]> {
   if (isDevPreview || !isSupabaseConfigured || !supabase) {
-    return sortRoutineRows(devPreviewRoutinesStore);
+    return sortRoutineRows(
+      devPreviewRoutinesStore.filter((r) => r.is_active !== false),
+    );
   }
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("routines")
-    .select(ROUTINE_SELECT_COLUMNS)
+    .select(ROUTINE_EXTENDED_SELECT_COLUMNS)
+    .eq("is_active", true)
     .order("day")
     .order("time_start");
+
+  if (error && isMissingTeacherCodesColumnError(error)) {
+    const fallback = await supabase
+      .from("routines")
+      .select(ROUTINE_SELECT_COLUMNS)
+      .eq("is_active", true)
+      .order("day")
+      .order("time_start");
+    data = fallback.data as typeof data;
+    error = fallback.error;
+  }
 
   if (error) {
     throw new Error(error.message);
@@ -531,7 +595,7 @@ export async function createRoutineSlot(
   input: RoutineWriteInput,
   isDevPreview: boolean,
 ): Promise<RoutineRow> {
-  const payload = toRoutineWritePayload(input);
+  const payload = toRoutineWritePayload(input, true);
 
   if (isDevPreview || !isSupabaseConfigured || !supabase) {
     const created: RoutineRow = {
@@ -543,11 +607,22 @@ export async function createRoutineSlot(
     return structuredClone(created);
   }
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("routines")
     .insert(payload)
-    .select(ROUTINE_SELECT_COLUMNS)
+    .select(ROUTINE_EXTENDED_SELECT_COLUMNS)
     .single();
+
+  if (error && isMissingTeacherCodesColumnError(error)) {
+    const fallbackPayload = toRoutineWritePayload(input, false);
+    const fallback = await supabase
+      .from("routines")
+      .insert(fallbackPayload)
+      .select(ROUTINE_SELECT_COLUMNS)
+      .single();
+    data = fallback.data as typeof data;
+    error = fallback.error;
+  }
 
   if (error) {
     throw new Error(error.message);
@@ -561,7 +636,7 @@ export async function updateRoutineSlot(
   input: RoutineWriteInput,
   isDevPreview: boolean,
 ): Promise<RoutineRow> {
-  const payload = toRoutineWritePayload(input);
+  const payload = toRoutineWritePayload(input, true);
 
   if (isDevPreview || !isSupabaseConfigured || !supabase) {
     const idx = devPreviewRoutinesStore.findIndex((r) => r.id === id);
@@ -575,12 +650,24 @@ export async function updateRoutineSlot(
     return structuredClone(updated);
   }
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("routines")
     .update(payload)
     .eq("id", id)
-    .select(ROUTINE_SELECT_COLUMNS)
+    .select(ROUTINE_EXTENDED_SELECT_COLUMNS)
     .single();
+
+  if (error && isMissingTeacherCodesColumnError(error)) {
+    const fallbackPayload = toRoutineWritePayload(input, false);
+    const fallback = await supabase
+      .from("routines")
+      .update(fallbackPayload)
+      .eq("id", id)
+      .select(ROUTINE_SELECT_COLUMNS)
+      .single();
+    data = fallback.data as typeof data;
+    error = fallback.error;
+  }
 
   if (error) {
     throw new Error(error.message);

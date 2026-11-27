@@ -4,7 +4,17 @@ export async function resolveNotificationTargets(admin, notification) {
   let query = admin.from('profiles').select('id');
   if (notification.target_role) query = query.eq('role', notification.target_role);
   if (notification.target_batch) query = query.eq('batch', notification.target_batch);
-  if (notification.target_section) query = query.eq('section', notification.target_section);
+  if (notification.target_section) {
+    const sections = String(notification.target_section)
+      .split('+')
+      .map(s => s.trim())
+      .filter(Boolean);
+    if (sections.length > 1) {
+      query = query.in('section', sections);
+    } else if (sections.length === 1) {
+      query = query.eq('section', sections[0]);
+    }
+  }
   const { data: profiles, error: profileError } = await query;
   if (profileError) throw profileError;
 

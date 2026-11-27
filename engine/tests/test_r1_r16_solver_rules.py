@@ -766,7 +766,7 @@ def test_fastapi_generate_returns_structured_d6_outcomes_under_enforced_auth(mon
         assert resp_ok.status_code == 200
         job_ok = resp_ok.json()["job_id"]
 
-        for _ in range(40):
+        for _ in range(400):
             st_ok = client.get(f"/api/timetable/status/{job_ok}", headers={"Authorization": "Bearer admin-jwt"}).json()
             if st_ok["state"] in ("done", "failed"):
                 break

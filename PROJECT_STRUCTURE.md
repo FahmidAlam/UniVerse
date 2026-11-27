@@ -21,7 +21,6 @@ This document provides a comprehensive, complete index of all folders and files 
 | `supabase/` | Supabase Postgres SQL migrations, pgTAP tests, seed datasets, and Deno TypeScript edge functions. |
 | `test/` | Automated Flutter unit, widget, layout, navigation, motion, and visual capture regression test suites. |
 | `tool/` | Python diagnostics, schema probes, visual capture scripts, and defense diagram generators. |
-| `web/` | Web platform runner, `index.html` canvas configuration, manifest, and service worker. |
 | `workbook/` | Academic curriculum distributions, room inventory workbooks, and semester constraints (read-only). |
 | `AGENTS.md` | Primary operating rules, Flutter Web freeze policy, archive exclusion, and UI/UX skill routing for Codex and Antigravity. |
 | `CLAUDE.md` | Primary operating rules, architecture summary, and UI/UX skill routing for Claude Code. |
@@ -94,69 +93,13 @@ This document provides a comprehensive, complete index of all folders and files 
 
 ### 3. Feature Modules (`lib/features/`)
 
-#### `lib/features/admin/` (Administration & Timetable Engine Management)
-- **Controllers:**
-  - `admin_dashboard_controller.dart` — Coordinates admin dashboard state, readiness metrics, and quick stats with DI seams.
-  - `broadcast_controller.dart` — Manages composing and dispatching urgent campus-wide broadcasts.
-  - `course_eligibility_controller.dart` — Controls faculty course assignment eligibility and allocation rules.
-  - `manage_users_controller.dart` — Handles searching, filtering, and role modifications for student/teacher accounts.
-  - `resource_admin_controller.dart` — Manages university curriculum files, slide uploads, and folder structures.
-  - `routine_admin_controller.dart` — Oversees active routine versions, archive states, and publish status gates.
-  - `routine_upload_controller.dart` — Handles parsing, validating, and publishing uploaded Excel schedule workbooks.
-  - `timetable_faculty_controller.dart` — Manages faculty availability, preferred teaching windows, and off-day rules.
-  - `timetable_gen_controller.dart` — Interacts with backend engine to trigger and monitor OR-Tools timetable generation jobs.
-  - `timetable_rooms_controller.dart` — Manages room inventory, theory vs. lab assignments, and student capacity limits.
-  - `timetable_settings_controller.dart` — Configures global solver constraints (session lengths, slot times, max consecutive hours).
-  - `whitelist_controller.dart` — Manages authorized email addresses for teacher and admin role approvals.
-- **Scheduling Workspace (`lib/features/admin/scheduling/`):**
-  - `controllers/scheduling_workspace_controller.dart` — State machine governing the 5-tab scheduling preview workspace (`Readiness`, `Distribution`, `Config`, `Generate`, `Review`) and gateway abstraction.
-  - `fixtures/scheduling_preview_fixtures.dart` — High-fidelity synthetic preview fixtures for offline scheduling workbench evaluation.
-  - `models/scheduling_workspace_models.dart` — Domain models for editable course distributions, solver constraints, and validation diagnostics.
-  - `widgets/scheduling_header_bar.dart` — Desktop header bar showing active semester, preview mode badge, and primary action buttons.
-  - `widgets/scheduling_revision_bar.dart` — Versioning toolbar managing distribution draft revisions and click-to-copy hash.
-  - `widgets/configuration/scheduling_configuration_pane.dart` — UI panel for editing daily time slots, room pools, and faculty constraint sets (`R1`–`R15`).
-  - `widgets/distribution/distribution_filters_bar.dart` — Filter bar for sorting and searching distribution rows with upfront option counts.
-  - `widgets/distribution/distribution_list_mobile.dart` — Mobile adaptive vertical list view for course distribution records.
-  - `widgets/distribution/distribution_record_inspector.dart` — 5-part academic provenance inspector for editing course offering constraints.
-  - `widgets/distribution/distribution_table_desktop.dart` — High-density tabular grid with "Checkbox Off = Gray" signaling and hover reveal.
-  - `widgets/generate/scheduling_generate_pane.dart` — Solver execution pane with priority weights, execution telemetry, and conflict alerts.
-  - `widgets/readiness/scheduling_readiness_pane.dart` — 3-tier preflight validation checklist verifying curriculum, room, and faculty integrity before solve.
-  - `widgets/review/scheduling_review_pane.dart` — Post-solve review matrix with section grid, faculty timetable, room occupancy, and tactile Slide-to-Confirm publication gate.
-- **Screens:**
-  - `admin_dashboard_screen.dart` — Administrative command center featuring 4-stage readiness checklist, load breakdown bar chart, and dual-track launchpad.
-  - `admin_registration_screen.dart` — Dedicated enrollment screen for invited campus administrators.
-  - `admin_routine_screen.dart` — Master administrative routine operations screen with `USegmentedControl` and `IndexedStack` state preservation.
-  - `broadcast_history_screen.dart` — History view of all past campus broadcasts and push notifications sent to students/faculty.
-  - `campus_broadcast_screen.dart` — Screen for drafting and broadcasting announcements targeting specific batches or departments.
-  - `generate_timetable_screen.dart` — Specialized wizard screen with 4-node visual solver timeline and Service Recovery Paradox error card.
-  - `manage_course_eligibility_screen.dart` — Matrix screen assigning teacher qualifications to departmental course offerings.
-  - `manage_faculty_screen.dart` — Screen for configuring teacher off-days, max daily load, and department allocations.
-  - `manage_resources_screen.dart` — Admin screen for organizing, approving, or removing uploaded learning resources.
-  - `manage_rooms_screen.dart` — Screen for editing campus room numbers, seat capacities, and computer lab designations.
-  - `manage_users_screen.dart` — User directory screen for inspecting user profiles and role assignment.
-  - `resource_library_screen.dart` — Administrative document library viewer.
-  - `routine_management_screen.dart` — Version control screen with upfront slot counts, hover/focus editing actions, and adaptive modal editor.
-  - `scheduling_workspace_screen.dart` — Full-page container for the interactive 5-tab Scheduling Workspace with 1024px collision fix and 390px ergonomics.
-  - `timetable_grid_screen.dart` — Full-canvas weekly timetable grid viewer with above-control filters, live match counts, docked 340px inspector at $\ge 1100\text{px}$, and swipeable day agenda below $860\text{px}$.
-  - `timetable_settings_screen.dart` — Settings screen for customizing academic shift times, lunch breaks, and prayer slots.
-  - `upload_routine_screen.dart` — Drag-and-drop Excel routine upload screen with 3-step post-parse publication pipeline and secondary warning recovery.
-- **Services:**
-  - `academic_config_service.dart` — Backend service fetching and persisting academic catalog hierarchies (departments, courses, semesters).
-  - `admin_service.dart` — Core admin service handling high-privilege RPCs, room queries, and administrative operations.
-  - `engine_connectivity_service.dart` — Health check and network client communicating with the Python solver microservice.
-  - `generation_profile.dart` — Helper service bundling semester constraints into the standardized JSON payload required by the engine.
-  - `routine_workbook_parser.dart` — Dart-side Excel parser extracting routine entries and room schedules from uploaded `.xlsx` files.
-  - `timetable_config_service.dart` — Service managing database read/write operations for timetable configurations.
-  - `timetable_engine_service.dart` — Dispatcher sending solve requests to Supabase Edge Functions or the direct solver API.
-- **Widgets:**
-  - `admin_card_grid.dart` — Responsive grid displaying operational summary cards on the admin dashboard.
-  - `admin_desktop_shell.dart` — Full-height desktop shell with persistent sidebar navigation, engine health pill, breadcrumbs, and single-header enforcement.
-  - `admin_schedule_slot.dart` — Administrative schedule slot component with semantic left border accents (theory, lab, joint), cohort/faculty tags, and room alias tooltips.
+> Note: Legacy Flutter admin modules (`lib/features/admin/`) and Flutter Web (`web/`) were pruned post-cutover in Stage 5C. All admin operations live in `apps/web/`.
 
 #### `lib/features/auth/` (Authentication, Pre-Auth Story & Account Security)
 - **Controllers:**
   - `auth_controller.dart` — Global authentication state machine managing user sessions, sign-in/up flows, role detection, and sign-out.
 - **Screens:**
+  - `admin_web_notice_screen.dart` — Directs signed-in administrator accounts on mobile to the React Web Admin Console (`https://universe-admin-exi.pages.dev`).
   - `auth_error_screen.dart` — Graceful error screen explaining connection or session failures with diagnostic details and retry buttons.
   - `email_login_screen.dart` — Standard email and password sign-in form with validation and password visibility toggle.
   - `email_signup_screen.dart` — New user registration form with email validation, password strength checklist, and pre-auth guidance.
@@ -291,9 +234,12 @@ This document provides a comprehensive, complete index of all folders and files 
 - `engine/distribution.py` — Phase 2a immutable Course Distribution contract, validating course offerings, credit hours, and section allocations.
 - `engine/domain.py` — Domain models for teachers, rooms, courses, time slots, and schedule variables.
 - `engine/ingest.py` — Ingestion pipeline parsing raw university distribution workbooks into structured solver inputs.
+- `engine/job_store.py` — Durable PostgREST (`public.solver_jobs`) + Storage (`timetables/solver_jobs/`) job persistence with memory-cache fallback and 2027 `sb_secret_` header parity.
 - `engine/legacy_mapping.py` — Translation layer mapping legacy Excel abbreviations to canonical database course and teacher IDs.
-- `engine/main.py` — FastAPI HTTP server entrypoint exposing solver execution, Phase 3B rendered-workbook parsing, health checks, and Excel export.
-- `engine/parse_rendered.py` — Phase 3B strictly non-mutating rendered-workbook parser (Leading University 7-day sheets + tabular fallback) with 1:1 Dart `RoutineWorkbookParser` parity.
+- `engine/main.py` — FastAPI HTTP server entrypoint exposing solver execution, durable job history, Phase 3B rendered-workbook parsing, health checks, and Excel export.
+- `engine/parse_rendered.py` — Phase 3B strictly non-mutating rendered-workbook parser (Leading University 7-day sheets + tabular fallback) with 1:1 parity.
+- `engine/policy_constraints.py` — Enforces R1–R16 committee rules including Hybrid Faculty Off-Day Resolution (`R7`/`R6`/`R5`) and independent post-solve compliance checks.
+- `engine/preflight.py` — Stage 5A/5C non-mutating policy readiness validator returning structured blockers and Hybrid R7 advisories.
 - `engine/Procfile` — Web process command specifying the Gunicorn/Uvicorn startup configuration for Render deployment.
 - `engine/render.py` — Formats and renders solver results into stylized, printable university Excel timetable templates.
 - `engine/room_policy.py` — Enforces physical room constraints (capacity limits, theory vs. lab assignments, and floor proximity).
@@ -348,7 +294,10 @@ This document provides a comprehensive, complete index of all folders and files 
 - `015_fixed_sessions_per_week.sql` — Adds credit-hour and session-count constraints to course definitions.
 - `016_teacher_whitelist_gate.sql` — Security migration enforcing whitelist checks for faculty and admin role assignments.
 - `20261022140809_academic_catalog.sql` — Core academic catalog schema establishing departments, courses, and programs.
-- `20261106130000_course_distribution_contract.sql` — Phase 2a Course Distribution tables, immutability triggers, and revision audit logs.
+- `supabase/migrations/20261106130000_course_distribution_contract.sql` — Phase 2a Course Distribution tables, immutability triggers, and revision audit logs.
+- `supabase/migrations/20261122160000_phase_5b_rls_and_storage_hardening.sql` — Phase 5B RLS & Storage hardening (MIME/size limits).
+- `supabase/migrations/20261127120000_stage_5a_gate_c_catalogs_and_policy.sql` — Stage 5A Gate C persistent catalogs, `policy_snapshots`, and extended faculty/room columns.
+- `supabase/migrations/20261127180000_stage_5c_gate_d_durable_jobs_and_archiving_publish.sql` — Stage 5C Gate D `solver_jobs`, `routines.teacher_codes text[]`, snapshot-archiving `publish_routine()`, and `restore_routine_version()` rollback.
 
 ### Edge Functions (`supabase/functions/`)
 - `supabase/functions/invite-admin/index.ts` — Edge function sending admin invitation emails and provisioning preliminary whitelist entries.
@@ -359,6 +308,9 @@ This document provides a comprehensive, complete index of all folders and files 
 - `supabase/tests/baseline.test.sql` — pgTAP baseline tests verifying table existence and RLS enablement.
 - `supabase/tests/course_distribution_contract.test.sql` — pgTAP tests verifying the Course Distribution schema and immutability rules.
 - `supabase/tests/course_distribution_authorization.test.sql` — Security tests ensuring non-admins cannot mutate course distributions.
+- `supabase/tests/stage_5a_gate_c_rls_verification.sql` — `BEGIN ... ROLLBACK` negative RLS checks for Stage 5A catalogs & `policy_snapshots`.
+- `supabase/tests/stage_5c_gate_d_rls_verification.sql` — `BEGIN ... ROLLBACK` negative RLS, co-teacher `teacher_codes`, archiving `publish_routine()`, and `restore_routine_version()` verification suite.
+- `supabase/reconciliation/rollback_20261127180000_stage_5c_gate_d.sql` — Idempotent rollback script for Stage 5C Gate D migration.
 - `supabase/reconciliation/20261021214512_reconstructed_baseline.sql` — Reconstructed SQL baseline used for local schema validation.
 - `supabase/reconciliation/export_sanitized_schedule.sql` — Sanitization script producing anonymized timetable datasets for development.
 
@@ -368,10 +320,7 @@ This document provides a comprehensive, complete index of all folders and files 
 
 | Test File | Coverage & Purpose |
 |---|---|
-| `test/academic_model_test.dart` | Tests serialization and equality of course, department, and semester models. |
-| `test/academic_service_test.dart` | Tests academic configuration service queries and mock API handling. |
-| `test/admin_remediation_layout_test.dart` | Verifies responsive layout integrity and error boundaries across administrative views. |
-| `test/admin_web_foundation_test.dart` | Validates Phase 1 admin navigation, route access controls, and shell persistence. |
+| `test/stage_5c_mobile_parity_test.dart` | Verifies Stage 5C `B+C` audience split, co-teacher `teacher_codes` indexing, 2027 `sb_publishable_` key default, and `AdminWebNoticeScreen`. |
 | `test/auth_callback_policy_test.dart` | Verifies OAuth deep link routing and duplicate callback prevention. |
 | `test/auth_invitation_bridge_test.dart` | Tests invitation link parameter extraction and routing. |
 | `test/auth_invitation_coordinator_test.dart` | Tests admin invitation acceptance lifecycle and token validation. |
@@ -461,7 +410,7 @@ This document provides a comprehensive, complete index of all folders and files 
 
 ## 🌐 Standalone React Web Application (`apps/web/`)
 
-> **Status:** Production-ready React Web v1 (**UniVerse Academic Ledger** — Theme v3: X-Grade Carbon Obsidian Dark + Crisp Daylight Light + X-Azure). Phases 0–4B, Theme v3, and Phase 5A/5B/5C-Prep + Staging 5B hardening are complete and verified.
+> **Status:** Stage 5C (Wave 2B Final · Gate D) React Web v1 (**UniVerse Academic Ledger** — Theme v3: X-Grade Carbon Obsidian Dark + Crisp Daylight Light + X-Azure). Phases 0–5, Hybrid R7/R6 off-day UX, Stage 4/5 Gate D live solve/diff/publish, `teacher_codes text[]` co-teachers, and Archive v2b 1-click rollback are implemented and unit-tested.
 
 ```text
 apps/web/

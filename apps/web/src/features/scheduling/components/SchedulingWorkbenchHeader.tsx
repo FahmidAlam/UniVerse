@@ -89,11 +89,13 @@ export function SchedulingWorkbenchHeader({
     !gates.gateD.unlocked;
   const liveGateBadgeLabel = allLiveGatesLocked
     ? "Live · Fail-Closed"
-    : gates.gateC.unlocked
-      ? "Live · Gates A–C"
-      : gates.gateB.unlocked
-        ? "Live · Gates A/B"
-        : "Live · Gate A";
+    : gates.gateD.unlocked
+      ? "Live · Gates A–D"
+      : gates.gateC.unlocked
+        ? "Live · Gates A–C"
+        : gates.gateB.unlocked
+          ? "Live · Gates A/B"
+          : "Live · Gate A";
 
   return (
     <div className="space-y-4">

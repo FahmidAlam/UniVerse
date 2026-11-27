@@ -63,6 +63,7 @@ import {
   deleteRoutineSlots,
   fetchActiveRoutineVersion,
   fetchRoutines,
+  isRoutineTeacherCodesLive,
   updateRoutineSlot,
 } from "@/features/routine/services/routineService";
 import {
@@ -125,8 +126,12 @@ function isLabCourse(row: RoutineRow): boolean {
 function slotSemanticClass(
   row: RoutineRow,
   isConflictCell: boolean,
+  coTeacherStorageLive = false,
 ): string {
-  if (isConflictCell || requiresSharedTeacherStorage(row)) {
+  if (
+    isConflictCell ||
+    (!coTeacherStorageLive && requiresSharedTeacherStorage(row))
+  ) {
     return "slot-conflict";
   }
   if (row.section.includes("+")) {
@@ -138,9 +143,12 @@ function slotSemanticClass(
   return "slot-theory";
 }
 
-function getSlotOverrideTooltip(row: RoutineRow): string | null {
+function getSlotOverrideTooltip(
+  row: RoutineRow,
+  coTeacherStorageLive = false,
+): string | null {
   const notes: string[] = [];
-  if (requiresSharedTeacherStorage(row)) {
+  if (!coTeacherStorageLive && requiresSharedTeacherStorage(row)) {
     notes.push(
       `Co-taught (${extractRowTeacherCodes(row).join(" / ")}): blocked from scalar DB publish.`,
     );
@@ -188,6 +196,8 @@ export interface AcademicTimetableMatrixProps {
   hideCandidateBanner?: boolean;
   /** Optional custom period definitions for override mode (inferred from rows when omitted). */
   overridePeriods?: readonly PeriodDefinition[];
+  /** Whether `routines.teacher_codes text[]` storage is live (Stage 5C Gate D). */
+  coTeacherStorageLive?: boolean;
 }
 
 const BACK_LINK_BY_ORIGIN: Record<string, { label: string; to: string }> = {
@@ -203,10 +213,20 @@ export function AcademicTimetableMatrix({
   overrideSourceLabel,
   hideCandidateBanner = false,
   overridePeriods,
+  coTeacherStorageLive,
 }: AcademicTimetableMatrixProps = {}) {
   const isOverrideMode = Boolean(overrideRows);
   const { isDevPreview } = useAuth();
   const queryClient = useQueryClient();
+  const coTeacherLiveQuery = useQuery({
+    queryKey: ["routine-teacher-codes-live", isDevPreview],
+    queryFn: () => isRoutineTeacherCodesLive(isDevPreview),
+    enabled: coTeacherStorageLive === undefined,
+    staleTime: 60_000,
+    retry: false,
+  });
+  const effectiveCoTeacherStorageLive =
+    coTeacherStorageLive ?? coTeacherLiveQuery.data ?? false;
   const [searchParams] = useSearchParams();
   const prefersReducedMotion = useReducedMotion() ?? false;
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -755,7 +775,10 @@ export function AcademicTimetableMatrix({
     row: RoutineRow,
     isConflictCell: boolean,
   ) => {
-    const overrideNote = getSlotOverrideTooltip(row);
+    const overrideNote = getSlotOverrideTooltip(
+      row,
+      effectiveCoTeacherStorageLive,
+    );
     const teacherCodes = extractRowTeacherCodes(row);
     const primaryTeacher = teacherCodes[0] ?? "TBA";
     const dimmedByCrosshair =
@@ -794,7 +817,7 @@ export function AcademicTimetableMatrix({
         onMouseLeave={() => setHoveredTeacherCode(null)}
         className={cn(
           "flex w-full flex-col gap-0.5 rounded-[5px] px-2 py-1.5 text-left transition-all",
-          slotSemanticClass(row, isConflictCell),
+          slotSemanticClass(row, isConflictCell, effectiveCoTeacherStorageLive),
           overrideNote && "slot-override-corner",
           dimmedByCrosshair && "opacity-40",
           highlightedByCrosshair &&
@@ -956,7 +979,8 @@ export function AcademicTimetableMatrix({
 
     const row = inspector.row;
     const teacherCodes = extractRowTeacherCodes(row);
-    const hasCoTeacherWarning = requiresSharedTeacherStorage(row);
+    const hasCoTeacherWarning =
+      !effectiveCoTeacherStorageLive && requiresSharedTeacherStorage(row);
     const canonicalRoom = RoomIdentity.currentKey(row.room);
     const isAliasRoom =
       row.room.trim().toUpperCase().replace(/\s+/g, " ") !== canonicalRoom;

@@ -23,6 +23,7 @@ import {
 import { useAuth } from "@/features/auth/AuthProvider";
 import { AcademicTimetableMatrix } from "@/features/routine/components/AcademicTimetableMatrix";
 import { fetchBaselineConfigAndBuild } from "@/features/routine/services/buildEngineConfig";
+import { isRoutineTeacherCodesLive } from "@/features/routine/services/routineService";
 import {
   buildDevPreviewParsedWorkbook,
   EngineJobError,
@@ -87,6 +88,14 @@ export function UploadRoutineTab() {
     retry: false,
   });
 
+  const coTeacherLiveQuery = useQuery({
+    queryKey: ["routine-teacher-codes-live", isDevPreview],
+    queryFn: () => isRoutineTeacherCodesLive(isDevPreview),
+    staleTime: 60_000,
+    retry: false,
+  });
+  const coTeacherStorageLive = coTeacherLiveQuery.data ?? false;
+
   const baselineAssessment = useMemo(
     () => assessBaselineConfigForPublish(baselineQuery.data?.baselineCounts),
     [baselineQuery.data?.baselineCounts],
@@ -111,9 +120,11 @@ export function UploadRoutineTab() {
   const coTeacherBlockers = useMemo(
     () =>
       parsedResult
-        ? findCoTeacherBlockers(parsedResult.rows, parsedResult.service_rows)
+        ? findCoTeacherBlockers(parsedResult.rows, parsedResult.service_rows, {
+            coTeacherStorageLive,
+          })
         : [],
-    [parsedResult],
+    [coTeacherStorageLive, parsedResult],
   );
 
   const canPublish = useMemo(() => {
@@ -249,6 +260,7 @@ export function UploadRoutineTab() {
         isDevPreview,
         source: "upload",
         allowEmptyBaselineConfirm: confirmEmptyBaseline,
+        allowCoTeachers: coTeacherStorageLive,
         onStepChange: (step) => setPublishStep(step),
       });
 
@@ -817,6 +829,7 @@ export function UploadRoutineTab() {
                 semesterLabel.trim() || selectedFile?.name || "Uploaded Routine"
               }
               hideCandidateBanner
+              coTeacherStorageLive={coTeacherStorageLive}
             />
           </section>
         </>

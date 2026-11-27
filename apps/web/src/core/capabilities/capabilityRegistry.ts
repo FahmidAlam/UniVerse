@@ -351,6 +351,18 @@ export function resolveLiveCapabilityDescriptor(
       backendContract: "public.section_policies",
     };
   }
+  if (cap.id === "admin.scheduling" && gates.gateD.unlocked) {
+    return {
+      ...cap,
+      status: "live-persisted",
+      sidebarBadge: undefined,
+      plannedPhaseLabel: "Stage 5C Gates A–D Active",
+      summary:
+        "5-stage revision-locked scheduling workbench with live durable CP-SAT solves, diff inspection, and archiving publish.",
+      governanceNote: "Backed by course_distribution_revisions, policy_snapshots, solver_jobs, and publish_routine().",
+      backendContract: "course_distribution_revisions, policy_snapshots, solver_jobs, publish_routine()",
+    };
+  }
   return cap;
 }
 

@@ -922,7 +922,20 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
         if pa and pb and pa[0] == pb[0] and pb[1] in neighbors.get(pa[1], []):
             adj_ok += 1
 
-    validation = _validate(dataset, cfg, rows + service_rows, days, pmeta)
+    resolved_off_days_by_teacher: dict[str, list[str]] = {}
+    for tu, day_vars in (policy_meta.get("hybrid_off_day_vars") or {}).items():
+        resolved_off_days_by_teacher[tu] = [
+            days[di] for di, var in sorted(day_vars.items()) if solver.Value(var) == 1
+        ]
+
+    validation = _validate(
+        dataset,
+        cfg,
+        rows + service_rows,
+        days,
+        pmeta,
+        resolved_off_days_by_teacher=resolved_off_days_by_teacher,
+    )
     if room_failures:
         validation["details"]["unplaced_rooms"] = room_failures[:DETAIL_LIMIT]
     validation["lab_theory_pairs"] = len(lt_pairs)
@@ -980,6 +993,7 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
             "objective": int(solver.ObjectiveValue()),
             "lab_theory_pairs": len(lt_pairs),
             "lab_theory_adjacent": adj_ok,
+            "resolved_faculty_off_days": validation.get("resolved_faculty_off_days", []),
         },
         "validation": validation,
         "soft_metrics": validation.get("soft_metrics"),
@@ -1226,7 +1240,8 @@ def _assign_rooms(dataset, cfg, placed, days, pmeta,
     return rows, service_rows, room_failures
 
 
-def _validate(dataset, cfg, all_rows, days, pmeta) -> dict:
+def _validate(dataset, cfg, all_rows, days, pmeta,
+              resolved_off_days_by_teacher: dict[str, list[str]] | None = None) -> dict:
     """Compare the generated routine back against the distribution it came from.
 
     Course completeness and session allocation are correctness failures, not
@@ -1436,6 +1451,7 @@ def _validate(dataset, cfg, all_rows, days, pmeta) -> dict:
         days=days,
         pmeta=pmeta,
         topology=topology,
+        resolved_off_days_by_teacher=resolved_off_days_by_teacher,
     )
 
     fatal = (len(missing), len(under), len(over), len(unexpected),
@@ -1499,6 +1515,7 @@ def _validate(dataset, cfg, all_rows, days, pmeta) -> dict:
         "policy_violations": policy_report["policy_violations"],
         "policy_violation_count": policy_report["policy_violation_count"],
         "soft_metrics": policy_report["soft_metrics"],
+        "resolved_faculty_off_days": policy_report["resolved_faculty_off_days"],
         # traceability — what failed, for which course, cohort and teacher
         "details": details,
         "ok": all(v == 0 for v in fatal),

@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:universe/core/constants/app_constants.dart';
 import 'package:universe/core/router/route_names.dart';
 import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
-import 'package:universe/features/admin/widgets/admin_desktop_shell.dart';
 import 'package:universe/features/auth/controllers/auth_controller.dart';
 import 'package:universe/features/notifications/controllers/notification_controller.dart';
 import 'package:universe/shared/widgets/app_bottom_nav.dart';
@@ -142,19 +140,6 @@ class _AppShellState extends State<AppShell> {
             // PHASE 1 RECONCILE: Navigation tier follows usable shell width, not the former 800px shortcut.
             final tier = shellLayoutTierFor(constraints.maxWidth);
             final isDesktop = tier != ShellLayoutTier.compact;
-            final isAdmin =
-                widget.authController.role == AppConstants.roleAdmin;
-
-            // Desktop administrator workbench
-            if (isAdmin && isDesktop) {
-              return AdminDesktopShell(
-                authController: widget.authController,
-                notificationController: widget.notificationController,
-                currentLocation: GoRouterState.of(context).uri.toString(),
-                compactNavigation: tier == ShellLayoutTier.medium,
-                child: widget.child,
-              );
-            }
 
             // PHASE 1: At 800px every authenticated role uses persistent desktop navigation.
             if (isDesktop) {

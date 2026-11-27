@@ -10,11 +10,13 @@ function fixtureClient(options = {}) {
     { id: 't1', role: 'teacher', batch: null, section: null },
     { id: 'a1', role: 'admin', batch: null, section: null },
     { id: 's4', role: 'student', batch: '66', section: 'A' },
+    { id: 's5', role: 'student', batch: '66', section: 'C' },
   ];
   const device_tokens = [
     { user_id: 's1', token: 'student-a-phone' },
     { user_id: 's1', token: 'student-a-tablet' },
     { user_id: 's2', token: 'student-b-phone' },
+    { user_id: 's5', token: 'student-c-phone' },
     { user_id: 's3', token: 'other-batch-phone' },
     { user_id: 't1', token: 'teacher-phone' },
   ];
@@ -47,11 +49,12 @@ function fixtureClient(options = {}) {
 export async function runAudienceTests() {
   // Expectations are hand-written recipients, independent of query construction.
   const cases = [
-    { name: 'null means everyone', n: {}, want: ['student-a-phone', 'student-a-tablet', 'student-b-phone', 'other-batch-phone', 'teacher-phone'] },
+    { name: 'null means everyone', n: {}, want: ['student-a-phone', 'student-a-tablet', 'student-b-phone', 'student-c-phone', 'other-batch-phone', 'teacher-phone'] },
     { name: 'role only', n: { target_role: 'teacher' }, want: ['teacher-phone'] },
-    { name: 'batch only', n: { target_batch: '66' }, want: ['student-a-phone', 'student-a-tablet', 'student-b-phone'] },
+    { name: 'batch only', n: { target_batch: '66' }, want: ['student-a-phone', 'student-a-tablet', 'student-b-phone', 'student-c-phone'] },
     { name: 'section only', n: { target_section: 'A' }, want: ['student-a-phone', 'student-a-tablet', 'other-batch-phone'] },
     { name: 'combined dimensions AND', n: { target_role: 'student', target_batch: '66', target_section: 'A' }, want: ['student-a-phone', 'student-a-tablet'] },
+    { name: 'joint section B+C fans out to B and C only', n: { target_role: 'student', target_batch: '66', target_section: 'B+C' }, want: ['student-b-phone', 'student-c-phone'] },
     { name: 'do not leak another section', n: { target_batch: '66', target_section: 'B' }, want: ['student-b-phone'] },
     { name: 'unmatched audience', n: { target_batch: 'unknown' }, want: [], reason: 'no audience' },
     { name: 'matching profile without device', n: { target_role: 'admin' }, want: [], reason: 'no tokens' },

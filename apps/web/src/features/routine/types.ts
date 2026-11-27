@@ -20,6 +20,7 @@ export interface RoutineRow {
   subject_code: string;
   teacher_name: string | null;
   teacher_code: string | null;
+  teacher_codes?: string[];
   room: string;
   batch: string;
   section: string;
@@ -43,6 +44,7 @@ export interface RoutineWriteInput {
   subject_code: string;
   teacher_name?: string | null;
   teacher_code?: string | null;
+  teacher_codes?: string[];
   room: string;
   batch: string;
   section: string;
@@ -55,7 +57,7 @@ export interface RoutineWriteInput {
 export interface RoutineVersionRecord {
   id: string;
   semester_label: string | null;
-  source: "engine" | "upload" | "manual";
+  source: "engine" | "upload" | "manual" | "rollback";
   is_active: boolean;
   row_count: number;
   stats: Record<string, unknown>;
@@ -64,6 +66,13 @@ export interface RoutineVersionRecord {
   published_at: string | null;
   published_by: string | null;
   created_at: string;
+  scheduling_scope_id?: string | null;
+  revision_id?: string | null;
+  revision_version?: number | null;
+  policy_snapshot_id?: string | null;
+  storage_path?: string | null;
+  snapshot_rows?: unknown[] | null;
+  restored_from_version_id?: string | null;
 }
 
 export interface RoutineClash {
@@ -205,6 +214,15 @@ export interface SolverConflictItem {
   proven: boolean;
 }
 
+export interface ResolvedFacultyOffDay {
+  acronym: string;
+  employment_type: "permanent" | "adjunct" | "guest" | string;
+  declared_off_days: string[];
+  resolved_off_days: string[];
+  active_teaching_days: string[];
+  provenance: "declared" | "partial_hybrid" | "solver_resolved" | string;
+}
+
 export interface SolverSoftMetrics {
   r8_faculty_preferences?: {
     matched_slots: number;
@@ -229,6 +247,7 @@ export interface SolverSoftMetrics {
     in_band: boolean;
   }>;
   r3_single_slot_holes?: number;
+  resolved_faculty_off_days?: ResolvedFacultyOffDay[];
   [key: string]: unknown;
 }
 
@@ -240,6 +259,7 @@ export interface SolverOutcomeDiagnostics {
   conflicts: SolverConflictItem[];
   error?: string | null;
   soft_metrics?: SolverSoftMetrics | null;
+  resolved_faculty_off_days?: ResolvedFacultyOffDay[];
 }
 
 export interface GateCPreflightSummary {
@@ -267,6 +287,7 @@ export interface EngineStats {
   objective: number;
   lab_theory_pairs: number;
   lab_theory_adjacent: number;
+  resolved_faculty_off_days?: ResolvedFacultyOffDay[];
 }
 
 export interface EngineValidation {
@@ -299,6 +320,7 @@ export interface EngineValidation {
   policy_violations?: Record<string, number>;
   policy_violation_count?: number;
   soft_metrics?: SolverSoftMetrics | null;
+  resolved_faculty_off_days?: ResolvedFacultyOffDay[];
   details?: Record<string, Array<Record<string, unknown>>>;
   source_contract?: EngineSourceContract | null;
   ok: boolean;

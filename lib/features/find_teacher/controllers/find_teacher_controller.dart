@@ -59,10 +59,17 @@ class FindTeacherController extends SafeChangeNotifier {
 
       final teacherMap = <String, String>{};
       for (final entry in _allRoutines!) {
-        final code = entry.teacherCode;
+        final codes = entry.teacherCodes;
         final name = entry.teacherName;
-        if (code != null && code.isNotEmpty) {
-          teacherMap[code] = name ?? code;
+        for (final code in codes) {
+          if (code.isNotEmpty) {
+            teacherMap.putIfAbsent(
+              code,
+              () => codes.length == 1 && name != null && name.isNotEmpty
+                  ? name
+                  : code,
+            );
+          }
         }
       }
 
@@ -91,7 +98,7 @@ class FindTeacherController extends SafeChangeNotifier {
     final now = DateTime.now();
 
     final teacherRoutines = allRoutines
-        .where((e) => e.teacherCode == code && _isDayToday(e.day))
+        .where((e) => e.matchesTeacher(code) && _isDayToday(e.day))
         .toList();
 
     teacherRoutines.sort((a, b) => a.timeStart.compareTo(b.timeStart));

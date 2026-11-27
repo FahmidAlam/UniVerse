@@ -12,6 +12,7 @@ from fastapi.responses import Response
 import auth
 import distribution
 import domain
+import job_store
 import parse_rendered
 import preflight
 import render
@@ -28,7 +29,7 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
-JOBS: dict[str, dict] = {}
+JOBS: dict[str, dict] = job_store._MEMORY_JOBS
 GENERATE_RATE_LIMITER, PARSE_RATE_LIMITER, SOLVE_CONCURRENCY_GUARD = (
     security_guards.build_default_guards()
 )
@@ -66,23 +67,41 @@ def normalize_generation_distribution(file_bytes: bytes, cfg: dict,
         courses_catalog=courses_catalog)
 
 
-def _run_job(job_id: str, file_bytes: bytes, config_override: dict | None,
-             time_limit_s: float, source_contract: dict | None = None) -> None:
-    job = JOBS[job_id]
+def _run_job(
+    job_id: str,
+    file_bytes: bytes,
+    config_override: dict | None,
+    time_limit_s: float,
+    source_contract: dict | None = None,
+    caller_token: str | None = None,
+) -> None:
     try:
-        job["state"] = "ingesting"
-        job["progress"] = 0.08
+        job_store.update_job(
+            job_id,
+            {"state": "ingesting", "progress": 0.08},
+            caller_token=caller_token,
+            force_remote=True,
+        )
         # Config first: the parser needs `weeks_in_term` to turn each
         # offering's whole-term class count into weekly sessions.
         cfg = solver.load_config(override=config_override)
         dataset = normalize_generation_distribution(
             file_bytes, cfg, source_contract=source_contract)
 
-        job["state"] = "solving"
-        job["progress"] = 0.2
+        job_store.update_job(
+            job_id,
+            {"state": "solving", "progress": 0.2},
+            caller_token=caller_token,
+            force_remote=True,
+        )
 
         def on_progress(value: float) -> None:
-            job["progress"] = round(0.2 + (float(value) * 0.75), 2)
+            job_store.update_job(
+                job_id,
+                {"progress": round(0.2 + (float(value) * 0.75), 2)},
+                caller_token=caller_token,
+                force_remote=False,
+            )
 
         result = solver.solve(
             dataset,
@@ -93,21 +112,14 @@ def _run_job(job_id: str, file_bytes: bytes, config_override: dict | None,
         )
 
         outcome = result.get("outcome", "OPTIMAL")
-        job["outcome"] = outcome
-        job["raw_status"] = result.get("raw_status", outcome)
-        job["termination_reason"] = result.get("termination_reason", "")
-        job["proven_infeasible"] = bool(result.get("proven_infeasible", False))
-        job["conflicts"] = result.get("conflicts", [])
-        job["soft_metrics"] = result.get("soft_metrics")
+        raw_status = result.get("raw_status", outcome)
+        termination_reason = result.get("termination_reason", "")
+        proven_infeasible = bool(result.get("proven_infeasible", False))
+        conflicts = result.get("conflicts", [])
+        soft_metrics = result.get("soft_metrics")
 
         if outcome not in ("OPTIMAL", "FEASIBLE"):
-            job["state"] = "failed"
-            job["structured_terminal"] = True
-            job["error"] = result.get("error") or f"Solver terminated with outcome {outcome}."
-            job["stats"] = result.get("stats") or {"status": job["raw_status"]}
-            job["validation"] = result.get("validation")
-            job["source_contract"] = dataset["source_contract"]
-            job["report"] = {
+            report_payload = {
                 "source_contract": dataset["source_contract"],
                 "cohorts": dataset["cohorts"],
                 "meta": dataset["meta"],
@@ -115,7 +127,27 @@ def _run_job(job_id: str, file_bytes: bytes, config_override: dict | None,
                 "warnings": dataset["warnings"],
                 "offerings": dataset["offerings"],
             }
-            job["progress"] = 1.0
+            job_store.update_job(
+                job_id,
+                {
+                    "state": "failed",
+                    "structured_terminal": True,
+                    "outcome": outcome,
+                    "raw_status": raw_status,
+                    "termination_reason": termination_reason,
+                    "proven_infeasible": proven_infeasible,
+                    "conflicts": conflicts,
+                    "soft_metrics": soft_metrics,
+                    "error": result.get("error") or f"Solver terminated with outcome {outcome}.",
+                    "stats": result.get("stats") or {"status": raw_status},
+                    "validation": result.get("validation"),
+                    "source_contract": dataset["source_contract"],
+                    "report": report_payload,
+                    "progress": 1.0,
+                },
+                caller_token=caller_token,
+                force_remote=True,
+            )
             return
 
         result["validation"] = {
@@ -123,21 +155,27 @@ def _run_job(job_id: str, file_bytes: bytes, config_override: dict | None,
             "source_contract": dataset["source_contract"],
         }
 
-        job["state"] = "rendering"
-        job["progress"] = 0.97
-        job["file"] = render.render_bytes(
+        job_store.update_job(
+            job_id,
+            {"state": "rendering", "progress": 0.97},
+            caller_token=caller_token,
+            force_remote=True,
+        )
+        xlsx_bytes = render.render_bytes(
             result["rows"], dataset["cohorts"], cfg,
             source_contract=dataset["source_contract"])
+        storage_path = job_store.save_workbook(
+            job_id,
+            xlsx_bytes,
+            caller_token=caller_token,
+        )
 
-        job["rows"] = result["rows"]
-        # Service / non-CSE classes are not drawn on the printed grid, but they
-        # occupy real teachers and rooms and must be published so Room
-        # Availability and Find Teacher tell the truth.
-        job["service_rows"] = result["service_rows"]
-        job["stats"] = result["stats"]
-        job["validation"] = result["validation"]
-        job["source_contract"] = dataset["source_contract"]
-        job["report"] = {
+        semester_label = (
+            (config_override or {}).get("settings", {}).get("semester_label")
+            if config_override
+            else cfg.get("semester_label")
+        )
+        report_payload = {
             "source_contract": dataset["source_contract"],
             "cohorts": dataset["cohorts"],
             "meta": dataset["meta"],
@@ -145,19 +183,50 @@ def _run_job(job_id: str, file_bytes: bytes, config_override: dict | None,
             "warnings": dataset["warnings"],
             "offerings": dataset["offerings"],
         }
-        job["semester_label"] = (config_override or {}).get(
-            "settings", {}).get("semester_label") if config_override else cfg.get("semester_label")
-        job["progress"] = 1.0
-        job["state"] = "done"
+        done_patch: dict[str, object] = {
+            "state": "done",
+            "progress": 1.0,
+            "outcome": outcome,
+            "raw_status": raw_status,
+            "termination_reason": termination_reason,
+            "proven_infeasible": proven_infeasible,
+            "conflicts": conflicts,
+            "soft_metrics": soft_metrics,
+            "rows": result["rows"],
+            # Service / non-CSE classes are not drawn on the printed grid, but they
+            # occupy real teachers and rooms and must be published so Room
+            # Availability and Find Teacher tell the truth.
+            "service_rows": result["service_rows"],
+            "stats": result["stats"],
+            "validation": result["validation"],
+            "source_contract": dataset["source_contract"],
+            "report": report_payload,
+            "semester_label": semester_label,
+        }
+        if storage_path:
+            done_patch["workbook_storage_path"] = storage_path
+        job_store.update_job(
+            job_id,
+            done_patch,
+            caller_token=caller_token,
+            force_remote=True,
+        )
     except Exception as e:  # noqa: BLE001 — surface any error to the client
-        job["state"] = "failed"
-        job["error"] = str(e)
-        job["outcome"] = "INPUT_ERROR"
-        job["raw_status"] = "INPUT_ERROR"
-        job["termination_reason"] = "unexpected_exception"
-        job["proven_infeasible"] = False
-        job["conflicts"] = []
-        job["progress"] = 1.0
+        job_store.update_job(
+            job_id,
+            {
+                "state": "failed",
+                "error": str(e),
+                "outcome": "INPUT_ERROR",
+                "raw_status": "INPUT_ERROR",
+                "termination_reason": "unexpected_exception",
+                "proven_infeasible": False,
+                "conflicts": [],
+                "progress": 1.0,
+            },
+            caller_token=caller_token,
+            force_remote=True,
+        )
     finally:
         SOLVE_CONCURRENCY_GUARD.release()
 
@@ -253,6 +322,10 @@ async def generate(
     config: str | None = Form(None),
     source_contract: str | None = Form(None),
     time_limit_s: float = Form(60.0),
+    scheduling_scope_id: str | None = Form(None),
+    revision_id: str | None = Form(None),
+    revision_version: int | None = Form(None),
+    policy_snapshot_id: str | None = Form(None),
     _caller: auth.VerifiedCaller | None = Depends(auth.require_admin_caller),
 ) -> dict:
     GENERATE_RATE_LIMITER.check(_caller_rate_key(request, _caller))
@@ -274,29 +347,83 @@ async def generate(
         if not isinstance(persisted_contract, dict):
             raise HTTPException(status_code=400, detail="source_contract must be a JSON object.")
 
+    caller_token = auth._extract_bearer_token(request.headers.get("authorization"))
+    semester_label = None
+    if isinstance(config_override, dict):
+        semester_label = (
+            (config_override.get("settings") or {}).get("semester_label")
+            if isinstance(config_override.get("settings"), dict)
+            else config_override.get("semester_label")
+        )
+    if not semester_label and isinstance(persisted_contract, dict):
+        semester_label = persisted_contract.get("semester_label")
+
     SOLVE_CONCURRENCY_GUARD.acquire_or_reject()
     job_id = uuid.uuid4().hex[:12]
-    JOBS[job_id] = {"state": "queued", "progress": 0.0}
+    job_store.create_job(
+        job_id,
+        scheduling_scope_id=scheduling_scope_id or None,
+        revision_id=revision_id or None,
+        revision_version=revision_version,
+        policy_snapshot_id=policy_snapshot_id or None,
+        semester_label=str(semester_label) if semester_label else None,
+        created_by=_caller.user_id if _caller and _caller.user_id else None,
+        caller_token=caller_token,
+    )
     try:
-        Thread(target=_run_job,
-               args=(job_id, file_bytes, config_override, time_limit_s, persisted_contract),
-               daemon=True).start()
+        Thread(
+            target=_run_job,
+            args=(job_id, file_bytes, config_override, time_limit_s, persisted_contract, caller_token),
+            daemon=True,
+        ).start()
     except Exception:
         SOLVE_CONCURRENCY_GUARD.release()
-        JOBS.pop(job_id, None)
+        job_store.delete_job(job_id)
         raise
     return {"job_id": job_id}
+
+
+@app.get("/api/timetable/jobs")
+def list_jobs(
+    request: Request,
+    revision_id: str | None = None,
+    scheduling_scope_id: str | None = None,
+    limit: int = 20,
+    _caller: auth.VerifiedCaller | None = Depends(auth.require_admin_caller),
+) -> dict:
+    caller_token = auth._extract_bearer_token(request.headers.get("authorization"))
+    return {
+        "jobs": job_store.list_jobs(
+            revision_id=revision_id,
+            scheduling_scope_id=scheduling_scope_id,
+            limit=limit,
+            caller_token=caller_token,
+        )
+    }
 
 
 @app.get("/api/timetable/status/{job_id}")
 def status(
     job_id: str,
+    request: Request,
     _caller: auth.VerifiedCaller | None = Depends(auth.require_admin_caller),
 ) -> dict:
-    job = JOBS.get(job_id)
+    caller_token = auth._extract_bearer_token(request.headers.get("authorization"))
+    job = job_store.get_job(job_id, caller_token=caller_token)
     if job is None:
         raise HTTPException(status_code=404, detail="Unknown job_id.")
-    out = {"job_id": job_id, "state": job["state"], "progress": job.get("progress", 0.0)}
+    out = {
+        "job_id": job_id,
+        "state": job["state"],
+        "progress": job.get("progress", 0.0),
+        "scheduling_scope_id": job.get("scheduling_scope_id"),
+        "revision_id": job.get("revision_id"),
+        "revision_version": job.get("revision_version"),
+        "policy_snapshot_id": job.get("policy_snapshot_id"),
+        "workbook_storage_path": job.get("workbook_storage_path"),
+        "created_at": job.get("created_at"),
+        "updated_at": job.get("updated_at"),
+    }
     if "outcome" in job:
         out["outcome"] = job.get("outcome")
         out["raw_status"] = job.get("raw_status")
@@ -320,9 +447,11 @@ def status(
 @app.get("/api/timetable/result/{job_id}")
 def result(
     job_id: str,
+    request: Request,
     _caller: auth.VerifiedCaller | None = Depends(auth.require_admin_caller),
 ) -> dict:
-    job = JOBS.get(job_id)
+    caller_token = auth._extract_bearer_token(request.headers.get("authorization"))
+    job = job_store.get_job(job_id, caller_token=caller_token)
     if job is None:
         raise HTTPException(status_code=404, detail="Unknown job_id.")
     if job["state"] != "done" and not job.get("structured_terminal"):
@@ -341,22 +470,30 @@ def result(
         "validation": job.get("validation") or {"ok": False},
         "soft_metrics": job.get("soft_metrics"),
         "source_contract": job.get("source_contract"),
+        "scheduling_scope_id": job.get("scheduling_scope_id"),
+        "revision_id": job.get("revision_id"),
+        "revision_version": job.get("revision_version"),
+        "policy_snapshot_id": job.get("policy_snapshot_id"),
+        "workbook_storage_path": job.get("workbook_storage_path"),
+        "created_at": job.get("created_at"),
+        "updated_at": job.get("updated_at"),
         "report": job.get("report") or {
             "cohorts": [], "meta": {}, "excluded": [], "warnings": [], "offerings": []
         },
-        "has_workbook": job.get("file") is not None,
+        "has_workbook": bool(job.get("file") is not None or job.get("workbook_storage_path")),
     }
 
 
 @app.get("/api/timetable/download/{job_id}")
 def download(
     job_id: str,
+    request: Request,
     _caller: auth.VerifiedCaller | None = Depends(auth.require_admin_caller),
 ):
-    job = JOBS.get(job_id)
+    caller_token = auth._extract_bearer_token(request.headers.get("authorization"))
+    data, job = job_store.get_workbook(job_id, caller_token=caller_token)
     if job is None:
         raise HTTPException(status_code=404, detail="Unknown job_id.")
-    data = job.get("file")
     if data is None:
         raise HTTPException(status_code=409, detail="No workbook for this job yet.")
     label = (job.get("semester_label") or "timetable").replace(" ", "_")

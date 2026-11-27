@@ -7,6 +7,7 @@ import {
 import {
   assessBaselineConfigForPublish,
   blockingValidationErrorFor,
+  extractRowTeacherCodes,
   findCoTeacherBlockers,
 } from "@/features/routine/services/validationGate";
 import type {
@@ -18,6 +19,7 @@ import type {
   EngineValidation,
   ParsedRenderedWorkbookResponse,
   PublishPipelineResult,
+  ResolvedFacultyOffDay,
   RetryAuditParams,
   RoutineRow,
   SolverConflictItem,
@@ -25,6 +27,10 @@ import type {
   SolverOutcomeStatus,
   SolverSoftMetrics,
 } from "@/features/routine/types";
+import {
+  isStaleRevisionError,
+  StaleRevisionError,
+} from "@/features/scheduling/services/courseDistributionService";
 import { getEngineBaseUrl } from "@/services/engineHealth";
 import { isSupabaseConfigured, supabase } from "@/services/supabase";
 
@@ -136,8 +142,53 @@ const EngineRowSchema = z
     is_service: z.boolean().default(false),
     oid: z.number().optional(),
     teachers: z.array(z.string()).optional(),
+    teacher_codes: z.array(z.string()).optional(),
     teacher_state: z.enum(["assigned", "pending"]).optional(),
     is_lab: z.boolean().optional(),
+  })
+  .passthrough();
+
+export interface DurableSolverJobSummary {
+  job_id: string;
+  state: "queued" | "ingesting" | "solving" | "rendering" | "done" | "failed" | string;
+  progress: number;
+  outcome?: string | null;
+  raw_status?: string | null;
+  termination_reason?: string | null;
+  proven_infeasible?: boolean;
+  scheduling_scope_id?: string | null;
+  revision_id?: string | null;
+  revision_version?: number | null;
+  policy_snapshot_id?: string | null;
+  semester_label?: string | null;
+  workbook_storage_path?: string | null;
+  has_workbook?: boolean;
+  error?: string | null;
+  stats?: Record<string, unknown> | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+const DurableSolverJobSummarySchema = z
+  .object({
+    job_id: z.string(),
+    state: z.string(),
+    progress: z.number().default(0),
+    outcome: z.string().nullable().optional(),
+    raw_status: z.string().nullable().optional(),
+    termination_reason: z.string().nullable().optional(),
+    proven_infeasible: z.boolean().optional(),
+    scheduling_scope_id: z.string().nullable().optional(),
+    revision_id: z.string().nullable().optional(),
+    revision_version: z.number().nullable().optional(),
+    policy_snapshot_id: z.string().nullable().optional(),
+    semester_label: z.string().nullable().optional(),
+    workbook_storage_path: z.string().nullable().optional(),
+    has_workbook: z.boolean().optional(),
+    error: z.string().nullable().optional(),
+    stats: z.record(z.string(), z.unknown()).nullable().optional(),
+    created_at: z.string().nullable().optional(),
+    updated_at: z.string().nullable().optional(),
   })
   .passthrough();
 
@@ -409,11 +460,21 @@ export async function submitGenerationJob({
   file,
   configJson,
   timeLimitS = DEFAULT_SOLVE_TIME_LIMIT_S,
+  sourceContractJson,
+  schedulingScopeId,
+  revisionId,
+  revisionVersion,
+  policySnapshotId,
   signal,
 }: {
   file: Blob | File;
   configJson: string;
   timeLimitS?: number;
+  sourceContractJson?: string;
+  schedulingScopeId?: string | null;
+  revisionId?: string | null;
+  revisionVersion?: number | null;
+  policySnapshotId?: string | null;
   signal?: AbortSignal;
 }): Promise<{ job_id: string }> {
   const baseUrl = getEngineBaseUrl();
@@ -423,6 +484,21 @@ export async function submitGenerationJob({
   form.append("file", file, filename);
   form.append("config", configJson);
   form.append("time_limit_s", String(timeLimitS));
+  if (sourceContractJson) {
+    form.append("source_contract", sourceContractJson);
+  }
+  if (schedulingScopeId) {
+    form.append("scheduling_scope_id", schedulingScopeId);
+  }
+  if (revisionId) {
+    form.append("revision_id", revisionId);
+  }
+  if (revisionVersion != null) {
+    form.append("revision_version", String(revisionVersion));
+  }
+  if (policySnapshotId) {
+    form.append("policy_snapshot_id", policySnapshotId);
+  }
 
   const authHeaders = await getEngineAuthHeaders();
   const res = await fetchWithTimeout(
@@ -653,6 +729,51 @@ function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
+export async function fetchRecentSolverJobs({
+  revisionId,
+  schedulingScopeId,
+  limit = 10,
+  signal,
+}: {
+  revisionId?: string | null;
+  schedulingScopeId?: string | null;
+  limit?: number;
+  signal?: AbortSignal;
+} = {}): Promise<DurableSolverJobSummary[]> {
+  const baseUrl = getEngineBaseUrl();
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (revisionId) params.set("revision_id", revisionId);
+  if (schedulingScopeId) params.set("scheduling_scope_id", schedulingScopeId);
+
+  const authHeaders = await getEngineAuthHeaders();
+  const res = await fetchWithTimeout(
+    `${baseUrl}/api/timetable/jobs?${params.toString()}`,
+    {
+      method: "GET",
+      headers: { Accept: "application/json", ...authHeaders },
+    },
+    signal,
+  );
+  if (!res.ok) {
+    const detail = await readErrorDetail(res);
+    throw new EngineJobError(
+      res.status === 401 || res.status === 403 ? "auth" : "http",
+      `Could not list recent solver jobs (${res.status}): ${detail}`,
+      res.status,
+    );
+  }
+  const body = (await res.json()) as { jobs?: unknown[] };
+  const rawList = Array.isArray(body?.jobs) ? body.jobs : [];
+  const jobs: DurableSolverJobSummary[] = [];
+  for (const item of rawList) {
+    const parsed = DurableSolverJobSummarySchema.safeParse(item);
+    if (parsed.success) {
+      jobs.push(parsed.data as DurableSolverJobSummary);
+    }
+  }
+  return jobs;
+}
+
 export function extractOutcomeDiagnostics(
   source: Pick<
     EngineStatusResponse | EngineResultResponse,
@@ -680,6 +801,15 @@ export function extractOutcomeDiagnostics(
   if (!rawOutcome && !source.conflicts?.length) return undefined;
 
   const outcome: SolverOutcomeStatus = rawOutcome ?? "INFEASIBLE";
+  const resolvedOffDays = (
+    source.stats?.resolved_faculty_off_days ??
+    source.validation?.resolved_faculty_off_days ??
+    (source.soft_metrics as { resolved_faculty_off_days?: unknown } | null)
+      ?.resolved_faculty_off_days ??
+    (source.validation?.soft_metrics as { resolved_faculty_off_days?: unknown } | null)
+      ?.resolved_faculty_off_days
+  ) as ResolvedFacultyOffDay[] | undefined;
+
   return {
     outcome,
     raw_status: source.raw_status ?? source.stats?.status ?? outcome,
@@ -695,6 +825,9 @@ export function extractOutcomeDiagnostics(
     soft_metrics: (source.soft_metrics ??
       source.validation?.soft_metrics ??
       null) as SolverSoftMetrics | null,
+    ...(Array.isArray(resolvedOffDays)
+      ? { resolved_faculty_off_days: resolvedOffDays }
+      : {}),
   };
 }
 
@@ -782,6 +915,7 @@ export function buildStorageWorkbookPath(semesterLabel: string | null): string {
 }
 
 export function toPublishRpcRow(row: RoutineRow): Record<string, unknown> {
+  const codes = extractRowTeacherCodes(row);
   return {
     day: row.day,
     time_start: ClockTime.toHms(row.time_start),
@@ -789,7 +923,8 @@ export function toPublishRpcRow(row: RoutineRow): Record<string, unknown> {
     subject: row.subject,
     subject_code: row.subject_code,
     teacher_name: row.teacher_name,
-    teacher_code: row.teacher_code,
+    teacher_code: row.teacher_code ?? codes[0] ?? null,
+    teacher_codes: codes,
     room: row.room,
     batch: row.batch,
     section: row.section,
@@ -835,6 +970,12 @@ export async function publishRoutinePipeline({
   isDevPreview,
   source = "engine",
   allowEmptyBaselineConfirm = false,
+  allowCoTeachers = false,
+  schedulingScopeId = null,
+  revisionId = null,
+  revisionVersion = null,
+  policySnapshotId = null,
+  requireFreshValidation = false,
   onStepChange,
 }: {
   jobId: string | null;
@@ -851,6 +992,12 @@ export async function publishRoutinePipeline({
   isDevPreview: boolean;
   source?: "engine" | "upload";
   allowEmptyBaselineConfirm?: boolean;
+  allowCoTeachers?: boolean;
+  schedulingScopeId?: string | null;
+  revisionId?: string | null;
+  revisionVersion?: number | null;
+  policySnapshotId?: string | null;
+  requireFreshValidation?: boolean;
   onStepChange?: (step: "uploading" | "publishing" | "recording") => void;
 }): Promise<PublishPipelineResult> {
   if (isPrivatePreview) {
@@ -874,6 +1021,7 @@ export async function publishRoutinePipeline({
   const coTeacherBlockers = findCoTeacherBlockers(
     result.rows,
     result.service_rows,
+    { coTeacherStorageLive: allowCoTeachers },
   );
   if (coTeacherBlockers.length > 0) {
     throw new Error(
@@ -896,6 +1044,9 @@ export async function publishRoutinePipeline({
   }
 
   const filePath = buildStorageWorkbookPath(semesterLabel);
+  const uploadedWorkbook = Boolean(
+    !isDevPreview && isSupabaseConfigured && supabase && resolvedBlob,
+  );
   if (!isDevPreview && isSupabaseConfigured && supabase && resolvedBlob) {
     const { error: uploadError } = await supabase.storage
       .from("timetables")
@@ -922,6 +1073,7 @@ export async function publishRoutinePipeline({
       id: r.id || `pub-${idx}`,
       time_start: ClockTime.toHms(r.time_start),
       time_end: ClockTime.toHms(r.time_end),
+      teacher_codes: extractRowTeacherCodes(r),
       routine_version_id: versionId,
     }));
     replaceDevPreviewRoutines(normalizedRows, {
@@ -938,16 +1090,43 @@ export async function publishRoutinePipeline({
       created_at: new Date().toISOString(),
     });
   } else {
-    const { data, error: rpcError } = await supabase.rpc("publish_routine", {
+    const hasGateDMetadata = Boolean(
+      schedulingScopeId ||
+        revisionId ||
+        revisionVersion != null ||
+        policySnapshotId ||
+        requireFreshValidation ||
+        allowCoTeachers,
+    );
+    const rpcPayload: Record<string, unknown> = {
       p_rows: rpcRows,
       p_semester_label: semesterLabel,
       p_source: source,
       p_stats: result.stats,
       p_validation: result.validation,
       p_notes: notes?.trim() || null,
-    });
+    };
+    if (hasGateDMetadata) {
+      rpcPayload.p_scheduling_scope_id = schedulingScopeId ?? null;
+      rpcPayload.p_revision_id = revisionId ?? null;
+      rpcPayload.p_revision_version = revisionVersion ?? null;
+      rpcPayload.p_policy_snapshot_id = policySnapshotId ?? null;
+      rpcPayload.p_storage_path = uploadedWorkbook ? filePath : null;
+      rpcPayload.p_require_fresh_validation = Boolean(requireFreshValidation);
+    }
+
+    const { data, error: rpcError } = await supabase.rpc(
+      "publish_routine",
+      rpcPayload,
+    );
 
     if (rpcError) {
+      if (isStaleRevisionError(rpcError)) {
+        throw new StaleRevisionError(
+          `Revision changed concurrently during publish: ${rpcError.message}`,
+          revisionVersion ?? 0,
+        );
+      }
       throw new Error(`publish_routine RPC failed: ${rpcError.message}`);
     }
 
