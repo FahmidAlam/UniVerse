@@ -366,6 +366,89 @@ export function resolveLiveCapabilityDescriptor(
   return cap;
 }
 
+export function resolveLiveSubfeatureCapabilities(
+  gates?: SchedulingGateState | null,
+): SecondaryFeatureCapability[] {
+  if (!gates) return [...SUBFEATURE_CAPABILITIES];
+
+  const allGatesLive = Boolean(
+    gates.gateA.unlocked &&
+      gates.gateB.unlocked &&
+      gates.gateC.unlocked &&
+      gates.gateD.unlocked,
+  );
+  const gatesABCLive = Boolean(
+    gates.gateA.unlocked && gates.gateB.unlocked && gates.gateC.unlocked,
+  );
+  const gatesABLive = Boolean(gates.gateA.unlocked && gates.gateB.unlocked);
+
+  return SUBFEATURE_CAPABILITIES.map((item) => {
+    if (item.id === "track2.course-distribution") {
+      if (allGatesLive) {
+        return {
+          ...item,
+          status: "live-persisted",
+          badgeLabel: "Gates A–D Live",
+          summary:
+            "Immutable revisions, audited overlays, R1–R16 policy snapshots, and durable CP-SAT solves active.",
+        };
+      }
+      if (gatesABCLive) {
+        return {
+          ...item,
+          status: "fail-closed-gate",
+          badgeLabel: "Gates A–C Live · D Locked",
+        };
+      }
+      if (gatesABLive) {
+        return {
+          ...item,
+          status: "fail-closed-gate",
+          badgeLabel: "Gates A–B Live · C–D Locked",
+        };
+      }
+      if (gates.gateA.unlocked) {
+        return {
+          ...item,
+          status: "fail-closed-gate",
+          badgeLabel: "Gate A Live · B–D Locked",
+        };
+      }
+      return item;
+    }
+
+    if (
+      item.id === "catalog.courses-batches" &&
+      gates.catalogs?.coursesLive &&
+      gates.catalogs?.batchesLive
+    ) {
+      return {
+        ...item,
+        status: "live-persisted",
+        badgeLabel: "Stage 5A Live",
+        summary:
+          "Persisted in public.catalog_courses and public.section_policies with Stage 5A RLS.",
+      };
+    }
+
+    if (
+      item.id === "solver.co-teacher-guard" &&
+      gates.catalogs?.coTeacherStorageLive
+    ) {
+      return {
+        ...item,
+        label: "Co-Teacher Array & Push Storage",
+        status: "live-persisted",
+        badgeLabel: "Stage 5C Live",
+        summary:
+          "Ordered co-teachers persisted via routines.teacher_codes text[] with joint-section fan-out.",
+      };
+    }
+
+    return item;
+  });
+}
+
 export function formatCapabilityStatusLabel(status: CapabilityStatus): string {
   switch (status) {
     case "live-persisted":

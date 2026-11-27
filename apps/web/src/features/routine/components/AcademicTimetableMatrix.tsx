@@ -774,7 +774,11 @@ export function AcademicTimetableMatrix({
   const renderSlotButton = (
     row: RoutineRow,
     isConflictCell: boolean,
+    slotIdx = 0,
   ) => {
+    const slotKey =
+      row.id ??
+      `${row.day}-${ClockTime.toHm(row.time_start)}-${row.batch}-${row.section}-${row.subject_code}-${slotIdx}`;
     const overrideNote = getSlotOverrideTooltip(
       row,
       effectiveCoTeacherStorageLive,
@@ -807,9 +811,9 @@ export function AcademicTimetableMatrix({
 
     const btn = (
       <button
-        key={row.id}
+        key={slotKey}
         type="button"
-        data-testid={`matrix-slot-${row.id}`}
+        data-testid={`matrix-slot-${slotKey}`}
         onClick={() => setInspector({ kind: "view", row })}
         onMouseEnter={() =>
           primaryTeacher !== "TBA" ? setHoveredTeacherCode(primaryTeacher) : null
@@ -852,7 +856,7 @@ export function AcademicTimetableMatrix({
     if (!overrideNote) return btn;
 
     return (
-      <Tooltip key={row.id}>
+      <Tooltip key={slotKey}>
         <TooltipTrigger asChild>{btn}</TooltipTrigger>
         <TooltipContent>{overrideNote}</TooltipContent>
       </Tooltip>
@@ -911,7 +915,9 @@ export function AcademicTimetableMatrix({
                 </div>
               ) : slots.length > 0 ? (
                 <div className="flex flex-col gap-1">
-                  {slots.map((s) => renderSlotButton(s, slots.length > 1))}
+                  {slots.map((s, slotIdx) =>
+                    renderSlotButton(s, slots.length > 1, slotIdx),
+                  )}
                 </div>
               ) : isBlocked ? (
                 <div className="flex min-h-[48px] items-center justify-center rounded-[4px] border border-dashed border-[var(--sem-conflict-border)] bg-[var(--sem-conflict-bg)]/45 px-2 text-[10.5px] font-medium text-[var(--sem-conflict-ink)]">
@@ -1653,7 +1659,10 @@ export function AcademicTimetableMatrix({
               data-testid="routine-compact-list"
               className="ledger-card divide-y divide-[var(--border-subtle)] overflow-hidden"
             >
-              {filteredRows.map((row) => {
+              {filteredRows.map((row, rowIdx) => {
+                const compactKey =
+                  row.id ??
+                  `${row.day}-${ClockTime.toHm(row.time_start)}-${row.batch}-${row.section}-${row.subject_code}-${rowIdx}`;
                 const isSharedFaculty = requiresSharedTeacherStorage(row);
                 const roomTone = row.section.includes("+")
                   ? "joint"
@@ -1668,7 +1677,7 @@ export function AcademicTimetableMatrix({
 
                 return (
                   <button
-                    key={row.id}
+                    key={compactKey}
                     type="button"
                     onClick={() => setInspector({ kind: "view", row })}
                     className="flex w-full flex-col gap-1.5 px-4 py-3 text-left transition-colors hover:bg-[var(--surface-hover)] sm:grid sm:grid-cols-[110px_118px_minmax(0,1fr)_auto] sm:items-center sm:gap-3"

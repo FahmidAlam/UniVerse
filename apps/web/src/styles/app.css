@@ -257,6 +257,20 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+
+  .animate-pulse,
+  .animate-bounce,
+  .animate-ping {
+    animation: none !important;
+  }
+}
+
 /* Crisp single-frame theme switch without staggered surface lag */
 .theme-switching *,
 .theme-switching *::before,

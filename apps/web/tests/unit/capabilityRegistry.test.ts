@@ -6,6 +6,7 @@ import {
   getCapabilitiesByGroup,
   getCapabilityById,
   getCapabilityByPath,
+  resolveLiveSubfeatureCapabilities,
 } from "@/core/capabilities";
 
 describe("Centralized CapabilityRegistry contract", () => {
@@ -55,5 +56,27 @@ describe("Centralized CapabilityRegistry contract", () => {
     expect(getCapabilitiesByGroup("configuration")).toHaveLength(6);
     expect(getCapabilitiesByGroup("directory")).toHaveLength(4);
     expect(formatCapabilityStatusLabel("fail-closed-gate")).toContain("Gates A–D");
+  });
+
+  it("dynamically upgrades subfeatures to live Stage 5A/5C badges when gates are unlocked", () => {
+    const resolved = resolveLiveSubfeatureCapabilities({
+      mode: "live",
+      readOnlyDemo: false,
+      gateA: { unlocked: true, reason: "Ready" },
+      gateB: { unlocked: true, reason: "Ready" },
+      gateC: { unlocked: true, reason: "Ready" },
+      gateD: { unlocked: true, reason: "Ready" },
+      catalogs: {
+        coursesLive: true,
+        batchesLive: true,
+        facultyExtendedLive: true,
+        roomsExtendedLive: true,
+        coTeacherStorageLive: true,
+      },
+    });
+    expect(resolved.every((c) => c.status === "live-persisted")).toBe(true);
+    expect(resolved.map((c) => c.badgeLabel)).toContain("Gates A–D Live");
+    expect(resolved.map((c) => c.badgeLabel)).toContain("Stage 5A Live");
+    expect(resolved.map((c) => c.badgeLabel)).toContain("Stage 5C Live");
   });
 });

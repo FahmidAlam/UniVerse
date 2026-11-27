@@ -4,6 +4,7 @@ import {
   CheckCircle,
   Info,
   LockSimple,
+  ShieldCheck,
   WarningCircle,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -23,13 +24,15 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/Badge";
 import {
   formatCapabilityStatusLabel,
-  SUBFEATURE_CAPABILITIES,
+  resolveLiveSubfeatureCapabilities,
 } from "@/core/capabilities";
 import {
   fetchAdminDashboardCounts,
   type AdminDashboardCounts,
 } from "@/features/admin/services/adminDashboardService";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { probeLiveSchedulingCapabilities } from "@/features/scheduling/services/schedulingCapabilities";
+import type { SchedulingGateState } from "@/features/scheduling/types";
 import { cn } from "@/lib/utils";
 
 type ReadinessFilter = "all" | "needs-setup" | "ready";
@@ -153,6 +156,7 @@ function RoomBreakdownTooltip({
 
 export interface AdminDashboardViewProps {
   data?: AdminDashboardCounts;
+  liveGates?: SchedulingGateState | null;
   isLoading: boolean;
   isFetching: boolean;
   isError: boolean;
@@ -162,6 +166,7 @@ export interface AdminDashboardViewProps {
 
 export function AdminDashboardView({
   data,
+  liveGates,
   isLoading,
   isFetching,
   isError,
@@ -898,46 +903,72 @@ export function AdminDashboardView({
           </div>
         </div>
 
-        <div className="ledger-card overflow-hidden">
-          <div className="flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] px-4 py-3">
-            <span className="text-[13.5px] font-semibold text-[var(--ink-primary)]">
-              Track 2 &amp; Feature Governance
-            </span>
-            <Badge tone="joint" mono>
-              <LockSimple size={12} aria-hidden="true" />
-              <span>Gates A–D</span>
-            </Badge>
-          </div>
-          <div className="divide-y divide-[var(--border-subtle)] text-[12.5px]">
-            {SUBFEATURE_CAPABILITIES.map((cap) => (
-              <div
-                key={cap.id}
-                className="flex items-center justify-between gap-3 px-4 py-2.5"
-              >
-                <div className="min-w-0">
-                  <div className="font-medium text-[var(--ink-primary)]">
-                    {cap.label}
-                  </div>
-                  <div className="truncate text-[11.5px] text-[var(--ink-muted)]">
-                    {cap.summary}
-                  </div>
-                </div>
-                <Badge
-                  tone={
-                    cap.status === "fail-closed-gate"
-                      ? "joint"
-                      : cap.status === "staged-no-db"
-                        ? "neutral"
-                        : "lab"
-                  }
-                  mono
-                >
-                  {cap.badgeLabel ?? formatCapabilityStatusLabel(cap.status)}
+        {(() => {
+          const resolvedSubfeatures =
+            resolveLiveSubfeatureCapabilities(liveGates);
+          const allGatesLive = Boolean(
+            liveGates?.gateA.unlocked &&
+              liveGates?.gateB.unlocked &&
+              liveGates?.gateC.unlocked &&
+              liveGates?.gateD.unlocked,
+          );
+          const gatesABCLive = Boolean(
+            liveGates?.gateA.unlocked &&
+              liveGates?.gateB.unlocked &&
+              liveGates?.gateC.unlocked,
+          );
+          const headerLabel = allGatesLive
+            ? "Gates A–D Live"
+            : gatesABCLive
+              ? "Gates A–C Live"
+              : "Gates A–D";
+          return (
+            <div className="ledger-card overflow-hidden">
+              <div className="flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] px-4 py-3">
+                <span className="text-[13.5px] font-semibold text-[var(--ink-primary)]">
+                  Track 2 &amp; Feature Governance
+                </span>
+                <Badge tone={allGatesLive ? "lab" : "joint"} mono>
+                  {allGatesLive ? (
+                    <ShieldCheck size={12} aria-hidden="true" />
+                  ) : (
+                    <LockSimple size={12} aria-hidden="true" />
+                  )}
+                  <span>{headerLabel}</span>
                 </Badge>
               </div>
-            ))}
-          </div>
-        </div>
+              <div className="divide-y divide-[var(--border-subtle)] text-[12.5px]">
+                {resolvedSubfeatures.map((cap) => (
+                  <div
+                    key={cap.id}
+                    className="flex items-center justify-between gap-3 px-4 py-2.5"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-medium text-[var(--ink-primary)]">
+                        {cap.label}
+                      </div>
+                      <div className="truncate text-[11.5px] text-[var(--ink-muted)]">
+                        {cap.summary}
+                      </div>
+                    </div>
+                    <Badge
+                      tone={
+                        cap.status === "fail-closed-gate"
+                          ? "joint"
+                          : cap.status === "staged-no-db"
+                            ? "neutral"
+                            : "lab"
+                      }
+                      mono
+                    >
+                      {cap.badgeLabel ?? formatCapabilityStatusLabel(cap.status)}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
       </section>
     </div>
   );
@@ -949,6 +980,13 @@ export function AdminDashboardPage() {
   const { data, isLoading, isFetching, isError, error, refetch } = useQuery({
     queryKey: ["admin-dashboard-counts", isDevPreview],
     queryFn: () => fetchAdminDashboardCounts(isDevPreview),
+    retry: false,
+  });
+
+  const liveGatesQuery = useQuery({
+    queryKey: ["scheduling-live-gates", isDevPreview],
+    queryFn: () => probeLiveSchedulingCapabilities(isDevPreview),
+    staleTime: 60_000,
     retry: false,
   });
 
@@ -968,6 +1006,7 @@ export function AdminDashboardPage() {
   return (
     <AdminDashboardView
       data={data}
+      liveGates={liveGatesQuery.data}
       isLoading={isLoading}
       isFetching={isFetching}
       isError={isError}

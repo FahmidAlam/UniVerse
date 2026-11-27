@@ -1,5 +1,5 @@
 import { StrictMode } from "react";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Navigate, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetInFlightPkceExchangeForTest } from "@/features/auth/oauthCallbackHelpers";
@@ -335,5 +335,33 @@ describe("Google OAuth PKCE flow, StrictMode deduplication & error surfacing", (
     });
     expect(mockState.adoptInviteSession).toHaveBeenCalledTimes(1);
     expect(window.location.hash).toBe("");
+  });
+
+  it("preserves email and password inputs when validation errors trigger form shake", async () => {
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={["/login"]}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/forgot-password" element={<div>forgot</div>} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+
+    const emailInput = screen.getByLabelText(/Email/i) as HTMLInputElement;
+    const passwordInput = screen.getByLabelText(/^Password$/i) as HTMLInputElement;
+
+    fireEvent.change(emailInput, { target: { value: "committee@lus.ac.bd" } });
+    fireEvent.change(passwordInput, { target: { value: "12" } });
+    fireEvent.submit(emailInput.closest("form")!);
+
+    await waitFor(() => {
+      expect(screen.getByText(/at least 6 characters/i)).toBeTruthy();
+    });
+    expect((screen.getByLabelText(/Email/i) as HTMLInputElement).value).toBe(
+      "committee@lus.ac.bd",
+    );
+    expect((screen.getByLabelText(/^Password$/i) as HTMLInputElement).value).toBe("12");
   });
 });

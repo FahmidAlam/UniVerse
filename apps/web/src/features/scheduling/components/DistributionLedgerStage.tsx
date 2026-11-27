@@ -1068,17 +1068,17 @@ export function DistributionLedgerStage({
           </div>
 
           {!isPreview && revisionsList.length > 0 && (
-            <div className="flex items-center gap-2">
+            <div className="flex max-w-full flex-wrap items-center gap-2">
               <GitBranch
                 size={14}
-                className="text-[var(--ink-muted)]"
+                className="shrink-0 text-[var(--ink-muted)]"
                 aria-hidden="true"
               />
               <select
                 aria-label="Select distribution revision"
                 value={selectedRevisionId ?? ""}
                 onChange={(e) => onSelectRevision(e.target.value)}
-                className="font-mono-tabular h-[34px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-2.5 text-[12px] text-[var(--ink-primary)]"
+                className="font-mono-tabular h-[34px] min-w-0 max-w-full flex-1 rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-2.5 text-[12px] text-[var(--ink-primary)] sm:flex-initial"
               >
                 {revisionsList.map((rev) => (
                   <option key={rev.revisionId} value={rev.revisionId}>
