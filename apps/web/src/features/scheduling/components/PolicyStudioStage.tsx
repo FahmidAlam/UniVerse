@@ -132,6 +132,12 @@ function countLiveOverrides(draft: SavePolicySnapshotInput): number {
     count += 1;
   }
   if (
+    draft.policyPayload.auto_resolve_undeclared_off_days !==
+    base.policyPayload.auto_resolve_undeclared_off_days
+  ) {
+    count += 1;
+  }
+  if (
     draft.policyPayload.faculty_preference_weight !==
     base.policyPayload.faculty_preference_weight
   ) {
@@ -550,6 +556,53 @@ export function PolicyStudioStage({
             <p className="text-[12px] text-[var(--ink-secondary)]">
               D5 requires explicit admin authorization for 2-credit sessionals to span the midday break (defaults to disabled).
             </p>
+          </div>
+
+          <div
+            className={cn(
+              "flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-control)] border p-3.5 transition-colors",
+              draft.policyPayload.auto_resolve_undeclared_off_days
+                ? "border-[var(--sem-lab-border)] bg-[var(--sem-lab-bg)]/35"
+                : "border-[var(--sem-joint-border)] bg-[var(--sem-joint-bg)]/35",
+            )}
+          >
+            <div>
+              <div className="flex items-center gap-2">
+                <Badge
+                  tone={
+                    draft.policyPayload.auto_resolve_undeclared_off_days
+                      ? "lab"
+                      : "joint"
+                  }
+                  mono
+                >
+                  Hybrid R7 / R6
+                </Badge>
+                <span className="text-[13px] font-semibold text-[var(--ink-primary)]">
+                  Auto-Resolve Undeclared Faculty Off-Days (Hybrid R7/R6)
+                </span>
+              </div>
+              <p className="mt-0.5 text-[12px] text-[var(--ink-secondary)]">
+                {draft.policyPayload.auto_resolve_undeclared_off_days
+                  ? "Hybrid Default (ON): Permanent faculty with 0 or 1 declared off-days have remaining off-day(s) resolved by CP-SAT to 2; explicit declarations & unauthorized 3-day limits stay enforced."
+                  : "Strict Explicit Mode (OFF): Every assigned permanent faculty must pre-declare 2 (or authorized 3) off-days before solving."}
+              </p>
+            </div>
+            <Switch
+              id="live-auto-resolve-off-days"
+              data-testid="auto-resolve-off-days-switch"
+              checked={draft.policyPayload.auto_resolve_undeclared_off_days}
+              onCheckedChange={(checked) => {
+                setDraft((p) => ({
+                  ...p,
+                  policyPayload: {
+                    ...p.policyPayload,
+                    auto_resolve_undeclared_off_days: checked,
+                  },
+                }));
+                setIsDirty(true);
+              }}
+            />
           </div>
 
           <div

@@ -50,6 +50,7 @@ import {
   fetchFaculty,
   INSTITUTIONAL_DEPARTMENTS,
   isFacultyExtendedSchemaLive,
+  isR7OffDayHardConflict,
   isR7OffDayOutsideBounds,
   updateFaculty,
   type FacultyEmploymentType,
@@ -414,7 +415,9 @@ export function ManageFacultyPage() {
       header: "Weekly Off-Days (R7)",
       accessor: (f) => f.off_days.length,
       cell: (f) => {
-        const outsideR7 = isR7OffDayOutsideBounds(f.off_days);
+        const evalPolicy = evaluateR7FacultyPolicy(f);
+        const hardConflict = isR7OffDayHardConflict(f);
+        const hybridAuto = Boolean(evalPolicy.hybridAutoResolve);
         const offSet = new Set(f.off_days);
         return (
           <div className="flex flex-wrap items-center gap-2">
@@ -424,11 +427,11 @@ export function ManageFacultyPage() {
               aria-label={
                 f.off_days.length > 0
                   ? `Off-days: ${f.off_days.join(", ")}`
-                  : "No declared off-days"
+                  : "No declared off-days (Hybrid R7)"
               }
               className={cn(
                 "inline-flex items-center gap-0.5 rounded-[5px] p-0.5",
-                outsideR7
+                hardConflict
                   ? "border border-[var(--sem-conflict-border)] bg-[var(--sem-conflict-bg)]/40"
                   : "border border-[var(--border-subtle)] bg-[var(--bg-surface)]",
               )}
@@ -442,7 +445,7 @@ export function ManageFacultyPage() {
                     className={cn(
                       "font-mono-tabular inline-flex h-[18px] w-[18px] items-center justify-center rounded-[3px] border text-[10px] font-semibold",
                       isOff
-                        ? outsideR7
+                        ? hardConflict
                           ? "border-[var(--sem-conflict-bar)]/45 bg-[var(--sem-conflict-bg)] text-[var(--sem-conflict-ink)]"
                           : "border-[var(--accent-brand)]/35 bg-[var(--accent-brand-soft)] text-[var(--accent-brand)]"
                         : "border-transparent bg-[var(--bg-surface)] text-[var(--ink-muted)]",
@@ -453,11 +456,18 @@ export function ManageFacultyPage() {
                 );
               })}
             </div>
-            {outsideR7 && (
+            {hardConflict ? (
               <span className="font-mono-tabular text-[11px] font-medium text-[var(--sem-conflict-ink)]">
                 R7 ({f.off_days.length})
               </span>
-            )}
+            ) : hybridAuto ? (
+              <span
+                title={evalPolicy.message}
+                className="font-mono-tabular rounded border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1.5 py-0.5 text-[10.5px] font-medium text-[var(--ink-secondary)]"
+              >
+                Hybrid ({f.off_days.length}/2)
+              </span>
+            ) : null}
           </div>
         );
       },
@@ -885,24 +895,47 @@ export function ManageFacultyPage() {
                 })}
               </div>
 
-              {isR7OffDayOutsideBounds(watchedOffDays) && (
-                <div
-                  role="status"
-                  data-testid="r7-offday-advisory"
-                  className="flex items-start gap-2 rounded-[var(--r-control)] border border-[var(--sem-joint-border)] bg-[var(--sem-joint-bg)] px-3 py-2 text-[12px] text-[var(--sem-joint-ink)]"
-                >
-                  <WarningCircle
-                    size={15}
-                    className="mt-0.5 shrink-0"
-                    aria-hidden="true"
-                  />
-                  <span>
-                    Rule R7 expects 2–3 off-days per 7-day week for permanent
-                    faculty ({watchedOffDays.length} currently chosen). Save if
-                    intentional for adjunct or special terms.
-                  </span>
-                </div>
-              )}
+              {watchedEmploymentType === "permanent" &&
+                isR7OffDayOutsideBounds(watchedOffDays) && (() => {
+                  const isHard = isR7OffDayHardConflict({
+                    employment_type: watchedEmploymentType,
+                    off_days: watchedOffDays,
+                    allow_three_off_days: watchedAllowThreeOffDays,
+                  });
+                  return isHard ? (
+                    <div
+                      role="status"
+                      data-testid="r7-offday-advisory"
+                      className="flex items-start gap-2 rounded-[var(--r-control)] border border-[var(--sem-conflict-border)] bg-[var(--sem-conflict-bg)] px-3 py-2 text-[12px] text-[var(--sem-conflict-ink)]"
+                    >
+                      <WarningCircle
+                        size={15}
+                        className="mt-0.5 shrink-0"
+                        aria-hidden="true"
+                      />
+                      <span>
+                        {watchedOffDays.length === 3
+                          ? "3 off-days selected without D3 authorization. Enable \"Authorize 3 Weekly Off-Days\" below or choose 2 days."
+                          : `Permanent faculty cannot exceed 3 off-days (${watchedOffDays.length} selected).`}
+                      </span>
+                    </div>
+                  ) : (
+                    <div
+                      role="status"
+                      data-testid="r7-offday-advisory"
+                      className="flex items-start gap-2 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2 text-[12px] text-[var(--ink-secondary)]"
+                    >
+                      <Info
+                        size={15}
+                        className="mt-0.5 shrink-0 text-[var(--accent-brand)]"
+                        aria-hidden="true"
+                      />
+                      <span>
+                        Hybrid: Solver will assign remaining off-day(s) ({watchedOffDays.length} of 2 declared).
+                      </span>
+                    </div>
+                  );
+                })()}
             </div>
 
             {/* Courses Array Tag Editor */}

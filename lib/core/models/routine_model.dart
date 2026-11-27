@@ -88,7 +88,11 @@ class RoutineEntry {
       }.toList(growable: false);
   bool get requiresSharedTeacherStorage =>
       teacherCodes.any((c) => c != teacherCode);
-  bool matchesTeacher(String code) => teacherCodes.contains(code);
+  bool matchesTeacher(String code) {
+    final needle = code.trim().toUpperCase();
+    if (needle.isEmpty) return false;
+    return teacherCodes.any((c) => c.trim().toUpperCase() == needle);
+  }
   bool matchesStudent(String requestedBatch, String requestedSection) =>
       batch == requestedBatch &&
       (section == requestedSection ||
@@ -110,10 +114,14 @@ class RoutineEntry {
       subjectCode: (map['subject_code'] as String?) ?? '',
       teacherName: map['teacher_name'] as String?,
       teacherCode: map['teacher_code'] as String?,
-      coTeacherCodes:
-          ((map['teachers'] ?? map['teacher_codes']) as List? ?? const [])
-              .map((c) => c.toString())
-              .toList(growable: false),
+      coTeacherCodes: {
+        ...((map['teacher_codes'] as List?) ?? const [])
+            .map((c) => c.toString().trim())
+            .where((c) => c.isNotEmpty),
+        ...((map['teachers'] as List?) ?? const [])
+            .map((c) => c.toString().trim())
+            .where((c) => c.isNotEmpty),
+      }.toList(growable: false),
       room: (map['room'] as String?) ?? '',
       batch: (map['batch'] as String?) ?? '',
       section: (map['section'] as String?) ?? '',

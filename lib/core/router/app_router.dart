@@ -1,28 +1,11 @@
-import 'package:universe/core/theme/app_motion.dart';
-import 'package:universe/features/auth/screens/auth_error_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:go_router/go_router.dart';
-import 'package:universe/core/models/routine_model.dart';
 import 'package:universe/core/router/app_shell.dart';
 import 'package:universe/core/router/route_names.dart';
-import 'package:universe/features/admin/screens/admin_dashboard_screen.dart';
-import 'package:universe/features/admin/screens/admin_registration_screen.dart';
-import 'package:universe/features/admin/screens/admin_routine_screen.dart';
-import 'package:universe/features/admin/screens/broadcast_history_screen.dart';
-import 'package:universe/features/admin/screens/campus_broadcast_screen.dart';
-import 'package:universe/features/admin/screens/manage_course_eligibility_screen.dart';
-import 'package:universe/features/admin/screens/manage_courses_screen.dart';
-import 'package:universe/features/admin/screens/manage_batches_screen.dart';
-import 'package:universe/features/admin/screens/manage_faculty_screen.dart';
-import 'package:universe/features/admin/screens/manage_resources_screen.dart';
-import 'package:universe/features/admin/screens/manage_rooms_screen.dart';
-import 'package:universe/features/admin/screens/manage_users_screen.dart';
-import 'package:universe/features/admin/screens/resource_library_screen.dart';
-import 'package:universe/features/admin/screens/scheduling_workspace_screen.dart';
-import 'package:universe/features/admin/screens/timetable_grid_screen.dart';
-import 'package:universe/features/admin/screens/timetable_settings_screen.dart';
+import 'package:universe/core/theme/app_motion.dart';
 import 'package:universe/features/auth/controllers/auth_controller.dart';
+import 'package:universe/features/auth/screens/admin_web_notice_screen.dart';
+import 'package:universe/features/auth/screens/auth_error_screen.dart';
 import 'package:universe/features/auth/screens/email_login_screen.dart';
 import 'package:universe/features/auth/screens/email_signup_screen.dart';
 import 'package:universe/features/auth/screens/faculty_register_screen.dart';
@@ -47,10 +30,6 @@ import 'package:universe/features/rooms/screens/rooms_screen.dart';
 import 'package:universe/features/routine/screens/routine_screen.dart';
 import 'package:universe/features/teacher/screens/manage_classes_screen.dart';
 import 'package:universe/features/teacher/screens/teacher_dashboard_screen.dart';
-
-// PHASE 1 RECONCILE: Preview disclosure never substitutes for release authorization.
-const bool kEnableUnauthenticatedSchedulingPreview =
-    kDebugMode || bool.fromEnvironment('ENABLE_SCHEDULING_PREVIEW_ROUTE');
 
 class AppRouter {
   final AuthController authController;
@@ -124,22 +103,8 @@ class AppRouter {
         builder: (c, s) => NotWhitelistedScreen(authController: authController),
       ),
       _motionRoute(
-        path: RouteNames.schedulingWorkspacePreview,
-        builder: (c, s) {
-          final tabParam = s.uri.queryParameters['tab'];
-          final rowParam = s.uri.queryParameters['row'];
-          final initialRow = rowParam != null ? int.tryParse(rowParam) : null;
-          int tabIndex = 0;
-          if (tabParam == 'configuration') tabIndex = 1;
-          if (tabParam == 'readiness') tabIndex = 2;
-          if (tabParam == 'generate') tabIndex = 3;
-          if (tabParam == 'review') tabIndex = 4;
-          return SchedulingWorkspaceScreen(
-            initialPreviewMode: true,
-            initialTabIndex: tabIndex,
-            initialSelectedRow: initialRow,
-          );
-        },
+        path: RouteNames.adminDashboard,
+        builder: (c, s) => AdminWebNoticeScreen(authController: authController),
       ),
       ShellRoute(
         builder: (c, s, child) => AppShell(
@@ -191,80 +156,6 @@ class AppRouter {
             path: RouteNames.manageClasses,
             builder: (c, s) =>
                 ManageClassesScreen(authController: authController),
-          ),
-          _motionRoute(
-            path: RouteNames.adminDashboard,
-            builder: (c, s) =>
-                AdminDashboardScreen(authController: authController),
-          ),
-          _motionRoute(
-            path: RouteNames.routineManagement,
-            builder: (c, s) => const AdminRoutineScreen(),
-          ),
-          _motionRoute(
-            path: RouteNames.schedulingWorkspace,
-            builder: (c, s) => const SchedulingWorkspaceScreen(),
-          ),
-          _motionRoute(
-            path: RouteNames.campusBroadcast,
-            builder: (c, s) =>
-                CampusBroadcastScreen(authController: authController),
-          ),
-          _motionRoute(
-            path: RouteNames.manageUsers,
-            builder: (c, s) => const ManageUsersScreen(),
-          ),
-          _motionRoute(
-            path: RouteNames.manageCourses,
-            builder: (c, s) => const ManageCoursesScreen(),
-          ),
-          _motionRoute(
-            path: RouteNames.manageBatches,
-            builder: (c, s) => const ManageBatchesScreen(),
-          ),
-          _motionRoute(
-            path: RouteNames.manageRooms,
-            builder: (c, s) => const ManageRoomsScreen(),
-          ),
-          _motionRoute(
-            path: RouteNames.manageFaculty,
-            builder: (c, s) => const ManageFacultyScreen(),
-          ),
-          _motionRoute(
-            path: RouteNames.manageCourseEligibility,
-            builder: (c, s) => const ManageCourseEligibilityScreen(),
-          ),
-          _motionRoute(
-            path: RouteNames.timetableSettings,
-            builder: (c, s) => const TimetableSettingsScreen(),
-          ),
-          _motionRoute(
-            path: RouteNames.timetableGrid,
-            builder: (c, s) => TimetableGridScreen(
-              rows: s.extra is TimetablePreview
-                  ? (s.extra as TimetablePreview).rows
-                  : (s.extra as List<RoutineEntry>?),
-              roomAliases: s.extra is TimetablePreview
-                  ? (s.extra as TimetablePreview).roomAliases
-                  : const {},
-            ),
-          ),
-          _motionRoute(
-            path: RouteNames.manageResources,
-            builder: (c, s) => const ManageResourcesScreen(),
-          ),
-          _motionRoute(
-            path: RouteNames.resourceLibrary,
-            builder: (c, s) => const ResourceLibraryScreen(),
-          ),
-          _motionRoute(
-            path: RouteNames.broadcastHistory,
-            builder: (c, s) =>
-                BroadcastHistoryScreen(authController: authController),
-          ),
-          _motionRoute(
-            path: RouteNames.adminRegistration,
-            builder: (c, s) => const AdminRegistrationScreen(),
           ),
         ],
       ),
@@ -334,13 +225,6 @@ class AppRouter {
       RouteNames.verifyEmail,
     ];
 
-    // PHASE 1 RECONCILE: Debug/explicit-preview builds may disclose the simulated workbench.
-    final previewBypass = enableUnauthenticatedSchedulingPreview ??
-        kEnableUnauthenticatedSchedulingPreview;
-    if (location == RouteNames.schedulingWorkspacePreview && previewBypass) {
-      return null;
-    }
-
     if (status == AuthStatus.passwordRecovery) {
       return location == RouteNames.resetPassword
           ? null
@@ -385,10 +269,8 @@ class AppRouter {
     }
 
     if (status == AuthStatus.authenticated) {
-      // PHASE 1 RECONCILE: Release preview requires the same administrator authority as its live-shell counterpart.
-      if (location == RouteNames.schedulingWorkspacePreview &&
-          role != 'admin') {
-        return _dashboardForRole(role);
+      if (role == 'admin' && location != RouteNames.adminDashboard) {
+        return RouteNames.adminDashboard;
       }
       if (authPages.contains(location) || _isWrongRolePage(location, role)) {
         return _dashboardForRole(role);

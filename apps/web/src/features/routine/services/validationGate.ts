@@ -171,6 +171,7 @@ export const POLICY_VIOLATION_LABELS: Record<string, string> = {
   r4_external_block_violations: "R4 CSE External Block Violations",
   r5_guest_availability_violations: "R5 Guest Availability Whitelist Violations",
   r6_adjunct_band_violations: "R6 Adjunct Day-Band Violations",
+  r7_permanent_offday_violations: "R7 Permanent Faculty Off-Day Violations",
   r9_sust_gap_violations: "R9 SUST Adjunct Max-Gap Violations",
   r10_ecl_window_violations: "R10 ECL Lab Window Violations",
   r11_physics_lab_violations: "R11 Physics Lab Exclusivity Violations",
@@ -249,19 +250,20 @@ export function blockingValidationErrorFor(
  * `public.routines` persists only a single scalar `teacher_code` column (`F-22`).
  */
 export function extractRowTeacherCodes(
-  row: Pick<RoutineRow, "teacher_code" | "teachers">,
+  row: Pick<RoutineRow, "teacher_code" | "teacher_codes" | "teachers">,
 ): string[] {
-  const scalar = row.teacher_code?.trim();
-  const list = (row.teachers ?? [])
+  const ordered = [
+    ...(row.teacher_codes ?? []),
+    ...(row.teachers ?? []),
+    ...(row.teacher_code ? [row.teacher_code] : []),
+  ]
     .map((c) => c.trim())
     .filter((c) => c.length > 0);
-  return Array.from(
-    new Set([...(scalar ? [scalar] : []), ...list]),
-  );
+  return Array.from(new Set(ordered));
 }
 
 export function requiresSharedTeacherStorage(
-  row: Pick<RoutineRow, "teacher_code" | "teachers">,
+  row: Pick<RoutineRow, "teacher_code" | "teacher_codes" | "teachers">,
 ): boolean {
   const scalar = row.teacher_code?.trim() ?? "";
   const codes = extractRowTeacherCodes(row);
@@ -272,7 +274,11 @@ export function requiresSharedTeacherStorage(
 export function findCoTeacherBlockers(
   rows: readonly RoutineRow[],
   serviceRows: readonly RoutineRow[] = [],
+  options?: { coTeacherStorageLive?: boolean },
 ): RoutineRow[] {
+  if (options?.coTeacherStorageLive) {
+    return [];
+  }
   return [...rows, ...serviceRows].filter((row) =>
     requiresSharedTeacherStorage(row),
   );

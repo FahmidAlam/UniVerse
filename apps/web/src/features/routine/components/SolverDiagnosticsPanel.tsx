@@ -1,5 +1,7 @@
 import {
   ArrowRight,
+  CaretDown,
+  CaretRight,
   CheckCircle,
   Clock,
   Question,
@@ -7,9 +9,11 @@ import {
   SlidersHorizontal,
   WarningCircle,
 } from "@phosphor-icons/react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/Badge";
 import type {
+  ResolvedFacultyOffDay,
   SolverConflictItem,
   SolverOutcomeDiagnostics,
   SolverOutcomeStatus,
@@ -143,6 +147,15 @@ export function SolverDiagnosticsPanel({
   const StatusIcon = meta.Icon;
   const conflicts = diagnostics.conflicts ?? [];
   const soft = diagnostics.soft_metrics ?? null;
+  const resolvedOffDays: ResolvedFacultyOffDay[] =
+    diagnostics.resolved_faculty_off_days ??
+    soft?.resolved_faculty_off_days ??
+    [];
+  const hasHybridResolved = resolvedOffDays.some(
+    (r) =>
+      r.provenance === "solver_resolved" || r.provenance === "partial_hybrid",
+  );
+  const [offDaysExpanded, setOffDaysExpanded] = useState(hasHybridResolved);
 
   const showSoftScorecard =
     soft !== null &&
@@ -371,6 +384,96 @@ export function SolverDiagnosticsPanel({
                   </Badge>
                 ))}
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Hybrid R7 / R6 Resolved Faculty Off-Days Provenance Table */}
+      {hasHybridResolved && (
+        <div
+          data-testid="resolved-faculty-offdays-panel"
+          className="rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
+        >
+          <button
+            type="button"
+            aria-expanded={offDaysExpanded}
+            onClick={() => setOffDaysExpanded((v) => !v)}
+            className="flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-left hover:bg-[var(--surface-hover)]"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              {offDaysExpanded ? (
+                <CaretDown size={14} aria-hidden="true" />
+              ) : (
+                <CaretRight size={14} aria-hidden="true" />
+              )}
+              <span className="text-[12.5px] font-semibold text-[var(--ink-primary)]">
+                Resolved Faculty Off-Days (Hybrid R7/R6)
+              </span>
+              <Badge tone="lab" mono>
+                {resolvedOffDays.filter((r) => r.provenance !== "declared").length} auto-resolved
+              </Badge>
+            </div>
+            <span className="font-mono-tabular text-[11.5px] text-[var(--ink-muted)]">
+              {resolvedOffDays.length} faculty
+            </span>
+          </button>
+
+          {offDaysExpanded && (
+            <div className="overflow-x-auto border-t border-[var(--border-subtle)]">
+              <table className="w-full border-collapse text-left text-[12px]">
+                <thead>
+                  <tr className="border-b border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[11px] font-semibold text-[var(--ink-muted)] uppercase">
+                    <th className="px-3 py-2">Faculty</th>
+                    <th className="px-3 py-2">Category</th>
+                    <th className="px-3 py-2">Declared</th>
+                    <th className="px-3 py-2">Resolved Off-Days</th>
+                    <th className="px-3 py-2">Teaching Days</th>
+                    <th className="px-3 py-2">Provenance</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border-subtle)]">
+                  {resolvedOffDays.map((entry) => (
+                    <tr key={entry.acronym}>
+                      <td className="font-mono-tabular px-3 py-2 font-semibold text-[var(--ink-primary)]">
+                        {entry.acronym}
+                      </td>
+                      <td className="px-3 py-2 capitalize text-[var(--ink-secondary)]">
+                        {entry.employment_type}
+                      </td>
+                      <td className="font-mono-tabular px-3 py-2 text-[var(--ink-secondary)]">
+                        {entry.declared_off_days.length > 0
+                          ? entry.declared_off_days.map((d) => d.slice(0, 3)).join(", ")
+                          : "—"}
+                      </td>
+                      <td className="font-mono-tabular px-3 py-2 font-medium text-[var(--ink-primary)]">
+                        {entry.resolved_off_days.length > 0
+                          ? entry.resolved_off_days.map((d) => d.slice(0, 3)).join(", ")
+                          : "—"}
+                      </td>
+                      <td className="font-mono-tabular px-3 py-2 text-[var(--ink-secondary)]">
+                        {entry.active_teaching_days.length > 0
+                          ? entry.active_teaching_days.map((d) => d.slice(0, 3)).join(", ")
+                          : "0d"}
+                      </td>
+                      <td className="px-3 py-2">
+                        <Badge
+                          tone={
+                            entry.provenance === "declared"
+                              ? "neutral"
+                              : entry.provenance === "partial_hybrid"
+                                ? "joint"
+                                : "theory"
+                          }
+                          mono
+                        >
+                          {entry.provenance}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

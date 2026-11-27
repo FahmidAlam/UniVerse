@@ -16,6 +16,11 @@ import {
 } from "@/features/scheduling/services/courseDistributionService";
 import { ALL_GATES_LOCKED_STATE } from "@/features/scheduling/services/schedulingCapabilities";
 import type {
+  EngineJobState,
+  EngineResultResponse,
+  SolverOutcomeDiagnostics,
+} from "@/features/routine/types";
+import type {
   PolicySnapshotRecord,
   PreflightValidationReport,
   ValidationArtifactRecord,
@@ -114,6 +119,19 @@ interface SchedulingWorkbenchState {
   livePreflightReport: PreflightValidationReport | null;
   liveValidationArtifact: ValidationArtifactRecord | null;
 
+  // Live Gate D Solver state (Stage 4 -> Stage 5)
+  liveJobId: string | null;
+  liveJobPhase: "idle" | "submitting" | "polling" | "done" | "failed";
+  liveJobState: EngineJobState | null;
+  liveJobProgress: number;
+  liveJobElapsedMs: number;
+  liveSolverResult: EngineResultResponse | null;
+  liveSolverDiagnostics: SolverOutcomeDiagnostics | null;
+  liveSolverError: string | null;
+  liveSolvedRevisionVersion: number | null;
+  liveWorkbookBlob: Blob | null;
+  livePublishedVersionId: string | null;
+
   // Isolated Design Preview state (zero DB writes)
   previewRevision: RevisionContext;
   previewRecords: DistributionSourceRecord[];
@@ -144,6 +162,27 @@ interface SchedulingWorkbenchState {
     artifact: ValidationArtifactRecord | null;
   }) => void;
   markLiveValidationStale: () => void;
+  setLiveSolveSubmitting: () => void;
+  setLiveSolvePolling: (params: {
+    jobId: string;
+    state: EngineJobState;
+    progress: number;
+  }) => void;
+  tickLiveSolveElapsed: (deltaMs?: number) => void;
+  setLiveSolveComplete: (params: {
+    jobId: string;
+    result: EngineResultResponse;
+    diagnostics: SolverOutcomeDiagnostics | null;
+    revisionVersion: number | null;
+    workbookBlob?: Blob | null;
+  }) => void;
+  setLiveSolveFailed: (params: {
+    error: string;
+    diagnostics?: SolverOutcomeDiagnostics | null;
+    jobId?: string | null;
+  }) => void;
+  setLivePublishedVersionId: (versionId: string | null) => void;
+  clearLiveSolveState: () => void;
 
   // Design Preview mutations (memory-only)
   savePreviewCorrection: (params: {
@@ -189,6 +228,18 @@ export const useSchedulingWorkbenchStore = create<SchedulingWorkbenchState>(
     livePolicySnapshot: null,
     livePreflightReport: null,
     liveValidationArtifact: null,
+
+    liveJobId: null,
+    liveJobPhase: "idle",
+    liveJobState: null,
+    liveJobProgress: 0,
+    liveJobElapsedMs: 0,
+    liveSolverResult: null,
+    liveSolverDiagnostics: null,
+    liveSolverError: null,
+    liveSolvedRevisionVersion: null,
+    liveWorkbookBlob: null,
+    livePublishedVersionId: null,
 
     previewRevision: PREVIEW_REVISION_CONTEXT,
     previewRecords: [...PREVIEW_DISTRIBUTION_RECORDS],
@@ -264,8 +315,86 @@ export const useSchedulingWorkbenchStore = create<SchedulingWorkbenchState>(
         liveArtifactFreshness: {
           ...state.liveArtifactFreshness,
           validationReportStatus: "stale",
+          generationOutputStatus:
+            state.liveSolverResult !== null
+              ? "stale"
+              : state.liveArtifactFreshness.generationOutputStatus,
         },
       })),
+
+    setLiveSolveSubmitting: () =>
+      set({
+        liveJobPhase: "submitting",
+        liveJobState: "queued",
+        liveJobProgress: 0,
+        liveJobElapsedMs: 0,
+        liveSolverError: null,
+        livePublishedVersionId: null,
+      }),
+
+    setLiveSolvePolling: ({ jobId, state, progress }) =>
+      set({
+        liveJobId: jobId,
+        liveJobPhase: "polling",
+        liveJobState: state,
+        liveJobProgress: progress,
+      }),
+
+    tickLiveSolveElapsed: (deltaMs = 500) =>
+      set((s) => ({
+        liveJobElapsedMs: s.liveJobElapsedMs + deltaMs,
+      })),
+
+    setLiveSolveComplete: ({
+      jobId,
+      result,
+      diagnostics,
+      revisionVersion,
+      workbookBlob = null,
+    }) =>
+      set((state) => ({
+        liveJobId: jobId,
+        liveJobPhase: "done",
+        liveJobState: "done",
+        liveJobProgress: 1,
+        liveSolverResult: result,
+        liveSolverDiagnostics: diagnostics,
+        liveSolverError: null,
+        liveSolvedRevisionVersion: revisionVersion,
+        liveWorkbookBlob: workbookBlob,
+        liveArtifactFreshness: {
+          ...state.liveArtifactFreshness,
+          generationOutputStatus: "current",
+        },
+      })),
+
+    setLiveSolveFailed: ({ error, diagnostics = null, jobId }) =>
+      set((state) => ({
+        ...(jobId !== undefined ? { liveJobId: jobId } : {}),
+        liveJobPhase: "failed",
+        liveJobState: "failed",
+        liveJobProgress: 1,
+        liveSolverError: error,
+        liveSolverDiagnostics: diagnostics ?? state.liveSolverDiagnostics,
+      })),
+
+    setLivePublishedVersionId: (livePublishedVersionId) =>
+      set({ livePublishedVersionId }),
+
+    clearLiveSolveState: () =>
+      set({
+        liveJobId: null,
+        liveJobPhase: "idle",
+        liveJobState: null,
+        liveJobProgress: 0,
+        liveJobElapsedMs: 0,
+        liveSolverResult: null,
+        liveSolverDiagnostics: null,
+        liveSolverError: null,
+        liveSolvedRevisionVersion: null,
+        liveWorkbookBlob: null,
+        livePublishedVersionId: null,
+      }),
 
     savePreviewCorrection: ({ row, column, effectiveValue, reason }) =>
       set((state) => {
@@ -439,6 +568,17 @@ export const useSchedulingWorkbenchStore = create<SchedulingWorkbenchState>(
         livePolicySnapshot: null,
         livePreflightReport: null,
         liveValidationArtifact: null,
+        liveJobId: null,
+        liveJobPhase: "idle",
+        liveJobState: null,
+        liveJobProgress: 0,
+        liveJobElapsedMs: 0,
+        liveSolverResult: null,
+        liveSolverDiagnostics: null,
+        liveSolverError: null,
+        liveSolvedRevisionVersion: null,
+        liveWorkbookBlob: null,
+        livePublishedVersionId: null,
         previewRevision: PREVIEW_REVISION_CONTEXT,
         previewRecords: [...PREVIEW_DISTRIBUTION_RECORDS],
         previewArtifactFreshness: { ...PREVIEW_ARTIFACT_FRESHNESS },

@@ -4,20 +4,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:universe/core/constants/app_enums.dart';
-import 'package:universe/core/models/admin_catalog_models.dart';
 import 'package:universe/core/models/profile_model.dart';
 import 'package:universe/core/models/routine_model.dart';
 import 'package:universe/core/models/timetable_config_model.dart';
 import 'package:universe/core/theme/app_theme.dart';
-import 'package:universe/features/admin/scheduling/controllers/scheduling_workspace_controller.dart';
-import 'package:universe/features/admin/scheduling/widgets/distribution/distribution_filters_bar.dart';
-import 'package:universe/features/admin/screens/manage_batches_screen.dart';
-import 'package:universe/features/admin/services/timetable_config_service.dart';
 import 'package:universe/features/auth/controllers/auth_controller.dart';
 import 'package:universe/features/dashboard/controllers/student_dashboard_controller.dart';
 import 'package:universe/features/profile/controllers/profile_controller.dart';
 import 'package:universe/features/profile/screens/profile_screen.dart';
 import 'package:universe/features/profile/services/profile_service.dart';
+import 'package:universe/features/profile/services/teacher_r8_preference_service.dart';
 import 'package:universe/features/routine/controllers/routine_controller.dart';
 import 'package:universe/features/routine/screens/routine_screen.dart';
 import 'package:universe/features/teacher/controllers/manage_classes_controller.dart';
@@ -381,28 +377,6 @@ void main() {
 
       expect(selectedVal, 'CSE-2201');
     });
-
-    test('SchedulingWorkspaceController.loadSynthesizedCatalogDistribution populates rows',
-        () async {
-      final controller = SchedulingWorkspaceController();
-      final count = await controller.loadSynthesizedCatalogDistribution();
-      expect(count, greaterThan(0));
-      expect(controller.records.length, count);
-      expect(controller.records.any((r) => r.courseCode.contains('CSE')), isTrue);
-    });
-
-    testWidgets('DistributionFiltersBar renders Sync UI Catalog bridge button',
-        (tester) async {
-      final controller = SchedulingWorkspaceController();
-      await tester.pumpWidget(
-        _wrap(
-          DistributionFiltersBar(controller: controller),
-          size: const Size(1280, 200),
-        ),
-      );
-
-      expect(find.text('Sync UI Catalog'), findsOneWidget);
-    });
   });
 
   group('Workstream 4: Phase C Role-Adaptive Profile Studio & Choreography', () {
@@ -433,7 +407,7 @@ void main() {
       expect(find.text('SECURITY & DEVICE STATUS'), findsOneWidget);
     });
 
-    testWidgets('ProfileScreen renders Admin Operational Studio with Catalog Metrics',
+    testWidgets('ProfileScreen renders Admin Web Console notice card',
         (tester) async {
       final auth = _StubAuthController({
         'id': 'a1',
@@ -451,14 +425,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('ADMIN ROUTINE & ENGINE STUDIO'), findsOneWidget);
-      expect(find.text('ADMIN CORE CATALOG READINESS'), findsOneWidget);
-      expect(find.text('Courses'), findsOneWidget);
-      expect(find.text('Batches'), findsOneWidget);
-      expect(find.text('Faculty'), findsOneWidget);
-      expect(find.text('Rooms'), findsOneWidget);
-      expect(find.text('2D Routine Grid'), findsOneWidget);
-      expect(find.text('Timetable Settings'), findsOneWidget);
+      expect(find.text('ADMIN ROUTINE & ENGINE CONSOLE'), findsOneWidget);
+      expect(find.text('https://universe-admin-exi.pages.dev'), findsOneWidget);
     });
 
     testWidgets('UAnimatedSwap uses 80% reverse duration and UStaggeredListRow renders child',
@@ -564,39 +532,6 @@ void main() {
       final savedMatrix = fakeConfig.updatedFacultyData?['slot_matrix'] as Map?;
       expect(savedMatrix?['Wed:0'], 'preferred_r8');
       expect(savedMatrix?['Sun:0'], 'preferred_r8');
-    });
-
-    testWidgets('ProfileScreen Admin shows real counts on 390px mobile without hardcoded numbers',
-        (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      final fakeConfig = _FakeProfileConfigService(
-        courseCount: 21,
-        batchCount: 8,
-        facultyCount: 19,
-        roomCount: 15,
-      );
-      final auth = _StubAuthController({
-        'id': 'a1',
-        'role': 'admin',
-        'name': 'Routine Chair',
-        'email': 'chair@lus.ac.bd',
-      });
-
-      await tester.pumpWidget(
-        _wrap(
-          ProfileScreen(authController: auth, configService: fakeConfig),
-          size: const Size(390, 844),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(tester.takeException(), isNull);
-      expect(find.text('CATALOG READY'), findsOneWidget);
-      expect(find.text('21'), findsOneWidget);
-      expect(find.text('8'), findsOneWidget);
-      expect(find.text('19'), findsOneWidget);
-      expect(find.text('15'), findsOneWidget);
-      expect(find.text('14'), findsNothing);
     });
 
     testWidgets('ProfileScreen Student uses actual cohort metadata & v1.0.0 version',
@@ -777,56 +712,6 @@ void main() {
       expect(find.textContaining('Jummah Prayer Break'), findsOneWidget);
       expect(find.text('Batch 58 · B'), findsNothing);
     });
-
-    testWidgets('ManageBatchesScreen upserts duplicate offering cleanly via modal',
-        (tester) async {
-      tester.view.physicalSize = const Size(1280, 900);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
-
-      final fakeConfig = _FakeProfileConfigService();
-      await tester.pumpWidget(
-        _wrap(
-          ManageBatchesScreen(configService: fakeConfig),
-          size: const Size(1280, 900),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Ensure Batch 58 is selected in master list
-      await tester.tap(find.text('Batch 58').first);
-      await tester.pumpAndSettle();
-
-      final assignBtn = find.text('Assign Course from Catalog');
-      await tester.ensureVisible(assignBtn);
-      await tester.pumpAndSettle();
-
-      // First assignment of CSE-1101 -> Section A
-      await tester.tap(assignBtn);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Assign Offering'));
-      await tester.pumpAndSettle();
-      expect(find.text('CSE-1101'), findsOneWidget);
-
-      // Re-assign same CSE-1101 -> Section A with updated faculty F1 (should upsert, not duplicate)
-      await tester.ensureVisible(assignBtn);
-      await tester.pumpAndSettle();
-      await tester.tap(assignBtn);
-      await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('MSR ·'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('F1 ·'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Assign Offering'));
-      await tester.pumpAndSettle();
-
-      expect(tester.takeException(), isNull);
-      expect(find.text('CSE-1101'), findsOneWidget);
-      expect(find.textContaining('Updated existing teacher assignment'), findsOneWidget);
-    });
   });
 }
 
@@ -859,44 +744,11 @@ class _SpyProfileService extends ProfileService {
   }
 }
 
-class _FakeProfileConfigService extends TimetableConfigService {
-  final int courseCount;
-  final int batchCount;
-  final int facultyCount;
-  final int roomCount;
+class _FakeProfileConfigService extends TeacherR8PreferenceService {
+  final int facultyCount = 2;
 
   String? updatedFacultyId;
   Map<String, dynamic>? updatedFacultyData;
-
-  _FakeProfileConfigService({
-    this.courseCount = 2,
-    this.batchCount = 1,
-    this.facultyCount = 2,
-    this.roomCount = 2,
-  });
-
-  @override
-  Future<List<CatalogCourse>> fetchCatalogCourses() async => [
-        for (var i = 0; i < courseCount; i++)
-          CatalogCourse(
-            id: 'c$i',
-            code: 'CSE-${1101 + i}',
-            title: 'Course $i',
-            credits: 3.0,
-            courseType: 'theory',
-          ),
-      ];
-
-  @override
-  Future<List<CohortBatch>> fetchBatches() async => [
-        for (var i = 0; i < batchCount; i++)
-          CohortBatch(
-            id: 'b$i',
-            batchName: 'Batch ${58 + i}',
-            semesterLabel: '${5 + i}th Semester',
-            sections: const ['A', 'B'],
-          ),
-      ];
 
   @override
   Future<List<TimetableFaculty>> fetchFaculty() async {
@@ -926,18 +778,11 @@ class _FakeProfileConfigService extends TimetableConfigService {
   }
 
   @override
-  Future<List<TimetableRoom>> fetchRooms() async => [
-        for (var i = 0; i < roomCount; i++)
-          TimetableRoom(
-            id: 'room-$i',
-            name: '${300 + i}',
-            classification: RoomClassification.generalClassroom,
-          ),
-      ];
-
-  @override
-  Future<void> updateFaculty(String id, Map<String, dynamic> data) async {
+  Future<void> updateFacultySlotMatrix(
+    String id,
+    Map<String, String> slotMatrix,
+  ) async {
     updatedFacultyId = id;
-    updatedFacultyData = data;
+    updatedFacultyData = {'slot_matrix': slotMatrix};
   }
 }

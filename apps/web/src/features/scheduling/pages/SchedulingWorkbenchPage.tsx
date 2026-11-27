@@ -272,12 +272,22 @@ export function SchedulingWorkbenchPage() {
             <RevisionSolveStage
               mode={mode}
               gateD={liveGates.gateD}
+              revision={activeLiveRevision}
               onJumpToStage={selectStage}
             />
           )}
 
           {activeStage === "review" && (
-            <ReviewDiffPublishStage mode={mode} gateD={liveGates.gateD} />
+            <ReviewDiffPublishStage
+              mode={mode}
+              gateD={liveGates.gateD}
+              revision={activeLiveRevision}
+              coTeacherStorageLive={Boolean(
+                liveGates.catalogs?.coTeacherStorageLive,
+              )}
+              onReloadLiveRevision={loadSelectedLiveRevision}
+              onJumpToStage={selectStage}
+            />
           )}
         </motion.div>
       )}

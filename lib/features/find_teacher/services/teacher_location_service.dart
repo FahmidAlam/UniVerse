@@ -18,18 +18,40 @@ class TeacherLocationService {
   }
 
   Future<List<String>> fetchUniqueTeachers() async {
-    final rows = await _supabase
-        .from(AppConstants.tableRoutines)
-        .select('teacher_code, teacher_name')
-        .eq('is_active', true)
-        .neq('teacher_code', '');
+    List<dynamic> rows;
+    try {
+      rows = await _supabase
+          .from(AppConstants.tableRoutines)
+          .select('teacher_code, teacher_codes, teacher_name')
+          .eq('is_active', true);
+    } on PostgrestException {
+      rows = await _supabase
+          .from(AppConstants.tableRoutines)
+          .select('teacher_code, teacher_name')
+          .eq('is_active', true)
+          .neq('teacher_code', '');
+    }
 
     final teacherMap = <String, String>{};
-    for (final row in rows) {
-      final code = row['teacher_code'] as String?;
+    for (final rawRow in rows) {
+      final row = rawRow as Map<String, dynamic>;
       final name = row['teacher_name'] as String?;
-      if (code != null && code.isNotEmpty) {
-        teacherMap[code] = name ?? code;
+      final scalar = (row['teacher_code'] as String?)?.trim();
+      final list = ((row['teacher_codes'] as List?) ?? const [])
+          .map((c) => c.toString().trim())
+          .where((c) => c.isNotEmpty)
+          .toList(growable: false);
+      final combined = {
+        if (scalar != null && scalar.isNotEmpty) scalar,
+        ...list,
+      };
+      for (final code in combined) {
+        teacherMap.putIfAbsent(
+          code,
+          () => combined.length == 1 && name != null && name.isNotEmpty
+              ? name
+              : code,
+        );
       }
     }
 

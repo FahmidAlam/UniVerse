@@ -38,7 +38,10 @@ import {
   parseGenerationProfile,
   verifyGenerationProfileSource,
 } from "@/features/routine/services/generationProfile";
-import { fetchRoutines } from "@/features/routine/services/routineService";
+import {
+  fetchRoutines,
+  isRoutineTeacherCodesLive,
+} from "@/features/routine/services/routineService";
 import {
   downloadJobWorkbook,
   EngineJobError,
@@ -178,6 +181,14 @@ export function GenerateRoutineTab({
     retry: false,
   });
 
+  const coTeacherLiveQuery = useQuery({
+    queryKey: ["routine-teacher-codes-live", isDevPreview],
+    queryFn: () => isRoutineTeacherCodesLive(isDevPreview),
+    staleTime: 60_000,
+    retry: false,
+  });
+  const coTeacherStorageLive = coTeacherLiveQuery.data ?? false;
+
   const isBusy = solverPhase === "submitting" || solverPhase === "polling";
 
   useEffect(() => {
@@ -252,9 +263,10 @@ export function GenerateRoutineTab({
         ? findCoTeacherBlockers(
             candidateResult.rows,
             candidateResult.service_rows,
+            { coTeacherStorageLive },
           )
         : [],
-    [candidateResult],
+    [candidateResult, coTeacherStorageLive],
   );
 
   const canPublish = useMemo(() => {
@@ -464,6 +476,7 @@ export function GenerateRoutineTab({
         isPrivatePreview: runWasPrivatePreview || loadedProfile !== null,
         createdBy: profile?.id ?? null,
         isDevPreview,
+        allowCoTeachers: coTeacherStorageLive,
         onStepChange: (step) => setPublishStep(step),
       });
       setPublishResult(outcome);

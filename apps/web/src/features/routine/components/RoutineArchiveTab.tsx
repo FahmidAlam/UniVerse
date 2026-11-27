@@ -13,8 +13,9 @@ import {
   GridFour,
   MagnifyingGlass,
   WarningCircle,
+  X,
 } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -25,6 +26,12 @@ import {
 } from "@/components/ui/AsyncStates";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/Dialog";
 import {
   DataLedgerTable,
   type DataLedgerColumn,
@@ -38,6 +45,7 @@ import {
   extractStatsEntries,
   fetchRoutineArchive,
   parseValidationJsonb,
+  restoreRoutineVersion,
   ROUTINE_ARCHIVE_QUERY_KEY,
   type ArchiveSource,
   type RoutineArchiveItem,
@@ -72,7 +80,7 @@ function formatFileSize(bytes: number | null): string {
 
 function sourceBadgeProps(source: ArchiveSource): {
   label: string;
-  tone: "theory" | "joint" | "neutral";
+  tone: "theory" | "joint" | "lab" | "neutral";
 } {
   switch (source) {
     case "engine":
@@ -81,6 +89,8 @@ function sourceBadgeProps(source: ArchiveSource): {
       return { label: "upload", tone: "joint" };
     case "manual":
       return { label: "manual", tone: "neutral" };
+    case "rollback":
+      return { label: "rollback", tone: "lab" };
     case "storage-only":
       return { label: "storage-only", tone: "neutral" };
   }
@@ -88,11 +98,14 @@ function sourceBadgeProps(source: ArchiveSource): {
 
 export function RoutineArchiveTab() {
   const { isDevPreview } = useAuth();
+  const queryClient = useQueryClient();
   const [filterTab, setFilterTab] = useState<ArchiveFilterTab>("all");
   const [onlyWithXlsx, setOnlyWithXlsx] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [previewItem, setPreviewItem] = useState<RoutineArchiveItem | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<RoutineArchiveItem | null>(null);
+  const [restoreNote, setRestoreNote] = useState("");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [expandedDetailKeys, setExpandedDetailKeys] = useState<Record<string, boolean>>({});
@@ -103,18 +116,73 @@ export function RoutineArchiveTab() {
     staleTime: 30_000,
   });
 
+  const restoreMutation = useMutation({
+    mutationFn: (target: RoutineArchiveItem) => {
+      if (!target.versionId) {
+        throw new Error("Only persisted published versions can be restored.");
+      }
+      return restoreRoutineVersion({
+        versionId: target.versionId,
+        notes: restoreNote,
+        isDevPreview,
+      });
+    },
+    onSuccess: (res, target) => {
+      setRestoreTarget(null);
+      setRestoreNote("");
+      setSelectedId(`version:${res.versionId}`);
+      void queryClient.invalidateQueries({ queryKey: ["admin-routines"] });
+      void queryClient.invalidateQueries({
+        queryKey: ["admin-routine-active-version"],
+      });
+      void queryClient.invalidateQueries({ queryKey: ROUTINE_ARCHIVE_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: ["admin-dashboard-counts"] });
+      toast.success(
+        `Restored "${target.semesterLabel}" (${res.rowCount} active slots)`,
+      );
+    },
+    onError: (err) => {
+      toast.error("Version restore failed", {
+        description: err instanceof Error ? err.message : "RPC failed.",
+      });
+    },
+  });
+
   const archivePreviewQuery = useQuery({
     queryKey: [
       "archive-workbook-preview",
+      previewItem?.id ?? null,
       previewItem?.objectKey ?? null,
+      previewItem?.hasSnapshot ?? false,
       isDevPreview,
     ],
-    enabled: Boolean(previewItem?.objectKey),
+    enabled: Boolean(previewItem?.hasSnapshot || previewItem?.objectKey),
     staleTime: 10 * 60 * 1000,
     retry: false,
     queryFn: async () => {
+      if (previewItem?.hasSnapshot && previewItem.snapshotRows?.length) {
+        const regular = previewItem.snapshotRows.filter((r) => !r.is_service);
+        const service = previewItem.snapshotRows.filter((r) => Boolean(r.is_service));
+        return {
+          rows: regular,
+          service_rows: service,
+          warnings: [],
+          stats: {
+            meetings: regular.length,
+            service_meetings: service.length,
+            total_meetings: regular.length + service.length,
+            cohorts: 0,
+            teachers: 0,
+            days: 0,
+            sheets_parsed: 0,
+          },
+          validation: { ok: true },
+          detected_format: "snapshot",
+          sheet_names: ["snapshot_rows"],
+        };
+      }
       if (!previewItem?.objectKey) {
-        throw new Error("No workbook attached to this archive record.");
+        throw new Error("No workbook or snapshot attached to this archive record.");
       }
       if (isDevPreview) {
         return buildDevPreviewParsedWorkbook(previewItem.semesterLabel);
@@ -479,28 +547,43 @@ export function RoutineArchiveTab() {
           ariaLabel="Published routines and timetable archive"
           renderRowActions={(row) => (
             <div className="flex items-center gap-1">
+              {((row.hasXlsx && row.objectKey) || row.hasSnapshot) && (
+                <button
+                  type="button"
+                  aria-label={`Preview ${row.semesterLabel} in 2D Grid`}
+                  onClick={() => setPreviewItem(row)}
+                  className="inline-flex h-7 items-center gap-1 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 text-[11.5px] font-medium text-[var(--ink-primary)] hover:bg-[var(--surface-hover)]"
+                >
+                  <GridFour size={13} aria-hidden="true" />
+                  <span>2D Grid</span>
+                </button>
+              )}
               {row.hasXlsx && row.objectKey && (
-                <>
-                  <button
-                    type="button"
-                    aria-label={`Preview ${row.semesterLabel} in 2D Grid`}
-                    onClick={() => setPreviewItem(row)}
-                    className="inline-flex h-7 items-center gap-1 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 text-[11.5px] font-medium text-[var(--ink-primary)] hover:bg-[var(--surface-hover)]"
-                  >
-                    <GridFour size={13} aria-hidden="true" />
-                    <span>2D Grid</span>
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`Download ${row.fileName ?? row.objectKey}`}
-                    disabled={downloadingId === row.id}
-                    onClick={() => void handleDownload(row)}
-                    className="inline-flex h-7 items-center gap-1 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 text-[11.5px] font-medium text-[var(--ink-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-50"
-                  >
-                    <DownloadSimple size={13} aria-hidden="true" />
-                    <span>.xlsx</span>
-                  </button>
-                </>
+                <button
+                  type="button"
+                  aria-label={`Download ${row.fileName ?? row.objectKey}`}
+                  disabled={downloadingId === row.id}
+                  onClick={() => void handleDownload(row)}
+                  className="inline-flex h-7 items-center gap-1 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 text-[11.5px] font-medium text-[var(--ink-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-50"
+                >
+                  <DownloadSimple size={13} aria-hidden="true" />
+                  <span>.xlsx</span>
+                </button>
+              )}
+              {row.category === "version" && row.canRestore && row.versionId && (
+                <button
+                  type="button"
+                  data-testid={`archive-restore-btn-${row.versionId}`}
+                  aria-label={`Restore Version ${row.semesterLabel}`}
+                  onClick={() => {
+                    setRestoreNote("");
+                    setRestoreTarget(row);
+                  }}
+                  className="inline-flex h-7 items-center gap-1 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 text-[11.5px] font-medium text-[var(--accent-brand)] hover:bg-[var(--surface-hover)]"
+                >
+                  <ClockCounterClockwise size={13} aria-hidden="true" />
+                  <span>Restore Version</span>
+                </button>
               )}
               {(row.objectKey || row.fileName) && (
                 <button
@@ -569,32 +652,49 @@ export function RoutineArchiveTab() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        {((selectedItem.hasXlsx && selectedItem.objectKey) ||
+          selectedItem.hasSnapshot) && (
+          <Button
+            variant="primary"
+            size="sm"
+            data-testid="archive-preview-grid-btn"
+            onClick={() => setPreviewItem(selectedItem)}
+          >
+            <GridFour size={14} aria-hidden="true" />
+            <span>Preview in 2D Grid</span>
+          </Button>
+        )}
         {selectedItem.hasXlsx && selectedItem.objectKey && (
-          <>
-            <Button
-              variant="primary"
-              size="sm"
-              data-testid="archive-preview-grid-btn"
-              onClick={() => setPreviewItem(selectedItem)}
-            >
-              <GridFour size={14} aria-hidden="true" />
-              <span>Preview in 2D Grid</span>
-            </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={downloadingId === selectedItem.id}
+            onClick={() => void handleDownload(selectedItem)}
+          >
+            <DownloadSimple size={14} aria-hidden="true" />
+            <span>
+              {downloadingId === selectedItem.id
+                ? "Downloading…"
+                : "Download .xlsx"}
+            </span>
+          </Button>
+        )}
+        {selectedItem.category === "version" &&
+          selectedItem.canRestore &&
+          selectedItem.versionId && (
             <Button
               variant="secondary"
               size="sm"
-              disabled={downloadingId === selectedItem.id}
-              onClick={() => void handleDownload(selectedItem)}
+              data-testid="archive-inspector-restore-btn"
+              onClick={() => {
+                setRestoreNote("");
+                setRestoreTarget(selectedItem);
+              }}
             >
-              <DownloadSimple size={14} aria-hidden="true" />
-              <span>
-                {downloadingId === selectedItem.id
-                  ? "Downloading…"
-                  : "Download .xlsx"}
-              </span>
+              <ClockCounterClockwise size={14} aria-hidden="true" />
+              <span>Restore Version</span>
             </Button>
-          </>
-        )}
+          )}
         {(selectedItem.objectKey || selectedItem.fileName) && (
           <Button
             variant="secondary"
@@ -800,9 +900,11 @@ export function RoutineArchiveTab() {
         )}
       </section>
 
-      {/* Single Muted Wave 2B Disclosure Footer */}
+      {/* Dynamic Gate D Disclosure / Rollback Policy Footer */}
       <footer className="border-t border-[var(--border-subtle)] pt-3 text-[11.5px] leading-[1.5] text-[var(--ink-muted)]">
-        1-click PostgreSQL version rollback unlocks in Gate D (Phase 4A-2).
+        {dataset?.items.some((item) => item.canRestore)
+          ? "1-click PostgreSQL snapshot restore is active via public.restore_routine_version(), preserving prior versions with non-destructive archival."
+          : "1-click PostgreSQL version rollback unlocks in Gate D (Phase 4A-2)."}
       </footer>
     </div>
   ) : null;
@@ -945,14 +1047,109 @@ export function RoutineArchiveTab() {
   }
 
   return (
-    <MasterDetailShell
-      detailOpen={Boolean(selectedItem)}
-      onRequestClose={() => setSelectedId(null)}
-      detailTitle={selectedItem?.semesterLabel ?? "Archive Record"}
-      detailSubtitle={selectedItem?.fileName ?? selectedItem?.id}
-      master={masterContent}
-      detail={detailContent}
-    />
+    <>
+      <MasterDetailShell
+        detailOpen={Boolean(selectedItem)}
+        onRequestClose={() => setSelectedId(null)}
+        detailTitle={selectedItem?.semesterLabel ?? "Archive Record"}
+        detailSubtitle={selectedItem?.fileName ?? selectedItem?.id}
+        master={masterContent}
+        detail={detailContent}
+      />
+
+      <Dialog
+        open={Boolean(restoreTarget)}
+        onOpenChange={(open) => {
+          if (!open && !restoreMutation.isPending) {
+            setRestoreTarget(null);
+          }
+        }}
+      >
+        <DialogContent className="fixed left-1/2 top-1/2 w-[calc(100%-32px)] max-w-[460px] -translate-x-1/2 -translate-y-1/2 p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <DialogTitle className="text-[17px] font-semibold text-[var(--ink-primary)]">
+                Restore Archived Routine Version
+              </DialogTitle>
+              <DialogDescription className="mt-1 text-[13px] text-[var(--ink-secondary)]">
+                Non-destructively archives the current active routine and publishes a new{" "}
+                <code className="font-mono-tabular">rollback</code> version from{" "}
+                <span className="font-semibold text-[var(--ink-primary)]">
+                  {restoreTarget?.semesterLabel}
+                </span>
+                .
+              </DialogDescription>
+            </div>
+            <button
+              type="button"
+              aria-label="Close restore modal"
+              disabled={restoreMutation.isPending}
+              onClick={() => setRestoreTarget(null)}
+              className="flex h-7 w-7 items-center justify-center rounded-[5px] text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)]"
+            >
+              <X size={15} aria-hidden="true" />
+            </button>
+          </div>
+
+          <div className="mt-4 space-y-3 text-[12.5px]">
+            <div className="rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 py-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[var(--ink-muted)]">Snapshot Slots</span>
+                <span className="font-mono-tabular font-semibold text-[var(--ink-primary)]">
+                  {restoreTarget?.rowCount ?? restoreTarget?.snapshotRows?.length ?? "—"}
+                </span>
+              </div>
+              <div className="mt-1 flex items-center justify-between">
+                <span className="text-[var(--ink-muted)]">Original Timestamp</span>
+                <span className="font-mono-tabular text-[var(--ink-secondary)]">
+                  {formatTimestamp(restoreTarget?.timestamp ?? null)}
+                </span>
+              </div>
+            </div>
+
+            <label className="block space-y-1">
+              <span className="text-[12px] font-medium text-[var(--ink-primary)]">
+                Audit Note (optional)
+              </span>
+              <input
+                type="text"
+                value={restoreNote}
+                onChange={(e) => setRestoreNote(e.target.value)}
+                placeholder="Reason for restoring this historical snapshot..."
+                className="h-9 w-full rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-3 text-[13px] text-[var(--ink-primary)] outline-none focus:border-[var(--accent-brand)]"
+              />
+            </label>
+          </div>
+
+          <div className="mt-5 flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="md"
+              disabled={restoreMutation.isPending}
+              onClick={() => setRestoreTarget(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              size="md"
+              data-testid="confirm-archive-restore-btn"
+              disabled={restoreMutation.isPending || !restoreTarget?.versionId}
+              onClick={() => restoreTarget && restoreMutation.mutate(restoreTarget)}
+            >
+              <ClockCounterClockwise size={15} aria-hidden="true" />
+              <span>
+                {restoreMutation.isPending
+                  ? "Restoring…"
+                  : "Confirm Version Restore"}
+              </span>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

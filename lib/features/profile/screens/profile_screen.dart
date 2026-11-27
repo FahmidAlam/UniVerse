@@ -11,9 +11,10 @@ import 'package:universe/core/theme/app_colors.dart';
 import 'package:universe/core/theme/app_motion.dart';
 import 'package:universe/core/theme/app_spacing.dart';
 import 'package:universe/core/theme/app_text_styles.dart';
-import 'package:universe/features/admin/services/timetable_config_service.dart';
 import 'package:universe/features/auth/controllers/auth_controller.dart';
+import 'package:universe/features/auth/screens/admin_web_notice_screen.dart';
 import 'package:universe/features/profile/controllers/profile_controller.dart';
+import 'package:universe/features/profile/services/teacher_r8_preference_service.dart';
 import 'package:universe/shared/widgets/desktop_shell_scope.dart';
 import 'package:universe/shared/widgets/info_row.dart';
 import 'package:universe/shared/widgets/u_adaptive_overlay.dart';
@@ -27,7 +28,7 @@ import 'package:universe/shared/widgets/u_text_field.dart';
 
 class ProfileScreen extends StatefulWidget {
   final AuthController authController;
-  final TimetableConfigService? configService;
+  final TeacherR8PreferenceService? configService;
 
   const ProfileScreen({
     super.key,
@@ -42,7 +43,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
   late final ProfileController _controller;
-  late final TimetableConfigService _configService;
+  late final TeacherR8PreferenceService _configService;
   final TextEditingController _nameController = TextEditingController();
   int? _localAvatarIndex;
   bool _isSigningOut = false;
@@ -54,14 +55,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   TimetableFaculty? _matchedFaculty;
   bool _savingR8 = false;
   String? _r8StatusMessage;
-
-  // Catalog telemetry counts for Admins (null until verified/loaded)
-  int? _courseCount;
-  int? _batchCount;
-  int? _facultyCount;
-  int? _roomCount;
-  bool _catalogLoading = false;
-  String? _catalogError;
 
   late final AnimationController _pulseController;
   late final Animation<double> _pulseAnimation;
@@ -112,7 +105,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void initState() {
     super.initState();
-    _configService = widget.configService ?? TimetableConfigService();
+    _configService = widget.configService ?? TeacherR8PreferenceService();
     _controller = ProfileController(authController: widget.authController);
     _controller.load();
     _loadLocalAvatar();
@@ -137,41 +130,8 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Future<void> _loadRoleOperationalData() async {
     final role = widget.authController.profile?['role'] as String?;
-    if (role == AppConstants.roleAdmin) {
-      await _loadCatalogTelemetry();
-    } else if (role == AppConstants.roleTeacher) {
+    if (role == AppConstants.roleTeacher) {
       await _loadTeacherR8Preferences();
-    }
-  }
-
-  Future<void> _loadCatalogTelemetry() async {
-    if (mounted) {
-      setState(() {
-        _catalogLoading = true;
-        _catalogError = null;
-      });
-    }
-    try {
-      final results = await Future.wait([
-        _configService.fetchCatalogCourses(),
-        _configService.fetchBatches(),
-        _configService.fetchFaculty(),
-        _configService.fetchRooms(),
-      ]);
-      if (!mounted) return;
-      setState(() {
-        _courseCount = results[0].length;
-        _batchCount = results[1].length;
-        _facultyCount = results[2].length;
-        _roomCount = results[3].length;
-        _catalogLoading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _catalogLoading = false;
-        _catalogError = 'Could not load catalog counts right now.';
-      });
     }
   }
 
@@ -284,9 +244,9 @@ class _ProfileScreenState extends State<ProfileScreen>
         }
       }
       try {
-        await _configService.updateFaculty(
+        await _configService.updateFacultySlotMatrix(
           matched.id,
-          {'slot_matrix': updatedMatrix},
+          updatedMatrix,
         );
         if (!mounted) return;
         setState(() {
@@ -988,94 +948,26 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  // Admin Operational Studio
+  // Admin Web Console Pointer
   Widget _buildAdminOperationalStudio(Profile p) {
-    final isCatalogSynced = _courseCount != null &&
-        _batchCount != null &&
-        _facultyCount != null &&
-        _roomCount != null;
-    final badgeColor = isCatalogSynced
-        ? AppColors.success
-        : (_catalogError != null ? AppColors.error : AppColors.textSecondary);
-    final badgeBg = isCatalogSynced
-        ? AppColors.successSoft
-        : (_catalogError != null ? AppColors.errorSoft : AppColors.bgElevated);
-    final badgeText = _catalogLoading
-        ? 'SYNCING…'
-        : (_catalogError != null
-            ? 'SYNC FAILED'
-            : (isCatalogSynced ? 'CATALOG READY' : 'PENDING'));
-
-    String countLabel(int? count) =>
-        _catalogLoading && count == null ? '…' : '${count ?? '—'}';
-
-    final metricTiles = [
-      _buildCatalogMetricTile(
-        title: 'Courses',
-        count: countLabel(_courseCount),
-        route: RouteNames.manageCourses,
-        icon: PhosphorIconsRegular.graduationCap,
-      ),
-      _buildCatalogMetricTile(
-        title: 'Batches',
-        count: countLabel(_batchCount),
-        route: RouteNames.manageBatches,
-        icon: PhosphorIconsRegular.usersThree,
-      ),
-      _buildCatalogMetricTile(
-        title: 'Faculty',
-        count: countLabel(_facultyCount),
-        route: RouteNames.manageFaculty,
-        icon: PhosphorIconsRegular.chalkboardTeacher,
-      ),
-      _buildCatalogMetricTile(
-        title: 'Rooms',
-        count: countLabel(_roomCount),
-        route: RouteNames.manageRooms,
-        icon: PhosphorIconsRegular.door,
-      ),
-    ];
-
     return UCard(
       isTopLit: true,
       padding: const EdgeInsets.all(AppSpacing.xl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  'ADMIN ROUTINE & ENGINE STUDIO',
-                  style: AppTextStyles.labelCaps.copyWith(
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: badgeBg,
-                  borderRadius: AppSpacing.radiusSm,
-                  border: Border.all(
-                    color: badgeColor.withValues(alpha: 0.35),
-                  ),
-                ),
-                child: Text(
-                  badgeText,
-                  style: AppTextStyles.caption.copyWith(
-                    color: badgeColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
+          Text(
+            'ADMIN ROUTINE & ENGINE CONSOLE',
+            style: AppTextStyles.labelCaps.copyWith(color: AppColors.primary),
           ),
           AppSpacing.mdGap,
-
-          // Active Semester & Engine Configuration
+          Text(
+            'Administrator workflows (Course Distribution, Policy Studio, CP-SAT '
+            'Solve, and Version Rollback) run in the dedicated UniVerse React Web '
+            'Console.',
+            style: AppTextStyles.bodySm.copyWith(color: AppColors.textSecondary),
+          ),
+          AppSpacing.mdGap,
           Container(
             padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
@@ -1083,203 +975,15 @@ class _ProfileScreenState extends State<ProfileScreen>
               borderRadius: AppSpacing.radiusMd,
               border: Border.all(color: AppColors.border),
             ),
-            child: Row(
-              children: [
-                const Icon(
-                  PhosphorIconsRegular.cpu,
-                  size: 20,
-                  color: AppColors.primary,
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Standard Academic Balance (OR-Tools CP-SAT v9.8)',
-                        style: AppTextStyles.bodyMedium.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Institutional 7-Day Week · Friday Jummah Prayer Hard Constraint (friday_no_p4)',
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          AppSpacing.lgGap,
-
-          // Catalog Readiness Grid
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'ADMIN CORE CATALOG READINESS',
-                style: AppTextStyles.labelCaps,
+            child: SelectableText(
+              AdminWebNoticeScreen.webConsoleUrl,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
               ),
-              if (_catalogError != null)
-                TextButton(
-                  onPressed: _catalogLoading ? null : _loadCatalogTelemetry,
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: const Size(0, 28),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: Text(
-                    'Retry',
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          if (_catalogError != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              _catalogError!,
-              style: AppTextStyles.caption.copyWith(color: AppColors.error),
             ),
-          ],
-          const SizedBox(height: 8),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth < 460) {
-                return Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(child: metricTiles[0]),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(child: metricTiles[1]),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Row(
-                      children: [
-                        Expanded(child: metricTiles[2]),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(child: metricTiles[3]),
-                      ],
-                    ),
-                  ],
-                );
-              }
-              return Row(
-                children: [
-                  for (var i = 0; i < metricTiles.length; i++) ...[
-                    if (i > 0) const SizedBox(width: AppSpacing.sm),
-                    Expanded(child: metricTiles[i]),
-                  ],
-                ],
-              );
-            },
-          ),
-          AppSpacing.lgGap,
-
-          // Command Launch Shortcuts
-          LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth < 340) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    UButton(
-                      label: '2D Routine Grid',
-                      icon: PhosphorIconsRegular.gridFour,
-                      variant: UButtonVariant.secondary,
-                      onPressed: () =>
-                          context.go('${RouteNames.routineManagement}?tab=grid'),
-                    ),
-                    AppSpacing.smGap,
-                    UButton(
-                      label: 'Timetable Settings',
-                      icon: PhosphorIconsRegular.sliders,
-                      onPressed: () =>
-                          context.go(RouteNames.timetableSettings),
-                    ),
-                  ],
-                );
-              }
-              return Row(
-                children: [
-                  Expanded(
-                    child: UButton(
-                      label: '2D Routine Grid',
-                      icon: PhosphorIconsRegular.gridFour,
-                      variant: UButtonVariant.secondary,
-                      onPressed: () =>
-                          context.go('${RouteNames.routineManagement}?tab=grid'),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: UButton(
-                      label: 'Timetable Settings',
-                      icon: PhosphorIconsRegular.sliders,
-                      onPressed: () =>
-                          context.go(RouteNames.timetableSettings),
-                    ),
-                  ),
-                ],
-              );
-            },
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildCatalogMetricTile({
-    required String title,
-    required String count,
-    required String route,
-    required IconData icon,
-  }) {
-    return Semantics(
-      button: true,
-      label: '$title catalog count: $count',
-      child: InkWell(
-        onTap: () => context.go(route),
-        borderRadius: AppSpacing.radiusSm,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.bgElevated,
-          borderRadius: AppSpacing.radiusSm,
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 14, color: AppColors.primary),
-            const SizedBox(height: 4),
-            Text(
-              count,
-              style: AppTextStyles.numeric.copyWith(
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              title,
-              style: AppTextStyles.caption.copyWith(
-                fontSize: 10,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
       ),
     );
   }

@@ -490,14 +490,27 @@ def check_presolve_inputs(
     assigned_teachers: dict[str, int] = defaultdict(int)
     for s in sessions:
         for t in (s.get("teachers") or ([s["teacher"]] if s.get("teacher") else [])):
-            assigned_teachers[str(t).strip().upper()] += 1
+            clean_t = str(t).strip().upper()
+            if clean_t:
+                assigned_teachers[clean_t] += 1
+    for o in offerings:
+        if o.get("pending_faculty_source_rows"):
+            continue
+        for t in (o.get("teachers") or ()):
+            clean_t = str(t).strip().upper()
+            if clean_t and clean_t not in assigned_teachers:
+                assigned_teachers[clean_t] = max(1, int(o.get("required_sessions") or 1))
+
+    auto_resolve = policy.auto_resolve_undeclared_off_days if policy is not None else True
 
     # R5: Guest faculty assigned to active sessions must declare non-empty available_slots
     for ac, profile in sorted(teacher_profiles.items()):
         if not profile.get("is_active", True):
             continue
+        if assigned_teachers.get(ac, 0) == 0:
+            continue
         emp = str(profile.get("employment_type") or "permanent").strip().lower()
-        if emp == "guest" and assigned_teachers.get(ac, 0) > 0:
+        if emp == "guest":
             avail = profile.get("available_slots") or []
             if len(avail) == 0:
                 conflicts.append(
@@ -515,32 +528,62 @@ def check_presolve_inputs(
                     )
                 )
 
-    # R7: Permanent faculty off-days must be 2, or 3 ONLY when allow_three_off_days=True
+    # R7 / R6: Scope off-day checks strictly to assigned faculty; support Hybrid R7 auto-resolve
     for ac, profile in sorted(teacher_profiles.items()):
         if not profile.get("is_active", True):
             continue
-        if not profile.get("explicit_employment_type", False):
+        if assigned_teachers.get(ac, 0) == 0:
             continue
         emp = str(profile.get("employment_type") or "permanent").strip().lower()
-        if emp != "permanent":
-            continue
-        off_days = profile.get("off_days") or ()
-        allow_three = bool(profile.get("allow_three_off_days", False))
-        if len(off_days) not in (2, 3) or (len(off_days) == 3 and not allow_three):
-            conflicts.append(
-                make_conflict(
-                    rule="R7",
-                    code="permanent_invalid_off_days",
-                    entity_type="faculty",
-                    entity_id=ac,
-                    message=(
-                        f"Permanent faculty {ac} has {len(off_days)} configured off-day(s) "
-                        f"(allow_three_off_days={allow_three}); R7/D3 requires 2 off-days or "
-                        f"explicit authorization for 3 off-days."
-                    ),
-                    proven=True,
+        off_days = [d for d in (profile.get("off_days") or ()) if d in days]
+        if emp == "permanent":
+            if not (profile.get("explicit_employment_type", False) or policy is not None):
+                continue
+            allow_three = bool(profile.get("allow_three_off_days", False))
+            if len(off_days) > 3 or (len(off_days) == 3 and not allow_three):
+                conflicts.append(
+                    make_conflict(
+                        rule="R7",
+                        code="permanent_invalid_off_days",
+                        entity_type="faculty",
+                        entity_id=ac,
+                        message=(
+                            f"Permanent faculty {ac} has {len(off_days)} configured off-day(s) "
+                            f"(allow_three_off_days={allow_three}); R7/D3 requires 2 off-days or "
+                            f"explicit authorization for 3 off-days."
+                        ),
+                        proven=True,
+                    )
                 )
-            )
+            elif len(off_days) in (0, 1) and not auto_resolve:
+                conflicts.append(
+                    make_conflict(
+                        rule="R7",
+                        code="permanent_invalid_off_days",
+                        entity_type="faculty",
+                        entity_id=ac,
+                        message=(
+                            f"Permanent faculty {ac} has {len(off_days)} configured off-day(s) "
+                            f"with auto_resolve_undeclared_off_days disabled; R7/D3 requires 2 declared off-days."
+                        ),
+                        proven=True,
+                    )
+                )
+        elif emp == "adjunct":
+            if days and set(days) <= set(off_days):
+                conflicts.append(
+                    make_conflict(
+                        rule="R6",
+                        code="adjunct_no_teachable_days",
+                        entity_type="faculty",
+                        entity_id=ac,
+                        message=(
+                            f"Adjunct faculty {ac} has all {len(days)} academic day(s) marked as off-days, "
+                            f"leaving 0 teachable days for {assigned_teachers[ac]} assigned session(s) (R6)."
+                        ),
+                        proven=True,
+                    )
+                )
 
     # R1: Section weekend overrides validation (when passed via sections list or policy_snapshot)
     for sec in cfg.get("raw_section_overrides") or []:
@@ -864,6 +907,54 @@ def add_policy_constraints(
                     model.Add(split_day >= pre_used + post_used - 1)
                     penalties.append(25 * split_day)
 
+    # ── Hybrid R7: Resolve undeclared/partial Permanent off-days (0 or 1 -> 2)
+    auto_resolve = policy.auto_resolve_undeclared_off_days if policy is not None else True
+    hybrid_off_day_vars: dict[str, dict[int, cp_model.IntVar]] = {}
+    if auto_resolve and len(days) >= 2:
+        for t, t_sessions in sorted(by_teacher.items()):
+            if not t_sessions:
+                continue
+            tu = str(t).strip().upper()
+            prof = teacher_profiles.get(tu) or {}
+            emp = str(prof.get("employment_type") or "permanent").strip().lower()
+            if emp != "permanent":
+                continue
+            if not (prof.get("explicit_employment_type", False) or policy is not None):
+                continue
+            declared_set = {d for d in (prof.get("off_days") or ()) if d in days}
+            if len(declared_set) not in (0, 1):
+                continue
+            pref_days = {
+                str(w.get("day") if isinstance(w, dict) else getattr(w, "day", "")).strip()
+                for w in (prof.get("preferred_slots") or ())
+            }
+            ext_days = {
+                str(w.get("day") if isinstance(w, dict) else getattr(w, "day", "")).strip()
+                for w in (prof.get("external_blocked_slots") or ())
+            }
+            day_off_map: dict[int, cp_model.IntVar] = {}
+            for di, dname in enumerate(days):
+                terms = [x[(s["sid"], di, p)] for s in t_sessions for p in pidx if (s["sid"], di, p) in x]
+                t_act = model.NewBoolVar(f"perm_act_{tu}_{di}")
+                for t_var in terms:
+                    model.Add(t_act >= t_var)
+                model.Add(t_act <= (sum(terms) if terms else 0))
+
+                t_off = model.NewBoolVar(f"perm_off_{tu}_{di}")
+                model.Add(t_act + t_off <= 1)
+                if dname in declared_set:
+                    model.Add(t_off == 1)
+                else:
+                    if dname in pref_days:
+                        penalties.append(12 * t_off)
+                    if dname in ext_days:
+                        penalties.append(6 * t_off)
+                    if dname not in ("Friday", "Saturday"):
+                        penalties.append(1 * t_off)
+                day_off_map[di] = t_off
+            model.Add(sum(day_off_map.values()) == 2)
+            hybrid_off_day_vars[tu] = day_off_map
+
     if policy is None:
         return {
             "r13_block_oids": r13_block_oids,
@@ -871,6 +962,7 @@ def add_policy_constraints(
             "r13_pair_vars": r13_pair_vars,
             "early_conflicts": early_conflicts,
             "r6_adjunct_info": {},
+            "hybrid_off_day_vars": hybrid_off_day_vars,
         }
 
     # ── R1 & R2 (D1): Independent Section Weekends & Batch Off-Day Fairness ─
@@ -1140,6 +1232,7 @@ def add_policy_constraints(
         "r13_pair_vars": r13_pair_vars,
         "early_conflicts": early_conflicts,
         "r6_adjunct_info": adjunct_info,
+        "hybrid_off_day_vars": hybrid_off_day_vars,
     }
 
 
@@ -1357,6 +1450,7 @@ def validate_policy_compliance(
     days: list[str],
     pmeta: dict[int, dict[str, Any]],
     topology: GridTopology,
+    resolved_off_days_by_teacher: dict[str, list[str]] | None = None,
 ) -> dict[str, Any]:
     """Independent post-placement validation of R1-R15 hard rules + soft metrics."""
     policy: domain.CommitteePolicySnapshot | None = cfg.get("committee_policy")
@@ -1694,6 +1788,86 @@ def validate_policy_compliance(
                 if paired_here:
                     r12_paired += 1
 
+    # ── Hybrid R7/R6/R5 Resolved Faculty Off-Days & R7 Hard Compliance ───────
+    teacher_active_days: dict[str, set[str]] = defaultdict(set)
+    assigned_acronyms: set[str] = set()
+    for r in all_rows:
+        r_teachers = r.get("teachers") or ([r["teacher_code"]] if r.get("teacher_code") else [])
+        for t in r_teachers:
+            tu = str(t).strip().upper()
+            if tu:
+                assigned_acronyms.add(tu)
+                if r.get("day"):
+                    teacher_active_days[tu].add(str(r["day"]))
+    for o in offerings:
+        if o.get("pending_faculty_source_rows"):
+            continue
+        for t in (o.get("teachers") or ()):
+            tu = str(t).strip().upper()
+            if tu:
+                assigned_acronyms.add(tu)
+
+    resolved_faculty_off_days: list[dict[str, Any]] = []
+    for tu in sorted(assigned_acronyms):
+        prof = teacher_profiles.get(tu) or {}
+        emp = str(prof.get("employment_type") or "permanent").strip().lower()
+        declared = [d for d in (prof.get("off_days") or ()) if d in days]
+        active = [d for d in days if d in teacher_active_days.get(tu, set())]
+        free = [d for d in days if d not in teacher_active_days.get(tu, set())]
+
+        if emp == "permanent":
+            if resolved_off_days_by_teacher and tu in resolved_off_days_by_teacher:
+                resolved = [d for d in resolved_off_days_by_teacher[tu] if d in days]
+            elif len(declared) >= 2:
+                resolved = list(declared)
+            else:
+                extra_needed = max(0, 2 - len(declared))
+                extra_free = [d for d in free if d not in declared][:extra_needed]
+                resolved = list(declared) + extra_free
+            provenance = (
+                "declared"
+                if len(declared) >= 2
+                else ("partial_hybrid" if len(declared) == 1 else "solver_resolved")
+            )
+            if (prof.get("explicit_employment_type", False) or policy is not None) and len(days) >= 2:
+                required_min = 3 if (len(declared) == 3 and prof.get("allow_three_off_days")) else 2
+                if not set(declared).issubset(set(free)) or len(free) < required_min:
+                    _record_violation(
+                        "r7_permanent_offday_violations",
+                        {
+                            "teacher": tu,
+                            "declared_off_days": declared,
+                            "free_days": free,
+                            "required_min": required_min,
+                        },
+                    )
+        elif emp == "adjunct":
+            resolved = list(free)
+            if declared and set(free) == set(declared):
+                provenance = "declared"
+            elif declared:
+                provenance = "partial_hybrid"
+            else:
+                provenance = "solver_resolved"
+        else:  # guest
+            avail_days = {
+                str(w.get("day") if isinstance(w, dict) else getattr(w, "day", "")).strip()
+                for w in (prof.get("available_slots") or ())
+            }
+            resolved = [d for d in days if d not in avail_days or d in declared]
+            provenance = "declared"
+
+        resolved_faculty_off_days.append(
+            {
+                "acronym": tu,
+                "employment_type": emp,
+                "declared_off_days": declared,
+                "resolved_off_days": resolved,
+                "active_teaching_days": active,
+                "provenance": provenance,
+            }
+        )
+
     total_policy_violations = sum(violations.values())
     soft_metrics = {
         "r8_faculty_preferences": {
@@ -1712,6 +1886,7 @@ def validate_policy_compliance(
         },
         "r6_adjunct_workload": adjunct_metrics,
         "r3_single_slot_holes": r3_single_holes,
+        "resolved_faculty_off_days": resolved_faculty_off_days,
     }
 
     return {
@@ -1719,4 +1894,5 @@ def validate_policy_compliance(
         "policy_violation_count": total_policy_violations,
         "policy_details": dict(details),
         "soft_metrics": soft_metrics,
+        "resolved_faculty_off_days": resolved_faculty_off_days,
     }

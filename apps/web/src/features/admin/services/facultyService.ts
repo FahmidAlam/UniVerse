@@ -177,11 +177,27 @@ export function isR7OffDayOutsideBounds(offDays: readonly string[]): boolean {
   return offDays.length < 2 || offDays.length > 3;
 }
 
+export function isR7OffDayHardConflict(fac: {
+  employment_type?: FacultyEmploymentType;
+  off_days: readonly string[];
+  allow_three_off_days?: boolean;
+}): boolean {
+  const emp = fac.employment_type ?? "permanent";
+  if (emp !== "permanent") return false;
+  const n = fac.off_days.length;
+  return n > 3 || (n === 3 && !fac.allow_three_off_days);
+}
+
 export function evaluateR7FacultyPolicy(fac: {
   employment_type?: FacultyEmploymentType;
   off_days: readonly string[];
   allow_three_off_days?: boolean;
-}): { valid: boolean; severity: "ok" | "warning" | "blocker"; message: string } {
+}): {
+  valid: boolean;
+  severity: "ok" | "warning" | "blocker";
+  hybridAutoResolve?: boolean;
+  message: string;
+} {
   const emp = fac.employment_type ?? "permanent";
   if (emp !== "permanent") {
     return {
@@ -204,10 +220,18 @@ export function evaluateR7FacultyPolicy(fac: {
       message: "3 off-days requires explicit D3 authorization",
     };
   }
+  if (n === 0 || n === 1) {
+    return {
+      valid: true,
+      severity: "ok",
+      hybridAutoResolve: true,
+      message: "Hybrid: Solver will assign remaining off-day(s)",
+    };
+  }
   return {
     valid: false,
     severity: "blocker",
-    message: `R7 requires 2 off-days (or 3 authorized); currently ${n}`,
+    message: `R7 permits at most 2 off-days (or 3 authorized); currently ${n}`,
   };
 }
 

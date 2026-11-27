@@ -23,6 +23,7 @@ export interface CatalogCapabilityState {
   batchesLive: boolean;
   facultyExtendedLive: boolean;
   roomsExtendedLive: boolean;
+  coTeacherStorageLive?: boolean;
 }
 
 export interface SchedulingGateState {

@@ -64,9 +64,27 @@ class NotificationItem {
     String? batch,
     String? section,
   }) {
-    if (targetRole != null && targetRole != role) return false;
-    if (targetBatch != null && targetBatch != batch) return false;
-    if (targetSection != null && targetSection != section) return false;
+    if (targetRole != null &&
+        targetRole!.trim().isNotEmpty &&
+        targetRole!.trim().toLowerCase() != role.trim().toLowerCase()) {
+      return false;
+    }
+    if (targetBatch != null &&
+        targetBatch!.trim().isNotEmpty &&
+        targetBatch!.trim() != (batch ?? '').trim()) {
+      return false;
+    }
+    if (targetSection != null && targetSection!.trim().isNotEmpty) {
+      final wanted = targetSection!
+          .split('+')
+          .map((s) => s.trim().toUpperCase())
+          .where((s) => s.isNotEmpty)
+          .toList(growable: false);
+      if (wanted.isNotEmpty) {
+        final actual = (section ?? '').trim().toUpperCase();
+        if (!wanted.contains(actual)) return false;
+      }
+    }
     return true;
   }
 }

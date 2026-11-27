@@ -296,10 +296,20 @@ export function PreflightReadinessStage({
               variant="secondary"
               size="md"
               disabled={!gateD?.unlocked || !isGo}
-              title={gateD?.reason ?? "Gate D solver pipeline locked in Stage 5A."}
+              title={
+                gateD?.unlocked
+                  ? isGo
+                    ? "Advance to Stage 4 Revision Solve"
+                    : "Resolve blocking preflight items before advancing to Stage 4"
+                  : gateD?.reason ?? "Gate D solver pipeline locked."
+              }
               onClick={() => onJumpToStage("generate")}
             >
-              <span>Proceed to Revision Solve (Gate D Locked)</span>
+              <span>
+                {gateD?.unlocked
+                  ? "Proceed to Revision Solve"
+                  : "Proceed to Revision Solve (Gate D Locked)"}
+              </span>
               <ArrowRight size={15} aria-hidden="true" />
             </Button>
           </div>

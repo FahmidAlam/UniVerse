@@ -16,7 +16,6 @@ import 'package:universe/features/rooms/screens/rooms_screen.dart';
 import 'package:universe/features/find_teacher/controllers/find_teacher_controller.dart';
 import 'package:universe/features/find_teacher/screens/find_teacher_screen.dart';
 import 'package:universe/features/find_teacher/screens/teacher_detail_screen.dart';
-import 'package:universe/features/admin/widgets/admin_desktop_shell.dart';
 import 'package:universe/shared/widgets/shell_back_scope.dart';
 import 'package:universe/core/router/route_names.dart';
 import 'package:universe/features/auth/controllers/auth_controller.dart';
@@ -163,8 +162,7 @@ void main() {
         expect(AppBottomNav.selectedIndexFor(role, route), campus);
       }
     }
-    expect(AppBottomNav.selectedIndexFor('admin', '/admin/users'), 4);
-    expect(AppBottomNav.selectedIndexFor('admin', '/find-teacher'), 4);
+    expect(AppBottomNav.selectedIndexFor('admin', '/admin/dashboard'), 0);
     final room = Uri.parse(RouteNames.roomDetailLocation('Lab A&B/302'));
     expect(room.queryParameters['room'], 'Lab A&B/302');
     final teacher = TeacherDetailArgs.resolve(
@@ -227,44 +225,6 @@ void main() {
                 : 'Faculty directory'),
             findsOneWidget);
       }
-      expect(tester.takeException(), isNull);
-    });
-  }
-
-  for (final tab in [null, 'manage', 'generate', 'upload', 'invalid']) {
-    testWidgets('admin sidebar selects exact routine tab $tab', (tester) async {
-      tester.view.physicalSize = const Size(1440, 900);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      final location = '/admin/routine${tab == null ? '' : '?tab=$tab'}';
-      final auth = TestAuth('admin');
-      final notifications = TestNotifications();
-      addTearDown(auth.dispose);
-      addTearDown(notifications.dispose);
-      await tester.pumpWidget(MaterialApp(
-          theme: AppTheme.dark,
-          home: AdminDesktopShell(
-              authController: auth,
-              notificationController: notifications,
-              currentLocation: location,
-              child: const Scaffold(
-                  appBar: UAppBar(title: 'Routine'),
-                  body: Text('Routine body')))));
-      await tester.pumpAndSettle();
-      final expected = tab == 'generate' || tab == 'upload' ? tab : 'manage';
-      for (final candidate in ['manage', 'generate', 'upload']) {
-        final route = candidate == 'manage'
-            ? '/admin/routine'
-            : '/admin/routine?tab=$candidate';
-        expect(
-            tester
-                .widget<Semantics>(find.byKey(ValueKey('admin-nav:$route')))
-                .properties
-                .selected,
-            candidate == expected);
-      }
-      expect(find.text('Scheduling Workbench · Preview'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }
@@ -365,44 +325,7 @@ void main() {
     });
   }
 
-  // PHASE 1: Workbench selection stays separate from all live routine tabs.
-  testWidgets(
-      'admin preview workbench is the sole selected routine destination',
-      (tester) async {
-    tester.view.physicalSize = const Size(1280, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    final auth = TestAuth('admin');
-    final notifications = TestNotifications();
-    addTearDown(auth.dispose);
-    addTearDown(notifications.dispose);
-    await tester.pumpWidget(MaterialApp(
-        theme: AppTheme.dark,
-        home: AdminDesktopShell(
-            authController: auth,
-            notificationController: notifications,
-            currentLocation: '/admin/scheduling',
-            child: const Text('Workbench body'))));
-    await tester.pumpAndSettle();
-    expect(
-        tester
-            .widget<Semantics>(
-                find.byKey(const ValueKey('admin-nav:/admin/scheduling')))
-            .properties
-            .selected,
-        isTrue);
-    expect(
-        tester
-            .widget<Semantics>(
-                find.byKey(const ValueKey('admin-nav:/admin/routine')))
-            .properties
-            .selected,
-        isFalse);
-    expect(tester.takeException(), isNull);
-  });
-
-  test('existing role and recovery guards still protect admin destinations',
+  test('existing role and recovery guards protect destinations and direct admin to Web notice',
       () {
     for (final role in ['student', 'teacher']) {
       for (final path in [
@@ -415,77 +338,15 @@ void main() {
       }
     }
     expect(
+        AppRouter.redirectFor(AuthStatus.authenticated, '/student/routine', 'admin'),
+        RouteNames.adminDashboard);
+    expect(
         AppRouter.redirectFor(AuthStatus.passwordRecovery, '/rooms', 'student'),
         '/reset-password');
     expect(
         AppRouter.redirectFor(
             AuthStatus.unauthenticated, '/rooms/detail', null),
         '/login');
-  });
-
-  // PHASE 1 RECONCILE: Release-mode preview access is admin-only; debug may disclose it publicly.
-  test('release preview guard requires an authenticated administrator', () {
-    expect(
-        AppRouter.redirectFor(AuthStatus.unauthenticated,
-            RouteNames.schedulingWorkspacePreview, null,
-            enableUnauthenticatedSchedulingPreview: false),
-        RouteNames.login);
-    expect(
-        AppRouter.redirectFor(AuthStatus.authenticated,
-            RouteNames.schedulingWorkspacePreview, 'student',
-            enableUnauthenticatedSchedulingPreview: false),
-        RouteNames.studentDashboard);
-    expect(
-        AppRouter.redirectFor(AuthStatus.authenticated,
-            RouteNames.schedulingWorkspacePreview, 'admin',
-            enableUnauthenticatedSchedulingPreview: false),
-        isNull);
-  });
-
-  // PHASE 1: The More directory uses existing routes and dismisses before navigation.
-  testWidgets('mobile admin More opens tools and navigates to Users',
-      (tester) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    final auth = TestAuth('admin');
-    final notifications = TestNotifications();
-    addTearDown(auth.dispose);
-    addTearDown(notifications.dispose);
-    final router = GoRouter(initialLocation: '/admin/dashboard', routes: [
-      ShellRoute(
-        builder: (c, s, child) => AppShell(
-            authController: auth,
-            notificationController: notifications,
-            child: child),
-        routes: [
-          for (final path in ['/admin/dashboard', '/admin/users', '/profile'])
-            GoRoute(
-                path: path,
-                builder: (c, s) => Scaffold(
-                    appBar: const UAppBar(
-                        title: 'Admin page', showBackButton: false),
-                    body: Text(s.uri.path)))
-        ],
-      )
-    ]);
-    addTearDown(router.dispose);
-    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('More'));
-    await tester.pumpAndSettle();
-    expect(find.text('Admin tools'), findsOneWidget);
-    expect(find.text('Registration'), findsOneWidget);
-    await tester.tap(find.text('Users'));
-    await tester.pumpAndSettle();
-    expect(find.text('/admin/users'), findsOneWidget);
-    expect(find.text('Admin tools'), findsNothing);
-    await tester.tap(find.byTooltip('Profile / Account'));
-    await tester.pumpAndSettle();
-    expect(find.text('/profile'), findsOneWidget);
-    expect(find.byType(AppBottomNav), findsOneWidget);
-    expect(tester.takeException(), isNull);
   });
 
   // PHASE 1: Retain local-state back priority, then home, then the two-second exit policy.
@@ -550,20 +411,17 @@ void main() {
   });
 
   for (final role in ['student', 'teacher', 'admin']) {
-    test('$role has the approved five mobile destinations', () {
+    test(
+        role == 'admin'
+            ? 'admin routes mobile shell to Web Console notice'
+            : '$role has the approved five mobile destinations', () {
       expect(
           AppBottomNav.destinationsFor(role).map((d) => d.label),
           role == 'student'
               ? ['Today', 'Routine', 'Campus', 'Resources', 'Alerts']
               : role == 'teacher'
                   ? ['Today', 'Teaching', 'Campus', 'Class Tools', 'Alerts']
-                  : [
-                      'Overview',
-                      'Routine Operations',
-                      'Scheduling Workbench · Preview',
-                      'Broadcast',
-                      'More'
-                    ]);
+                  : ['Web Console']);
     });
     for (final width in [390.0, 1024.0, 1280.0, 1440.0]) {
       testWidgets('$role shell at $width retains one navigation surface',

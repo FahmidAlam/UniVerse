@@ -714,6 +714,7 @@ class CommitteePolicySnapshot:
     daily_slot_count: int = 7
     allow_online_slot: bool = False
     friday_no_p4: bool = True
+    auto_resolve_undeclared_off_days: bool = True
 
     def __post_init__(self):
         if self.schema_version != 1:
@@ -779,6 +780,7 @@ class CommitteePolicySnapshot:
             daily_slot_count=int(merged.get('daily_slot_count', 7)),
             allow_online_slot=bool(merged.get('allow_online_slot', False)),
             friday_no_p4=bool(merged.get('friday_no_p4', True)),
+            auto_resolve_undeclared_off_days=bool(merged.get('auto_resolve_undeclared_off_days', True)),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -800,6 +802,7 @@ class CommitteePolicySnapshot:
             'daily_slot_count': self.daily_slot_count,
             'allow_online_slot': self.allow_online_slot,
             'friday_no_p4': self.friday_no_p4,
+            'auto_resolve_undeclared_off_days': self.auto_resolve_undeclared_off_days,
         }
 
     def policy_hash(self) -> str:
