@@ -1,10 +1,10 @@
 # 01 — Supabase Database & Security Architecture
 
-**Freshness Date:** 2026-11-27
+**Freshness Date:** 2026-11-28
 
-**Primary Sources:** `supabase/reconciliation/20261021214512_reconstructed_baseline.sql`, `supabase/migrations/001`–`016`, `supabase/migrations/20261022140809_academic_catalog.sql`, `supabase/migrations/20261106130000_course_distribution_contract.sql`, `supabase/migrations/20261122160000_phase_5b_rls_and_storage_hardening.sql`, `supabase/functions/invite-admin/`, `supabase/functions/send-push/`, `docs/architecture/WEB_PHASE_0_COMPATIBILITY_AND_AUDIT_ADDENDUM.md`, `docs/implementation/web_phase_5_staging_verification_and_ci_fix.md`.
+**Primary Sources:** `supabase/reconciliation/20261021214512_reconstructed_baseline.sql`, `supabase/migrations/001`–`016`, `supabase/migrations/20261022140809_academic_catalog.sql`, `supabase/migrations/20261106130000_course_distribution_contract.sql`, `supabase/migrations/20261122160000_phase_5b_rls_and_storage_hardening.sql`, `supabase/migrations/20261127120000_stage_5a_gate_c_catalogs_and_policy.sql`, `supabase/migrations/20261127180000_stage_5c_gate_d_durable_jobs_and_archiving_publish.sql`, `supabase/functions/invite-admin/`, `supabase/functions/send-push/`, `docs/architecture/WEB_PHASE_0_COMPATIBILITY_AND_AUDIT_ADDENDUM.md`, `docs/implementation/web_phase_5_staging_verification_and_ci_fix.md`.
 
-> **Plugin Access Note (`2026-11-27`):** Live read-only `supabase_mcp` queries (`execute_sql` metadata/count checks + `list_edge_functions`) succeeded today against **both** Production (`yxqyrjyzxitrgkhgauli`) and Staging (`oqwvxplteqtlrhktsplj`) `[VERIFIED: Live Plugin]`. Edge Function secret values (such as exact `AUTH_WEB_CALLBACK_URLS`, `PUSH_WEBHOOK_SECRET`, and `FCM_SERVICE_ACCOUNT`) remain `[UNVERIFIED: External Dashboard / No Plugin Access]`.
+> **Plugin Access Note (`2026-11-28`):** Live read-only `supabase_mcp` metadata/count checks verified the 37-table Phase 5B baseline on both Production (`yxqyrjyzxitrgkhgauli`) and Staging (`oqwvxplteqtlrhktsplj`) `[VERIFIED: Live Plugin]`. Wave 2B (`Phase 4A-2`) migrations (`20261127120000` Gate C `catalog_courses`/`policy_snapshots` + `20261127180000` Gate D `solver_jobs`, `routines.teacher_codes text[]`, archiving `publish_routine()`, and `restore_routine_version()`) are implemented in `supabase/migrations/` `[VERIFIED: Repo Source]` and queued for owner-executed SQL Editor promotion (Staging → Production). Edge Function secret values (such as exact `AUTH_WEB_CALLBACK_URLS`, `PUSH_WEBHOOK_SECRET`, and `FCM_SERVICE_ACCOUNT`) remain `[UNVERIFIED: External Dashboard / No Plugin Access]`.
 
 ---
 

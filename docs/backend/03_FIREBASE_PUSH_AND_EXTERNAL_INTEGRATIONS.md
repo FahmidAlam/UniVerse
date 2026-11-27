@@ -1,10 +1,10 @@
 # 03 — Firebase Push Notifications & External Integrations
 
-**Freshness Date:** 2026-11-27
+**Freshness Date:** 2026-11-28
 
 **Primary Sources:** `lib/firebase_options.dart`, `android/app/google-services.json`, `android/app/build.gradle.kts`, `android/app/src/main/AndroidManifest.xml`, `ios/Runner/Info.plist`, `lib/main.dart`, `lib/core/constants/app_constants.dart`, `lib/core/services/push_service.dart`, `lib/features/auth/services/auth_service.dart`, `lib/features/auth/services/auth_callback_policy.dart`, `lib/features/auth/services/invitation_callback_bridge.dart`, `lib/features/teacher/services/teacher_service.dart`, `lib/features/notifications/services/notification_service.dart`, `lib/core/models/notification_model.dart`, `apps/web/src/features/admin/services/broadcastService.ts`, `apps/web/src/features/auth/AuthProvider.tsx`, `supabase/functions/send-push/`.
 
-> **Plugin Access Note (`2026-11-27`):** No live **Firebase MCP server** is installed in this environment (the installed `firebase` plugin provides local `SKILL.md` guides only, zero live Firebase Console / FCM API tools) `[UNVERIFIED: External Dashboard / No Plugin Access]`. However, Production (`yxqyrjyzxitrgkhgauli`) `send_push_on_notification` DB trigger and `send-push` Edge Function (`ACTIVE`, v3) were live-verified today via `supabase_mcp` `[VERIFIED: Live Plugin]`. All Firebase project identifiers, SDK bindings, manifest rules, and webhook/Edge Function contracts below are verified from repository source files `[VERIFIED: Repo Source]`, with secret keys redacted as `<REDACTED>`.
+> **Plugin Access Note (`2026-11-28`):** No live **Firebase MCP server** is installed in this environment (the installed `firebase` plugin provides local `SKILL.md` guides only, zero live Firebase Console / FCM API tools) `[UNVERIFIED: External Dashboard / No Plugin Access]`. Production (`yxqyrjyzxitrgkhgauli`) `send_push_on_notification` DB trigger and `send-push` Edge Function (`ACTIVE`, v3, with Stage 5C joint-section `B+C` audience fan-out and Flutter Mobile 2027 `sb_publishable_...` key readiness in `app_constants.dart`) are verified from repository source `[VERIFIED: Repo Source]` and prior live `supabase_mcp` probe `[VERIFIED: Live Plugin]`, with secret keys redacted as `<REDACTED>`.
 
 ---
 
