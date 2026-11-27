@@ -65,18 +65,15 @@ export function computeDistributionSessions(
   let ruleBadge = "3 Cr Theory · 2/wk";
 
   if (isLab) {
-    if (cr >= 3) {
+    if (cr >= 2) {
       classesPerWeek = 3;
       ruleBadge = "Sessional · 3/wk";
-    } else if (cr <= 1) {
-      classesPerWeek = 1;
-      ruleBadge = "Sessional · 1/wk";
     } else {
       classesPerWeek = 2;
       ruleBadge = "Sessional · 2/wk";
     }
   } else if (cr <= 2) {
-    classesPerWeek = cr <= 1 ? 1 : 2;
+    classesPerWeek = 2;
     ruleBadge = "1–2 Cr Theory · 1-Day 2-Slot Block";
   }
 

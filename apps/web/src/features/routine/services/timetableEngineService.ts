@@ -20,6 +20,10 @@ import type {
   PublishPipelineResult,
   RetryAuditParams,
   RoutineRow,
+  SolverConflictItem,
+  SolverOutcomeDiagnostics,
+  SolverOutcomeStatus,
+  SolverSoftMetrics,
 } from "@/features/routine/types";
 import { getEngineBaseUrl } from "@/services/engineHealth";
 import { isSupabaseConfigured, supabase } from "@/services/supabase";
@@ -46,20 +50,45 @@ export class EngineJobError extends Error {
   readonly kind: EngineErrorKind;
   readonly status?: number;
   readonly retryAfterSeconds?: number;
+  readonly diagnostics?: SolverOutcomeDiagnostics;
 
   constructor(
     kind: EngineErrorKind,
     message: string,
     status?: number,
     retryAfterSeconds?: number,
+    diagnostics?: SolverOutcomeDiagnostics,
   ) {
     super(message);
     this.name = "EngineJobError";
     this.kind = kind;
     this.status = status;
     this.retryAfterSeconds = retryAfterSeconds;
+    this.diagnostics = diagnostics;
   }
 }
+
+const SolverOutcomeSchema = z.enum([
+  "OPTIMAL",
+  "FEASIBLE",
+  "INFEASIBLE",
+  "TIME_LIMIT_EXHAUSTED",
+  "UNKNOWN",
+  "INPUT_ERROR",
+]);
+
+const SolverConflictSchema = z
+  .object({
+    rule: z.string(),
+    severity: z.string().default("blocker"),
+    code: z.string().default("conflict"),
+    entity_type: z.string().default("policy"),
+    entity_id: z.string().default(""),
+    message: z.string(),
+    suggested_route: z.string().optional(),
+    proven: z.boolean().default(false),
+  })
+  .passthrough();
 
 const EngineSubmitSchema = z.object({
   job_id: z.string().min(1),
@@ -76,8 +105,14 @@ const EngineStatusSchema = z.object({
     "failed",
   ]),
   progress: z.number().default(0),
+  outcome: SolverOutcomeSchema.optional(),
+  raw_status: z.string().optional(),
+  termination_reason: z.string().optional(),
+  proven_infeasible: z.boolean().optional(),
+  conflicts: z.array(SolverConflictSchema).optional(),
+  soft_metrics: z.record(z.string(), z.unknown()).optional().nullable(),
   stats: z.record(z.string(), z.unknown()).optional(),
-  validation: z.record(z.string(), z.unknown()).optional(),
+  validation: z.record(z.string(), z.unknown()).optional().nullable(),
   source_contract: z.record(z.string(), z.unknown()).optional().nullable(),
   error: z.string().optional().nullable(),
 });
@@ -108,6 +143,13 @@ const EngineRowSchema = z
 
 const EngineResultSchema = z.object({
   job_id: z.string().min(1),
+  outcome: SolverOutcomeSchema.optional(),
+  raw_status: z.string().optional(),
+  termination_reason: z.string().optional(),
+  proven_infeasible: z.boolean().optional(),
+  conflicts: z.array(SolverConflictSchema).optional(),
+  error: z.string().optional().nullable(),
+  soft_metrics: z.record(z.string(), z.unknown()).optional().nullable(),
   rows: z.array(EngineRowSchema),
   service_rows: z.array(EngineRowSchema).default([]),
   stats: z.record(z.string(), z.unknown()),
@@ -611,6 +653,51 @@ function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
+export function extractOutcomeDiagnostics(
+  source: Pick<
+    EngineStatusResponse | EngineResultResponse,
+    | "outcome"
+    | "raw_status"
+    | "termination_reason"
+    | "proven_infeasible"
+    | "conflicts"
+    | "error"
+    | "stats"
+    | "validation"
+    | "soft_metrics"
+  >,
+): SolverOutcomeDiagnostics | undefined {
+  const rawOutcome =
+    source.outcome ??
+    source.stats?.outcome ??
+    (typeof source.stats?.status === "string" &&
+    (source.stats.status === "OPTIMAL" ||
+      source.stats.status === "FEASIBLE" ||
+      source.stats.status === "INFEASIBLE")
+      ? (source.stats.status as SolverOutcomeStatus)
+      : undefined);
+
+  if (!rawOutcome && !source.conflicts?.length) return undefined;
+
+  const outcome: SolverOutcomeStatus = rawOutcome ?? "INFEASIBLE";
+  return {
+    outcome,
+    raw_status: source.raw_status ?? source.stats?.status ?? outcome,
+    termination_reason:
+      source.termination_reason ??
+      source.stats?.termination_reason ??
+      outcome.toLowerCase(),
+    proven_infeasible: Boolean(
+      source.proven_infeasible ?? outcome === "INFEASIBLE",
+    ),
+    conflicts: (source.conflicts ?? []) as SolverConflictItem[],
+    error: source.error ?? null,
+    soft_metrics: (source.soft_metrics ??
+      source.validation?.soft_metrics ??
+      null) as SolverSoftMetrics | null,
+  };
+}
+
 export async function runResilientJobPolling({
   jobId,
   onStatus,
@@ -666,9 +753,13 @@ export async function runResilientJobPolling({
     if (status) {
       onStatus?.(status);
       if (status.state === "failed") {
+        const diagnostics = extractOutcomeDiagnostics(status);
         throw new EngineJobError(
           "solver-failed",
           status.error || "The solver could not build a timetable.",
+          undefined,
+          undefined,
+          diagnostics,
         );
       }
       if (status.state === "done") {
@@ -772,7 +863,10 @@ export async function publishRoutinePipeline({
     throw new Error("Refusing to publish an empty routine.");
   }
 
-  const validationBlocker = blockingValidationErrorFor(result.validation);
+  const validationBlocker = blockingValidationErrorFor(
+    result.validation,
+    (result as { outcome?: string }).outcome,
+  );
   if (validationBlocker) {
     throw new Error(validationBlocker);
   }

@@ -198,22 +198,32 @@ def derive_required_sessions(classes_total: int | None,
 
 
 def ingest_bytes(data: bytes, weeks_in_term: int = 14,
-                 fixed_sessions_per_week: int | None = None) -> dict:
+                 fixed_sessions_per_week: int | None = None,
+                 committee_policy=None,
+                 courses_catalog: dict | None = None) -> dict:
     return ingest_workbook(
         openpyxl.load_workbook(io.BytesIO(data), data_only=True),
         weeks_in_term=weeks_in_term,
-        fixed_sessions_per_week=fixed_sessions_per_week)
+        fixed_sessions_per_week=fixed_sessions_per_week,
+        committee_policy=committee_policy,
+        courses_catalog=courses_catalog)
 
 
 def ingest_path(path: str, weeks_in_term: int = 14,
-                fixed_sessions_per_week: int | None = None) -> dict:
+                fixed_sessions_per_week: int | None = None,
+                committee_policy=None,
+                courses_catalog: dict | None = None) -> dict:
     return ingest_workbook(openpyxl.load_workbook(path, data_only=True),
                            weeks_in_term=weeks_in_term,
-                           fixed_sessions_per_week=fixed_sessions_per_week)
+                           fixed_sessions_per_week=fixed_sessions_per_week,
+                           committee_policy=committee_policy,
+                           courses_catalog=courses_catalog)
 
 
 def ingest_workbook(wb, weeks_in_term: int = 14,
-                    fixed_sessions_per_week: int | None = None) -> dict:
+                    fixed_sessions_per_week: int | None = None,
+                    committee_policy=None,
+                    courses_catalog: dict | None = None) -> dict:
     if SHEET not in wb.sheetnames:
         raise ValueError(f'Workbook has no "{SHEET}" sheet. Got: {wb.sheetnames}')
     ws = wb[SHEET]
@@ -411,7 +421,7 @@ def ingest_workbook(wb, weeks_in_term: int = 14,
         "sessions_per_week_histogram": dict(
             sorted(Counter(o.required_sessions for o in offerings).items())),
     }
-    return {
+    result = {
         "cohorts": _ordered_cohorts(cohorts),
         "offerings": [asdict(o) for o in offerings],
         "sessions": [asdict(s) for s in sessions],
@@ -421,6 +431,17 @@ def ingest_workbook(wb, weeks_in_term: int = 14,
         "meta": meta,
         "weeks_in_term": weeks_in_term,
     }
+    if committee_policy is not None or courses_catalog:
+        import policy_constraints
+        result = policy_constraints.apply_policy_to_dataset(
+            result,
+            {
+                "committee_policy": committee_policy,
+                "courses_catalog": courses_catalog or {},
+                "weeks_in_term": weeks_in_term,
+            },
+        )
+    return result
 
 
 def _exclusion(row: int, code: str | None, batch: str | None,

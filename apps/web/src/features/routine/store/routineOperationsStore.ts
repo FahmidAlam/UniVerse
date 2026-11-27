@@ -9,6 +9,7 @@ import type {
   RoutineDataSource,
   RoutineMatrixLens,
   RoutineMatrixViewMode,
+  SolverOutcomeDiagnostics,
 } from "@/features/routine/types";
 
 const SESSION_JOB_KEY = "universe-active-solver-job";
@@ -55,6 +56,7 @@ interface RoutineOperationsState {
   isRateLimitedBackoff: boolean;
   errorKind: EngineErrorKind | "validation" | null;
   errorMessage: string | null;
+  solverDiagnostics: SolverOutcomeDiagnostics | null;
 
   // Candidate results
   candidateResult: EngineResultResponse | null;
@@ -89,7 +91,11 @@ interface RoutineOperationsState {
     semesterLabel: string | null;
     wasPrivatePreview: boolean;
   }) => void;
-  failSolve: (kind: EngineErrorKind | "validation", message: string) => void;
+  failSolve: (
+    kind: EngineErrorKind | "validation",
+    message: string,
+    diagnostics?: SolverOutcomeDiagnostics | null,
+  ) => void;
   setCandidateWorkbookBlob: (blob: Blob | null) => void;
   setPublishResult: (res: PublishPipelineResult | null) => void;
   resetSolveState: () => void;
@@ -120,6 +126,7 @@ export const useRoutineOperationsStore = create<RoutineOperationsState>((set, ge
   isRateLimitedBackoff: false,
   errorKind: null,
   errorMessage: null,
+  solverDiagnostics: null,
 
   candidateResult: null,
   candidateWorkbookBlob: null,
@@ -148,6 +155,7 @@ export const useRoutineOperationsStore = create<RoutineOperationsState>((set, ge
       progress: 0,
       errorKind: null,
       errorMessage: null,
+      solverDiagnostics: null,
       candidateResult: null,
       candidateWorkbookBlob: null,
       publishResult: null,
@@ -169,6 +177,7 @@ export const useRoutineOperationsStore = create<RoutineOperationsState>((set, ge
       elapsedMs: 0,
       errorKind: null,
       errorMessage: null,
+      solverDiagnostics: null,
       candidateResult: null,
       candidateWorkbookBlob: null,
       publishResult: null,
@@ -186,6 +195,7 @@ export const useRoutineOperationsStore = create<RoutineOperationsState>((set, ge
       solverPhase: "idle",
       errorKind: null,
       errorMessage: null,
+      solverDiagnostics: null,
     }),
 
   setProfileError: (error) => set({ profileError: error }),
@@ -202,6 +212,7 @@ export const useRoutineOperationsStore = create<RoutineOperationsState>((set, ge
       isRateLimitedBackoff: false,
       errorKind: null,
       errorMessage: null,
+      solverDiagnostics: null,
       candidateResult: null,
       candidateWorkbookBlob: null,
       publishResult: null,
@@ -248,13 +259,14 @@ export const useRoutineOperationsStore = create<RoutineOperationsState>((set, ge
     });
   },
 
-  failSolve: (kind, message) => {
+  failSolve: (kind, message, diagnostics = null) => {
     persistSessionJobId(null);
     const started = get().startedAtMs;
     set({
       solverPhase: "error",
       errorKind: kind,
       errorMessage: message,
+      solverDiagnostics: diagnostics,
       isRateLimitedBackoff: false,
       elapsedMs: started !== null ? Date.now() - started : get().elapsedMs,
     });
@@ -276,6 +288,7 @@ export const useRoutineOperationsStore = create<RoutineOperationsState>((set, ge
       isRateLimitedBackoff: false,
       errorKind: null,
       errorMessage: null,
+      solverDiagnostics: null,
     });
   },
 

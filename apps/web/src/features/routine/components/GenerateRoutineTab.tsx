@@ -42,6 +42,7 @@ import { fetchRoutines } from "@/features/routine/services/routineService";
 import {
   downloadJobWorkbook,
   EngineJobError,
+  extractOutcomeDiagnostics,
   publishRoutinePipeline,
   retryRecordTimetableRun,
   runResilientJobPolling,
@@ -53,8 +54,10 @@ import {
   blockingValidationErrorFor,
   extractRowTeacherCodes,
   findCoTeacherBlockers,
+  inspectPolicyViolations,
   inspectValidationCounters,
 } from "@/features/routine/services/validationGate";
+import { SolverDiagnosticsPanel } from "@/features/routine/components/SolverDiagnosticsPanel";
 import { useDistributionDraftStore } from "@/features/routine/store/distributionDraftStore";
 import { useRoutineOperationsStore } from "@/features/routine/store/routineOperationsStore";
 import type { EngineJobState } from "@/features/routine/types";
@@ -128,6 +131,7 @@ export function GenerateRoutineTab({
     isRateLimitedBackoff,
     errorKind,
     errorMessage,
+    solverDiagnostics,
     candidateResult,
     candidateWorkbookBlob,
     candidateConfigSnapshot,
@@ -192,10 +196,42 @@ export function GenerateRoutineTab({
   const validationError = useMemo(
     () =>
       candidateResult
-        ? blockingValidationErrorFor(candidateResult.validation)
+        ? blockingValidationErrorFor(
+            candidateResult.validation,
+            candidateResult.outcome,
+          )
         : null,
     [candidateResult],
   );
+
+  const policyViolations = useMemo(
+    () =>
+      candidateResult
+        ? inspectPolicyViolations(candidateResult.validation)
+        : [],
+    [candidateResult],
+  );
+
+  const candidateDiagnostics = useMemo(() => {
+    if (!candidateResult) return null;
+    return (
+      extractOutcomeDiagnostics(candidateResult) ?? {
+        outcome:
+          candidateResult.stats?.status === "FEASIBLE"
+            ? ("FEASIBLE" as const)
+            : ("OPTIMAL" as const),
+        raw_status: candidateResult.stats?.status ?? "OPTIMAL",
+        termination_reason:
+          candidateResult.stats?.termination_reason ?? "optimal",
+        proven_infeasible: false,
+        conflicts: candidateResult.conflicts ?? [],
+        soft_metrics:
+          candidateResult.soft_metrics ??
+          candidateResult.validation?.soft_metrics ??
+          null,
+      }
+    );
+  }, [candidateResult]);
 
   const counterInspections = useMemo(
     () =>
@@ -360,11 +396,13 @@ export function GenerateRoutineTab({
     } catch (err) {
       const kind =
         err instanceof EngineJobError ? err.kind : ("network" as const);
+      const diagnostics =
+        err instanceof EngineJobError ? err.diagnostics ?? null : null;
       const msg =
         err instanceof Error
           ? err.message
           : "Timetable generation failed unexpectedly.";
-      failSolve(kind, msg);
+      failSolve(kind, msg, diagnostics);
       toast.error("Solver run stopped", { description: msg });
     }
   };
@@ -481,6 +519,7 @@ export function GenerateRoutineTab({
   };
 
   const counts = baselineQuery.data?.baselineCounts;
+  const gateCSummary = baselineQuery.data?.gateCSummary;
   const activeStageIdx = stageIndexOf(activeJobState);
 
   return (
@@ -595,6 +634,43 @@ export function GenerateRoutineTab({
             <span>{w}</span>
           </div>
         ))}
+
+        {/* Gate C Committee Policy Snapshot Preflight Summary */}
+        {gateCSummary && (
+          <div
+            data-testid="gate-c-policy-preflight-strip"
+            className="flex flex-wrap items-center justify-between gap-2.5 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3.5 py-2.5 text-[12px]"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone={gateCSummary.policySnapshotActive ? "theory" : "neutral"} mono>
+                {gateCSummary.policySnapshotActive
+                  ? "R1–R16 Policy Active"
+                  : "Legacy Baseline Mode"}
+              </Badge>
+              <span className="font-mono-tabular text-[var(--ink-secondary)]">
+                Weekend: {gateCSummary.defaultSectionWeekend.join(" + ")} ·{" "}
+                {gateCSummary.sectionOverrideCount} override(s) ·{" "}
+                {gateCSummary.catalogCoursesCount} courses ·{" "}
+                {gateCSummary.sectionPoliciesCount} sections
+              </span>
+              <Badge
+                tone={gateCSummary.allowSessionalAcrossBreak ? "joint" : "neutral"}
+                mono
+              >
+                {gateCSummary.allowSessionalAcrossBreak
+                  ? "D5 Break Crossing: On"
+                  : "D5 Break Crossing: Off"}
+              </Badge>
+            </div>
+            <Link
+              to="/admin/scheduling"
+              className="inline-flex items-center gap-1 font-medium text-[var(--accent-brand)] no-underline hover:underline"
+            >
+              <span>Policy Studio</span>
+              <ArrowRight size={13} aria-hidden="true" />
+            </Link>
+          </div>
+        )}
       </section>
 
       {/* Section 2: Workbook Input & Optional Rehearsal Profile */}
@@ -983,34 +1059,60 @@ export function GenerateRoutineTab({
             })}
           </ol>
 
-          {/* Service Recovery Card on Error / Render 404 Restart */}
+          {/* Service Recovery / D6 Structured Diagnostics on Solve Failure */}
           {solverPhase === "error" && (
-            <div
-              role="alert"
-              data-testid="solver-service-recovery-card"
-              className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-control)] border border-[var(--sem-conflict-border)] bg-[var(--sem-conflict-bg)] p-4 text-[13px] text-[var(--sem-conflict-ink)]"
-            >
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 font-semibold">
-                  <WarningCircle size={17} aria-hidden="true" />
-                  <span>
-                    {errorKind === "engine-restart"
-                      ? "Engine restarted mid-solve — re-submit workbook"
-                      : "Timetable generation interrupted"}
-                  </span>
+            <div className="space-y-3">
+              {solverDiagnostics ? (
+                <>
+                  <SolverDiagnosticsPanel diagnostics={solverDiagnostics} />
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={
+                        generateInputMode === "upload" && !selectedWorkbookFile
+                      }
+                      onClick={() => void handleRunSolver()}
+                    >
+                      <ArrowsClockwise size={14} aria-hidden="true" />
+                      <span>Retry Generation</span>
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div
+                  role="alert"
+                  data-testid="solver-service-recovery-card"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-control)] border border-[var(--sem-conflict-border)] bg-[var(--sem-conflict-bg)] p-4 text-[13px] text-[var(--sem-conflict-ink)]"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 font-semibold">
+                      <WarningCircle size={17} aria-hidden="true" />
+                      <span>
+                        {errorKind === "engine-restart"
+                          ? "Engine restarted mid-solve — re-submit workbook"
+                          : "Timetable generation interrupted"}
+                      </span>
+                    </div>
+                    <p className="text-[12.5px] leading-[1.45]">
+                      {errorMessage}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={
+                      generateInputMode === "upload" && !selectedWorkbookFile
+                    }
+                    onClick={() => void handleRunSolver()}
+                  >
+                    <ArrowsClockwise size={14} aria-hidden="true" />
+                    <span>Retry Generation</span>
+                  </Button>
                 </div>
-                <p className="text-[12.5px] leading-[1.45]">{errorMessage}</p>
-              </div>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={!selectedWorkbookFile}
-                onClick={() => void handleRunSolver()}
-              >
-                <ArrowsClockwise size={14} aria-hidden="true" />
-                <span>Retry Generation</span>
-              </Button>
+              )}
             </div>
           )}
         </section>
@@ -1107,6 +1209,11 @@ export function GenerateRoutineTab({
             ))}
           </div>
 
+          {/* D6 Outcome Diagnostics & Soft Optimization Scorecard */}
+          {candidateDiagnostics && (
+            <SolverDiagnosticsPanel diagnostics={candidateDiagnostics} />
+          )}
+
           {/* Co-Teacher Storage Guard Banner (F-22) */}
           {coTeacherBlockers.length > 0 && (
             <div
@@ -1171,7 +1278,8 @@ export function GenerateRoutineTab({
                 <span>20-Counter Validation Diagnostic Ledger</span>
               </span>
               <span className="font-mono-tabular text-[11.5px] text-[var(--ink-muted)]">
-                {failingCounters.length} failing / 20 checks
+                {failingCounters.length + policyViolations.length} failing /{" "}
+                {20 + policyViolations.length} checks
               </span>
             </button>
 
