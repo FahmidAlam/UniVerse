@@ -129,6 +129,10 @@ export function RevisionSolveStage({
   const [overrideWorkbookFile, setOverrideWorkbookFile] = useState<File | null>(null);
   const [timeLimitS, setTimeLimitS] = useState(120);
   const [recoveringJobId, setRecoveringJobId] = useState<string | null>(null);
+  const [reconnectNotice, setReconnectNotice] = useState<{
+    attempt: number;
+    maxAttempts: number;
+  } | null>(null);
   const pollAbortRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -273,9 +277,16 @@ export function RevisionSolveStage({
         });
 
         setLiveSolvePolling({ jobId: job_id, state: "queued", progress: 0 });
+        setReconnectNotice(null);
         await runResilientJobPolling({
           jobId: job_id,
           signal: abort.signal,
+          onReconnecting: (info) =>
+            setReconnectNotice(
+              info.active
+                ? { attempt: info.attempt, maxAttempts: info.maxAttempts }
+                : null,
+            ),
           onStatus: (st) => {
             setLiveSolvePolling({
               jobId: job_id,
@@ -284,6 +295,7 @@ export function RevisionSolveStage({
             });
           },
         });
+        setReconnectNotice(null);
 
         const res = await fetchJobResult(job_id, abort.signal);
         const diagnostics = extractOutcomeDiagnostics(res) ?? null;
@@ -469,6 +481,11 @@ export function RevisionSolveStage({
                 {liveJobId && (
                   <Badge tone="neutral" mono>
                     Job {liveJobId}
+                  </Badge>
+                )}
+                {reconnectNotice && (
+                  <Badge tone="joint" mono>
+                    Reconnecting ({reconnectNotice.attempt}/{reconnectNotice.maxAttempts})
                   </Badge>
                 )}
                 {isLiveBusy && (

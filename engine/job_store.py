@@ -24,12 +24,23 @@ logger = logging.getLogger("universe.engine.job_store")
 
 _MEMORY_LOCK = threading.Lock()
 _MEMORY_JOBS: dict[str, dict[str, Any]] = {}
+_LOCAL_ACTIVE_JOBS: set[str] = set()
+
+_NON_TERMINAL_STATES = {"queued", "ingesting", "solving", "rendering"}
+_MAX_MEMORY_JOBS = 12
 
 SOLVER_JOB_COLUMNS = (
     "job_id,scheduling_scope_id,revision_id,revision_version,policy_snapshot_id,"
     "semester_label,state,progress,outcome,raw_status,termination_reason,"
     "proven_infeasible,conflicts,stats,validation,report,rows,service_rows,"
     "source_contract,workbook_storage_path,error,created_by,created_at,updated_at"
+)
+
+SOLVER_JOB_STATUS_COLUMNS = (
+    "job_id,scheduling_scope_id,revision_id,revision_version,policy_snapshot_id,"
+    "semester_label,state,progress,outcome,raw_status,termination_reason,"
+    "proven_infeasible,conflicts,stats,validation,source_contract,"
+    "workbook_storage_path,error,created_by,created_at,updated_at"
 )
 
 SOLVER_JOB_SUMMARY_COLUMNS = (
@@ -40,6 +51,170 @@ SOLVER_JOB_SUMMARY_COLUMNS = (
 
 _WORKBOOK_BUCKET = "timetables"
 _PROGRESS_PATCH_MIN_DELTA = 0.12
+_ORPHAN_ERROR_MESSAGE = (
+    "Engine restarted mid-solve (likely memory or timeout limit). Please retry generation."
+)
+
+
+def get_heartbeat_interval_s() -> float:
+    raw = os.environ.get("SOLVER_HEARTBEAT_INTERVAL_S", "15.0").strip()
+    try:
+        return max(1.0, float(raw))
+    except ValueError:
+        return 15.0
+
+
+def get_stale_job_timeout_s() -> float:
+    raw = os.environ.get("STALE_JOB_TIMEOUT_S", "45.0").strip()
+    try:
+        return max(5.0, float(raw))
+    except ValueError:
+        return 45.0
+
+
+def mark_job_active(job_id: str) -> None:
+    with _MEMORY_LOCK:
+        _LOCAL_ACTIVE_JOBS.add(job_id)
+
+
+def mark_job_inactive(job_id: str) -> None:
+    with _MEMORY_LOCK:
+        _LOCAL_ACTIVE_JOBS.discard(job_id)
+
+
+def is_job_locally_active(job_id: str) -> bool:
+    with _MEMORY_LOCK:
+        return job_id in _LOCAL_ACTIVE_JOBS
+
+
+def _parse_iso_timestamp(value: Any) -> datetime | None:
+    if not value or not isinstance(value, str):
+        return None
+    normalized = value.strip()
+    if not normalized:
+        return None
+    if normalized.endswith("Z"):
+        normalized = f"{normalized[:-1]}+00:00"
+    try:
+        dt = datetime.fromisoformat(normalized)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except ValueError:
+        return None
+
+
+def _evict_old_memory_jobs() -> None:
+    """Keep in-process job cache bounded to protect 512 MB containers."""
+    if len(_MEMORY_JOBS) <= _MAX_MEMORY_JOBS:
+        return
+    removable = [
+        (str(job.get("updated_at") or job.get("created_at") or ""), jid)
+        for jid, job in _MEMORY_JOBS.items()
+        if jid not in _LOCAL_ACTIVE_JOBS and job.get("state") not in _NON_TERMINAL_STATES
+    ]
+    removable.sort()
+    overflow = len(_MEMORY_JOBS) - _MAX_MEMORY_JOBS
+    for _, jid in removable[:overflow]:
+        _MEMORY_JOBS.pop(jid, None)
+
+
+def _maybe_mark_orphaned_job(
+    job: dict[str, Any],
+    *,
+    caller_token: str | None = None,
+) -> dict[str, Any]:
+    """Detect a non-terminal job whose worker process died (e.g. Render OOM restart)."""
+    job_id = str(job.get("job_id") or "")
+    if not job_id or job.get("state") not in _NON_TERMINAL_STATES:
+        return job
+    if is_job_locally_active(job_id):
+        return job
+    ts = _parse_iso_timestamp(job.get("updated_at")) or _parse_iso_timestamp(job.get("created_at"))
+    if ts is None:
+        return job
+    age_s = (datetime.now(timezone.utc) - ts).total_seconds()
+    if age_s < get_stale_job_timeout_s():
+        return job
+
+    logger.warning(
+        "Detected orphaned solver job %s (state=%s, stale %.1fs) — marking failed.",
+        job_id,
+        job.get("state"),
+        age_s,
+    )
+    now = _now_iso()
+    orphan_patch: dict[str, Any] = {
+        "state": "failed",
+        "progress": 1.0,
+        "outcome": "UNKNOWN",
+        "raw_status": "ENGINE_RESTARTED",
+        "termination_reason": "engine_restarted",
+        "proven_infeasible": False,
+        "error": _ORPHAN_ERROR_MESSAGE,
+        "updated_at": now,
+    }
+    updated = {**job, **orphan_patch}
+    with _MEMORY_LOCK:
+        if job_id in _MEMORY_JOBS:
+            _MEMORY_JOBS[job_id].update(orphan_patch)
+    _postgrest_patch(job_id, _serialize_db_patch(orphan_patch), caller_token=caller_token)
+    return updated
+
+
+def mark_orphaned_jobs_on_startup() -> int:
+    """Immediately transition any leftover non-terminal Postgres jobs on fresh process boot.
+
+    Safe on single-worker Render deployments: a freshly booted process has no
+    in-flight solver threads from before the restart, so any pre-existing
+    queued/ingesting/solving/rendering row is guaranteed orphaned by a crash or OOM.
+    """
+    ctx = _remote_context(caller_token=None)
+    if ctx is None:
+        return 0
+    supabase_url, headers = ctx
+    try:
+        with _http_client() as client:
+            resp = client.get(
+                f"{supabase_url}/rest/v1/solver_jobs",
+                params={
+                    "select": "job_id,state",
+                    "state": "in.(queued,ingesting,solving,rendering)",
+                    "limit": "50",
+                },
+                headers=headers,
+            )
+            if resp.status_code != 200:
+                return 0
+            rows = resp.json()
+            if not isinstance(rows, list):
+                return 0
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Startup orphan sweep query failed: %s", exc)
+        return 0
+
+    marked = 0
+    now = _now_iso()
+    orphan_patch: dict[str, Any] = {
+        "state": "failed",
+        "progress": 1.0,
+        "outcome": "UNKNOWN",
+        "raw_status": "ENGINE_RESTARTED",
+        "termination_reason": "engine_restarted",
+        "proven_infeasible": False,
+        "error": _ORPHAN_ERROR_MESSAGE,
+        "updated_at": now,
+    }
+    serialized = _serialize_db_patch(orphan_patch)
+    for row in rows:
+        jid = str(row.get("job_id") or "")
+        if not jid or is_job_locally_active(jid):
+            continue
+        if _postgrest_patch(jid, serialized, caller_token=None):
+            marked += 1
+    if marked:
+        logger.warning("Startup orphan sweep marked %d interrupted job(s) failed.", marked)
+    return marked
 
 
 def _now_iso() -> str:
@@ -74,6 +249,7 @@ def clear_memory_jobs() -> None:
     """Test helper to simulate a process restart losing volatile memory."""
     with _MEMORY_LOCK:
         _MEMORY_JOBS.clear()
+        _LOCAL_ACTIVE_JOBS.clear()
 
 
 def _serialize_db_patch(patch: dict[str, Any]) -> dict[str, Any]:
@@ -100,6 +276,7 @@ def _serialize_db_patch(patch: dict[str, Any]) -> dict[str, Any]:
         "workbook_storage_path",
         "error",
         "created_by",
+        "updated_at",
     }
     payload: dict[str, Any] = {}
     for key, value in patch.items():
@@ -261,10 +438,26 @@ def create_job(
 
     with _MEMORY_LOCK:
         _MEMORY_JOBS[job_id] = record
+        _evict_old_memory_jobs()
 
     db_payload = _serialize_db_patch(record)
     _postgrest_upsert(db_payload, caller_token=caller_token)
     return record
+
+
+def touch_heartbeat(
+    job_id: str,
+    *,
+    caller_token: str | None = None,
+) -> None:
+    """Refresh updated_at in memory and Postgres while a long solve is running."""
+    now = _now_iso()
+    with _MEMORY_LOCK:
+        existing = _MEMORY_JOBS.get(job_id)
+        if existing is None or existing.get("state") not in _NON_TERMINAL_STATES:
+            return
+        existing["updated_at"] = now
+    _postgrest_patch(job_id, {"updated_at": now}, caller_token=caller_token)
 
 
 def update_job(
@@ -355,7 +548,48 @@ def save_workbook(
 
     with _MEMORY_LOCK:
         _MEMORY_JOBS[job_id]["workbook_storage_path"] = storage_path
+        # Once durably stored in Supabase Storage, drop raw bytes from RAM to keep RSS low.
+        _MEMORY_JOBS[job_id].pop("file", None)
     return storage_path
+
+
+def get_job_status(
+    job_id: str,
+    *,
+    caller_token: str | None = None,
+) -> dict[str, Any] | None:
+    """Lightweight status lookup (never selects multi-MB rows/report JSONB blobs)."""
+    with _MEMORY_LOCK:
+        cached = _MEMORY_JOBS.get(job_id)
+        if cached is not None:
+            snapshot = dict(cached)
+        else:
+            snapshot = None
+
+    if snapshot is not None:
+        return _maybe_mark_orphaned_job(snapshot, caller_token=caller_token)
+
+    ctx = _remote_context(caller_token=caller_token)
+    if ctx is None:
+        return None
+    supabase_url, headers = ctx
+    try:
+        with _http_client() as client:
+            resp = client.get(
+                f"{supabase_url}/rest/v1/solver_jobs",
+                params={"job_id": f"eq.{job_id}", "select": SOLVER_JOB_STATUS_COLUMNS, "limit": "1"},
+                headers=headers,
+            )
+            if resp.status_code != 200:
+                return None
+            rows = resp.json()
+            if not isinstance(rows, list) or not rows:
+                return None
+            hydrated = _hydrate_job_row(rows[0])
+            return _maybe_mark_orphaned_job(hydrated, caller_token=caller_token)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("solver_jobs status get failed: %s", exc)
+        return None
 
 
 def get_job(
@@ -366,7 +600,12 @@ def get_job(
     with _MEMORY_LOCK:
         cached = _MEMORY_JOBS.get(job_id)
         if cached is not None:
-            return dict(cached)
+            snapshot = dict(cached)
+        else:
+            snapshot = None
+
+    if snapshot is not None:
+        return _maybe_mark_orphaned_job(snapshot, caller_token=caller_token)
 
     ctx = _remote_context(caller_token=caller_token)
     if ctx is None:
@@ -385,9 +624,11 @@ def get_job(
             if not isinstance(rows, list) or not rows:
                 return None
             hydrated = _hydrate_job_row(rows[0])
+            checked = _maybe_mark_orphaned_job(hydrated, caller_token=caller_token)
             with _MEMORY_LOCK:
-                _MEMORY_JOBS[job_id] = hydrated
-            return dict(hydrated)
+                _MEMORY_JOBS[job_id] = checked
+                _evict_old_memory_jobs()
+            return dict(checked)
     except Exception as exc:  # noqa: BLE001
         logger.warning("solver_jobs get failed: %s", exc)
         return None

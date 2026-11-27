@@ -46,6 +46,8 @@ import {
   downloadJobWorkbook,
   EngineJobError,
   extractOutcomeDiagnostics,
+  fetchJobResult,
+  pollJobStatus,
   publishRoutinePipeline,
   retryRecordTimetableRun,
   runResilientJobPolling,
@@ -62,7 +64,10 @@ import {
 } from "@/features/routine/services/validationGate";
 import { SolverDiagnosticsPanel } from "@/features/routine/components/SolverDiagnosticsPanel";
 import { useDistributionDraftStore } from "@/features/routine/store/distributionDraftStore";
-import { useRoutineOperationsStore } from "@/features/routine/store/routineOperationsStore";
+import {
+  readSessionJobId,
+  useRoutineOperationsStore,
+} from "@/features/routine/store/routineOperationsStore";
 import type { EngineJobState } from "@/features/routine/types";
 import { cn } from "@/lib/utils";
 
@@ -132,6 +137,7 @@ export function GenerateRoutineTab({
     activeJobState,
     elapsedMs,
     isRateLimitedBackoff,
+    reconnectingInfo,
     errorKind,
     errorMessage,
     solverDiagnostics,
@@ -149,12 +155,18 @@ export function GenerateRoutineTab({
     setPollingJob,
     updateJobProgress,
     setRateLimitedBackoff,
+    setReconnectingInfo,
     tickElapsed,
     completeSolve,
     failSolve,
     setCandidateWorkbookBlob,
     setPublishResult,
   } = useRoutineOperationsStore();
+
+  const [pendingSessionJobId, setPendingSessionJobId] = useState<string | null>(() =>
+    readSessionJobId(),
+  );
+  const [isCheckingJobStatus, setIsCheckingJobStatus] = useState(false);
 
   const [rehearsalOpen, setRehearsalOpen] = useState(false);
   const [validationExpanded, setValidationExpanded] = useState(false);
@@ -388,11 +400,22 @@ export function GenerateRoutineTab({
       });
 
       setPollingJob(job_id);
+      setPendingSessionJobId(null);
 
       const result = await runResilientJobPolling({
         jobId: job_id,
         signal: abortCtrl.signal,
         onBackoff: (active) => setRateLimitedBackoff(active),
+        onReconnecting: (info) =>
+          setReconnectingInfo(
+            info.active
+              ? {
+                  attempt: info.attempt,
+                  maxAttempts: info.maxAttempts,
+                  reason: info.reason,
+                }
+              : null,
+          ),
         onStatus: (st) => updateJobProgress(st.state, st.progress),
       });
 
@@ -416,6 +439,102 @@ export function GenerateRoutineTab({
           : "Timetable generation failed unexpectedly.";
       failSolve(kind, msg, diagnostics);
       toast.error("Solver run stopped", { description: msg });
+    }
+  };
+
+  const handleReconnectJob = async (explicitJobId?: string) => {
+    const targetId = explicitJobId ?? jobId ?? pendingSessionJobId;
+    if (!targetId) return;
+
+    pollAbortRef.current?.abort();
+    const abortCtrl = new AbortController();
+    pollAbortRef.current = abortCtrl;
+    setIsCheckingJobStatus(true);
+
+    try {
+      const assembled =
+        baselineQuery.data ?? (await fetchBaselineConfigAndBuild(isDevPreview));
+      const configObj = assembled.config as unknown as Record<string, unknown>;
+      const semesterLabel =
+        assembled.config.settings.semester_label || draftTermLabel;
+
+      const status = await pollJobStatus(targetId, abortCtrl.signal);
+      setPendingSessionJobId(null);
+
+      if (status.state === "done") {
+        setPollingJob(targetId);
+        updateJobProgress("done", 1);
+        const result = await fetchJobResult(targetId, abortCtrl.signal);
+        completeSolve({
+          result,
+          configSnapshot: configObj,
+          semesterLabel,
+          wasPrivatePreview:
+            generateInputMode === "upload" && loadedProfile !== null,
+        });
+        toast.success(`Recovered completed timetable (Job ${targetId})`);
+        return;
+      }
+
+      if (status.state === "failed") {
+        const diagnostics = extractOutcomeDiagnostics(status) ?? null;
+        const isRestart = status.termination_reason === "engine_restarted";
+        const msg =
+          status.error ||
+          (isRestart
+            ? "Engine restarted mid-solve (likely memory or timeout limit). Please retry generation."
+            : "The solver could not build a timetable.");
+        failSolve(
+          isRestart ? "engine-restart" : "solver-failed",
+          msg,
+          isRestart ? null : diagnostics,
+        );
+        toast.error("Job ended on server", { description: msg });
+        return;
+      }
+
+      setPollingJob(targetId);
+      updateJobProgress(status.state, status.progress);
+      toast.message(`Reconnected to active Job ${targetId}`);
+
+      const result = await runResilientJobPolling({
+        jobId: targetId,
+        signal: abortCtrl.signal,
+        onBackoff: (active) => setRateLimitedBackoff(active),
+        onReconnecting: (info) =>
+          setReconnectingInfo(
+            info.active
+              ? {
+                  attempt: info.attempt,
+                  maxAttempts: info.maxAttempts,
+                  reason: info.reason,
+                }
+              : null,
+          ),
+        onStatus: (st) => updateJobProgress(st.state, st.progress),
+      });
+
+      completeSolve({
+        result,
+        configSnapshot: configObj,
+        semesterLabel,
+        wasPrivatePreview:
+          generateInputMode === "upload" && loadedProfile !== null,
+      });
+      toast.success("CP-SAT routine generation completed");
+    } catch (err) {
+      const kind =
+        err instanceof EngineJobError ? err.kind : ("network" as const);
+      const diagnostics =
+        err instanceof EngineJobError ? err.diagnostics ?? null : null;
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Could not reconnect to solver job.";
+      failSolve(kind, msg, diagnostics);
+      toast.error("Reconnect failed", { description: msg });
+    } finally {
+      setIsCheckingJobStatus(false);
     }
   };
 
@@ -992,6 +1111,58 @@ export function GenerateRoutineTab({
         </div>
       </section>
 
+      {/* Recoverable Durable Job Banner (after browser reload / tab close) */}
+      {solverPhase === "idle" && pendingSessionJobId && (
+        <section
+          role="status"
+          data-testid="durable-job-reconnect-banner"
+          className="ledger-card flex flex-wrap items-center justify-between gap-3 border-[var(--accent-brand-border)] bg-[var(--accent-brand-soft)]/40 px-4 py-3 text-[12.5px]"
+        >
+          <div className="space-y-0.5">
+            <div className="font-semibold text-[var(--ink-primary)]">
+              Previous solver job detected (Job{" "}
+              <span className="font-mono-tabular">{pendingSessionJobId}</span>)
+            </div>
+            <p className="text-[var(--ink-secondary)]">
+              Check if this job finished on the server or is still running without re-submitting your workbook.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={isCheckingJobStatus}
+              data-testid="reconnect-session-job-btn"
+              onClick={() => void handleReconnectJob(pendingSessionJobId)}
+            >
+              <ArrowsClockwise
+                size={14}
+                className={isCheckingJobStatus ? "animate-spin" : undefined}
+                aria-hidden="true"
+              />
+              <span>{isCheckingJobStatus ? "Checking..." : "Check Job Status"}</span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setPendingSessionJobId(null);
+                try {
+                  window.sessionStorage.removeItem("universe-active-solver-job");
+                } catch {
+                  // Ignore storage errors
+                }
+              }}
+              aria-label="Dismiss previous job notice"
+            >
+              <X size={14} aria-hidden="true" />
+            </Button>
+          </div>
+        </section>
+      )}
+
       {/* Section 3: 4-Node Visual Solver Timeline & Service Recovery Card */}
       {solverPhase !== "idle" && (
         <section
@@ -1000,7 +1171,7 @@ export function GenerateRoutineTab({
           className="ledger-card space-y-4 p-5"
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2.5">
               <h3 className="text-[15px] font-semibold text-[var(--ink-primary)]">
                 Solver Execution Status
               </h3>
@@ -1014,11 +1185,30 @@ export function GenerateRoutineTab({
                   429 backoff (+4s)
                 </Badge>
               )}
+              {reconnectingInfo && (
+                <Badge tone="joint" mono data-testid="solver-reconnecting-badge">
+                  Reconnecting ({reconnectingInfo.attempt}/{reconnectingInfo.maxAttempts})
+                </Badge>
+              )}
             </div>
             <div className="font-mono-tabular text-[13px] font-semibold text-[var(--ink-primary)]">
               Elapsed {formatElapsedMs(elapsedMs)}
             </div>
           </div>
+
+          {reconnectingInfo && (
+            <div
+              role="status"
+              data-testid="solver-reconnecting-banner"
+              className="flex items-center gap-2.5 rounded-[var(--r-control)] border border-[var(--sem-joint-border)] bg-[var(--sem-joint-bg)] px-3.5 py-2.5 text-[12.5px] text-[var(--sem-joint-ink)]"
+            >
+              <CircleNotch size={15} className="shrink-0 animate-spin" aria-hidden="true" />
+              <span>
+                Reconnecting to solver engine (attempt {reconnectingInfo.attempt}/
+                {reconnectingInfo.maxAttempts})… Your job stays saved in Postgres while the connection recovers.
+              </span>
+            </div>
+          )}
 
           {/* Honest 4-Node Progression (Zero fabricated percentage bars) */}
           <ol className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
@@ -1112,18 +1302,46 @@ export function GenerateRoutineTab({
                       {errorMessage}
                     </p>
                   </div>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    disabled={
-                      generateInputMode === "upload" && !selectedWorkbookFile
-                    }
-                    onClick={() => void handleRunSolver()}
-                  >
-                    <ArrowsClockwise size={14} aria-hidden="true" />
-                    <span>Retry Generation</span>
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {jobId &&
+                      (errorKind === "network" ||
+                        errorKind === "timeout" ||
+                        errorKind === "http") && (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          disabled={isCheckingJobStatus}
+                          data-testid="check-job-status-btn"
+                          onClick={() => void handleReconnectJob(jobId)}
+                        >
+                          <ArrowsClockwise
+                            size={14}
+                            className={
+                              isCheckingJobStatus ? "animate-spin" : undefined
+                            }
+                            aria-hidden="true"
+                          />
+                          <span>
+                            {isCheckingJobStatus
+                              ? "Checking..."
+                              : "Reconnect / Check Job Status"}
+                          </span>
+                        </Button>
+                      )}
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={
+                        generateInputMode === "upload" && !selectedWorkbookFile
+                      }
+                      onClick={() => void handleRunSolver()}
+                    >
+                      <ArrowsClockwise size={14} aria-hidden="true" />
+                      <span>Retry Generation</span>
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>

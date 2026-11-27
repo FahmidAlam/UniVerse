@@ -40,7 +40,38 @@ export const DEFAULT_SOLVE_TIME_LIMIT_S = 180;
 export const DEFAULT_POLL_INTERVAL_MS = 2_000;
 export const DEFAULT_MAX_POLLS = 240;
 export const RATE_LIMIT_BACKOFF_MS = 4_000;
-export const MAX_CONSECUTIVE_POLL_ERRORS = 4; // Fails on 5th consecutive non-429 error
+export const MAX_CONSECUTIVE_POLL_ERRORS = 4; // Fails on 5th consecutive non-429 non-transient error
+export const TRANSIENT_POLL_BACKOFF_MS: readonly number[] = [
+  2_000,
+  3_000,
+  4_000,
+  5_000,
+  6_000,
+  8_000,
+  8_000,
+  8_000,
+  8_000,
+  8_000,
+]; // ~58s bounded recovery window for Render restarts / proxy blips
+export const MAX_TRANSIENT_POLL_RETRIES = TRANSIENT_POLL_BACKOFF_MS.length;
+
+export interface PollReconnectState {
+  active: boolean;
+  attempt: number;
+  maxAttempts: number;
+  reason?: string;
+}
+
+const RAW_BROWSER_NETWORK_RE =
+  /^(failed to fetch|load failed|networkerror|the internet connection appears to be offline|network request failed)/i;
+
+export function formatEngineNetworkError(err: unknown): string {
+  const raw = err instanceof Error ? err.message.trim() : "";
+  if (!raw || RAW_BROWSER_NETWORK_RE.test(raw)) {
+    return "Unable to reach the timetable engine — the service may be restarting or experiencing a brief network interruption.";
+  }
+  return raw;
+}
 
 export type EngineErrorKind =
   | "auth"
@@ -422,10 +453,7 @@ async function fetchWithTimeout(
           : "Timetable engine request timed out after 90 seconds.",
       );
     }
-    throw new EngineJobError(
-      "network",
-      err instanceof Error ? err.message : "Could not reach timetable engine.",
-    );
+    throw new EngineJobError("network", formatEngineNetworkError(err));
   } finally {
     globalThis.clearTimeout(timer);
     externalSignal?.removeEventListener("abort", onExternalAbort);
@@ -436,7 +464,24 @@ async function getEngineAuthHeaders(): Promise<Record<string, string>> {
   if (!isSupabaseConfigured || !supabase) return {};
   try {
     const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
+    let session = data.session;
+    // Proactively refresh if token is within 60 seconds of expiry during a long solve.
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (
+      session?.expires_at &&
+      session.expires_at <= nowSec + 60 &&
+      typeof supabase.auth.refreshSession === "function"
+    ) {
+      try {
+        const refreshed = await supabase.auth.refreshSession();
+        if (refreshed.data.session?.access_token) {
+          session = refreshed.data.session;
+        }
+      } catch {
+        // Fall back to existing token if refresh fails transiently
+      }
+    }
+    const token = session?.access_token;
     return token ? { Authorization: `Bearer ${token}` } : {};
   } catch {
     return {};
@@ -577,6 +622,14 @@ export async function pollJobStatus(
         ? "Engine restarted mid-solve (404 Unknown job_id) — re-submit workbook."
         : `Job not found (404): ${detail}`,
       404,
+    );
+  }
+
+  if (res.status === 502 || res.status === 503 || res.status === 504) {
+    throw new EngineJobError(
+      "network",
+      `Timetable engine is temporarily unavailable (HTTP ${res.status}) — it may be restarting.`,
+      res.status,
     );
   }
 
@@ -831,26 +884,40 @@ export function extractOutcomeDiagnostics(
   };
 }
 
+function isTransientPollError(err: unknown): boolean {
+  if (err instanceof EngineJobError) {
+    if (err.kind === "network" || err.kind === "timeout") return true;
+    if (err.status === 502 || err.status === 503 || err.status === 504) return true;
+  }
+  return false;
+}
+
 export async function runResilientJobPolling({
   jobId,
   onStatus,
   onBackoff,
+  onReconnecting,
   signal,
   sleepFn = defaultSleep,
   pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
   maxPolls = DEFAULT_MAX_POLLS,
   backoffMs = RATE_LIMIT_BACKOFF_MS,
+  transientBackoffScheduleMs = TRANSIENT_POLL_BACKOFF_MS,
 }: {
   jobId: string;
   onStatus?: (status: EngineStatusResponse) => void;
   onBackoff?: (active: boolean) => void;
+  onReconnecting?: (info: PollReconnectState) => void;
   signal?: AbortSignal;
   sleepFn?: (ms: number, signal?: AbortSignal) => Promise<void>;
   pollIntervalMs?: number;
   maxPolls?: number;
   backoffMs?: number;
+  transientBackoffScheduleMs?: readonly number[];
 }): Promise<EngineResultResponse> {
   let consecutiveErrors = 0;
+  let consecutiveTransientErrors = 0;
+  const maxTransientRetries = Math.max(1, transientBackoffScheduleMs.length);
 
   for (let attempt = 0; attempt < maxPolls; attempt++) {
     if (signal?.aborted) {
@@ -861,8 +928,19 @@ export async function runResilientJobPolling({
     try {
       status = await pollJobStatus(jobId, signal);
       consecutiveErrors = 0;
+      if (consecutiveTransientErrors > 0) {
+        consecutiveTransientErrors = 0;
+        onReconnecting?.({
+          active: false,
+          attempt: 0,
+          maxAttempts: maxTransientRetries,
+        });
+      }
       onBackoff?.(false);
     } catch (err) {
+      if (signal?.aborted) {
+        throw new EngineJobError("network", "Polling cancelled.");
+      }
       if (
         err instanceof EngineJobError &&
         (err.kind === "engine-restart" || err.kind === "auth")
@@ -875,11 +953,40 @@ export async function runResilientJobPolling({
       if (is429) {
         onBackoff?.(true);
         await sleepFn(backoffMs, signal);
-      } else {
-        consecutiveErrors += 1;
-        if (consecutiveErrors > MAX_CONSECUTIVE_POLL_ERRORS) {
-          throw err;
+        continue;
+      }
+      if (isTransientPollError(err)) {
+        consecutiveTransientErrors += 1;
+        const reason =
+          err instanceof Error ? err.message : formatEngineNetworkError(err);
+        if (consecutiveTransientErrors > maxTransientRetries) {
+          onReconnecting?.({
+            active: false,
+            attempt: maxTransientRetries,
+            maxAttempts: maxTransientRetries,
+          });
+          throw new EngineJobError(
+            "network",
+            `Lost connection to the timetable engine after ${maxTransientRetries} reconnect attempts (${reason}). Use "Check Job Status" to see if Job ${jobId} finished on the server, or retry generation.`,
+            err instanceof EngineJobError ? err.status : undefined,
+          );
         }
+        onReconnecting?.({
+          active: true,
+          attempt: consecutiveTransientErrors,
+          maxAttempts: maxTransientRetries,
+          reason,
+        });
+        const delayMs =
+          transientBackoffScheduleMs[
+            Math.min(consecutiveTransientErrors - 1, transientBackoffScheduleMs.length - 1)
+          ] ?? pollIntervalMs;
+        await sleepFn(delayMs, signal);
+        continue;
+      }
+      consecutiveErrors += 1;
+      if (consecutiveErrors > MAX_CONSECUTIVE_POLL_ERRORS) {
+        throw err;
       }
     }
 
@@ -887,12 +994,16 @@ export async function runResilientJobPolling({
       onStatus?.(status);
       if (status.state === "failed") {
         const diagnostics = extractOutcomeDiagnostics(status);
+        const isRestart = status.termination_reason === "engine_restarted";
         throw new EngineJobError(
-          "solver-failed",
-          status.error || "The solver could not build a timetable.",
+          isRestart ? "engine-restart" : "solver-failed",
+          status.error ||
+            (isRestart
+              ? "Engine restarted mid-solve (likely memory or timeout limit). Please retry generation."
+              : "The solver could not build a timetable."),
           undefined,
           undefined,
-          diagnostics,
+          isRestart ? undefined : diagnostics,
         );
       }
       if (status.state === "done") {
