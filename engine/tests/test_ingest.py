@@ -143,7 +143,7 @@ def test_blank_spacer_rows_are_not_reported_as_exclusions():
 # ── classification ───────────────────────────────────────────────────────
 
 def test_even_final_digit_marks_a_lab():
-    ds = norm([make_row(code="CSE-1101"), make_row(code="CSE-1102")])
+    ds = norm([make_row(code="CSE-1101", credit=3), make_row(code="CSE-1102", credit=1.5)])
     assert offering(ds, "66-A", "CSE-1101")["is_lab"] is False
     assert offering(ds, "66-A", "CSE-1102")["is_lab"] is True
 

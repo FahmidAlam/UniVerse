@@ -17,11 +17,13 @@ from ortools.sat.python import cp_model
 
 import domain
 from room_policy import (
+    classify_lab_kind,
     is_cse_course,
     is_ecl_room,
     is_eee_course,
     is_physics_lab_course,
     is_physics_lab_room,
+    parse_room_pool_override,
     room_key,
     slot_overlaps_window,
     slot_within_window,
@@ -278,21 +280,25 @@ def offering_room_pool(
     lab_rooms, ecl_rooms, physics_rooms, cse_rooms, theory_rooms = resolved_room_pools(cfg)
 
     if is_lab:
-        if is_physics_lab_course(code, physics_codes) or offering.get("is_physics_lab"):
+        lab_kind = classify_lab_kind(
+            code,
+            dept,
+            physics_lab_course_codes=physics_codes,
+            is_physics_lab=bool(offering.get("is_physics_lab")),
+            room_pool_override=offering.get("room_pool_override"),
+        )
+        if lab_kind == "physics":
             return list(physics_rooms), "Physics lab"
-        if is_eee_course(code, dept):
+        if lab_kind == "ecl":
             return list(ecl_rooms), "ECL lab"
-        if is_cse_course(code, dept):
-            return list(cse_rooms), "CSE lab"
-        # Non-EEE, non-CSE, non-Physics generic labs can use non-ECL/non-Physics labs first, or lab_rooms
-        generic = [r for r in lab_rooms if r not in set(ecl_rooms) and r not in set(physics_rooms)]
-        return (generic if generic else list(lab_rooms)), "lab"
+        return (list(cse_rooms) if cse_rooms else list(lab_rooms)), "CSE lab"
     return list(theory_rooms), "theory"
 
 
 def apply_policy_to_dataset(dataset: dict[str, Any], cfg: dict[str, Any]) -> dict[str, Any]:
     """Enrich offerings with Gate C catalogs and R12/R13 session counts without mutating source bytes."""
     courses_catalog: dict[str, dict[str, Any]] = cfg.get("courses_catalog") or {}
+    course_room_overrides: dict[str, str] = cfg.get("course_room_overrides") or {}
     sections_catalog: dict[tuple[str, str], dict[str, Any]] = cfg.get("sections_catalog") or {}
     policy: domain.CommitteePolicySnapshot | None = cfg.get("committee_policy")
     physics_codes = effective_physics_codes(cfg)
@@ -306,19 +312,49 @@ def apply_policy_to_dataset(dataset: dict[str, Any], cfg: dict[str, Any]) -> dic
     for o in offerings:
         code = str(o.get("code") or "").strip().upper()
         cat = courses_catalog.get(code)
+        explicit_pool = parse_room_pool_override(course_room_overrides.get(code))
+        if explicit_pool is None and cat:
+            explicit_pool = (
+                parse_room_pool_override(cat.get("room_pool"))
+                or parse_room_pool_override(cat.get("room_pool_override"))
+                or parse_room_pool_override(cat.get("notes"))
+            )
+
         if cat:
             if o.get("credit") is None and cat.get("credit") is not None:
                 o["credit"] = float(cat["credit"])
-            if cat.get("class_type") in ("lab", "theory"):
-                o["is_lab"] = cat["class_type"] == "lab"
-            if cat.get("is_physics_lab"):
-                o["is_physics_lab"] = True
-                o["is_lab"] = True
             if not o.get("course_dept") and cat.get("dept_code"):
                 o["course_dept"] = cat["dept_code"]
 
-        if is_physics_lab_course(code, physics_codes):
+        if explicit_pool is not None:
+            o["room_pool_override"] = explicit_pool
+            if explicit_pool == "theory":
+                o["is_lab"] = False
+                o["is_physics_lab"] = False
+            elif explicit_pool == "physics_lab":
+                o["is_lab"] = True
+                o["is_physics_lab"] = True
+            else:
+                o["is_lab"] = True
+                o["is_physics_lab"] = False
+            changed = True
+        elif cat:
+            if cat.get("class_type") in ("lab", "theory"):
+                o["is_lab"] = cat["class_type"] == "lab"
+                if cat["class_type"] == "theory":
+                    o["is_physics_lab"] = False
+                changed = True
+            if cat.get("is_physics_lab") or cat.get("requires_physics_lab"):
+                o["is_physics_lab"] = True
+                o["is_lab"] = True
+                changed = True
+
+        if (
+            o.get("room_pool_override") not in ("theory", "cse_lab", "ecl_lab")
+            and is_physics_lab_course(code, physics_codes)
+        ):
             o["is_physics_lab"] = True
+            o["is_lab"] = True
 
         if o.get("students") is None:
             sec_key = (str(o.get("batch") or "").strip(), str(o.get("section") or "").strip().upper())
@@ -761,6 +797,9 @@ def add_policy_constraints(
 
     # Build room-pool open count per (di, p) for physics/theory/lab capacity
     lab_rooms, ecl_rooms, physics_rooms, cse_rooms, theory_rooms = resolved_room_pools(cfg)
+    ecl_set = set(ecl_rooms)
+    phy_set = set(physics_rooms)
+    general_lab_rooms = [r for r in lab_rooms if r not in ecl_set and r not in phy_set]
 
     for di, dname in enumerate(days):
         for p in pidx:
@@ -769,6 +808,9 @@ def add_policy_constraints(
             open_ecl = sum(1 for r in ecl_rooms if room_is_open_at(r, dname, p, pmeta, cfg))
             open_cse = sum(1 for r in cse_rooms if room_is_open_at(r, dname, p, pmeta, cfg))
             open_phy = sum(1 for r in physics_rooms if room_is_open_at(r, dname, p, pmeta, cfg))
+            open_general_lab = sum(
+                1 for r in general_lab_rooms if room_is_open_at(r, dname, p, pmeta, cfg)
+            )
 
             lab_terms = [x[(s["sid"], di, p)] for s in sessions if s["is_lab"] and (s["sid"], di, p) in x]
             th_terms = [x[(s["sid"], di, p)] for s in sessions if not s["is_lab"] and (s["sid"], di, p) in x]
@@ -777,40 +819,40 @@ def add_policy_constraints(
             if th_terms:
                 model.Add(sum(th_terms) <= open_th)
 
-            eee_terms = [
-                x[(s["sid"], di, p)]
-                for s in sessions
-                if s["is_lab"]
-                and not is_physics_lab_course(s["code"], physics_codes)
-                and not (offering_of.get(s["oid"]) or {}).get("is_physics_lab")
-                and is_eee_course(s["code"], (offering_of.get(s["oid"]) or {}).get("course_dept"))
-                and (s["sid"], di, p) in x
-            ]
-            cse_terms = [
-                x[(s["sid"], di, p)]
-                for s in sessions
-                if s["is_lab"]
-                and not is_physics_lab_course(s["code"], physics_codes)
-                and not (offering_of.get(s["oid"]) or {}).get("is_physics_lab")
-                and is_cse_course(s["code"], (offering_of.get(s["oid"]) or {}).get("course_dept"))
-                and (s["sid"], di, p) in x
-            ]
-            phy_terms = [
-                x[(s["sid"], di, p)]
-                for s in sessions
-                if s["is_lab"]
-                and (
-                    is_physics_lab_course(s["code"], physics_codes)
-                    or (offering_of.get(s["oid"]) or {}).get("is_physics_lab")
+            eee_terms = []
+            cse_terms = []
+            phy_terms = []
+            non_special_lab_terms = []
+            for s in sessions:
+                if not s["is_lab"] or (s["sid"], di, p) not in x:
+                    continue
+                off = offering_of.get(s["oid"]) or {}
+                kind = classify_lab_kind(
+                    s["code"],
+                    off.get("course_dept"),
+                    physics_lab_course_codes=physics_codes,
+                    is_physics_lab=bool(off.get("is_physics_lab")),
+                    room_pool_override=off.get("room_pool_override"),
                 )
-                and (s["sid"], di, p) in x
-            ]
+                var = x[(s["sid"], di, p)]
+                if kind == "physics":
+                    phy_terms.append(var)
+                elif kind == "ecl":
+                    eee_terms.append(var)
+                elif kind == "cse":
+                    cse_terms.append(var)
+                    non_special_lab_terms.append(var)
+                else:
+                    non_special_lab_terms.append(var)
+
             if eee_terms:
                 model.Add(sum(eee_terms) <= open_ecl)
             if cse_terms:
                 model.Add(sum(cse_terms) <= open_cse)
             if phy_terms:
                 model.Add(sum(phy_terms) <= open_phy)
+            if non_special_lab_terms and general_lab_rooms:
+                model.Add(sum(non_special_lab_terms) <= open_general_lab)
 
     # ── R8: Individual faculty preferred slots (Tiered soft objective) ───────
     elig = cfg.get("eligibility") or {}
@@ -907,10 +949,11 @@ def add_policy_constraints(
                     model.Add(split_day >= pre_used + post_used - 1)
                     penalties.append(25 * split_day)
 
-    # ── Hybrid R7: Resolve undeclared/partial Permanent off-days (0 or 1 -> 2)
+    # ── Hybrid R7: Resolve undeclared/partial Permanent off-days (0 or 1 -> >= 2)
     auto_resolve = policy.auto_resolve_undeclared_off_days if policy is not None else True
     hybrid_off_day_vars: dict[str, dict[int, cp_model.IntVar]] = {}
-    if auto_resolve and len(days) >= 2:
+    if auto_resolve and len(days) >= 5:
+        max_teach_days = len(days) - 2
         for t, t_sessions in sorted(by_teacher.items()):
             if not t_sessions:
                 continue
@@ -919,11 +962,24 @@ def add_policy_constraints(
             emp = str(prof.get("employment_type") or "permanent").strip().lower()
             if emp != "permanent":
                 continue
-            if not (prof.get("explicit_employment_type", False) or policy is not None):
-                continue
             declared_set = {d for d in (prof.get("off_days") or ()) if d in days}
             if len(declared_set) not in (0, 1):
                 continue
+
+            # Verify mathematical feasibility: teacher's sessions must fit in <= (len(days) - 2) days
+            per_day_slot_caps: list[int] = []
+            for di, dname in enumerate(days):
+                if dname in declared_set:
+                    continue
+                distinct_periods = {
+                    p for s in t_sessions for p in pidx if (s["sid"], di, p) in x
+                }
+                per_day_slot_caps.append(len(distinct_periods))
+            per_day_slot_caps.sort(reverse=True)
+            max_5day_cap = sum(per_day_slot_caps[:max_teach_days])
+            if len(t_sessions) > max_5day_cap:
+                continue
+
             pref_days = {
                 str(w.get("day") if isinstance(w, dict) else getattr(w, "day", "")).strip()
                 for w in (prof.get("preferred_slots") or ())

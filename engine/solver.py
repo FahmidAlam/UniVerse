@@ -24,11 +24,13 @@ from ortools.sat.python import cp_model
 import domain
 import policy_constraints
 from room_policy import (
+    classify_lab_kind,
     is_cse_course,
     is_ecl_room,
     is_eee_course,
     is_physics_lab_course,
     is_physics_lab_room,
+    parse_room_pool_override,
     room_key,
 )
 
@@ -339,6 +341,15 @@ def _normalize_config(cfg: dict) -> dict:
         if code_u:
             courses_catalog[code_u] = c
 
+    raw_overrides = cfg.get("course_room_overrides") or settings.get("course_room_overrides") or {}
+    course_room_overrides: dict[str, str] = {}
+    if isinstance(raw_overrides, dict):
+        for k, v in raw_overrides.items():
+            code_u = str(k or "").strip().upper()
+            pool = parse_room_pool_override(v)
+            if code_u and pool:
+                course_room_overrides[code_u] = pool
+
     physics_codes_raw = {
         str(c).strip().upper()
         for c in (cfg.get("physics_lab_course_codes") or settings.get("physics_lab_course_codes") or [])
@@ -385,6 +396,7 @@ def _normalize_config(cfg: dict) -> dict:
         "raw_section_overrides": raw_sections,
         "sections_catalog": sections_catalog,
         "courses_catalog": courses_catalog,
+        "course_room_overrides": course_room_overrides,
         "strict_adjunct_day_bands": bool(
             cfg.get("strict_adjunct_day_bands", settings.get("strict_adjunct_day_bands", False))
         ),
@@ -537,7 +549,12 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
         return_outcomes or committee_policy is not None or cfg.get("has_extended_policy_fields")
     )
 
-    if committee_policy is not None or cfg.get("courses_catalog") or cfg.get("sections_catalog"):
+    if (
+        committee_policy is not None
+        or cfg.get("courses_catalog")
+        or cfg.get("course_room_overrides")
+        or cfg.get("sections_catalog")
+    ):
         dataset = policy_constraints.apply_policy_to_dataset(dataset, cfg)
 
     presolve_conflicts = policy_constraints.check_presolve_inputs(
@@ -1389,14 +1406,25 @@ def _validate(dataset, cfg, all_rows, days, pmeta,
             blocked_d.append(_who(r))
         if r["is_lab"] and r["room"] != "TBA":
             dept = (offering or {}).get("course_dept")
-            is_eee = is_eee_course(r["subject_code"], dept)
-            is_cse = is_cse_course(r["subject_code"], dept)
+            physics_codes = policy_constraints.effective_physics_codes(cfg)
+            lab_kind = classify_lab_kind(
+                r["subject_code"],
+                dept,
+                physics_lab_course_codes=physics_codes,
+                is_physics_lab=bool((offering or {}).get("is_physics_lab")),
+                room_pool_override=(offering or {}).get("room_pool_override"),
+            )
             is_ecl = is_ecl_room(physical_room, aliases)
+            is_phy_room = is_physics_lab_room(
+                room_metadata.get(physical_room, r["room"]), aliases
+            )
             if physical_room not in lab_set:
                 lab_bad_d.append({**_who(r), "reason": f"Lab {r['subject_code']} in non-lab room {r['room']}"})
-            elif is_eee and not is_ecl:
+            elif lab_kind == "physics" and not is_phy_room:
+                lab_bad_d.append({**_who(r), "reason": f"Physics lab {r['subject_code']} in non-Physics room {r['room']}"})
+            elif lab_kind == "ecl" and not is_ecl:
                 lab_bad_d.append({**_who(r), "reason": f"EEE lab {r['subject_code']} in non-ECL room {r['room']}"})
-            elif is_cse and is_ecl:
+            elif lab_kind == "cse" and is_ecl:
                 lab_bad_d.append({**_who(r), "reason": f"CSE lab {r['subject_code']} in ECL room {r['room']}"})
         if (str(r["time_start"]), str(r["time_end"])) not in valid_slots:
             bad_slot_d.append({**_who(r), "time_start": str(r["time_start"]),
