@@ -14,6 +14,16 @@ import type {
 
 const SESSION_JOB_KEY = "universe-active-solver-job";
 
+export function readSessionJobId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(SESSION_JOB_KEY);
+    return raw && raw.trim() ? raw.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
 function persistSessionJobId(jobId: string | null): void {
   if (typeof window === "undefined") return;
   try {
@@ -54,6 +64,11 @@ interface RoutineOperationsState {
   startedAtMs: number | null;
   elapsedMs: number;
   isRateLimitedBackoff: boolean;
+  reconnectingInfo: {
+    attempt: number;
+    maxAttempts: number;
+    reason?: string;
+  } | null;
   errorKind: EngineErrorKind | "validation" | null;
   errorMessage: string | null;
   solverDiagnostics: SolverOutcomeDiagnostics | null;
@@ -84,6 +99,9 @@ interface RoutineOperationsState {
   setPollingJob: (jobId: string) => void;
   updateJobProgress: (state: EngineJobState, progress: number) => void;
   setRateLimitedBackoff: (active: boolean) => void;
+  setReconnectingInfo: (
+    info: { attempt: number; maxAttempts: number; reason?: string } | null,
+  ) => void;
   tickElapsed: () => void;
   completeSolve: (params: {
     result: EngineResultResponse;
@@ -124,6 +142,7 @@ export const useRoutineOperationsStore = create<RoutineOperationsState>((set, ge
   startedAtMs: null,
   elapsedMs: 0,
   isRateLimitedBackoff: false,
+  reconnectingInfo: null,
   errorKind: null,
   errorMessage: null,
   solverDiagnostics: null,
@@ -210,6 +229,7 @@ export const useRoutineOperationsStore = create<RoutineOperationsState>((set, ge
       startedAtMs: Date.now(),
       elapsedMs: 0,
       isRateLimitedBackoff: false,
+      reconnectingInfo: null,
       errorKind: null,
       errorMessage: null,
       solverDiagnostics: null,
@@ -221,10 +241,16 @@ export const useRoutineOperationsStore = create<RoutineOperationsState>((set, ge
 
   setPollingJob: (jobId) => {
     persistSessionJobId(jobId);
+    const currentStart = get().startedAtMs;
     set({
       jobId,
       solverPhase: "polling",
-      activeJobState: "queued",
+      activeJobState: get().activeJobState ?? "queued",
+      startedAtMs: currentStart ?? Date.now(),
+      reconnectingInfo: null,
+      errorKind: null,
+      errorMessage: null,
+      solverDiagnostics: null,
     });
   },
 
@@ -235,6 +261,8 @@ export const useRoutineOperationsStore = create<RoutineOperationsState>((set, ge
     }),
 
   setRateLimitedBackoff: (active) => set({ isRateLimitedBackoff: active }),
+
+  setReconnectingInfo: (info) => set({ reconnectingInfo: info }),
 
   tickElapsed: () => {
     const started = get().startedAtMs;
@@ -251,6 +279,7 @@ export const useRoutineOperationsStore = create<RoutineOperationsState>((set, ge
       activeJobState: "done",
       progress: 1,
       isRateLimitedBackoff: false,
+      reconnectingInfo: null,
       elapsedMs: started !== null ? Date.now() - started : get().elapsedMs,
       candidateResult: result,
       candidateConfigSnapshot: configSnapshot,
@@ -260,7 +289,12 @@ export const useRoutineOperationsStore = create<RoutineOperationsState>((set, ge
   },
 
   failSolve: (kind, message, diagnostics = null) => {
-    persistSessionJobId(null);
+    // Keep sessionStorage jobId when the failure is a transient network/timeout drop
+    // so the admin can click "Check Job Status" or reconnect after reload.
+    const recoverable = kind === "network" || kind === "timeout" || kind === "http";
+    if (!recoverable) {
+      persistSessionJobId(null);
+    }
     const started = get().startedAtMs;
     set({
       solverPhase: "error",
@@ -268,6 +302,7 @@ export const useRoutineOperationsStore = create<RoutineOperationsState>((set, ge
       errorMessage: message,
       solverDiagnostics: diagnostics,
       isRateLimitedBackoff: false,
+      reconnectingInfo: null,
       elapsedMs: started !== null ? Date.now() - started : get().elapsedMs,
     });
   },

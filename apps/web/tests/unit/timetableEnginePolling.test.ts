@@ -352,4 +352,159 @@ describe("Timetable Engine HTTP Polling & 3-Step Guarded Publication Pipeline", 
     expect((caught as EngineJobError).status).toBe(403);
     expect(fetch403).toHaveBeenCalledTimes(1);
   });
+
+  it("recovers from transient Failed to fetch & 502/503 blips with exponential backoff and emits reconnecting state", async () => {
+    const sleepCalls: number[] = [];
+    const reconnectEvents: Array<{ active: boolean; attempt: number; maxAttempts: number }> = [];
+    let attempt = 0;
+
+    const flakyFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/result/")) {
+        return new Response(JSON.stringify(SAMPLE_RESULT), { status: 200 });
+      }
+      attempt += 1;
+      if (attempt === 1 || attempt === 2) {
+        throw new TypeError("Failed to fetch");
+      }
+      if (attempt === 3) {
+        return new Response("Bad Gateway", { status: 502 });
+      }
+      if (attempt === 4) {
+        return new Response("Service Unavailable", { status: 503 });
+      }
+      return new Response(
+        JSON.stringify({ job_id: "job-abc123", state: "done", progress: 1 }),
+        { status: 200 },
+      );
+    });
+    vi.stubGlobal("fetch", flakyFetch);
+
+    const res = await runResilientJobPolling({
+      jobId: "job-abc123",
+      sleepFn: async (ms) => {
+        sleepCalls.push(ms);
+      },
+      transientBackoffScheduleMs: [100, 200, 300, 400, 500],
+      onReconnecting: (info) =>
+        reconnectEvents.push({
+          active: info.active,
+          attempt: info.attempt,
+          maxAttempts: info.maxAttempts,
+        }),
+    });
+
+    expect(res.rows).toHaveLength(1);
+    expect(sleepCalls).toEqual([100, 200, 300, 400]);
+    expect(reconnectEvents[0]).toEqual({ active: true, attempt: 1, maxAttempts: 5 });
+    expect(reconnectEvents[reconnectEvents.length - 1]).toEqual({
+      active: false,
+      attempt: 0,
+      maxAttempts: 5,
+    });
+  });
+
+  it("replaces raw 'Failed to fetch' with actionable diagnostic copy when transient retries exhaust", async () => {
+    const deadFetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+    vi.stubGlobal("fetch", deadFetch);
+
+    let caught: unknown;
+    try {
+      await runResilientJobPolling({
+        jobId: "c47b731e9166",
+        sleepFn: async () => {},
+        transientBackoffScheduleMs: [10, 20, 30],
+      });
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught).toBeInstanceOf(EngineJobError);
+    const err = caught as EngineJobError;
+    expect(err.kind).toBe("network");
+    expect(err.message).not.toMatch(/^failed to fetch$/i);
+    expect(err.message).toContain("c47b731e9166");
+    expect(err.message).toMatch(/Check Job Status/i);
+    expect(deadFetch).toHaveBeenCalledTimes(4);
+  });
+
+  it("classifies engine_restarted terminal status as EngineJobError('engine-restart')", async () => {
+    const restartedFetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          job_id: "c47b731e9166",
+          state: "failed",
+          progress: 1,
+          outcome: "UNKNOWN",
+          raw_status: "ENGINE_RESTARTED",
+          termination_reason: "engine_restarted",
+          error: "Engine restarted mid-solve (likely memory or timeout limit). Please retry generation.",
+        }),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal("fetch", restartedFetch);
+
+    let caught: unknown;
+    try {
+      await runResilientJobPolling({
+        jobId: "c47b731e9166",
+        sleepFn: async () => {},
+      });
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught).toBeInstanceOf(EngineJobError);
+    expect((caught as EngineJobError).kind).toBe("engine-restart");
+    expect((caught as EngineJobError).message).toMatch(/restarted mid-solve/i);
+  });
+
+  it("proactively refreshes an expiring Supabase access token during long polling", async () => {
+    vi.resetModules();
+
+    const refreshSession = vi.fn().mockResolvedValue({
+      data: { session: { access_token: "refreshed-admin-jwt" } },
+    });
+    vi.doMock("@/services/supabase", () => ({
+      isSupabaseConfigured: true,
+      supabase: {
+        auth: {
+          getSession: vi.fn().mockResolvedValue({
+            data: {
+              session: {
+                access_token: "expiring-admin-jwt",
+                expires_at: Math.floor(Date.now() / 1000) + 15,
+              },
+            },
+          }),
+          refreshSession,
+        },
+      },
+    }));
+
+    const seenAuth: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+        const hdrs = init?.headers as Record<string, string> | undefined;
+        if (hdrs?.Authorization) seenAuth.push(hdrs.Authorization);
+        if (url.includes("/result/")) {
+          return new Response(JSON.stringify(SAMPLE_RESULT), { status: 200 });
+        }
+        return new Response(
+          JSON.stringify({ job_id: "job-refresh-1", state: "done", progress: 1 }),
+          { status: 200 },
+        );
+      }),
+    );
+
+    const mod = await import("@/features/routine/services/timetableEngineService");
+    await mod.runResilientJobPolling({
+      jobId: "job-refresh-1",
+      sleepFn: async () => {},
+    });
+
+    expect(refreshSession).toHaveBeenCalled();
+    expect(seenAuth.every((h) => h === "Bearer refreshed-admin-jwt")).toBe(true);
+  });
 });

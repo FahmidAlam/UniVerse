@@ -10,14 +10,22 @@ services:
     rootDir: engine
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1
     healthCheckPath: /
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.7
-      # Keep memory low on the 512 MB free instance (avoids OOM on solve).
+      # Keep memory safely under Render's 512 MB free container limit.
+      - key: SOLVER_NUM_WORKERS
+        value: "1"
       - key: SOLVER_WORKERS
-        value: "2"
+        value: "1"
+      - key: SOLVER_MAX_MEMORY_MB
+        value: "320"
+      - key: SOLVER_LINEARIZATION_LEVEL
+        value: "0"
+      - key: MAX_CONCURRENT_SOLVES
+        value: "1"
       # Gradual-to-strict auth mode: "optional" during dual-client rollout, "enforced" for production.
       - key: ENGINE_AUTH_MODE
         value: optional

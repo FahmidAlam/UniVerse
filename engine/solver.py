@@ -12,6 +12,7 @@ is a FAILURE, not a warning.
 
 from __future__ import annotations
 
+import gc
 import json
 import os
 import re
@@ -33,7 +34,42 @@ from room_policy import (
 
 CONFIG_PATH = Path(__file__).parent / "config.json"
 
-SOLVER_WORKERS = int(os.environ.get("SOLVER_WORKERS", "8"))
+
+def _env_bounded_int(names: tuple[str, ...], default: int, minimum: int, maximum: int) -> int:
+    for name in names:
+        raw = os.environ.get(name, "").strip()
+        if not raw:
+            continue
+        try:
+            return max(minimum, min(maximum, int(raw)))
+        except ValueError:
+            continue
+    return default
+
+
+DEFAULT_SOLVER_WORKERS = _env_bounded_int(("SOLVER_NUM_WORKERS", "SOLVER_WORKERS"), 2, 1, 8)
+SOLVER_WORKERS = DEFAULT_SOLVER_WORKERS
+
+
+def get_solver_runtime_config() -> dict[str, int]:
+    """Resolve safe CP-SAT worker and memory parameters for constrained hosts (e.g. Render 512 MB)."""
+    # Honor explicit runtime env vars first; if unset, respect module-level SOLVER_WORKERS override.
+    has_worker_env = bool(
+        os.environ.get("SOLVER_NUM_WORKERS", "").strip()
+        or os.environ.get("SOLVER_WORKERS", "").strip()
+    )
+    workers = (
+        _env_bounded_int(("SOLVER_NUM_WORKERS", "SOLVER_WORKERS"), SOLVER_WORKERS, 1, 8)
+        if has_worker_env
+        else max(1, min(8, int(SOLVER_WORKERS)))
+    )
+    max_memory_mb = _env_bounded_int(("SOLVER_MAX_MEMORY_MB",), 320, 0, 8192)
+    linearization_level = _env_bounded_int(("SOLVER_LINEARIZATION_LEVEL",), 0, 0, 2)
+    return {
+        "num_search_workers": workers,
+        "max_memory_in_mb": max_memory_mb,
+        "linearization_level": linearization_level,
+    }
 
 #: How many offending items each validation list carries back to the client.
 #: The counts are always exact; only the examples are capped.
@@ -825,9 +861,14 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
 
     model.Minimize(sum(penalties))
 
+    runtime_cfg = get_solver_runtime_config()
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = time_limit_s
-    solver.parameters.num_search_workers = SOLVER_WORKERS
+    solver.parameters.num_search_workers = runtime_cfg["num_search_workers"]
+    solver.parameters.linearization_level = runtime_cfg["linearization_level"]
+    if runtime_cfg["max_memory_in_mb"] > 0 and hasattr(solver.parameters, "max_memory_in_mb"):
+        solver.parameters.max_memory_in_mb = runtime_cfg["max_memory_in_mb"]
+    gc.collect()
     progress(0.5)
     t0 = time.time()
     status = solver.Solve(model)
@@ -971,6 +1012,9 @@ def solve(dataset: dict, config: dict, time_limit_s: float = 60.0,
                     proven=True,
                 )
             )
+
+    del model
+    gc.collect()
 
     return {
         "outcome": outcome,

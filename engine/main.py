@@ -1,13 +1,18 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+import gc
 import json
+import logging
+import threading
 import uuid
 from threading import Thread
 
+import anyio
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 
 import auth
 import distribution
@@ -19,7 +24,23 @@ import render
 import security_guards
 import solver
 
-app = FastAPI(title="UniVerse Timetable Engine", version="2.0.0")
+logger = logging.getLogger("universe.engine.main")
+
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    # On container boot (including after a Render OOM restart), immediately sweep
+    # any orphaned non-terminal jobs in Postgres in a background thread so health
+    # checks stay instant and polling clients get a clear restart error.
+    Thread(
+        target=job_store.mark_orphaned_jobs_on_startup,
+        name="solver-startup-orphan-sweep",
+        daemon=True,
+    ).start()
+    yield
+
+
+app = FastAPI(title="UniVerse Timetable Engine", version="2.0.0", lifespan=_lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -28,6 +49,21 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Guarantee structured JSON + CORS headers on unexpected 500s so browsers do not report bare Failed to fetch."""
+    logger.exception("Unhandled engine error on %s %s", request.method, request.url.path)
+    headers: dict[str, str] = {"Vary": "Origin"}
+    origin = (request.headers.get("origin") or "").strip().rstrip("/")
+    if origin and origin in auth.get_allowed_origins():
+        headers["Access-Control-Allow-Origin"] = origin
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal timetable engine error."},
+        headers=headers,
+    )
 
 JOBS: dict[str, dict] = job_store._MEMORY_JOBS
 GENERATE_RATE_LIMITER, PARSE_RATE_LIMITER, SOLVE_CONCURRENCY_GUARD = (
@@ -75,6 +111,20 @@ def _run_job(
     source_contract: dict | None = None,
     caller_token: str | None = None,
 ) -> None:
+    job_store.mark_job_active(job_id)
+    stop_heartbeat = threading.Event()
+
+    def _heartbeat_loop() -> None:
+        interval = job_store.get_heartbeat_interval_s()
+        while not stop_heartbeat.wait(interval):
+            job_store.touch_heartbeat(job_id, caller_token=caller_token)
+
+    heartbeat_thread = Thread(
+        target=_heartbeat_loop,
+        name=f"solver-heartbeat-{job_id}",
+        daemon=True,
+    )
+    heartbeat_thread.start()
     try:
         job_store.update_job(
             job_id,
@@ -87,6 +137,9 @@ def _run_job(
         cfg = solver.load_config(override=config_override)
         dataset = normalize_generation_distribution(
             file_bytes, cfg, source_contract=source_contract)
+        # Release raw uploaded workbook bytes before CP-SAT allocates search buffers.
+        file_bytes = b""
+        gc.collect()
 
         job_store.update_job(
             job_id,
@@ -228,7 +281,10 @@ def _run_job(
             force_remote=True,
         )
     finally:
+        stop_heartbeat.set()
+        job_store.mark_job_inactive(job_id)
         SOLVE_CONCURRENCY_GUARD.release()
+        gc.collect()
 
 
 @app.get("/")
@@ -360,15 +416,17 @@ async def generate(
 
     SOLVE_CONCURRENCY_GUARD.acquire_or_reject()
     job_id = uuid.uuid4().hex[:12]
-    job_store.create_job(
-        job_id,
-        scheduling_scope_id=scheduling_scope_id or None,
-        revision_id=revision_id or None,
-        revision_version=revision_version,
-        policy_snapshot_id=policy_snapshot_id or None,
-        semester_label=str(semester_label) if semester_label else None,
-        created_by=_caller.user_id if _caller and _caller.user_id else None,
-        caller_token=caller_token,
+    await anyio.to_thread.run_sync(
+        lambda: job_store.create_job(
+            job_id,
+            scheduling_scope_id=scheduling_scope_id or None,
+            revision_id=revision_id or None,
+            revision_version=revision_version,
+            policy_snapshot_id=policy_snapshot_id or None,
+            semester_label=str(semester_label) if semester_label else None,
+            created_by=_caller.user_id if _caller and _caller.user_id else None,
+            caller_token=caller_token,
+        )
     )
     try:
         Thread(
@@ -409,7 +467,7 @@ def status(
     _caller: auth.VerifiedCaller | None = Depends(auth.require_admin_caller),
 ) -> dict:
     caller_token = auth._extract_bearer_token(request.headers.get("authorization"))
-    job = job_store.get_job(job_id, caller_token=caller_token)
+    job = job_store.get_job_status(job_id, caller_token=caller_token)
     if job is None:
         raise HTTPException(status_code=404, detail="Unknown job_id.")
     out = {
