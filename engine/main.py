@@ -49,15 +49,21 @@ def normalize_generation_distribution(file_bytes: bytes, cfg: dict,
     revisions will use this same normalization boundary after Phase 2a storage
     integration, rather than introducing a second spreadsheet parser.
     """
+    committee_policy = cfg.get("committee_policy")
+    courses_catalog = cfg.get("courses_catalog") or None
     if source_contract is not None:
         return distribution.normalize_persisted_revision(
             file_bytes, source_contract,
             weeks_in_term=cfg['weeks_in_term'],
-            fixed_sessions_per_week=cfg.get('fixed_sessions_per_week'))
+            fixed_sessions_per_week=cfg.get('fixed_sessions_per_week'),
+            committee_policy=committee_policy,
+            courses_catalog=courses_catalog)
     draft = distribution.DistributionDraft.create(file_bytes)
     return distribution.normalize(
         draft, weeks_in_term=cfg['weeks_in_term'],
-        fixed_sessions_per_week=cfg.get('fixed_sessions_per_week'))
+        fixed_sessions_per_week=cfg.get('fixed_sessions_per_week'),
+        committee_policy=committee_policy,
+        courses_catalog=courses_catalog)
 
 
 def _run_job(job_id: str, file_bytes: bytes, config_override: dict | None,
@@ -78,8 +84,40 @@ def _run_job(job_id: str, file_bytes: bytes, config_override: dict | None,
         def on_progress(value: float) -> None:
             job["progress"] = round(0.2 + (float(value) * 0.75), 2)
 
-        result = solver.solve(dataset, cfg, time_limit_s=time_limit_s,
-                              progress=solver._Progress(on_progress))
+        result = solver.solve(
+            dataset,
+            cfg,
+            time_limit_s=time_limit_s,
+            progress=solver._Progress(on_progress),
+            return_outcomes=True,
+        )
+
+        outcome = result.get("outcome", "OPTIMAL")
+        job["outcome"] = outcome
+        job["raw_status"] = result.get("raw_status", outcome)
+        job["termination_reason"] = result.get("termination_reason", "")
+        job["proven_infeasible"] = bool(result.get("proven_infeasible", False))
+        job["conflicts"] = result.get("conflicts", [])
+        job["soft_metrics"] = result.get("soft_metrics")
+
+        if outcome not in ("OPTIMAL", "FEASIBLE"):
+            job["state"] = "failed"
+            job["structured_terminal"] = True
+            job["error"] = result.get("error") or f"Solver terminated with outcome {outcome}."
+            job["stats"] = result.get("stats") or {"status": job["raw_status"]}
+            job["validation"] = result.get("validation")
+            job["source_contract"] = dataset["source_contract"]
+            job["report"] = {
+                "source_contract": dataset["source_contract"],
+                "cohorts": dataset["cohorts"],
+                "meta": dataset["meta"],
+                "excluded": dataset["excluded"],
+                "warnings": dataset["warnings"],
+                "offerings": dataset["offerings"],
+            }
+            job["progress"] = 1.0
+            return
+
         result["validation"] = {
             **result["validation"],
             "source_contract": dataset["source_contract"],
@@ -114,6 +152,11 @@ def _run_job(job_id: str, file_bytes: bytes, config_override: dict | None,
     except Exception as e:  # noqa: BLE001 — surface any error to the client
         job["state"] = "failed"
         job["error"] = str(e)
+        job["outcome"] = "INPUT_ERROR"
+        job["raw_status"] = "INPUT_ERROR"
+        job["termination_reason"] = "unexpected_exception"
+        job["proven_infeasible"] = False
+        job["conflicts"] = []
         job["progress"] = 1.0
     finally:
         SOLVE_CONCURRENCY_GUARD.release()
@@ -254,12 +297,23 @@ def status(
     if job is None:
         raise HTTPException(status_code=404, detail="Unknown job_id.")
     out = {"job_id": job_id, "state": job["state"], "progress": job.get("progress", 0.0)}
+    if "outcome" in job:
+        out["outcome"] = job.get("outcome")
+        out["raw_status"] = job.get("raw_status")
+        out["termination_reason"] = job.get("termination_reason")
+        out["proven_infeasible"] = job.get("proven_infeasible", False)
+        out["conflicts"] = job.get("conflicts", [])
     if job["state"] == "done":
         out["stats"] = job.get("stats")
         out["validation"] = job.get("validation")
         out["source_contract"] = job.get("source_contract")
+        out["soft_metrics"] = job.get("soft_metrics")
     if job["state"] == "failed":
         out["error"] = job.get("error")
+        if job.get("stats") is not None:
+            out["stats"] = job.get("stats")
+        if job.get("validation") is not None:
+            out["validation"] = job.get("validation")
     return out
 
 
@@ -271,16 +325,25 @@ def result(
     job = JOBS.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Unknown job_id.")
-    if job["state"] != "done":
+    if job["state"] != "done" and not job.get("structured_terminal"):
         raise HTTPException(status_code=409, detail=f"Job not finished (state={job['state']}).")
     return {
         "job_id": job_id,
-        "rows": job["rows"],
+        "outcome": job.get("outcome", "OPTIMAL"),
+        "raw_status": job.get("raw_status", "OPTIMAL"),
+        "termination_reason": job.get("termination_reason", "optimal"),
+        "proven_infeasible": job.get("proven_infeasible", False),
+        "conflicts": job.get("conflicts", []),
+        "error": job.get("error"),
+        "rows": job.get("rows", []),
         "service_rows": job.get("service_rows", []),
-        "stats": job["stats"],
-        "validation": job["validation"],
-        "source_contract": job["source_contract"],
-        "report": job["report"],
+        "stats": job.get("stats") or {},
+        "validation": job.get("validation") or {"ok": False},
+        "soft_metrics": job.get("soft_metrics"),
+        "source_contract": job.get("source_contract"),
+        "report": job.get("report") or {
+            "cohorts": [], "meta": {}, "excluded": [], "warnings": [], "offerings": []
+        },
         "has_workbook": job.get("file") is not None,
     }
 

@@ -131,7 +131,9 @@ class DistributionDraft:
 
 
 def normalize(draft: DistributionDraft, *, weeks_in_term: int = 14,
-              fixed_sessions_per_week: int | None = None) -> dict:
+              fixed_sessions_per_week: int | None = None,
+              committee_policy=None,
+              courses_catalog: dict | None = None) -> dict:
     """Validate formula provenance then return legacy-engine compatible input.
 
     The legacy solver still consumes the ingest dictionary.  This adapter keeps
@@ -141,7 +143,13 @@ def normalize(draft: DistributionDraft, *, weeks_in_term: int = 14,
     for key, cell in draft.source.cells.items():
         if cell.column in FORMULA_COLUMNS and cell.formula and key not in draft.effective_values and cell.cached_value is None:
             raise ValidationError(f'Row {cell.row} column {cell.column} formula has no cached value')
-    result = ingest.ingest_bytes(draft.effective_bytes(), weeks_in_term, fixed_sessions_per_week)
+    result = ingest.ingest_bytes(
+        draft.effective_bytes(),
+        weeks_in_term,
+        fixed_sessions_per_week,
+        committee_policy=committee_policy,
+        courses_catalog=courses_catalog,
+    )
     result['source_contract'] = {
         'source_sha256': draft.source.sha256,
         'revision': draft.current_revision,
@@ -220,13 +228,17 @@ def draft_from_persisted_revision(raw: bytes, contract: Mapping[str, object]) ->
 
 def normalize_persisted_revision(raw: bytes, contract: Mapping[str, object], *,
                                  weeks_in_term: int = 14,
-                                 fixed_sessions_per_week: int | None = None) -> dict:
+                                 fixed_sessions_per_week: int | None = None,
+                                 committee_policy=None,
+                                 courses_catalog: dict | None = None) -> dict:
     """Normalize an accepted database revision without mutating source bytes."""
     draft = draft_from_persisted_revision(raw, contract)
     result = normalize(
         draft,
         weeks_in_term=weeks_in_term,
         fixed_sessions_per_week=fixed_sessions_per_week,
+        committee_policy=committee_policy,
+        courses_catalog=courses_catalog,
     )
     result['source_contract'].update({
         'source_id': str(contract['source_id']),

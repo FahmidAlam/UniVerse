@@ -164,9 +164,55 @@ export function inspectValidationCounters(
   });
 }
 
+export const POLICY_VIOLATION_LABELS: Record<string, string> = {
+  r1_section_weekend_violations: "R1 Section Weekend Violations",
+  r2_batch_fairness_violations: "R2 Batch Off-Day Fairness Violations",
+  r3_section_gap_violations: "R3 Section Internal Gap Violations",
+  r4_external_block_violations: "R4 CSE External Block Violations",
+  r5_guest_availability_violations: "R5 Guest Availability Whitelist Violations",
+  r6_adjunct_band_violations: "R6 Adjunct Day-Band Violations",
+  r9_sust_gap_violations: "R9 SUST Adjunct Max-Gap Violations",
+  r10_ecl_window_violations: "R10 ECL Lab Window Violations",
+  r11_physics_lab_violations: "R11 Physics Lab Exclusivity Violations",
+  r12_sessional_pattern_violations: "R12 Sessional Break/Pattern Violations",
+  r13_low_credit_theory_violations: "R13 Low-Credit Theory Block Violations",
+};
+
+export interface PolicyViolationInspection {
+  key: string;
+  label: string;
+  count: number;
+}
+
+export function inspectPolicyViolations(
+  validation: EngineValidation | Record<string, unknown> | null | undefined,
+): PolicyViolationInspection[] {
+  if (!validation || !validation.policy_violations || typeof validation.policy_violations !== "object") {
+    return [];
+  }
+  const raw = validation.policy_violations as Record<string, unknown>;
+  const out: PolicyViolationInspection[] = [];
+  for (const [key, val] of Object.entries(raw)) {
+    const count = typeof val === "number" && Number.isFinite(val) ? Math.trunc(val) : 0;
+    if (count > 0) {
+      out.push({
+        key,
+        label: POLICY_VIOLATION_LABELS[key] ?? key,
+        count,
+      });
+    }
+  }
+  return out;
+}
+
 export function blockingValidationErrorFor(
   validation: EngineValidation | Record<string, unknown> | null | undefined,
+  outcome?: string | null,
 ): string | null {
+  if (outcome && outcome !== "OPTIMAL" && outcome !== "FEASIBLE") {
+    return `Solver outcome ${outcome} did not produce a publishable schedule. Resolve the reported hard conflicts and generate again.`;
+  }
+
   if (!validation || typeof validation.ok !== "boolean") {
     return "Validation is missing or incomplete. Review the routine before publishing.";
   }
@@ -177,6 +223,15 @@ export function blockingValidationErrorFor(
     if (count > 0) {
       problems.push(desc.formatProblem(count));
     }
+  }
+
+  const policyProblems = inspectPolicyViolations(validation);
+  for (const item of policyProblems) {
+    problems.push(`${item.count} ${item.label.toLowerCase()}`);
+  }
+  const totalPolicyCount = readCounter(validation, "policy_violation_count");
+  if (policyProblems.length === 0 && totalPolicyCount > 0) {
+    problems.push(`${totalPolicyCount} committee hard-policy violation(s)`);
   }
 
   if (problems.length === 0) {

@@ -178,8 +178,86 @@ export interface EngineSourceContract {
   revision_version?: number;
 }
 
+export type SolverOutcomeStatus =
+  | "OPTIMAL"
+  | "FEASIBLE"
+  | "INFEASIBLE"
+  | "TIME_LIMIT_EXHAUSTED"
+  | "UNKNOWN"
+  | "INPUT_ERROR";
+
+export type ConflictEntityType =
+  | "faculty"
+  | "room"
+  | "section"
+  | "course"
+  | "policy"
+  | "settings";
+
+export interface SolverConflictItem {
+  rule: string;
+  severity: "blocker" | "warning" | "info" | string;
+  code: string;
+  entity_type: ConflictEntityType | string;
+  entity_id: string;
+  message: string;
+  suggested_route?: string;
+  proven: boolean;
+}
+
+export interface SolverSoftMetrics {
+  r8_faculty_preferences?: {
+    matched_slots: number;
+    total_with_preferences: number;
+    satisfaction_pct: number | null;
+  };
+  r9_sust_compactness?: {
+    sust_faculty_count: number;
+    split_break_days: number;
+  };
+  r12_sessional_pairs?: {
+    paired_two_credit_labs: number;
+    total_two_credit_labs: number;
+    allow_sessional_across_break: boolean;
+  };
+  r6_adjunct_workload?: Array<{
+    teacher: string;
+    distinct_courses: string[];
+    distinct_course_count: number;
+    active_days: number;
+    target_band: [number, number] | null;
+    in_band: boolean;
+  }>;
+  r3_single_slot_holes?: number;
+  [key: string]: unknown;
+}
+
+export interface SolverOutcomeDiagnostics {
+  outcome: SolverOutcomeStatus;
+  raw_status: string;
+  termination_reason: string;
+  proven_infeasible: boolean;
+  conflicts: SolverConflictItem[];
+  error?: string | null;
+  soft_metrics?: SolverSoftMetrics | null;
+}
+
+export interface GateCPreflightSummary {
+  policySnapshotActive: boolean;
+  policyLabel: string | null;
+  policyHash: string | null;
+  defaultSectionWeekend: [string, string];
+  sectionOverrideCount: number;
+  allowSessionalAcrossBreak: boolean;
+  physicsLabCourseCount: number;
+  catalogCoursesCount: number;
+  sectionPoliciesCount: number;
+}
+
 export interface EngineStats {
   status: string;
+  outcome?: SolverOutcomeStatus;
+  termination_reason?: string;
   solve_ms: number;
   meetings: number;
   service_meetings: number;
@@ -218,6 +296,9 @@ export interface EngineValidation {
   same_day_rule?: "enforced" | "off";
   lab_theory_pairs?: number;
   lab_theory_adjacent?: number;
+  policy_violations?: Record<string, number>;
+  policy_violation_count?: number;
+  soft_metrics?: SolverSoftMetrics | null;
   details?: Record<string, Array<Record<string, unknown>>>;
   source_contract?: EngineSourceContract | null;
   ok: boolean;
@@ -237,6 +318,12 @@ export interface EngineStatusResponse {
   job_id: string;
   state: EngineJobState;
   progress: number;
+  outcome?: SolverOutcomeStatus;
+  raw_status?: string;
+  termination_reason?: string;
+  proven_infeasible?: boolean;
+  conflicts?: SolverConflictItem[];
+  soft_metrics?: SolverSoftMetrics | null;
   stats?: EngineStats;
   validation?: EngineValidation;
   source_contract?: EngineSourceContract | null;
@@ -245,6 +332,13 @@ export interface EngineStatusResponse {
 
 export interface EngineResultResponse {
   job_id: string;
+  outcome?: SolverOutcomeStatus;
+  raw_status?: string;
+  termination_reason?: string;
+  proven_infeasible?: boolean;
+  conflicts?: SolverConflictItem[];
+  error?: string | null;
+  soft_metrics?: SolverSoftMetrics | null;
   rows: RoutineRow[];
   service_rows: RoutineRow[];
   stats: EngineStats;

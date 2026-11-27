@@ -29,12 +29,14 @@ import {
   type TimetableSettingsRecord,
 } from "@/features/admin/services/settingsService";
 import {
+  DEFAULT_POLICY_SNAPSHOT_FORM,
   readActivePolicySnapshot,
   type PolicySnapshotRecord,
 } from "@/features/scheduling/services/policySnapshotService";
 import type {
   BaselineConfigCounts,
   EngineConfigPayload,
+  GateCPreflightSummary,
 } from "@/features/routine/types";
 import { isSupabaseConfigured, supabase } from "@/services/supabase";
 
@@ -42,6 +44,7 @@ export interface AssembledEngineConfig {
   config: EngineConfigPayload;
   configJson: string;
   baselineCounts: BaselineConfigCounts;
+  gateCSummary: GateCPreflightSummary;
   settings: TimetableSettingsRecord;
 }
 
@@ -87,6 +90,31 @@ export function assembleEngineConfigFromRecords({
     }),
   );
 
+  const activeSectionOverrides = sectionPolicies
+    .filter(
+      (s) =>
+        s.is_active &&
+        Array.isArray(s.weekend_override_days) &&
+        s.weekend_override_days.length === 2,
+    )
+    .map((s) => ({
+      batch: s.batch,
+      section: s.section,
+      weekend_days: s.weekend_override_days!,
+      calendar_system: s.calendar_system,
+    }));
+
+  const mergedPhysicsCodes = Array.from(
+    new Set([
+      ...(policySnapshot?.physics_lab_course_codes ?? []).map((c) =>
+        c.trim().toUpperCase(),
+      ),
+      ...catalogCourses
+        .filter((c) => c.is_active && c.is_physics_lab)
+        .map((c) => c.code.trim().toUpperCase()),
+    ].filter(Boolean)),
+  ).sort();
+
   const config: EngineConfigPayload = {
     rooms: activeRooms.map((r) => ({
       name: r.name,
@@ -130,13 +158,15 @@ export function assembleEngineConfigFromRecords({
     ...(includeGateCFields && policySnapshot
       ? {
           policy_snapshot: {
+            ...policySnapshot.policy_payload,
+            schema_version: policySnapshot.schema_version ?? 1,
             default_section_weekend: policySnapshot.default_section_weekend,
+            section_weekend_overrides: activeSectionOverrides,
             batch_max_off_day_spread: policySnapshot.batch_max_off_day_spread,
             max_section_internal_gap: policySnapshot.max_section_internal_gap,
             allow_sessional_across_break:
               policySnapshot.allow_sessional_across_break,
-            physics_lab_course_codes: policySnapshot.physics_lab_course_codes,
-            ...policySnapshot.policy_payload,
+            physics_lab_course_codes: mergedPhysicsCodes,
           },
         }
       : {}),
@@ -188,6 +218,23 @@ export function assembleEngineConfigFromRecords({
     },
   };
 
+  const gateCSummary: GateCPreflightSummary = {
+    policySnapshotActive: Boolean(includeGateCFields && policySnapshot),
+    policyLabel: policySnapshot?.label ?? null,
+    policyHash: policySnapshot?.policy_hash ?? null,
+    defaultSectionWeekend: policySnapshot?.default_section_weekend ?? [
+      "Friday",
+      "Saturday",
+    ],
+    sectionOverrideCount: activeSectionOverrides.length,
+    allowSessionalAcrossBreak: Boolean(
+      policySnapshot?.allow_sessional_across_break,
+    ),
+    physicsLabCourseCount: mergedPhysicsCodes.length,
+    catalogCoursesCount: catalogCourses.filter((c) => c.is_active).length,
+    sectionPoliciesCount: sectionPolicies.filter((s) => s.is_active).length,
+  };
+
   return {
     config,
     configJson: JSON.stringify(config),
@@ -199,6 +246,7 @@ export function assembleEngineConfigFromRecords({
       eligibility: eligibility.length,
       hasSettings,
     },
+    gateCSummary,
     settings,
   };
 }
@@ -216,6 +264,26 @@ export async function fetchBaselineConfigAndBuild(
         fetchCatalogCourses(true),
         fetchSectionPolicies(true),
       ]);
+    const previewSnapshot: PolicySnapshotRecord = {
+      id: "preview-policy-snapshot",
+      scheduling_scope_id: null,
+      revision_id: null,
+      label: DEFAULT_POLICY_SNAPSHOT_FORM.label,
+      version: 1,
+      is_active: true,
+      schema_version: 1,
+      default_section_weekend: DEFAULT_POLICY_SNAPSHOT_FORM.defaultSectionWeekend,
+      batch_max_off_day_spread: DEFAULT_POLICY_SNAPSHOT_FORM.batchMaxOffDaySpread,
+      max_section_internal_gap: DEFAULT_POLICY_SNAPSHOT_FORM.maxSectionInternalGap,
+      allow_sessional_across_break:
+        DEFAULT_POLICY_SNAPSHOT_FORM.allowSessionalAcrossBreak,
+      physics_lab_course_codes:
+        DEFAULT_POLICY_SNAPSHOT_FORM.physicsLabCourseCodes,
+      policy_payload: DEFAULT_POLICY_SNAPSHOT_FORM.policyPayload,
+      policy_hash: "dev-preview-policy",
+      created_by: null,
+      created_at: new Date().toISOString(),
+    };
     return assembleEngineConfigFromRecords({
       rooms,
       faculty,
@@ -223,6 +291,7 @@ export async function fetchBaselineConfigAndBuild(
       settings,
       hasSettings: true,
       includeGateCFields: true,
+      policySnapshot: previewSnapshot,
       sectionPolicies: sectionsRes.sections,
       catalogCourses: coursesRes.courses,
     });
