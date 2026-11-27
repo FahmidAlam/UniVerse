@@ -208,18 +208,24 @@ export function CourseRoomPoolReviewModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (isSaving) return;
+        onOpenChange(next);
+      }}
+    >
       <DialogContent
-        className="max-w-4xl p-0 overflow-hidden"
+        className="fixed left-1/2 top-1/2 flex max-h-[85vh] w-[calc(100%-32px)] max-w-[920px] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden p-0"
         data-testid="course-room-pool-review-modal"
       >
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 border-b border-[var(--border-subtle)] bg-[var(--bg-subtle)] px-5 py-4">
+        <div className="flex items-start justify-between gap-3 border-b border-[var(--border-subtle)] bg-[var(--bg-raised)] px-5 py-4">
           <div className="min-w-0 space-y-1">
             <div className="flex items-center gap-2">
               <SlidersHorizontal
                 size={17}
-                className="text-[var(--brand-accent)]"
+                className="text-[var(--accent-brand)]"
                 aria-hidden="true"
               />
               <DialogTitle className="text-[16px] font-semibold text-[var(--ink-primary)]">
@@ -237,6 +243,7 @@ export function CourseRoomPoolReviewModal({
             variant="ghost"
             size="sm"
             aria-label="Close room-pool review modal"
+            disabled={isSaving}
             onClick={() => onOpenChange(false)}
           >
             <X size={16} />
@@ -276,8 +283,8 @@ export function CourseRoomPoolReviewModal({
                 className={cn(
                   "rounded-[var(--r-control)] px-2.5 py-1.5 text-[12px] font-medium transition-colors",
                   activeTab === tab.id
-                    ? "bg-[var(--bg-elevated)] text-[var(--ink-primary)] shadow-[var(--shadow-xs)] border border-[var(--border-default)]"
-                    : "text-[var(--ink-secondary)] hover:bg-[var(--bg-subtle)] hover:text-[var(--ink-primary)] border border-transparent",
+                    ? "bg-[var(--bg-elevated)] text-[var(--ink-primary)] shadow-[var(--shadow-sheet)] border border-[var(--border-strong)]"
+                    : "text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)] border border-transparent",
                 )}
               >
                 {tab.label}
@@ -298,21 +305,21 @@ export function CourseRoomPoolReviewModal({
               placeholder="Filter code, title, dept…"
               aria-label="Filter courses"
               data-testid="room-pool-search-input"
-              className="h-8 w-full rounded-[var(--r-control)] border border-[var(--border-default)] bg-[var(--bg-canvas)] pl-8 pr-2.5 text-[12.5px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--brand-accent)] focus:outline-none"
+              className="h-8 w-full rounded-[var(--r-control)] border border-[var(--border-strong)] bg-[var(--bg-canvas)] pl-8 pr-2.5 text-[12.5px] text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)] focus:border-[var(--focus-ring)] focus:outline-none"
             />
           </div>
         </div>
 
         {/* Table */}
-        <div className="max-h-[54vh] overflow-y-auto bg-[var(--bg-surface)]">
+        <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--bg-surface)]">
           {filteredCourses.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-1.5 px-6 py-10 text-center text-[13px] text-[var(--ink-muted)]">
-              <CheckCircle size={20} className="text-[var(--sem-pass-ink)]" />
+              <CheckCircle size={20} className="text-[var(--sem-lab-ink)]" />
               <span>No courses match this filter.</span>
             </div>
           ) : (
             <table className="w-full border-collapse text-left text-[12.5px]">
-              <thead className="sticky top-0 z-10 border-b border-[var(--border-subtle)] bg-[var(--bg-subtle)] text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--ink-muted)]">
+              <thead className="sticky top-0 z-10 border-b border-[var(--border-subtle)] bg-[var(--bg-elevated)] text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--ink-muted)]">
                 <tr>
                   <th className="px-4 py-2.5">Course Code</th>
                   <th className="px-3 py-2.5">Title &amp; Credits</th>
@@ -332,8 +339,8 @@ export function CourseRoomPoolReviewModal({
                       key={course.code}
                       data-testid={`room-pool-row-${course.code}`}
                       className={cn(
-                        "transition-colors hover:bg-[var(--bg-subtle)]/60",
-                        modified && "bg-[var(--sem-joint-bg)]/40",
+                        "transition-colors hover:bg-[var(--surface-hover)]",
+                        modified && "bg-[var(--sem-joint-bg)]",
                       )}
                     >
                       <td className="whitespace-nowrap px-4 py-2.5 align-middle font-mono text-[12px] font-semibold text-[var(--ink-primary)]">
@@ -385,7 +392,7 @@ export function CourseRoomPoolReviewModal({
                                 e.target.value as CourseRoomPool,
                               )
                             }
-                            className="h-8 rounded-[var(--r-control)] border border-[var(--border-default)] bg-[var(--bg-canvas)] px-2 text-[12px] font-medium text-[var(--ink-primary)] focus:border-[var(--brand-accent)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                            className="h-8 rounded-[var(--r-control)] border border-[var(--border-strong)] bg-[var(--bg-canvas)] px-2 text-[12px] font-medium text-[var(--ink-primary)] focus:border-[var(--focus-ring)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             {POOL_OPTIONS.map((opt) => (
                               <option key={opt.value} value={opt.value}>
@@ -400,7 +407,7 @@ export function CourseRoomPoolReviewModal({
                               data-testid={`room-pool-reset-${course.code}`}
                               onClick={() => handleResetRow(course)}
                               title="Reset to auto-detected room pool"
-                              className="inline-flex items-center gap-1 rounded-[var(--r-control)] border border-[var(--border-subtle)] px-2 py-1 text-[11px] font-medium text-[var(--ink-secondary)] hover:bg-[var(--bg-subtle)] hover:text-[var(--ink-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center gap-1 rounded-[var(--r-control)] border border-[var(--border-subtle)] px-2 py-1 text-[11px] font-medium text-[var(--ink-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)] disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <ArrowCounterClockwise size={12} />
                               <span>Reset</span>
@@ -417,10 +424,10 @@ export function CourseRoomPoolReviewModal({
         </div>
 
         {/* Footer */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] bg-[var(--bg-subtle)] px-5 py-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] bg-[var(--bg-raised)] px-5 py-3.5">
           <div className="min-w-0 text-[12px] text-[var(--ink-secondary)]">
             {saveError ? (
-              <span className="inline-flex items-center gap-1.5 text-[var(--sem-fail-ink)]">
+              <span className="inline-flex items-center gap-1.5 text-[var(--sem-conflict-ink)]">
                 <WarningCircle size={15} aria-hidden="true" />
                 <span>{saveError}</span>
               </span>

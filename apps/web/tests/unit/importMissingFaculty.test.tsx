@@ -224,5 +224,115 @@ describe("workbookFacultyScanner & ImportMissingFacultyModal", () => {
       "confirm-import-faculty-btn",
     ) as HTMLButtonElement;
     expect(btn.disabled).toBe(true);
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.className).toContain("fixed");
+    expect(dialog.className).toContain("left-1/2");
+    expect(dialog.className).toContain("top-1/2");
+  });
+
+  it("extracts teachers even when preceding cells are self-closing empty <c .../> tags", async () => {
+    // Build a minimal stored (method 0) ZIP containing Course Distribution XML
+    // where Col H (No. Of Students) is a self-closing <c r="H6" s="12"/> right before Col I (Teacher).
+    const enc = new TextEncoder();
+    const files: Array<{ name: string; data: Uint8Array }> = [
+      {
+        name: "xl/workbook.xml",
+        data: enc.encode(
+          `<workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Course Distribution" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+        ),
+      },
+      {
+        name: "xl/_rels/workbook.xml.rels",
+        data: enc.encode(
+          `<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>`,
+        ),
+      },
+      {
+        name: "xl/sharedStrings.xml",
+        data: enc.encode(
+          `<sst><si><t>Batch</t></si><si><t>Course Code</t></si><si><t>Conducting Department</t></si><si><t>Teacher</t></si><si><t>SHI</t></si><si><t>MNM/KSA</t></si></sst>`,
+        ),
+      },
+      {
+        name: "xl/worksheets/sheet1.xml",
+        data: enc.encode(
+          `<worksheet><sheetData>` +
+            `<row r="5"><c r="A5" t="s"><v>0</v></c><c r="C5" t="s"><v>1</v></c><c r="G5" t="s"><v>2</v></c><c r="I5" t="s"><v>3</v></c></row>` +
+            `<row r="6"><c r="A6"><v>66</v></c><c r="F6" s="1"/><c r="G6" s="1"/><c r="H6" s="12"/><c r="I6" t="s"><v>4</v></c></row>` +
+            `<row r="7"><c r="A7"><v>66</v></c><c r="H7" s="12"/><c r="I7" t="s"><v>5</v></c></row>` +
+            `</sheetData></worksheet>`,
+        ),
+      },
+    ];
+
+    const localParts: Uint8Array[] = [];
+    const cdParts: Uint8Array[] = [];
+    let offset = 0;
+
+    for (const f of files) {
+      const nameBytes = enc.encode(f.name);
+      const local = new Uint8Array(30 + nameBytes.length + f.data.length);
+      const lv = new DataView(local.buffer);
+      lv.setUint32(0, 0x04034b50, true);
+      lv.setUint16(4, 20, true);
+      lv.setUint16(8, 0, true);
+      lv.setUint32(18, f.data.length, true);
+      lv.setUint32(22, f.data.length, true);
+      lv.setUint16(26, nameBytes.length, true);
+      local.set(nameBytes, 30);
+      local.set(f.data, 30 + nameBytes.length);
+      localParts.push(local);
+
+      const cd = new Uint8Array(46 + nameBytes.length);
+      const cv = new DataView(cd.buffer);
+      cv.setUint32(0, 0x02014b50, true);
+      cv.setUint16(4, 20, true);
+      cv.setUint16(6, 20, true);
+      cv.setUint16(10, 0, true);
+      cv.setUint32(20, f.data.length, true);
+      cv.setUint32(24, f.data.length, true);
+      cv.setUint16(28, nameBytes.length, true);
+      cv.setUint32(42, offset, true);
+      cd.set(nameBytes, 46);
+      cdParts.push(cd);
+
+      offset += local.length;
+    }
+
+    const cdStart = offset;
+    const cdSize = cdParts.reduce((s, p) => s + p.length, 0);
+    const eocd = new Uint8Array(22);
+    const ev = new DataView(eocd.buffer);
+    ev.setUint32(0, 0x06054b50, true);
+    ev.setUint16(8, files.length, true);
+    ev.setUint16(10, files.length, true);
+    ev.setUint32(12, cdSize, true);
+    ev.setUint32(16, cdStart, true);
+
+    const totalLen = cdStart + cdSize + eocd.length;
+    const zip = new Uint8Array(totalLen);
+    let cursor = 0;
+    for (const p of [...localParts, ...cdParts, eocd]) {
+      zip.set(p, cursor);
+      cursor += p.length;
+    }
+
+    const scanned = await scanTeachersFromXlsxBytes(zip);
+    expect(scanned.map((s) => s.acronym)).toEqual(["KSA", "MNM", "SHI"]);
+
+    const diff = diffScannedTeachersAgainstFaculty(scanned, [
+      {
+        id: "f1",
+        acronym: "KSA",
+        full_name: "KSA",
+        dept: "CSE",
+        designation: null,
+        off_days: [],
+        is_active: true,
+        courses: [],
+      },
+    ]);
+    expect(diff.missing.map((m) => m.acronym)).toEqual(["MNM", "SHI"]);
   });
 });

@@ -1,6 +1,9 @@
 import type { CatalogCourseRecord } from "@/features/admin/services/coursesService";
 import type { CourseDistributionOfferingRow } from "@/features/routine/services/distributionXlsxBuilder";
-import { parseCourseDistributionXlsxRows } from "@/features/routine/services/workbookFacultyScanner";
+import {
+  findCourseDistributionHeaderRow,
+  parseCourseDistributionXlsxRows,
+} from "@/features/routine/services/workbookFacultyScanner";
 
 export type CourseRoomPool = "theory" | "cse_lab" | "ecl_lab" | "physics_lab";
 
@@ -374,12 +377,13 @@ export async function scanCoursesFromXlsxBytes(
     const rowMap = await parseCourseDistributionXlsxRows(bytes);
     if (!rowMap) return [];
 
-    const headerRow = rowMap.get(5);
-    let batchCol = 1;
-    let sectionCol = 2;
-    let codeCol = 3;
-    let titleCol = 4;
-    let creditCol = 5;
+    const headerRowNum = findCourseDistributionHeaderRow(rowMap);
+    const headerRow = rowMap.get(headerRowNum);
+    let batchCol = 0;
+    let sectionCol = 1;
+    let codeCol = 2;
+    let titleCol = 3;
+    let creditCol = 4;
     let deptCol = 6;
 
     if (headerRow) {
@@ -403,7 +407,7 @@ export async function scanCoursesFromXlsxBytes(
     }> = [];
 
     for (const [rowNum, cells] of rowMap.entries()) {
-      if (rowNum < 6) continue;
+      if (rowNum <= headerRowNum) continue;
       const code = cells.get(codeCol)?.trim() ?? "";
       const batch = cells.get(batchCol)?.trim() ?? "";
       if (!code || !batch) continue;

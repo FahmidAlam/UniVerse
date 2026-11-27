@@ -43,7 +43,7 @@ Enforce defense-in-depth across browser, API gateway, database, object storage, 
 ## 4. FastAPI Abuse Prevention, 2027 Supabase Keys, CORS & Browser CSP
 
 1. **Compute Exhaustion & Rate Limiting (`engine/security_guards.py` + `engine/main.py`):**
-   - Render runs on 512 MB RAM (`SOLVER_WORKERS=2`). Protect expensive endpoints (`POST /api/timetable/generate` and `POST /api/timetable/parse-rendered-workbook`) with `validate_xlsx_upload`, `ConcurrencyGuard` concurrent-solve caps (`MAX_CONCURRENT_SOLVES=2`), and sliding-window per-caller `RateLimiter` returning `HTTP 429` with `Retry-After` (handled cleanly by React Web and Flutter clients).
+   - Render runs on 512 MB RAM (`SOLVER_WORKERS=1`, `SOLVER_NUM_WORKERS=1`, `SOLVER_MAX_MEMORY_MB=320`, `SOLVER_LINEARIZATION_LEVEL=0`, `MAX_CONCURRENT_SOLVES=1`) with a startup orphan-job sweep (`job_store.mark_orphaned_jobs_on_startup`) for OOM/restart recovery. Protect expensive endpoints (`POST /api/timetable/generate` and `POST /api/timetable/parse-rendered-workbook`) with `validate_xlsx_upload`, `ConcurrencyGuard`, and sliding-window per-caller `RateLimiter` returning `HTTP 429` with `Retry-After` (handled cleanly by React Web and Flutter clients).
    - Keep `GET /` unauthenticated and lightweight for health probes; require `Depends(auth.require_admin_caller)` on all `/api/timetable/*` endpoints (`ENGINE_AUTH_MODE=enforced` in Production).
 2. **2027 Supabase API Key Standard (`engine/auth.py` + `.github/workflows/supabase_keep_alive.yml`):**
    - Legacy `eyJ...` anon/service_role JWTs retire in early 2027 in favor of opaque `sb_publishable_...` and `sb_secret_...` keys.

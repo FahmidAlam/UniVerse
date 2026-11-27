@@ -208,4 +208,31 @@ describe("Course Room-Pool Preflight Scanner & Review Modal", () => {
         .disabled,
     ).toBe(true);
   });
+
+  it("renders a viewport-centered visible dialog and dismisses on Escape", () => {
+    const scanned = scanCoursesFromDistributionRows(FALL_2026_GED_ROWS);
+    const classified = classifyScannedCourses(scanned, []);
+    const onOpenChange = vi.fn();
+
+    render(
+      <CourseRoomPoolReviewModal
+        open={true}
+        onOpenChange={onOpenChange}
+        courses={classified}
+        isDevPreview={false}
+        onSaved={() => {}}
+      />,
+    );
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toBeTruthy();
+    expect(dialog.className).toContain("fixed");
+    expect(dialog.className).toContain("left-1/2");
+    expect(dialog.className).toContain("top-1/2");
+    expect(dialog.className).toContain("-translate-x-1/2");
+    expect(dialog.className).toContain("-translate-y-1/2");
+
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
 });

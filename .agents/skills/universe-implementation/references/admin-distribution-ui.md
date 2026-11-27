@@ -4,9 +4,10 @@
 
 - **React Web Track 2 Workbench (`apps/web/src/features/scheduling/`):** 5-stage Committee Scheduling Workbench (`Distribution`, `Configuration`, `Readiness`, `Generate`, `Review & Publish`) + in-browser Course Distribution `.xlsx` Studio (`distributionXlsxBuilder.ts`).
 - **Source & Provenance Fidelity (`CD1`, Cols `A`–`L`):** Immutable `.xlsx` SHA-256 identity, `B+C` joint-section preservation, split/co-teacher arrays, formula vs. cached-value discrepancy inspection on columns `J` (`No. of Classes`) and `L` (`Class/Week`), and audited cell corrections (`expected_revision_version`, `SQLSTATE 40001` optimistic concurrency).
+- **Preflight Scanners & Modals (`apps/web/src/features/routine/`):** `workbookFacultyScanner.ts` + `ImportMissingFacultyModal.tsx` (missing/inactive faculty preflight banner & 1-click import) and `workbookCourseScanner.ts` + `CourseRoomPoolReviewModal.tsx` (3-tier dynamic room-pool preflight strip & 1-click `catalog_courses` override modal).
 - **Live Capability Gates (`schedulingCapabilities.ts`):**
   - **Gates A & B:** Verified via 4-table RLS-protected PostgREST probe (`course_distribution_revisions`, `course_distribution_sources`, `course_distribution_corrections`, `course_distribution_artifacts`) — never `GET /rest/v1/` OpenAPI root (`401`) and never nil-UUID RPCs (`500`).
-  - **Gates C & D:** Unconditionally fail-closed in Live Mode until Wave 2 (`Phase 4A-2`) backend contracts ship. Zero preview fixtures may leak into Live Mode.
+  - **Gates C & D:** Implemented in Stage 5A/5C and gated by live schema capability probes (fail-closed when Stage 5 SQL is not yet promoted; zero preview fixtures may leak into Live Mode).
 
 ## R1–R16 Committee Policy Surface Rules
 

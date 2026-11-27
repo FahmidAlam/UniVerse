@@ -242,7 +242,7 @@ This document provides a comprehensive, complete index of all folders and files 
 - `engine/preflight.py` — Stage 5A/5C non-mutating policy readiness validator returning structured blockers and Hybrid R7 advisories.
 - `engine/Procfile` — Web process command specifying the Gunicorn/Uvicorn startup configuration for Render deployment.
 - `engine/render.py` — Formats and renders solver results into stylized, printable university Excel timetable templates.
-- `engine/room_policy.py` — Enforces physical room constraints (capacity limits, theory vs. lab assignments, and floor proximity).
+- `engine/room_policy.py` — Enforces physical room constraints, 3-tier dynamic course room-pool classification (`theory`, `cse_lab`, `ecl_lab`, `physics_lab`), and explicit `[pool:...]` override parsing.
 - `engine/security_guards.py` — Zero-trust OOXML `.xlsx` upload preflight (size/ZIP-bomb/macro/encryption checks), sliding-window per-caller `429` rate limiting, and concurrent-solve capacity guard.
 - `engine/solver.py` — Google OR-Tools CP-SAT constraint programming engine assembling optimal, conflict-free university routines.
 - `engine/runtime.txt` — Specifies the Python runtime version (`python-3.11.x`) for server deployment.
@@ -437,7 +437,7 @@ apps/web/
 │   │   ├── admin/                    # AdminShell, Dashboard, Rooms, Faculty, Eligibility, Settings, Users, Broadcast, Resources, Profile
 │   │   ├── auth/                     # AuthProvider, PKCE + invite hash bridge, Landing, Login, Forgot/Reset Password, AccessRequired
 │   │   ├── onboarding/               # Public AcademicLedgerPreview & illustrative schedule fixtures
-│   │   ├── routine/                  # Track 1 Operational Console: 2D Matrix, Committee Day Sheet (Landscape A4 print), Manage, Generate, Archive v2a (`RoutineArchiveTab.tsx`, `routineArchiveService.ts`), Upload (`UploadRoutineTab.tsx`)
+│   │   ├── routine/                  # Track 1 Operational Console: 2D Matrix, Committee Day Sheet (Landscape A4 print), Manage, Generate (`GenerateRoutineTab.tsx`, `ImportMissingFacultyModal.tsx`, `CourseRoomPoolReviewModal.tsx`, `workbookFacultyScanner.ts`, `workbookCourseScanner.ts`), Archive v2a/v2b (`RoutineArchiveTab.tsx`, `routineArchiveService.ts`), Upload (`UploadRoutineTab.tsx`)
 │   │   └── scheduling/               # Track 2 Committee Scheduling Workbench (Gates A–D, Course Distribution Studio, R1–R16 Policy, Review)
 │   ├── services/                     # supabase.ts, engineHealth.ts
 │   ├── shared/

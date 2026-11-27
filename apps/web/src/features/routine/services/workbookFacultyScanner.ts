@@ -43,9 +43,11 @@ const PLACEHOLDER_TOKENS = new Set([
 export function normalizeTeacherAcronyms(raw: string): string[] {
   if (!raw || typeof raw !== "string") return [];
   const out: string[] = [];
-  for (const part of raw.split(/[\/,]+/)) {
+  for (const part of raw.split(/[\/,&;+]+/)) {
     const clean = part.trim().toUpperCase();
-    if (!clean || PLACEHOLDER_TOKENS.has(clean)) continue;
+    if (!clean || PLACEHOLDER_TOKENS.has(clean) || /^\d+(?:\.\d+)?$/.test(clean)) {
+      continue;
+    }
     out.push(clean);
   }
   return out;
@@ -303,24 +305,26 @@ function parseWorksheetRows(
   sharedStrings: readonly string[],
 ): Map<number, Map<number, string>> {
   const rows = new Map<number, Map<number, string>>();
-  const rowRe = /<row\b([^>]*)>([\s\S]*?)<\/row>/g;
-  const cellRe = /<c\b([^>]*)>([\s\S]*?)<\/c>/g;
+  const rowRe = /<row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/row>)/g;
+  const cellRe = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
 
   let rm: RegExpExecArray | null;
   while ((rm = rowRe.exec(sheetXml)) !== null) {
     const rowAttrs = rm[1] ?? "";
+    const rowBody = rm[2];
+    if (rowBody === undefined) continue; // self-closing empty <row .../>
     const rMatch = /\br="(\d+)"/.exec(rowAttrs);
     if (!rMatch?.[1]) continue;
     const rowNum = Number.parseInt(rMatch[1], 10);
-    if (rowNum < 5) continue;
+    if (rowNum < 1) continue;
 
     const cells = new Map<number, string>();
-    const rowBody = rm[2] ?? "";
     let cm: RegExpExecArray | null;
     cellRe.lastIndex = 0;
     while ((cm = cellRe.exec(rowBody)) !== null) {
       const cAttrs = cm[1] ?? "";
-      const cBody = cm[2] ?? "";
+      const cBody = cm[2];
+      if (cBody === undefined) continue; // self-closing empty <c .../>
       const refMatch = /\br="([A-Z]+)\d+"/.exec(cAttrs);
       if (!refMatch?.[1]) continue;
       const colIdx = colLettersToIndex(refMatch[1]);
@@ -353,6 +357,29 @@ function parseWorksheetRows(
     }
   }
   return rows;
+}
+
+export function findCourseDistributionHeaderRow(
+  rowMap: Map<number, Map<number, string>>,
+): number {
+  for (let r = 1; r <= 12; r++) {
+    const cells = rowMap.get(r);
+    if (!cells) continue;
+    const labels = Array.from(cells.values()).map((v) => v.toLowerCase());
+    if (
+      labels.some((l) => l.includes("course code")) ||
+      (labels.some((l) => l.startsWith("batch")) &&
+        labels.some(
+          (l) =>
+            l.includes("teacher") ||
+            l.includes("faculty") ||
+            l.includes("instructor"),
+        ))
+    ) {
+      return r;
+    }
+  }
+  return 5;
 }
 
 export async function parseCourseDistributionXlsxRows(
@@ -388,24 +415,36 @@ export async function scanTeachersFromXlsxBytes(
     const rowMap = await parseCourseDistributionXlsxRows(bytes);
     if (!rowMap) return [];
 
-    // Locate Teacher & Conducting Dept columns from header row 5 (fallback I=8, G=6)
-    const headerRow = rowMap.get(5);
-    let teacherCol = 8;
+    // Locate Teacher & Conducting Dept columns dynamically from header row (fallback row 5, I=8, G=6)
+    const headerRowNum = findCourseDistributionHeaderRow(rowMap);
+    const headerRow = rowMap.get(headerRowNum);
+    let teacherCol: number | null = null;
     let deptCol = 6;
     if (headerRow) {
       for (const [colIdx, label] of headerRow.entries()) {
         const lower = label.toLowerCase();
-        if (lower.startsWith("teacher")) {
+        if (
+          lower.startsWith("teacher") ||
+          lower.includes("teacher") ||
+          lower.includes("faculty") ||
+          lower.includes("instructor")
+        ) {
           teacherCol = colIdx;
         } else if (lower.startsWith("conducting")) {
           deptCol = colIdx;
         }
       }
+    } else {
+      teacherCol = 8;
+    }
+
+    if (teacherCol === null) {
+      return [];
     }
 
     const pairs: Array<{ teacherRaw: string; deptRaw: string | null }> = [];
     for (const [rowNum, cells] of rowMap.entries()) {
-      if (rowNum < 6) continue;
+      if (rowNum <= headerRowNum) continue;
       const teacherRaw = cells.get(teacherCol) ?? "";
       if (!teacherRaw) continue;
       const deptRaw = cells.get(deptCol) ?? null;

@@ -16,7 +16,7 @@ export function DialogOverlay({
   return (
     <DialogPrimitive.Overlay
       className={cn(
-        "fixed inset-0 z-40 bg-[oklch(0.140_0.014_260_/_0.52)] backdrop-blur-[1px]",
+        "fixed inset-0 z-[60] bg-[oklch(0.140_0.014_260_/_0.56)] backdrop-blur-[1px]",
         className,
       )}
       {...props}
@@ -32,7 +32,7 @@ export function DialogContent({
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
-        className={cn("ledger-popover z-50", className)}
+        className={cn("ledger-popover z-[61]", className)}
         {...props}
       />
     </DialogPortal>

@@ -1,10 +1,10 @@
 # UniVerse — Backend Architecture & NotebookLM Reference Pack (`docs/backend/`)
 
-**Freshness Date:** 2026-11-27
+**Freshness Date:** 2026-11-28
 
 **Scope:** Authoritative, code-verified, zero-secret reference pack covering the entire UniVerse backend (`supabase/`, `engine/`, Firebase/FCM, Google OAuth, Cloudflare Pages, Render, and GitHub Actions CI/CD) across **Standalone React Web (`apps/web/`)** and **Flutter Mobile (`lib/`, Android + continuous iOS compatibility)**.
 
-**Primary Audience:** NotebookLM grounding corpus and engineering onboarding after **Production Cutover (Environment B)**, **Phase 5B RLS/Storage hardening**, **Phase 3B rendered `.xlsx` parsing**, and **Archive v2a**, immediately prior to **Stage 5 (Wave 2B / Phase 4A-2)**.
+**Primary Audience:** NotebookLM grounding corpus and engineering onboarding covering **Production Cutover (Environment B)**, **Phase 5B RLS/Storage hardening**, **Phase 3B rendered `.xlsx` parsing**, **Stage 5A–5C (Wave 2B / Phase 4A-2 · Gates C–D)**, Render 512 MB solver tuning + orphan-job sweep, **dynamic 3-tier Course Room-Pool Classification**, and **interactive React Web preflight review/override modals**.
 
 ---
 

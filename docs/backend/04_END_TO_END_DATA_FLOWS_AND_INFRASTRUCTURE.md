@@ -1,8 +1,10 @@
 # 04 — End-to-End Data Flows, CI/CD & Wave 2 Impact Matrix
 
-**Freshness Date:** 2026-11-27
+**Freshness Date:** 2026-11-28
 
 **Primary Sources:** `.github/workflows/validate.yml`, `.github/workflows/supabase_keep_alive.yml`, `render.yaml`, `apps/web/public/_headers`, `apps/web/public/_redirects`, `apps/web/public/theme-init.js`, `docs/deployment/CLOUDFLARE_PAGES_AND_CUTOVER_RUNBOOK.md`, `docs/deployment/PHASE_4A1_AND_5B_SQL_PROMOTION_RUNBOOK.md`, `apps/web/src/features/**`, `lib/features/**`, `engine/**`.
+
+> **Wave 2B Operational Resilience Update (`2026-11-28`):** Render free-tier 512 MB RAM stability is enforced via `render.yaml` (`SOLVER_WORKERS=1`, `SOLVER_NUM_WORKERS=1`, `SOLVER_MAX_MEMORY_MB=320`, `SOLVER_LINEARIZATION_LEVEL=0`, `MAX_CONCURRENT_SOLVES=1`), FastAPI lifespan startup orphan-job sweep (`job_store.mark_orphaned_jobs_on_startup`), and React Web `runResilientJobPolling()` (`TRANSIENT_POLL_BACKOFF_MS` ~58s bounded reconnect window across Render restarts/blips). External Render/Cloudflare/Supabase dashboard secret values remain `[UNVERIFIED: External Dashboard / No Plugin Access]`.
 
 ---
 
