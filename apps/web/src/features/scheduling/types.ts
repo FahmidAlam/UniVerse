@@ -18,11 +18,19 @@ export interface GateStatusInfo {
   reason: string;
 }
 
+export interface CatalogCapabilityState {
+  coursesLive: boolean;
+  batchesLive: boolean;
+  facultyExtendedLive: boolean;
+  roomsExtendedLive: boolean;
+}
+
 export interface SchedulingGateState {
   gateA: GateStatusInfo;
   gateB: GateStatusInfo;
   gateC: GateStatusInfo;
   gateD: GateStatusInfo;
+  catalogs?: CatalogCapabilityState;
   probedAt: string;
 }
 

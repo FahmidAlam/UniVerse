@@ -1,17 +1,25 @@
 import { ClockTime } from "@/core/utils/clockTime";
 import {
+  fetchSectionPolicies,
+  type SectionPolicyRecord,
+} from "@/features/admin/services/batchesService";
+import {
+  fetchCatalogCourses,
+  type CatalogCourseRecord,
+} from "@/features/admin/services/coursesService";
+import {
   ELIGIBILITY_SELECT_COLUMNS,
   fetchEligibilityRecords,
   type CourseEligibilityRecord,
 } from "@/features/admin/services/eligibilityService";
 import {
-  FACULTY_SELECT_COLUMNS,
   fetchFaculty,
+  isFacultyExtendedSchemaLive,
   type TimetableFacultyRecord,
 } from "@/features/admin/services/facultyService";
 import {
   fetchRooms,
-  ROOM_SELECT_COLUMNS,
+  isRoomExtendedSchemaLive,
   type TimetableRoomRecord,
 } from "@/features/admin/services/roomsService";
 import {
@@ -20,6 +28,10 @@ import {
   SETTINGS_SELECT_COLUMNS,
   type TimetableSettingsRecord,
 } from "@/features/admin/services/settingsService";
+import {
+  readActivePolicySnapshot,
+  type PolicySnapshotRecord,
+} from "@/features/scheduling/services/policySnapshotService";
 import type {
   BaselineConfigCounts,
   EngineConfigPayload,
@@ -35,8 +47,11 @@ export interface AssembledEngineConfig {
 
 /**
  * Pure assembly matching Flutter `TimetableConfigService.buildEngineConfig()`:
- * - Emits strictly baseline columns on active rooms and active faculty (zero Phase A non-DB keys)
- * - Normalizes `periods` via `ensureSolverSafePeriods` + `ClockTime.toHm` (`HH:MM` for `engine/render.py`)
+ * - Emits strictly baseline columns when `includeGateCFields` is omitted/false
+ *   (ensuring 100% pre-migration backward compatibility).
+ * - When `includeGateCFields` is true, forwards Stage 5A extended fields +
+ *   optional `policySnapshot`, `sectionPolicies`, and `catalogCourses`.
+ * - Normalizes `periods` via `ensureSolverSafePeriods` + `ClockTime.toHm`.
  */
 export function assembleEngineConfigFromRecords({
   rooms,
@@ -44,12 +59,20 @@ export function assembleEngineConfigFromRecords({
   eligibility,
   settings,
   hasSettings,
+  includeGateCFields = false,
+  policySnapshot = null,
+  sectionPolicies = [],
+  catalogCourses = [],
 }: {
   rooms: readonly TimetableRoomRecord[];
   faculty: readonly TimetableFacultyRecord[];
   eligibility: readonly CourseEligibilityRecord[];
   settings: TimetableSettingsRecord;
   hasSettings: boolean;
+  includeGateCFields?: boolean;
+  policySnapshot?: PolicySnapshotRecord | null;
+  sectionPolicies?: readonly SectionPolicyRecord[];
+  catalogCourses?: readonly CatalogCourseRecord[];
 }): AssembledEngineConfig {
   const activeRooms = rooms.filter((r) => r.is_active);
   const activeFaculty = faculty.filter((f) => f.is_active);
@@ -72,12 +95,28 @@ export function assembleEngineConfigFromRecords({
       ...(r.capacity !== null && r.capacity !== undefined
         ? { capacity: r.capacity }
         : {}),
+      ...(includeGateCFields
+        ? {
+            room_pool_role: r.room_pool_role ?? "general",
+            available_slots: [...(r.available_slots ?? [])],
+          }
+        : {}),
     })),
     teachers: activeFaculty.map((f) => ({
       acronym: f.acronym,
       full_name: f.full_name,
       dept: f.dept,
       off_days: [...f.off_days],
+      ...(includeGateCFields
+        ? {
+            employment_type: f.employment_type ?? "permanent",
+            allow_three_off_days: Boolean(f.allow_three_off_days),
+            is_sust_adjunct: Boolean(f.is_sust_adjunct),
+            external_blocked_slots: [...(f.external_blocked_slots ?? [])],
+            available_slots: [...(f.available_slots ?? [])],
+            preferred_slots: [...(f.preferred_slots ?? [])],
+          }
+        : {}),
     })),
     eligibility: eligibility.map((e) => ({
       acronym: e.acronym,
@@ -87,6 +126,48 @@ export function assembleEngineConfigFromRecords({
     })),
     ...(settings.working_days.length > 0
       ? { days: [...settings.working_days] }
+      : {}),
+    ...(includeGateCFields && policySnapshot
+      ? {
+          policy_snapshot: {
+            default_section_weekend: policySnapshot.default_section_weekend,
+            batch_max_off_day_spread: policySnapshot.batch_max_off_day_spread,
+            max_section_internal_gap: policySnapshot.max_section_internal_gap,
+            allow_sessional_across_break:
+              policySnapshot.allow_sessional_across_break,
+            physics_lab_course_codes: policySnapshot.physics_lab_course_codes,
+            ...policySnapshot.policy_payload,
+          },
+        }
+      : {}),
+    ...(includeGateCFields && sectionPolicies.length > 0
+      ? {
+          sections: sectionPolicies
+            .filter((s) => s.is_active)
+            .map((s) => ({
+              batch: s.batch,
+              section: s.section,
+              calendar_system: s.calendar_system,
+              weekend_override_days: s.weekend_override_days,
+              student_count: s.student_count,
+            })),
+        }
+      : {}),
+    ...(includeGateCFields && catalogCourses.length > 0
+      ? {
+          courses: catalogCourses
+            .filter((c) => c.is_active)
+            .map((c) => ({
+              code: c.code,
+              title: c.title,
+              dept_code: c.dept_code,
+              credit: c.credit,
+              class_type: c.class_type,
+              is_service: c.is_service,
+              is_physics_lab: c.is_physics_lab,
+              default_weekly_sessions: c.default_weekly_sessions,
+            })),
+        }
       : {}),
     settings: {
       semester_label: settings.semester_label,
@@ -126,62 +207,76 @@ export async function fetchBaselineConfigAndBuild(
   isDevPreview: boolean,
 ): Promise<AssembledEngineConfig> {
   if (isDevPreview || !isSupabaseConfigured || !supabase) {
-    const [rooms, faculty, eligibility, settings] = await Promise.all([
-      fetchRooms(true),
-      fetchFaculty(true),
-      fetchEligibilityRecords(true),
-      fetchTimetableSettings(true),
-    ]);
+    const [rooms, faculty, eligibility, settings, coursesRes, sectionsRes] =
+      await Promise.all([
+        fetchRooms(true),
+        fetchFaculty(true),
+        fetchEligibilityRecords(true),
+        fetchTimetableSettings(true),
+        fetchCatalogCourses(true),
+        fetchSectionPolicies(true),
+      ]);
     return assembleEngineConfigFromRecords({
       rooms,
       faculty,
       eligibility,
       settings,
       hasSettings: true,
+      includeGateCFields: true,
+      sectionPolicies: sectionsRes.sections,
+      catalogCourses: coursesRes.courses,
     });
   }
 
-  const [roomsResp, facultyResp, eligibilityResp, settingsResp, settingsObj] =
-    await Promise.all([
-      supabase
-        .from("timetable_rooms")
-        .select(ROOM_SELECT_COLUMNS)
-        .order("is_lab", { ascending: false })
-        .order("name"),
-      supabase
-        .from("timetable_faculty")
-        .select(FACULTY_SELECT_COLUMNS)
-        .order("acronym"),
-      supabase
-        .from("timetable_course_eligibility")
-        .select(ELIGIBILITY_SELECT_COLUMNS)
-        .order("acronym"),
-      supabase
-        .from("timetable_settings")
-        .select(SETTINGS_SELECT_COLUMNS)
-        .eq("id", 1)
-        .maybeSingle(),
-      fetchTimetableSettings(false),
-    ]);
+  const [
+    rooms,
+    faculty,
+    eligibilityResp,
+    settingsResp,
+    settingsObj,
+    facultyExt,
+    roomsExt,
+    coursesRes,
+    sectionsRes,
+    policySnap,
+  ] = await Promise.all([
+    fetchRooms(false),
+    fetchFaculty(false),
+    supabase
+      .from("timetable_course_eligibility")
+      .select(ELIGIBILITY_SELECT_COLUMNS)
+      .order("acronym"),
+    supabase
+      .from("timetable_settings")
+      .select(SETTINGS_SELECT_COLUMNS)
+      .eq("id", 1)
+      .maybeSingle(),
+    fetchTimetableSettings(false),
+    isFacultyExtendedSchemaLive(false).catch(() => false),
+    isRoomExtendedSchemaLive(false).catch(() => false),
+    fetchCatalogCourses(false).catch(() => ({ live: false, courses: [] })),
+    fetchSectionPolicies(false).catch(() => ({ live: false, sections: [] })),
+    readActivePolicySnapshot({}).catch(() => null),
+  ]);
 
-  if (roomsResp.error) throw new Error(`timetable_rooms: ${roomsResp.error.message}`);
-  if (facultyResp.error) throw new Error(`timetable_faculty: ${facultyResp.error.message}`);
   if (eligibilityResp.error) {
-    throw new Error(`timetable_course_eligibility: ${eligibilityResp.error.message}`);
+    throw new Error(
+      `timetable_course_eligibility: ${eligibilityResp.error.message}`,
+    );
   }
   if (settingsResp.error) {
     throw new Error(`timetable_settings: ${settingsResp.error.message}`);
   }
 
   return assembleEngineConfigFromRecords({
-    rooms: (roomsResp.data ?? []) as TimetableRoomRecord[],
-    faculty: ((facultyResp.data ?? []) as TimetableFacultyRecord[]).map((f) => ({
-      ...f,
-      off_days: Array.isArray(f.off_days) ? f.off_days : [],
-      courses: Array.isArray(f.courses) ? f.courses : [],
-    })),
+    rooms,
+    faculty,
     eligibility: (eligibilityResp.data ?? []) as CourseEligibilityRecord[],
     settings: settingsObj,
     hasSettings: settingsResp.data !== null,
+    includeGateCFields: facultyExt || roomsExt || Boolean(policySnap),
+    policySnapshot: policySnap,
+    sectionPolicies: sectionsRes.sections,
+    catalogCourses: coursesRes.courses,
   });
 }

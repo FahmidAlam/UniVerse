@@ -2,7 +2,11 @@ import {
   isSupabaseConfigured,
   supabase,
 } from "@/services/supabase";
-import type { GateStatusInfo, SchedulingGateState } from "@/features/scheduling/types";
+import type {
+  CatalogCapabilityState,
+  GateStatusInfo,
+  SchedulingGateState,
+} from "@/features/scheduling/types";
 
 export interface LiveGateProbeInput {
   supabaseConfigured: boolean;
@@ -11,14 +15,21 @@ export interface LiveGateProbeInput {
   appendRpcAvailable: boolean;
   scopeReadAuthorized: boolean;
   revisionRowExists: boolean;
+  policySnapshotsAvailable?: boolean;
+  validationArtifactPayloadAvailable?: boolean;
+  catalogCoursesAvailable?: boolean;
+  sectionPoliciesAvailable?: boolean;
+  facultyExtendedAvailable?: boolean;
+  roomsExtendedAvailable?: boolean;
 }
 
 /**
- * Pure fail-closed Gate A–D resolver.
+ * Pure fail-closed Gate A-D resolver.
  * Never unlocks Gate A simply because a row exists unless both the scope query
  * and `read_course_distribution_revision` RPC contract pass.
- * Keeps Gates C and D unconditionally locked in Phase 4B Live Mode until Phase 4A
- * backend contracts (`publish_routine` archival + revision-bound policy/validation) ship.
+ * Unlocks Gate C only when Gate A passes AND Stage 5A `policy_snapshots` +
+ * `course_distribution_artifacts.payload` contracts are verified live.
+ * Keeps Gate D unconditionally locked until Wave 2B Phase 4A-2 Stage 5C ships.
  */
 export function resolveLiveSchedulingGates(
   probe: LiveGateProbeInput,
@@ -29,6 +40,17 @@ export function resolveLiveSchedulingGates(
   const gateAUnlocked =
     canAttemptLive && probe.scopeReadAuthorized && probe.readRpcAvailable;
   const gateBUnlocked = gateAUnlocked && probe.appendRpcAvailable;
+  const gateCUnlocked =
+    gateAUnlocked &&
+    Boolean(probe.policySnapshotsAvailable) &&
+    Boolean(probe.validationArtifactPayloadAvailable);
+
+  const catalogs: CatalogCapabilityState = {
+    coursesLive: canAttemptLive && Boolean(probe.catalogCoursesAvailable),
+    batchesLive: canAttemptLive && Boolean(probe.sectionPoliciesAvailable),
+    facultyExtendedLive: canAttemptLive && Boolean(probe.facultyExtendedAvailable),
+    roomsExtendedLive: canAttemptLive && Boolean(probe.roomsExtendedAvailable),
+  };
 
   const gateA: GateStatusInfo = {
     key: "gateA",
@@ -62,10 +84,13 @@ export function resolveLiveSchedulingGates(
     key: "gateC",
     code: "C",
     label: "Policy Snapshot & Preflight",
-    contractName: "Phase 4A · Validation Artifact Contract",
-    unlocked: false,
-    reason:
-      "Fail-closed in Phase 4B: revision-bound PolicySnapshot and validation_report server contract await Phase 4A backend authorization.",
+    contractName: "policy_snapshots + validation_report",
+    unlocked: gateCUnlocked,
+    reason: gateCUnlocked
+      ? "Verified Stage 5A policy_snapshots, validation_report artifacts, and FastAPI preflight readiness."
+      : !gateAUnlocked
+        ? "Requires Gate A before revision-bound policy snapshots and preflight artifacts can be saved."
+        : "Stage 5A policy_snapshots and validation_report artifact columns are not yet active on this Supabase project.",
   };
 
   const gateD: GateStatusInfo = {
@@ -75,10 +100,10 @@ export function resolveLiveSchedulingGates(
     contractName: "Phase 4A · Archiving publish_routine()",
     unlocked: false,
     reason:
-      "Fail-closed in Phase 4B: revision-bound solver pipeline and archiving publish_routine() await Phase 4A backend authorization.",
+      "Fail-closed in Stage 5A: revision-bound solver pipeline and archiving publish_routine() await Stage 5C Gate D backend authorization.",
   };
 
-  return { gateA, gateB, gateC, gateD, probedAt };
+  return { gateA, gateB, gateC, gateD, catalogs, probedAt };
 }
 
 export const ALL_GATES_LOCKED_STATE: SchedulingGateState =
@@ -100,25 +125,22 @@ function isMissingFunctionOrSchemaError(err: {
   const msg = (err.message ?? "").toLowerCase();
   return (
     code === "PGRST202" ||
+    code === "PGRST204" ||
+    code === "PGRST205" ||
     code === "42883" ||
     code === "42P01" ||
     code === "42703" ||
     msg.includes("could not find the function") ||
+    msg.includes("could not find the table") ||
     msg.includes("does not exist")
   );
 }
 
 /**
- * Live capability probe against Supabase Track 2 distribution schema (`20261106130000`).
- * Never mutates data, never calls PostgREST OpenAPI root (`GET /rest/v1/`, which
- * returns 401 on newer publishable-key projects), and never invokes RPCs with nil
- * UUIDs (which raise P0002 -> HTTP 500).
- *
- * Probes the 4 atomic Track 2 tables (`course_distribution_revisions`,
- * `course_distribution_sources`, `course_distribution_corrections`,
- * `course_distribution_artifacts`) via standard RLS-protected PostgREST reads,
- * and verifies `read_course_distribution_revision` directly only when a real
- * revision row exists.
+ * Live capability probe against Supabase Track 2 distribution schema (`20261106130000`)
+ * and Stage 5A Gate C catalog/policy schema (`20261127120000`).
+ * Never mutates data, never calls PostgREST OpenAPI root (`GET /rest/v1/`),
+ * and never invokes RPCs with nil UUIDs.
  */
 export async function probeLiveSchedulingCapabilities(
   isDevPreview: boolean,
@@ -138,9 +160,26 @@ export async function probeLiveSchedulingCapabilities(
   let revisionRowExists = false;
   let readRpcAvailable = false;
   let appendRpcAvailable = false;
+  let policySnapshotsAvailable = false;
+  let validationArtifactPayloadAvailable = false;
+  let catalogCoursesAvailable = false;
+  let sectionPoliciesAvailable = false;
+  let facultyExtendedAvailable = false;
+  let roomsExtendedAvailable = false;
 
   try {
-    const [revQuery, srcQuery, corrQuery, artQuery] = await Promise.all([
+    const [
+      revQuery,
+      srcQuery,
+      corrQuery,
+      artQuery,
+      policyQuery,
+      artPayloadQuery,
+      coursesQuery,
+      sectionsQuery,
+      facultyExtQuery,
+      roomsExtQuery,
+    ] = await Promise.all([
       supabase
         .from("course_distribution_revisions")
         .select("id, revision_version, status")
@@ -156,6 +195,30 @@ export async function probeLiveSchedulingCapabilities(
       supabase
         .from("course_distribution_artifacts")
         .select("id, revision_id")
+        .limit(1),
+      supabase
+        .from("policy_snapshots")
+        .select("id, policy_hash")
+        .limit(1),
+      supabase
+        .from("course_distribution_artifacts")
+        .select("id, policy_snapshot_id, payload, summary, has_blockers")
+        .limit(1),
+      supabase
+        .from("catalog_courses")
+        .select("id, code")
+        .limit(1),
+      supabase
+        .from("section_policies")
+        .select("id, batch, section")
+        .limit(1),
+      supabase
+        .from("timetable_faculty")
+        .select("id, employment_type, allow_three_off_days, is_sust_adjunct")
+        .limit(1),
+      supabase
+        .from("timetable_rooms")
+        .select("id, room_pool_role, available_slots")
         .limit(1),
     ]);
 
@@ -177,14 +240,19 @@ export async function probeLiveSchedulingCapabilities(
         readRpcAvailable = true;
       }
     } else if (fullTrack2SchemaReadable) {
-      // All 4 tables from migration 20261106130000_course_distribution_contract.sql
-      // are live and RLS-readable for this admin; RPCs ship in the same migration.
       readRpcAvailable = true;
     }
 
     if (readRpcAvailable && fullTrack2SchemaReadable) {
       appendRpcAvailable = true;
     }
+
+    policySnapshotsAvailable = !policyQuery.error;
+    validationArtifactPayloadAvailable = !artPayloadQuery.error;
+    catalogCoursesAvailable = !coursesQuery.error;
+    sectionPoliciesAvailable = !sectionsQuery.error;
+    facultyExtendedAvailable = !facultyExtQuery.error;
+    roomsExtendedAvailable = !roomsExtQuery.error;
   } catch {
     return ALL_GATES_LOCKED_STATE;
   }
@@ -196,5 +264,11 @@ export async function probeLiveSchedulingCapabilities(
     appendRpcAvailable,
     scopeReadAuthorized,
     revisionRowExists,
+    policySnapshotsAvailable,
+    validationArtifactPayloadAvailable,
+    catalogCoursesAvailable,
+    sectionPoliciesAvailable,
+    facultyExtendedAvailable,
+    roomsExtendedAvailable,
   });
 }

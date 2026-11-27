@@ -35,19 +35,32 @@ import { MasterDetailShell } from "@/components/ui/MasterDetailShell";
 import { StickyDirtyBar } from "@/components/ui/StickyDirtyBar";
 import { Switch } from "@/components/ui/Switch";
 import { useWorkspaceShortcuts } from "@/core/hooks/useWorkspaceShortcuts";
+import {
+  DaySlotMatrixPicker,
+  type SlotMatrixEntry,
+} from "@/features/admin/components/DaySlotMatrixPicker";
 import { INSTITUTIONAL_DEPARTMENTS } from "@/features/admin/services/facultyService";
 import {
   bulkSetRoomsActive,
   createRoom,
   deleteRooms,
   fetchRooms,
+  inferRoomPoolRole,
+  isRoomExtendedSchemaLive,
+  ROOM_POOL_ROLE_LABELS,
   updateRoom,
+  type RoomPoolRole,
   type TimetableRoomRecord,
 } from "@/features/admin/services/roomsService";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { cn } from "@/lib/utils";
 
 type RoomFilter = "all" | "labs" | "gallery" | "active" | "inactive";
+
+const slotEntrySchema = z.object({
+  day: z.string(),
+  period_idx: z.number().int().min(1).max(12),
+});
 
 const roomSchema = z.object({
   name: z
@@ -69,6 +82,15 @@ const roomSchema = z.object({
   is_lab: z.boolean(),
   is_gallery: z.boolean(),
   is_active: z.boolean(),
+  room_pool_role: z.enum([
+    "general",
+    "cse_lab",
+    "ecl_lab",
+    "physics_lab",
+    "gallery",
+    "other",
+  ]),
+  available_slots: z.array(slotEntrySchema),
 });
 
 type RoomFormValues = z.infer<typeof roomSchema>;
@@ -83,6 +105,8 @@ function toFormValues(room: TimetableRoomRecord | null): RoomFormValues {
       is_lab: false,
       is_gallery: false,
       is_active: true,
+      room_pool_role: "general",
+      available_slots: [],
     };
   }
   return {
@@ -93,6 +117,8 @@ function toFormValues(room: TimetableRoomRecord | null): RoomFormValues {
     is_lab: room.is_lab,
     is_gallery: room.is_gallery,
     is_active: room.is_active,
+    room_pool_role: inferRoomPoolRole(room),
+    available_slots: [...(room.available_slots ?? [])],
   };
 }
 
@@ -121,6 +147,13 @@ export function ManageRoomsPage() {
     retry: false,
   });
 
+  const extendedLiveQuery = useQuery({
+    queryKey: ["admin-rooms-extended-live", isDevPreview],
+    queryFn: () => isRoomExtendedSchemaLive(isDevPreview),
+    retry: false,
+  });
+  const isExtendedLive = extendedLiveQuery.data ?? false;
+
   const selectedRoom = useMemo(
     () =>
       selectedId && selectedId !== "new"
@@ -137,10 +170,15 @@ export function ManageRoomsPage() {
   const {
     register,
     control,
+    watch,
+    setValue,
     handleSubmit,
     reset,
     formState: { errors, isDirty },
   } = form;
+
+  const watchedPoolRole = watch("room_pool_role");
+  const watchedAvailableSlots = watch("available_slots");
 
   const openInspector = (target: string | "new" | null) => {
     if (isDirty && target !== selectedId) {
@@ -179,6 +217,8 @@ export function ManageRoomsPage() {
         is_lab: values.is_lab,
         is_gallery: values.is_gallery,
         is_active: values.is_active,
+        room_pool_role: values.room_pool_role as RoomPoolRole,
+        available_slots: values.available_slots as SlotMatrixEntry[],
       };
       if (selectedId === "new" || !selectedRoom) {
         return createRoom(input, isDevPreview);
@@ -825,12 +865,68 @@ export function ManageRoomsPage() {
               </label>
             </div>
 
-            <StagedFeatureNotice
-              title="Staged Policy Rules (R10/R11 Window Matrix & R14 Term Pools)"
-              description="Declared lab availability matrices and term-specific room pool overrides remain staged pending database schema promotion and are omitted from room writes."
-            />
+            {isExtendedLive ? (
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label
+                    htmlFor="room-pool-role"
+                    className="text-[12.5px] font-semibold text-[var(--ink-primary)]"
+                  >
+                    Room Pool Role (R10 / R11 / R14)
+                  </label>
+                  <select
+                    id="room-pool-role"
+                    {...register("room_pool_role")}
+                    className="h-[38px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-2.5 text-[12.5px] focus:border-[var(--accent-brand)]"
+                  >
+                    {(Object.entries(ROOM_POOL_ROLE_LABELS) as [RoomPoolRole, string][]).map(
+                      ([role, label]) => (
+                        <option key={role} value={role}>
+                          {label}
+                        </option>
+                      ),
+                    )}
+                  </select>
+                </div>
+
+                {(watchedPoolRole === "ecl_lab" ||
+                  watchedPoolRole === "physics_lab") && (
+                  <div className="space-y-2">
+                    <DaySlotMatrixPicker
+                      testId="room-shared-lab-windows"
+                      label={
+                        watchedPoolRole === "ecl_lab"
+                          ? "ECL Lab Approved EEE Windows (R10)"
+                          : "Physics Lab Approved Windows (R11)"
+                      }
+                      description="Declare explicit slot windows available for CSE scheduling."
+                      value={watchedAvailableSlots}
+                      onChange={(next) =>
+                        setValue("available_slots", next, { shouldDirty: true })
+                      }
+                      tone="lab"
+                    />
+                    {watchedAvailableSlots.length === 0 && (
+                      <div
+                        role="status"
+                        className="rounded-[var(--r-control)] border border-[var(--sem-conflict-border)] bg-[var(--sem-conflict-bg)] px-3 py-2 text-[12px] text-[var(--sem-conflict-ink)]"
+                      >
+                        Blocker: {watchedPoolRole === "ecl_lab" ? "ECL" : "Physics"} lab
+                        rooms require at least 1 declared slot window before solve.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <StagedFeatureNotice
+                title="Staged Policy Rules (R10/R11 Window Matrix & R14 Term Pools)"
+                description="Declared lab availability matrices and term-specific room pool overrides remain staged pending Stage 5A database schema promotion and are omitted from room writes."
+              />
+            )}
 
             <StickyDirtyBar
+              docked
               isDirty={isDirty}
               isSaving={saveMutation.isPending}
               formId="room-inspector-form"

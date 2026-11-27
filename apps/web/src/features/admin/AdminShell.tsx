@@ -50,11 +50,14 @@ import {
   CAPABILITY_GROUP_LABELS,
   getCapabilitiesByGroup,
   getCapabilityByPath,
+  resolveLiveCapabilityDescriptor,
   type CapabilityGroup,
   type CapabilityIconKey,
 } from "@/core/capabilities";
 import { fetchAdminDashboardCounts } from "@/features/admin/services/adminDashboardService";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { probeLiveSchedulingCapabilities } from "@/features/scheduling/services/schedulingCapabilities";
+import type { SchedulingGateState } from "@/features/scheduling/types";
 import { cn } from "@/lib/utils";
 import { EngineHealthBadge } from "@/shared/components/EngineHealthBadge";
 import { LedgerMark } from "@/shared/components/LedgerMark";
@@ -120,12 +123,14 @@ function SidebarContent({
   collapsed = false,
   onToggleCollapse,
   attentionCounts,
+  liveGates,
 }: {
   onNavigate?: () => void;
   layoutGroupId: string;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   attentionCounts?: Record<string, number | undefined>;
+  liveGates?: SchedulingGateState | null;
 }) {
   const location = useLocation();
   const prefersReducedMotion = useReducedMotion() ?? false;
@@ -212,7 +217,9 @@ function SidebarContent({
           )}
         >
           {GROUP_ORDER.map((group, groupIdx) => {
-            const items = getCapabilitiesByGroup(group);
+            const items = getCapabilitiesByGroup(group).map((cap) =>
+              resolveLiveCapabilityDescriptor(cap, liveGates),
+            );
             const isGroupCollapsed = !collapsed && collapsedGroups[group];
             const firstStagedIdx =
               group === "configuration"
@@ -488,6 +495,13 @@ export function AdminShell() {
     retry: false,
   });
 
+  const liveGatesQuery = useQuery({
+    queryKey: ["scheduling-live-gates", isDevPreview],
+    queryFn: () => probeLiveSchedulingCapabilities(isDevPreview),
+    staleTime: 60_000,
+    retry: false,
+  });
+
   const attentionCounts: Record<string, number | undefined> | undefined =
     overviewQuery.data
       ? {
@@ -536,6 +550,7 @@ export function AdminShell() {
             collapsed={sidebarCollapsed}
             onToggleCollapse={toggleSidebar}
             attentionCounts={attentionCounts}
+            liveGates={liveGatesQuery.data}
           />
         </div>
       </aside>
@@ -573,6 +588,7 @@ export function AdminShell() {
                 <SidebarContent
                   layoutGroupId="drawer-admin-nav"
                   onNavigate={() => setDrawerOpen(false)}
+                  liveGates={liveGatesQuery.data}
                 />
               </DialogContent>
             </Dialog>

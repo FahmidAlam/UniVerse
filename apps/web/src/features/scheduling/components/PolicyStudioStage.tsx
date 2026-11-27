@@ -1,18 +1,40 @@
 import {
   ArrowCounterClockwise,
+  ArrowRight,
   CheckCircle,
+  FloppyDisk,
   LockSimple,
   ShieldCheck,
   SlidersHorizontal,
 } from "@phosphor-icons/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { toast } from "sonner";
+import { LedgerTableSkeleton } from "@/components/ui/AsyncStates";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Switch } from "@/components/ui/Switch";
+import {
+  CONSECUTIVE_WEEKEND_PAIRS,
+  fetchSectionPolicies,
+} from "@/features/admin/services/batchesService";
+import { fetchCatalogCourses } from "@/features/admin/services/coursesService";
+import {
+  DEFAULT_POLICY_SNAPSHOT_FORM,
+  readActivePolicySnapshot,
+  savePolicySnapshot,
+  type PolicySnapshotRecord,
+  type SavePolicySnapshotInput,
+} from "@/features/scheduling/services/policySnapshotService";
 import { useSchedulingWorkbenchStore } from "@/features/scheduling/store/schedulingWorkbenchStore";
 import type {
   GateStatusInfo,
   PolicyConfigItem,
   PolicyPillarId,
+  RevisionContext,
   WorkbenchMode,
+  WorkbenchStageId,
 } from "@/features/scheduling/types";
 import { cn } from "@/lib/utils";
 
@@ -55,18 +77,171 @@ function hasActiveOverride(item: PolicyConfigItem): boolean {
   return ov !== item.defaultValue.trim();
 }
 
+function toDraftFromSnapshot(
+  snap: PolicySnapshotRecord | null,
+  revision: RevisionContext | null,
+): SavePolicySnapshotInput {
+  if (!snap) {
+    return {
+      ...DEFAULT_POLICY_SNAPSHOT_FORM,
+      revisionId: revision?.revisionId ?? null,
+      scopeId: revision?.scopeId || null,
+      policyPayload: {
+        ...DEFAULT_POLICY_SNAPSHOT_FORM.policyPayload,
+        adjunct_day_bands: {
+          ...DEFAULT_POLICY_SNAPSHOT_FORM.policyPayload.adjunct_day_bands,
+        },
+      },
+    };
+  }
+  return {
+    revisionId: revision?.revisionId ?? snap.revision_id ?? null,
+    scopeId: revision?.scopeId || snap.scheduling_scope_id || null,
+    label: snap.label,
+    defaultSectionWeekend: [...snap.default_section_weekend],
+    batchMaxOffDaySpread: snap.batch_max_off_day_spread,
+    maxSectionInternalGap: snap.max_section_internal_gap,
+    allowSessionalAcrossBreak: snap.allow_sessional_across_break,
+    physicsLabCourseCodes: [...snap.physics_lab_course_codes],
+    policyPayload: structuredClone(snap.policy_payload),
+  };
+}
+
+function countLiveOverrides(draft: SavePolicySnapshotInput): number {
+  const base = DEFAULT_POLICY_SNAPSHOT_FORM;
+  let count = 0;
+  if (
+    draft.defaultSectionWeekend.join("|") !==
+    base.defaultSectionWeekend.join("|")
+  ) {
+    count += 1;
+  }
+  if (draft.batchMaxOffDaySpread !== base.batchMaxOffDaySpread) count += 1;
+  if (draft.maxSectionInternalGap !== base.maxSectionInternalGap) count += 1;
+  if (draft.allowSessionalAcrossBreak !== base.allowSessionalAcrossBreak) {
+    count += 1;
+  }
+  if (draft.physicsLabCourseCodes.length > 0) count += 1;
+  if (draft.policyPayload.daily_slot_count !== base.policyPayload.daily_slot_count) {
+    count += 1;
+  }
+  if (draft.policyPayload.allow_online_slot !== base.policyPayload.allow_online_slot) {
+    count += 1;
+  }
+  if (draft.policyPayload.friday_no_p4 !== base.policyPayload.friday_no_p4) {
+    count += 1;
+  }
+  if (
+    draft.policyPayload.faculty_preference_weight !==
+    base.policyPayload.faculty_preference_weight
+  ) {
+    count += 1;
+  }
+  return count;
+}
+
 export function PolicyStudioStage({
   mode,
   gateC,
+  revision = null,
+  onJumpToStage,
 }: {
   mode: WorkbenchMode;
   gateC: GateStatusInfo;
+  revision?: RevisionContext | null;
+  onJumpToStage?: (stage: WorkbenchStageId, row?: number) => void;
 }) {
+  const queryClient = useQueryClient();
   const {
     previewPolicyItems,
     applyPreviewPolicyOverride,
     resetPreviewPolicyOverride,
+    setLivePolicySnapshot,
+    markLiveValidationStale,
   } = useSchedulingWorkbenchStore();
+
+  const isLiveUnlocked = mode === "live" && gateC.unlocked;
+
+  const snapshotQuery = useQuery({
+    queryKey: [
+      "scheduling-active-policy-snapshot",
+      revision?.revisionId ?? null,
+      revision?.scopeId ?? null,
+    ],
+    enabled: isLiveUnlocked,
+    queryFn: () =>
+      readActivePolicySnapshot({
+        revisionId: revision?.revisionId ?? null,
+        scopeId: revision?.scopeId || null,
+      }),
+    retry: false,
+  });
+
+  const sectionsQuery = useQuery({
+    queryKey: ["admin-section-policies", false],
+    enabled: isLiveUnlocked,
+    queryFn: () => fetchSectionPolicies(false),
+    retry: false,
+  });
+
+  const coursesQuery = useQuery({
+    queryKey: ["admin-catalog-courses", false],
+    enabled: isLiveUnlocked,
+    queryFn: () => fetchCatalogCourses(false),
+    retry: false,
+  });
+
+  const [draft, setDraft] = useState<SavePolicySnapshotInput>(() =>
+    toDraftFromSnapshot(null, revision),
+  );
+  const [physicsInput, setPhysicsInput] = useState("");
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    if (!isLiveUnlocked) return;
+    if (snapshotQuery.data !== undefined) {
+      setLivePolicySnapshot(snapshotQuery.data);
+      setDraft(toDraftFromSnapshot(snapshotQuery.data, revision));
+      setIsDirty(false);
+    }
+  }, [isLiveUnlocked, revision, setLivePolicySnapshot, snapshotQuery.data]);
+
+  const saveMutation = useMutation({
+    mutationFn: (input: SavePolicySnapshotInput) => savePolicySnapshot(input),
+    onSuccess: (saved) => {
+      setLivePolicySnapshot(saved);
+      markLiveValidationStale();
+      setDraft(toDraftFromSnapshot(saved, revision));
+      setIsDirty(false);
+      void queryClient.invalidateQueries({
+        queryKey: ["scheduling-active-policy-snapshot"],
+      });
+      toast.success(`Saved PolicySnapshot v${saved.version}`, {
+        description: `SHA-256 ${saved.policy_hash.slice(0, 12)}… · validation artifact marked stale.`,
+      });
+    },
+    onError: (err) => {
+      toast.error("Could not save policy snapshot", {
+        description: err instanceof Error ? err.message : "RPC save_policy_snapshot failed.",
+      });
+    },
+  });
+
+  const liveOverrideCount = useMemo(() => countLiveOverrides(draft), [draft]);
+  const sectionOverrideCount = useMemo(
+    () =>
+      (sectionsQuery.data?.sections ?? []).filter((s) =>
+        Boolean(s.weekend_override_days),
+      ).length,
+    [sectionsQuery.data?.sections],
+  );
+  const labCourseSuggestions = useMemo(
+    () =>
+      (coursesQuery.data?.courses ?? [])
+        .filter((c) => c.class_type === "lab" && c.is_active)
+        .map((c) => c.code),
+    [coursesQuery.data?.courses],
+  );
 
   if (mode === "live" && !gateC.unlocked) {
     return (
@@ -98,6 +273,466 @@ export function PolicyStudioStage({
     );
   }
 
+  // ── Live Mode Gate C Unlocked ────────────────────────────────────────────
+  if (isLiveUnlocked) {
+    if (snapshotQuery.isLoading) {
+      return (
+        <LedgerTableSkeleton
+          rows={5}
+          label="Loading active PolicySnapshot from Supabase"
+        />
+      );
+    }
+
+    const activeSnap = snapshotQuery.data;
+    const weekendPairKey = draft.defaultSectionWeekend.join("|");
+
+    const addPhysicsCode = (raw: string) => {
+      const cleaned = raw.trim().toUpperCase();
+      if (!cleaned) return;
+      if (!draft.physicsLabCourseCodes.includes(cleaned)) {
+        setDraft((prev) => ({
+          ...prev,
+          physicsLabCourseCodes: [...prev.physicsLabCourseCodes, cleaned].sort(),
+        }));
+        setIsDirty(true);
+      }
+      setPhysicsInput("");
+    };
+
+    return (
+      <div className="space-y-4" data-testid="live-gate-c-policy-studio">
+        {/* Provenance & Override Bar */}
+        <div
+          className={cn(
+            "ledger-card flex flex-wrap items-center justify-between gap-3 p-4",
+            liveOverrideCount > 0 && "border-l-[3px] border-l-[var(--sem-joint-bar)]",
+          )}
+        >
+          <div className="flex items-start gap-2.5">
+            <ShieldCheck
+              size={18}
+              className="mt-0.5 shrink-0 text-[var(--accent-brand)]"
+              aria-hidden="true"
+            />
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[14px] font-semibold text-[var(--ink-primary)]">
+                  Persisted Committee PolicySnapshot (R1–R16)
+                </span>
+                {activeSnap ? (
+                  <Badge tone="neutral" mono data-testid="policy-snapshot-provenance">
+                    v{activeSnap.version} · {activeSnap.policy_hash.slice(0, 10)}
+                  </Badge>
+                ) : (
+                  <Badge tone="joint" mono>
+                    Unsaved Baseline
+                  </Badge>
+                )}
+              </div>
+              <p className="mt-0.5 text-[12.5px] text-[var(--ink-secondary)]">
+                {revision
+                  ? `Bound to Revision #${revision.revisionNumber} (v${revision.revisionVersion}). Saving a snapshot automatically marks prior validation reports stale.`
+                  : "Global committee baseline. Select a revision in Stage 1 to bind validation artifacts."}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone={liveOverrideCount > 0 ? "joint" : "neutral"} mono>
+              {liveOverrideCount} Non-Default Override(s)
+            </Badge>
+            <Button
+              variant="secondary"
+              size="sm"
+              data-testid="live-reset-policy-baseline-btn"
+              onClick={() => {
+                setDraft(toDraftFromSnapshot(null, revision));
+                setIsDirty(true);
+              }}
+            >
+              <ArrowCounterClockwise size={13} aria-hidden="true" />
+              <span>Reset to Committee Baseline</span>
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              data-testid="save-policy-snapshot-btn"
+              disabled={saveMutation.isPending}
+              onClick={() => saveMutation.mutate(draft)}
+            >
+              <FloppyDisk size={14} aria-hidden="true" />
+              <span>
+                {saveMutation.isPending
+                  ? "Saving..."
+                  : isDirty || !activeSnap
+                    ? "Save Policy Snapshot"
+                    : "Save New Version"}
+              </span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Pillar 1: R15, R1, R2, R3 */}
+        <section className="ledger-card space-y-4 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-3">
+            <div>
+              <h2 className="text-[14.5px] font-semibold text-[var(--ink-primary)]">
+                1. Term Grid &amp; Section Calendar (R1–R3, R15)
+              </h2>
+              <p className="text-[12px] text-[var(--ink-secondary)]">
+                Configure 6- vs 7-slot daily grid, default consecutive 2-day weekend, and batch parity bounds.
+              </p>
+            </div>
+            <Link
+              to="/admin/timetable/batches"
+              className="font-mono-tabular inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--accent-brand)] no-underline hover:underline"
+            >
+              <span>{sectionOverrideCount} Section Override(s)</span>
+              <ArrowRight size={12} aria-hidden="true" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <span className="text-[12.5px] font-semibold text-[var(--ink-primary)]">
+                R15 Daily Regular Slots
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <div
+                  role="group"
+                  aria-label="R15 daily slot count"
+                  className="inline-flex h-[34px] rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-surface)] p-0.5"
+                >
+                  {([6, 7] as const).map((slots) => {
+                    const active = draft.policyPayload.daily_slot_count === slots;
+                    return (
+                      <button
+                        key={slots}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => {
+                          setDraft((p) => ({
+                            ...p,
+                            policyPayload: {
+                              ...p.policyPayload,
+                              daily_slot_count: slots,
+                            },
+                          }));
+                          setIsDirty(true);
+                        }}
+                        className={cn(
+                          "font-mono-tabular rounded-[5px] px-3 text-[12px] transition-colors",
+                          active
+                            ? "bg-[var(--bg-raised)] font-semibold text-[var(--ink-primary)]"
+                            : "text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]",
+                        )}
+                      >
+                        {slots}-Slot Grid
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <label
+                  className={cn(
+                    "inline-flex h-[34px] cursor-pointer items-center gap-2 rounded-[var(--r-control)] border px-3 text-[12px]",
+                    draft.policyPayload.allow_online_slot
+                      ? "border-[var(--sem-joint-border)] bg-[var(--sem-joint-bg)] text-[var(--sem-joint-ink)]"
+                      : "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--ink-muted)]",
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={draft.policyPayload.allow_online_slot}
+                    onChange={(e) => {
+                      setDraft((p) => ({
+                        ...p,
+                        policyPayload: {
+                          ...p.policyPayload,
+                          allow_online_slot: e.target.checked,
+                        },
+                      }));
+                      setIsDirty(true);
+                    }}
+                    className="h-3.5 w-3.5 accent-[var(--accent-brand)]"
+                  />
+                  <span>Online Slot (P8)</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label
+                htmlFor="live-default-weekend"
+                className="text-[12.5px] font-semibold text-[var(--ink-primary)]"
+              >
+                R1 Default Consecutive Section Weekend
+              </label>
+              <select
+                id="live-default-weekend"
+                value={weekendPairKey}
+                onChange={(e) => {
+                  const [d1, d2] = e.target.value.split("|");
+                  if (d1 && d2) {
+                    setDraft((p) => ({
+                      ...p,
+                      defaultSectionWeekend: [d1, d2],
+                    }));
+                    setIsDirty(true);
+                  }
+                }}
+                className="font-mono-tabular h-[36px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-2.5 text-[12.5px]"
+              >
+                {CONSECUTIVE_WEEKEND_PAIRS.map((pair) => {
+                  const key = `${pair[0]}|${pair[1]}`;
+                  return (
+                    <option key={key} value={key}>
+                      {pair[0]} + {pair[1]}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label
+                htmlFor="live-r2-spread"
+                className="text-[12.5px] font-semibold text-[var(--ink-primary)]"
+              >
+                R2 Batch Max Off-Day Spread (0–3)
+              </label>
+              <input
+                id="live-r2-spread"
+                type="number"
+                min={0}
+                max={3}
+                value={draft.batchMaxOffDaySpread}
+                onChange={(e) => {
+                  const val = Math.max(0, Math.min(3, Number(e.target.value) || 0));
+                  setDraft((p) => ({ ...p, batchMaxOffDaySpread: val }));
+                  setIsDirty(true);
+                }}
+                className="font-mono-tabular h-[36px] w-28 rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[13px]"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label
+                htmlFor="live-r3-gap"
+                className="text-[12.5px] font-semibold text-[var(--ink-primary)]"
+              >
+                R3 Max Consecutive Section Gap (0–3 slots)
+              </label>
+              <input
+                id="live-r3-gap"
+                type="number"
+                min={0}
+                max={3}
+                value={draft.maxSectionInternalGap}
+                onChange={(e) => {
+                  const val = Math.max(0, Math.min(3, Number(e.target.value) || 0));
+                  setDraft((p) => ({ ...p, maxSectionInternalGap: val }));
+                  setIsDirty(true);
+                }}
+                className="font-mono-tabular h-[36px] w-28 rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[13px]"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Pillar 2 & 3: Faculty Weights, R11 Physics Lab Codes & R12/D5 Break Crossing */}
+        <section className="ledger-card space-y-4 p-5">
+          <div className="border-b border-[var(--border-subtle)] pb-3">
+            <h2 className="text-[14.5px] font-semibold text-[var(--ink-primary)]">
+              2. Faculty Weights, R11 Physics Lab &amp; R12/D5 Sessional Break Permission
+            </h2>
+            <p className="text-[12px] text-[var(--ink-secondary)]">
+              D5 requires explicit admin authorization for 2-credit sessionals to span the midday break (defaults to disabled).
+            </p>
+          </div>
+
+          <div
+            className={cn(
+              "flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-control)] border p-3.5 transition-colors",
+              draft.allowSessionalAcrossBreak
+                ? "border-[var(--sem-joint-border)] bg-[var(--sem-joint-bg)]/35"
+                : "border-[var(--border-subtle)] bg-[var(--bg-surface)]",
+            )}
+          >
+            <div>
+              <div className="flex items-center gap-2">
+                <Badge
+                  tone={draft.allowSessionalAcrossBreak ? "joint" : "neutral"}
+                  mono
+                >
+                  R12 / D5
+                </Badge>
+                <span className="text-[13px] font-semibold text-[var(--ink-primary)]">
+                  Allow 2-Credit Sessional Labs Across Midday Break
+                </span>
+              </div>
+              <p className="mt-0.5 text-[12px] text-[var(--ink-secondary)]">
+                {draft.allowSessionalAcrossBreak
+                  ? "Explicitly enabled: consecutive 2-credit lab pairs may span the break."
+                  : "Disabled (Committee Default): sessional pairs never span the midday break."}
+              </p>
+            </div>
+            <Switch
+              id="live-allow-sessional-across-break"
+              data-testid="allow-sessional-across-break-switch"
+              checked={draft.allowSessionalAcrossBreak}
+              onCheckedChange={(checked) => {
+                setDraft((p) => ({ ...p, allowSessionalAcrossBreak: checked }));
+                setIsDirty(true);
+              }}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label
+                htmlFor="live-physics-lab-input"
+                className="text-[12.5px] font-semibold text-[var(--ink-primary)]"
+              >
+                R11 Bound Physics Lab Course Codes
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="live-physics-lab-input"
+                  list="live-physics-lab-suggestions"
+                  value={physicsInput}
+                  onChange={(e) => setPhysicsInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addPhysicsCode(physicsInput);
+                    }
+                  }}
+                  placeholder="e.g. PHY-1104"
+                  className="font-mono-tabular h-[36px] flex-1 rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[12.5px] uppercase"
+                />
+                <datalist id="live-physics-lab-suggestions">
+                  {labCourseSuggestions.map((code) => (
+                    <option key={code} value={code} />
+                  ))}
+                </datalist>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => addPhysicsCode(physicsInput)}
+                >
+                  Add
+                </Button>
+              </div>
+              {draft.physicsLabCourseCodes.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {draft.physicsLabCourseCodes.map((code) => (
+                    <span
+                      key={code}
+                      className="inline-flex items-center gap-1 rounded-[5px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 py-0.5 font-mono-tabular text-[12px]"
+                    >
+                      <span>{code}</span>
+                      <button
+                        type="button"
+                        aria-label={`Remove ${code}`}
+                        onClick={() => {
+                          setDraft((p) => ({
+                            ...p,
+                            physicsLabCourseCodes: p.physicsLabCourseCodes.filter(
+                              (c) => c !== code,
+                            ),
+                          }));
+                          setIsDirty(true);
+                        }}
+                        className="text-[var(--ink-muted)] hover:text-[var(--sem-conflict-ink)]"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="live-r8-pref-weight"
+                  className="text-[12.5px] font-semibold text-[var(--ink-primary)]"
+                >
+                  R8 Faculty Preference Weight
+                </label>
+                <input
+                  id="live-r8-pref-weight"
+                  type="number"
+                  min={0}
+                  max={200}
+                  value={draft.policyPayload.faculty_preference_weight}
+                  onChange={(e) => {
+                    const v = Math.max(0, Math.min(200, Number(e.target.value) || 0));
+                    setDraft((p) => ({
+                      ...p,
+                      policyPayload: {
+                        ...p.policyPayload,
+                        faculty_preference_weight: v,
+                      },
+                    }));
+                    setIsDirty(true);
+                  }}
+                  className="font-mono-tabular h-[36px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[13px]"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="live-r9-max-gap"
+                  className="text-[12.5px] font-semibold text-[var(--ink-primary)]"
+                >
+                  R9 SUST Max Gap (slots)
+                </label>
+                <input
+                  id="live-r9-max-gap"
+                  type="number"
+                  min={0}
+                  max={4}
+                  value={draft.policyPayload.sust_adjunct_max_gap}
+                  onChange={(e) => {
+                    const v = Math.max(0, Math.min(4, Number(e.target.value) || 0));
+                    setDraft((p) => ({
+                      ...p,
+                      policyPayload: {
+                        ...p.policyPayload,
+                        sust_adjunct_max_gap: v,
+                      },
+                    }));
+                    setIsDirty(true);
+                  }}
+                  className="font-mono-tabular h-[36px] w-full rounded-[var(--r-control)] border border-[var(--border-control)] bg-[var(--bg-elevated)] px-3 text-[13px]"
+                />
+              </div>
+            </div>
+          </div>
+
+          {onJumpToStage && (
+            <div className="flex justify-end border-t border-[var(--border-subtle)] pt-3">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => onJumpToStage("readiness")}
+              >
+                <span>Proceed to Server Preflight Validation</span>
+                <ArrowRight size={13} aria-hidden="true" />
+              </Button>
+            </div>
+          )}
+        </section>
+      </div>
+    );
+  }
+
+  // ── Design Preview Mode (existing unchanged local simulation) ────────────
   const r15Item = previewPolicyItems.find((p) => p.ruleId === "R15");
   const r15Slots =
     Number(r15Item?.typedPayload.slot_count ?? 7) === 6 ? 6 : 7;

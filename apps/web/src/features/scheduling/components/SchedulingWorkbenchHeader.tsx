@@ -87,6 +87,13 @@ export function SchedulingWorkbenchHeader({
     !gates.gateB.unlocked &&
     !gates.gateC.unlocked &&
     !gates.gateD.unlocked;
+  const liveGateBadgeLabel = allLiveGatesLocked
+    ? "Live · Fail-Closed"
+    : gates.gateC.unlocked
+      ? "Live · Gates A–C"
+      : gates.gateB.unlocked
+        ? "Live · Gates A/B"
+        : "Live · Gate A";
 
   return (
     <div className="space-y-4">
@@ -100,9 +107,7 @@ export function SchedulingWorkbenchHeader({
             {!isPreview && (
               <Badge tone="joint" mono>
                 <LockSimple size={12} aria-hidden="true" />
-                <span>
-                  {allLiveGatesLocked ? "Live · Fail-Closed" : "Live · Gates A/B"}
-                </span>
+                <span>{liveGateBadgeLabel}</span>
               </Badge>
             )}
           </div>
@@ -273,9 +278,9 @@ export function SchedulingWorkbenchHeader({
               !isPreview &&
               Boolean(stage.requiredGate && !gates[stage.requiredGate].unlocked);
             const showCriticalBadge =
-              isPreview &&
               stage.id === "readiness" &&
-              criticalReadinessCount > 0;
+              criticalReadinessCount > 0 &&
+              (isPreview || gates.gateC.unlocked);
 
             return (
               <button

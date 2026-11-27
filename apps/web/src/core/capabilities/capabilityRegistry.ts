@@ -304,6 +304,8 @@ export const CAPABILITY_GROUP_LABELS: Record<CapabilityGroup, string> = {
   directory: "Directory & Alerts",
 };
 
+import type { SchedulingGateState } from "@/features/scheduling/types";
+
 export function getCapabilityByPath(path: string): CapabilityDescriptor | undefined {
   return CAPABILITY_REGISTRY.find((cap) => cap.path === path);
 }
@@ -314,6 +316,42 @@ export function getCapabilityById(id: string): CapabilityDescriptor | undefined 
 
 export function getCapabilitiesByGroup(group: CapabilityGroup): CapabilityDescriptor[] {
   return CAPABILITY_REGISTRY.filter((cap) => cap.group === group);
+}
+
+/**
+ * Resolves live Stage 5A catalog unlocks dynamically without mutating the static
+ * fail-closed defaults in `CAPABILITY_REGISTRY`.
+ */
+export function resolveLiveCapabilityDescriptor(
+  cap: CapabilityDescriptor,
+  gates?: SchedulingGateState | null,
+): CapabilityDescriptor {
+  if (!gates) return cap;
+  if (cap.id === "admin.courses" && gates.catalogs?.coursesLive) {
+    return {
+      ...cap,
+      status: "live-persisted",
+      sidebarBadge: undefined,
+      plannedPhaseLabel: "Stage 5A Active",
+      summary:
+        "Manage persistent institutional courses, credits, service flags, R11 Physics Lab tags, and default weekly session counts.",
+      governanceNote: "Backed by persisted public.catalog_courses.",
+      backendContract: "public.catalog_courses",
+    };
+  }
+  if (cap.id === "admin.batches" && gates.catalogs?.batchesLive) {
+    return {
+      ...cap,
+      status: "live-persisted",
+      sidebarBadge: undefined,
+      plannedPhaseLabel: "Stage 5A Active",
+      summary:
+        "Manage cohort batches, sections, calendar systems, headcounts, and R1 consecutive 2-day weekend overrides.",
+      governanceNote: "Backed by persisted public.section_policies.",
+      backendContract: "public.section_policies",
+    };
+  }
+  return cap;
 }
 
 export function formatCapabilityStatusLabel(status: CapabilityStatus): string {

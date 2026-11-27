@@ -16,6 +16,11 @@ import {
 } from "@/features/scheduling/services/courseDistributionService";
 import { ALL_GATES_LOCKED_STATE } from "@/features/scheduling/services/schedulingCapabilities";
 import type {
+  PolicySnapshotRecord,
+  PreflightValidationReport,
+  ValidationArtifactRecord,
+} from "@/features/scheduling/services/policySnapshotService";
+import type {
   ArtifactFreshnessSummary,
   DistributionColumn,
   DistributionCorrection,
@@ -98,13 +103,16 @@ interface SchedulingWorkbenchState {
   selectedRowNumber: number | null;
   liveGates: SchedulingGateState;
 
-  // Live backend state (Gates A/B)
+  // Live backend state (Gates A/B/C)
   liveRevisions: RevisionContext[];
   liveSelectedRevisionId: string | null;
   liveRecords: DistributionSourceRecord[];
   liveArtifactFreshness: ArtifactFreshnessSummary;
   liveCorrectionDraft: LiveCorrectionDraft | null;
   liveConcurrencyError: string | null;
+  livePolicySnapshot: PolicySnapshotRecord | null;
+  livePreflightReport: PreflightValidationReport | null;
+  liveValidationArtifact: ValidationArtifactRecord | null;
 
   // Isolated Design Preview state (zero DB writes)
   previewRevision: RevisionContext;
@@ -130,6 +138,12 @@ interface SchedulingWorkbenchState {
   }) => void;
   setLiveCorrectionDraft: (draft: LiveCorrectionDraft | null) => void;
   setLiveConcurrencyError: (msg: string | null) => void;
+  setLivePolicySnapshot: (snapshot: PolicySnapshotRecord | null) => void;
+  setLivePreflightResult: (params: {
+    report: PreflightValidationReport | null;
+    artifact: ValidationArtifactRecord | null;
+  }) => void;
+  markLiveValidationStale: () => void;
 
   // Design Preview mutations (memory-only)
   savePreviewCorrection: (params: {
@@ -172,6 +186,9 @@ export const useSchedulingWorkbenchStore = create<SchedulingWorkbenchState>(
     },
     liveCorrectionDraft: null,
     liveConcurrencyError: null,
+    livePolicySnapshot: null,
+    livePreflightReport: null,
+    liveValidationArtifact: null,
 
     previewRevision: PREVIEW_REVISION_CONTEXT,
     previewRecords: [...PREVIEW_DISTRIBUTION_RECORDS],
@@ -227,6 +244,28 @@ export const useSchedulingWorkbenchStore = create<SchedulingWorkbenchState>(
 
     setLiveConcurrencyError: (liveConcurrencyError) =>
       set({ liveConcurrencyError }),
+
+    setLivePolicySnapshot: (livePolicySnapshot) => set({ livePolicySnapshot }),
+
+    setLivePreflightResult: ({ report, artifact }) =>
+      set((state) => ({
+        livePreflightReport: report,
+        liveValidationArtifact: artifact,
+        liveArtifactFreshness: artifact
+          ? {
+              ...state.liveArtifactFreshness,
+              validationReportStatus: artifact.status,
+            }
+          : state.liveArtifactFreshness,
+      })),
+
+    markLiveValidationStale: () =>
+      set((state) => ({
+        liveArtifactFreshness: {
+          ...state.liveArtifactFreshness,
+          validationReportStatus: "stale",
+        },
+      })),
 
     savePreviewCorrection: ({ row, column, effectiveValue, reason }) =>
       set((state) => {
@@ -397,6 +436,9 @@ export const useSchedulingWorkbenchStore = create<SchedulingWorkbenchState>(
         liveRecords: [],
         liveCorrectionDraft: null,
         liveConcurrencyError: null,
+        livePolicySnapshot: null,
+        livePreflightReport: null,
+        liveValidationArtifact: null,
         previewRevision: PREVIEW_REVISION_CONTEXT,
         previewRecords: [...PREVIEW_DISTRIBUTION_RECORDS],
         previewArtifactFreshness: { ...PREVIEW_ARTIFACT_FRESHNESS },
