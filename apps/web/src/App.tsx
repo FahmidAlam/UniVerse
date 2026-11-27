@@ -69,9 +69,16 @@ function AdminRouteGuard() {
 }
 
 function PublicRouteGuard() {
-  const { status } = useAuth();
+  const { status, isCompletingOAuth, hasPendingAuthError } = useAuth();
   const location = useLocation();
 
+  if (isCompletingOAuth) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-[var(--bg-surface)] text-[13px] text-[var(--ink-secondary)]">
+        Completing Google sign-in...
+      </div>
+    );
+  }
   if (status === "passwordRecovery" && location.pathname !== "/reset-password") {
     return <Navigate to="/reset-password" replace />;
   }
@@ -79,8 +86,16 @@ function PublicRouteGuard() {
     return <Navigate to="/access-required" replace />;
   }
   if (
+    hasPendingAuthError &&
+    status === "unauthenticated" &&
+    location.pathname === "/"
+  ) {
+    return <Navigate to="/login" replace />;
+  }
+  if (
     status === "authenticated" &&
-    (location.pathname === "/login" ||
+    (location.pathname === "/" ||
+      location.pathname === "/login" ||
       location.pathname === "/forgot-password" ||
       location.pathname === "/access-required")
   ) {

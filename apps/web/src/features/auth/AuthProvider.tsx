@@ -10,6 +10,13 @@ import {
 } from "react";
 import type { User } from "@supabase/supabase-js";
 import {
+  exchangePkceCodeOnce,
+  extractAndScrubOAuthError,
+  extractAndScrubPkceCode,
+  getInFlightPkceExchange,
+  type PkceExchangeOutcome,
+} from "@/features/auth/oauthCallbackHelpers";
+import {
   adoptInviteSession,
   extractAndScrubInviteHash,
   isSupabaseConfigured,
@@ -41,10 +48,13 @@ interface AuthContextValue {
   profile: AdminProfile | null;
   isDevPreview: boolean;
   canUseDevPreview: boolean;
+  isCompletingOAuth: boolean;
+  hasPendingAuthError: boolean;
   deniedReason: AccessDeniedReason | null;
   deniedRole: string | null;
   authError: string | null;
   recoveryExpiresAt: number | null;
+  clearAuthError: () => void;
   signInWithEmail: (
     email: string,
     password: string,
@@ -136,9 +146,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
   const [deniedRole, setDeniedRole] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isCompletingOAuth, setIsCompletingOAuth] = useState<boolean>(false);
+  const [hasPendingAuthError, setHasPendingAuthError] =
+    useState<boolean>(false);
   const [recoveryExpiresAt, setRecoveryExpiresAt] = useState<number | null>(
     null,
   );
+
+  const clearAuthError = useCallback(() => {
+    setAuthError(null);
+    setHasPendingAuthError(false);
+  }, []);
 
   const recoveryTimerRef = useRef<number | null>(null);
   const inFlightGateRef = useRef<Map<string, Promise<void>>>(new Map());
@@ -182,6 +200,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthError(null);
 
         try {
+          if (
+            user.app_metadata?.provider === "email" &&
+            !user.email_confirmed_at
+          ) {
+            await supabase!.auth.signOut();
+            setHasPendingAuthError(true);
+            setAuthError("Please verify your email address before signing in.");
+            updateStatus("unauthenticated");
+            return;
+          }
+
           const { data: existingProfile, error: profErr } = await supabase!
             .from("profiles")
             .select("id, email, role, name, department, teacher_code")
@@ -302,7 +331,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [updateStatus],
   );
 
-  // Bootstrap invite-admin implicit hash bridge + PKCE session hydration
+  // Bootstrap invite-admin implicit hash bridge + PKCE OAuth/recovery + session hydration
   useEffect(() => {
     if (!supabase || !isSupabaseConfigured) return;
 
@@ -318,10 +347,83 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (err) {
         if (!cancelled) {
+          setHasPendingAuthError(true);
           setAuthError(
             err instanceof Error ? err.message : "Invalid invitation callback.",
           );
           updateStatus("unauthenticated");
+        }
+        return;
+      }
+
+      const oauthErr = extractAndScrubOAuthError();
+      if (oauthErr) {
+        if (!cancelled) {
+          const rawMsg =
+            oauthErr.errorDescription ?? oauthErr.errorCode ?? oauthErr.error;
+          setHasPendingAuthError(true);
+          setAuthError(mapFriendlyAuthError(rawMsg));
+          updateStatus("unauthenticated");
+        }
+        return;
+      }
+
+      const pkce = extractAndScrubPkceCode();
+      const existingExchange = getInFlightPkceExchange();
+
+      if (pkce || existingExchange) {
+        if (!cancelled) setIsCompletingOAuth(true);
+        try {
+          const exchangePromise =
+            existingExchange ??
+            exchangePkceCodeOnce(
+              pkce!.code,
+              pkce!.flowId,
+              (authCode, options) =>
+                supabase!.auth.exchangeCodeForSession(
+                  authCode,
+                  options,
+                ) as unknown as Promise<PkceExchangeOutcome>,
+            );
+
+          const { data, error } = await exchangePromise;
+          if (cancelled) return;
+
+          if (error || !data?.session?.user) {
+            setHasPendingAuthError(true);
+            setAuthError(
+              mapFriendlyAuthError(
+                error?.message ??
+                  "Google sign-in verification could not be completed. Please try again.",
+              ),
+            );
+            updateStatus("unauthenticated");
+            return;
+          }
+
+          if (
+            data.redirectType === "recovery" ||
+            statusRef.current === "passwordRecovery"
+          ) {
+            startRecoveryWindow();
+            return;
+          }
+
+          await resolveAdminGate(data.session.user as User);
+        } catch (err) {
+          if (!cancelled) {
+            setHasPendingAuthError(true);
+            setAuthError(
+              mapFriendlyAuthError(
+                err instanceof Error
+                  ? err.message
+                  : "Google sign-in failed during session exchange.",
+              ),
+            );
+            updateStatus("unauthenticated");
+          }
+        } finally {
+          if (!cancelled) setIsCompletingOAuth(false);
         }
         return;
       }
@@ -333,6 +435,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (cancelled || statusRef.current === "passwordRecovery") return;
       if (error || !session?.user) {
+        if (error) {
+          setHasPendingAuthError(true);
+          setAuthError(mapFriendlyAuthError(error.message));
+        }
         updateStatus("unauthenticated");
         return;
       }
@@ -413,17 +519,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
     }
 
+    clearAuthError();
     const redirectTo = `${window.location.origin}/`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo },
+      options: {
+        redirectTo,
+        queryParams: { prompt: "select_account" },
+      },
     });
 
     if (error) {
       return { ok: false, error: mapFriendlyAuthError(error.message) };
     }
     return { ok: true };
-  }, []);
+  }, [clearAuthError]);
 
   const sendPasswordReset = useCallback(async (email: string) => {
     if (!supabase || !isSupabaseConfigured) {
@@ -485,6 +595,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setDeniedReason(null);
     setDeniedRole(null);
     setAuthError(null);
+    setHasPendingAuthError(false);
+    setIsCompletingOAuth(false);
     updateStatus("unauthenticated");
   }, [clearRecoveryTimer, updateStatus]);
 
@@ -510,10 +622,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile,
       isDevPreview,
       canUseDevPreview,
+      isCompletingOAuth,
+      hasPendingAuthError,
       deniedReason,
       deniedRole,
       authError,
       recoveryExpiresAt,
+      clearAuthError,
       signInWithEmail,
       signInWithGoogle,
       sendPasswordReset,
@@ -527,10 +642,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile,
       isDevPreview,
       canUseDevPreview,
+      isCompletingOAuth,
+      hasPendingAuthError,
       deniedReason,
       deniedRole,
       authError,
       recoveryExpiresAt,
+      clearAuthError,
       signInWithEmail,
       signInWithGoogle,
       sendPasswordReset,

@@ -1,6 +1,7 @@
 import 'dart:async' show Completer;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'
@@ -71,6 +72,36 @@ void main() {
 
       expect(controller.status, AuthStatus.error);
       expect(controller.errorMessage, contains('Unacceptable audience'));
+      expect(controller.isLoading, isFalse);
+    });
+
+    test('PlatformException sign_in_canceled does not trigger error banner',
+        () async {
+      final service = _FakeAuthService(
+        signIn: () async => throw PlatformException(code: 'sign_in_canceled'),
+      );
+      final controller = AuthController(authService: service);
+
+      await controller.signInWithGoogle();
+
+      expect(service.postLoginCalls, 0);
+      expect(controller.errorMessage, isNull);
+      expect(controller.status, isNot(AuthStatus.error));
+      expect(controller.isLoading, isFalse);
+    });
+
+    test('PlatformException network_error surfaces clear connectivity message',
+        () async {
+      final controller = AuthController(
+        authService: _FakeAuthService(
+          signIn: () async => throw PlatformException(code: 'network_error'),
+        ),
+      );
+
+      await controller.signInWithGoogle();
+
+      expect(controller.status, AuthStatus.error);
+      expect(controller.errorMessage, contains('internet connection'));
       expect(controller.isLoading, isFalse);
     });
   });
