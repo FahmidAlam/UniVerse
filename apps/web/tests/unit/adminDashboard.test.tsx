@@ -233,5 +233,37 @@ describe("Backend-derived AdminDashboardView (Phase 1A honesty & async states)",
     expect(document.body.textContent).toContain(
       "Configured Room Inventory Breakdown",
     );
+
+    rerender(
+      <MemoryRouter>
+        <AdminDashboardView
+          data={makeCounts()}
+          liveGates={{
+            mode: "live",
+            readOnlyDemo: false,
+            gateA: { unlocked: true, reason: "Ready" },
+            gateB: { unlocked: true, reason: "Ready" },
+            gateC: { unlocked: true, reason: "Ready" },
+            gateD: { unlocked: true, reason: "Ready" },
+            catalogs: {
+              coursesLive: true,
+              batchesLive: true,
+              facultyExtendedLive: true,
+              roomsExtendedLive: true,
+              coTeacherStorageLive: true,
+            },
+          }}
+          isLoading={false}
+          isFetching={false}
+          isError={false}
+          onRefresh={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(document.body.textContent).toContain("Gates A–D Live");
+    expect(document.body.textContent).toContain("Stage 5A Live");
+    expect(document.body.textContent).toContain("Stage 5C Live");
+    expect(document.body.textContent).not.toContain("Staged · No DB");
   });
 });

@@ -7,6 +7,7 @@ export {
   getCapabilityById,
   getCapabilityByPath,
   resolveLiveCapabilityDescriptor,
+  resolveLiveSubfeatureCapabilities,
   type CapabilityDescriptor,
   type CapabilityGroup,
   type CapabilityIconKey,

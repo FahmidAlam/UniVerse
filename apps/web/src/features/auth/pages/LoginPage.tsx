@@ -101,10 +101,14 @@ export function LoginPage() {
 
   return (
     <motion.div
-      key={`login-shake-${shakeCount}`}
       animate={
         shakeCount > 0 && !prefersReducedMotion
-          ? { x: [0, -4, 4, -4, 3, 0] }
+          ? {
+              x:
+                shakeCount % 2 === 1
+                  ? [0, -4, 4, -4, 3, 0]
+                  : [0, 4, -4, 4, -3, 0],
+            }
           : undefined
       }
       transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}

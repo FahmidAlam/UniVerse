@@ -265,5 +265,35 @@ describe("UploadRoutineTab, RoutineArchiveTab v2a preview & Gate A/B badge", () 
         "Locked · Gates A–D",
       );
     });
+
+    cleanup();
+
+    probeMock.mockResolvedValueOnce(
+      resolveLiveSchedulingGates({
+        supabaseConfigured: true,
+        isDevPreview: false,
+        readRpcAvailable: true,
+        appendRpcAvailable: true,
+        scopeReadAuthorized: true,
+        revisionRowExists: true,
+        policySnapshotsAvailable: true,
+        validationArtifactPayloadAvailable: true,
+        catalogCoursesAvailable: true,
+        sectionPoliciesAvailable: true,
+        facultyExtendedAvailable: true,
+        roomsExtendedAvailable: true,
+        solverJobsAvailable: true,
+        routineVersionSnapshotAvailable: true,
+        routineTeacherCodesAvailable: true,
+      }),
+    );
+
+    renderWithProviders(<AdminRoutinePage />, "/admin/routine?tab=archive");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("track2-workbench-gate-badge").textContent).toContain(
+        "Gates A–D Live",
+      );
+    });
   });
 });

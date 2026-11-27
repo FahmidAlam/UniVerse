@@ -5,6 +5,7 @@ import {
   ListChecks,
   LockSimple,
   Play,
+  ShieldCheck,
   Table,
   UploadSimple,
 } from "@phosphor-icons/react";
@@ -85,15 +86,18 @@ export function AdminRoutinePage() {
   const gatesABCLive = Boolean(
     gates?.gateA.unlocked && gates?.gateB.unlocked && gates?.gateC.unlocked,
   );
+  const gatesABCDLive = Boolean(gatesABCLive && gates?.gateD.unlocked);
   const gatesABLive = Boolean(gates?.gateA.unlocked && gates?.gateB.unlocked);
   const gateAOnlyLive = Boolean(gates?.gateA.unlocked && !gates?.gateB.unlocked);
-  const workbenchBadgeLabel = gatesABCLive
-    ? "Gates A–C Live · D Locked"
-    : gatesABLive
-      ? "Gates A–B Live · C–D Locked"
-      : gateAOnlyLive
-        ? "Gate A Live · B–D Locked"
-        : "Locked · Gates A–D";
+  const workbenchBadgeLabel = gatesABCDLive
+    ? "Gates A–D Live"
+    : gatesABCLive
+      ? "Gates A–C Live · D Locked"
+      : gatesABLive
+        ? "Gates A–B Live · C–D Locked"
+        : gateAOnlyLive
+          ? "Gate A Live · B–D Locked"
+          : "Locked · Gates A–D";
 
   const selectTab = (tab: RoutineTabId) => {
     setSearchParams({ tab }, { replace: false });
@@ -119,10 +123,14 @@ export function AdminRoutinePage() {
           data-testid="track2-workbench-status-link"
           className="inline-flex h-[34px] items-center gap-2 rounded-[var(--r-control)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-3 text-[12px] font-medium text-[var(--ink-secondary)] no-underline hover:bg-[var(--surface-hover)] hover:text-[var(--ink-primary)]"
         >
-          <LockSimple size={13} aria-hidden="true" />
+          {gatesABCDLive ? (
+            <ShieldCheck size={13} className="text-[var(--sem-lab-bar)]" aria-hidden="true" />
+          ) : (
+            <LockSimple size={13} aria-hidden="true" />
+          )}
           <span>Track 2 Workbench</span>
           <Badge
-            tone={gatesABLive || gateAOnlyLive ? "theory" : "joint"}
+            tone={gatesABCDLive ? "lab" : gatesABLive || gateAOnlyLive ? "theory" : "joint"}
             dot={false}
             mono
             data-testid="track2-workbench-gate-badge"
@@ -130,9 +138,11 @@ export function AdminRoutinePage() {
             <span
               className={cn(
                 "h-1.5 w-1.5 rounded-full",
-                gatesABLive || gateAOnlyLive
-                  ? "bg-[var(--sem-pine-bar)]"
-                  : "bg-[var(--sem-joint-bar)]",
+                gatesABCDLive
+                  ? "bg-[var(--sem-lab-bar)]"
+                  : gatesABLive || gateAOnlyLive
+                    ? "bg-[var(--sem-pine-bar)]"
+                    : "bg-[var(--sem-joint-bar)]",
               )}
               aria-hidden="true"
             />
