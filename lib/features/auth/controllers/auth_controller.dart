@@ -2,6 +2,7 @@ import 'dart:async' show Timer, unawaited;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'
     show AuthException, AuthChangeEvent;
@@ -305,6 +306,18 @@ class AuthController extends ChangeNotifier {
     final bool signedIn;
     try {
       signedIn = await _authService.signInWithGoogle();
+    } on PlatformException catch (e) {
+      if (epoch != _stateEpoch) return;
+      if (e.code == 'sign_in_canceled') {
+        _setLoading(false);
+        return;
+      }
+      _isLoading = false;
+      final friendly = e.code == 'network_error'
+          ? 'Google sign-in failed: check your internet connection and try again.'
+          : 'Google sign-in failed: ${e.message ?? e.code}';
+      _setError(friendly);
+      return;
     } catch (e) {
       if (epoch != _stateEpoch) return;
       _isLoading = false;

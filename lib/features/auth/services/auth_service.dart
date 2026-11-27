@@ -58,7 +58,11 @@ class AuthService {
 
     // Forget the last-picked account so the chooser always appears. Otherwise
     // Google silently re-uses it and the user can never pick another account.
-    await _googleSignIn.signOut();
+    try {
+      await _googleSignIn.signOut();
+    } catch (_) {
+      // Ignore pre-signout hiccups so the interactive chooser can still open.
+    }
 
     final googleUser = await _googleSignIn.signIn();
     if (googleUser == null) return false;
@@ -235,7 +239,7 @@ class AuthService {
       final role = whitelistRow['role'] as String;
       final newProfile = {
         'id': user.id,
-        'email': email,
+        'email': email.toLowerCase(),
         'role': role,
         'name': whitelistRow['name'] ?? user.userMetadata?['full_name'] ?? '',
         'avatar_url': user.userMetadata?['avatar_url'],
@@ -249,7 +253,25 @@ class AuthService {
         'courses': const [],
       };
 
-      await _supabase.from(AppConstants.tableProfiles).insert(newProfile);
+      try {
+        await _supabase.from(AppConstants.tableProfiles).insert(newProfile);
+      } on PostgrestException catch (e) {
+        if (e.code == '23505') {
+          final recovered = await _supabase
+              .from(AppConstants.tableProfiles)
+              .select()
+              .eq('id', user.id)
+              .maybeSingle();
+          if (recovered != null) {
+            return AuthResult(
+              success: true,
+              role: recovered['role'] as String,
+              profile: recovered,
+            );
+          }
+        }
+        rethrow;
+      }
 
       return AuthResult(success: true, role: role, profile: newProfile);
     } on PostgrestException catch (e) {

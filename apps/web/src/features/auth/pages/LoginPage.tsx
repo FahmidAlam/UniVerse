@@ -54,11 +54,13 @@ function GoogleMarkSvg() {
 
 export function LoginPage() {
   const prefersReducedMotion = useReducedMotion() ?? false;
-  const { signInWithEmail, signInWithGoogle, authError } = useAuth();
+  const { signInWithEmail, signInWithGoogle, authError, clearAuthError } =
+    useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(authError);
+  const [serverError, setServerError] = useState<string | null>(null);
   const [shakeCount, setShakeCount] = useState(0);
+  const displayedError = serverError ?? authError;
 
   const {
     register,
@@ -71,6 +73,7 @@ export function LoginPage() {
 
   const onValidSubmit = async (values: LoginFormValues) => {
     setServerError(null);
+    clearAuthError?.();
     const result = await signInWithEmail(values.email, values.password);
     if (!result.ok) {
       const msg = result.error ?? "Unable to sign in. Please try again.";
@@ -86,6 +89,7 @@ export function LoginPage() {
 
   async function handleGoogle() {
     setServerError(null);
+    clearAuthError?.();
     const result = await signInWithGoogle();
     if (!result.ok) {
       const msg = result.error ?? "Google sign-in could not be started.";
@@ -116,7 +120,7 @@ export function LoginPage() {
         </p>
       </div>
 
-      {serverError && (
+      {displayedError && (
         <div
           role="alert"
           data-testid="login-error-alert"
@@ -125,7 +129,7 @@ export function LoginPage() {
           <WarningCircle size={17} className="mt-0.5 shrink-0" aria-hidden="true" />
           <div className="min-w-0 flex-1">
             <p className="font-semibold">Unable to complete sign-in</p>
-            <p className="mt-0.5">{serverError}</p>
+            <p className="mt-0.5">{displayedError}</p>
             <Link
               to="/forgot-password"
               className="mt-1.5 inline-block text-[12px] font-semibold text-[var(--sem-conflict-ink)] underline underline-offset-2"

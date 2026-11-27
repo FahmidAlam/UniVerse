@@ -14,7 +14,7 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
         flowType: "pkce",
-        detectSessionInUrl: true,
+        detectSessionInUrl: false,
         autoRefreshToken: true,
         persistSession: true,
       },
@@ -215,6 +215,28 @@ export function mapFriendlyAuthError(rawMessage: string): string {
   }
   if (m.includes("password should be at least")) {
     return "Password does not meet minimum length requirements.";
+  }
+  if (
+    m.includes("access_denied") ||
+    m.includes("user cancelled") ||
+    m.includes("user denied")
+  ) {
+    return "Google sign-in was cancelled or denied. Choose an approved committee account to continue.";
+  }
+  if (
+    m.includes("provider is not enabled") ||
+    m.includes("provider_disabled")
+  ) {
+    return "Google sign-in is not enabled on this authentication server. Contact the system administrator.";
+  }
+  if (
+    m.includes("code verifier") ||
+    m.includes("both auth code and code verifier")
+  ) {
+    return "Your Google sign-in session expired or opened in another browser context. Please click Continue with Google again.";
+  }
+  if (m.includes("invalid_grant") || m.includes("flow state not found")) {
+    return "Sign-in verification code expired or was already used. Please try again.";
   }
   if (m.includes("rate limit")) {
     return "Too many sign-in attempts. Wait a few minutes before retrying.";
