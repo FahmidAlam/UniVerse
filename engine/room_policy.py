@@ -70,8 +70,10 @@ def is_physics_lab_course(
 
 
 def is_eee_course(code: str, dept: str | None = None) -> bool:
-    """True if the course is an EEE-related course."""
+    """True if the course is an EEE-related course (never misclassifies PHY-* courses)."""
     clean_code = str(code).strip().upper()
+    if clean_code.startswith("PHY"):
+        return False
     clean_dept = str(dept).strip().upper() if dept else ""
     return clean_code.startswith("EEE") or clean_dept == "EEE"
 
@@ -81,6 +83,53 @@ def is_cse_course(code: str, dept: str | None = None) -> bool:
     clean_code = str(code).strip().upper()
     clean_dept = str(dept).strip().upper() if dept else ""
     return clean_code.startswith("CSE") or clean_dept == "CSE"
+
+
+VALID_ROOM_POOL_OVERRIDES = frozenset({"theory", "cse_lab", "ecl_lab", "physics_lab"})
+_ROOM_POOL_TAG_RE = re.compile(r"\[pool:(theory|cse_lab|ecl_lab|physics_lab)\]", re.IGNORECASE)
+
+
+def parse_room_pool_override(value: Any) -> str | None:
+    """Parse an explicit room-pool override ('theory', 'cse_lab', 'ecl_lab', 'physics_lab').
+
+    Accepts either a direct pool token or a structured `[pool:<pool>]` tag embedded
+    inside a catalog course's `notes` field (zero-migration persistence).
+    """
+    if value is None:
+        return None
+    raw = str(value).strip().lower()
+    if raw in VALID_ROOM_POOL_OVERRIDES:
+        return raw
+    m = _ROOM_POOL_TAG_RE.search(raw)
+    if m:
+        return m.group(1).lower()
+    return None
+
+
+def classify_lab_kind(
+    code: str,
+    dept: str | None = None,
+    *,
+    physics_lab_course_codes: set[str] | tuple[str, ...] | list[str] = (),
+    is_physics_lab: bool = False,
+    room_pool_override: str | None = None,
+) -> str:
+    """Single shared lab-pool classifier used by Phase 1 CP-SAT, Phase 2 room assignment, and Phase 3 validation.
+
+    Returns one of: 'physics' (R11), 'ecl' (R10), or 'cse' (CSE Lab Pool for CSE-* and all other non-ECL/non-Physics labs).
+    """
+    override = parse_room_pool_override(room_pool_override)
+    if override == "physics_lab":
+        return "physics"
+    if override == "ecl_lab":
+        return "ecl"
+    if override == "cse_lab":
+        return "cse"
+    if is_physics_lab or is_physics_lab_course(code, physics_lab_course_codes):
+        return "physics"
+    if is_eee_course(code, dept):
+        return "ecl"
+    return "cse"
 
 
 def to_minutes(clock: str) -> float:

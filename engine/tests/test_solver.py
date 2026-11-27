@@ -116,7 +116,7 @@ def test_no_teacher_cohort_or_room_collisions():
 
 
 def test_labs_land_in_lab_rooms_and_stay_next_to_their_theory():
-    rows = [make_row(section=s, code=c, teacher="AAA")
+    rows = [make_row(section=s, code=c, credit=(1.5 if c == "CSE-1102" else 3), teacher="AAA")
             for s in ("A", "B")
             for c in ("CSE-1101", "CSE-1102")]
     _, _, res = run(rows)

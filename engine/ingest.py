@@ -151,6 +151,28 @@ def _last_digit(code: str) -> int | None:
     return int(m.group(1)[-1]) if m else None
 
 
+_LAB_TITLE_RE = re.compile(
+    r"\b(lab|laboratory|sessional|practical|workshop|drawing|cad|simulation)\b",
+    re.IGNORECASE,
+)
+
+
+def _infer_is_lab(code: str, title: str, credit: float | None = None) -> bool:
+    """Infer whether an offering is a lab/sessional when no explicit catalog override is set.
+
+    Tier 2 dynamic heuristic:
+    - Lab if title contains a lab/sessional/simulation keyword; OR
+    - Lab if course code ends in an even digit AND (credit is None OR credit <= 2.0).
+    - Otherwise theory (e.g. odd-digit codes like GED-3213, or even-digit >= 3.0-credit
+      courses without a lab keyword like GED-1116).
+    """
+    if _LAB_TITLE_RE.search(str(title or "")):
+        return True
+    clean_code = str(code or "").strip().upper()
+    ld = _last_digit(clean_code)
+    return ld is not None and ld % 2 == 0 and (credit is None or credit <= 2.0)
+
+
 def _header_map(ws) -> dict[str, int]:
     out: dict[str, int] = {}
     for c in range(1, (ws.max_column or 30) + 1):
@@ -303,15 +325,12 @@ def ingest_workbook(wb, weeks_in_term: int = 14,
         key = (cohort, code)
         entry = acc.get(key)
         if entry is None:
-            ld = _last_digit(code)
             entry = acc[key] = {
                 "code": code, "title": title, "batch": batch, "section": section,
                 "cohort": cohort, "credit": credit, "classes_total": 0,
                 "has_classes": False, "per_week": per_week, "students": students,
                 "dept": dept, "teachers": [], "rows": [], "pending_rows": [],
-                # Department convention: a course code ending in an even digit
-                # is the sessional/lab half of its odd-digit theory sibling.
-                "is_lab": ld is not None and ld % 2 == 0,
+                "is_lab": _infer_is_lab(code, title, credit),
                 # "We teach this class to ANOTHER department's students."
                 # Deliberately NOT the same thing as "the course is not a CSE
                 # course": the 106 GED/MAT/EEE/CHE/PHY offerings taken BY CSE
@@ -338,8 +357,9 @@ def ingest_workbook(wb, weeks_in_term: int = 14,
         if classes is not None:
             entry["classes_total"] += classes
             entry["has_classes"] = True
-        if entry["credit"] is None:
+        if entry["credit"] is None and credit is not None:
             entry["credit"] = credit
+            entry["is_lab"] = _infer_is_lab(code, entry["title"], credit)
 
     offerings: list[Offering] = []
     sessions: list[Session] = []

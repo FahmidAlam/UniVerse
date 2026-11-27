@@ -28,7 +28,24 @@ import {
   DialogTitle,
 } from "@/components/ui/Dialog";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { fetchCatalogCourses } from "@/features/admin/services/coursesService";
+import { fetchFaculty } from "@/features/admin/services/facultyService";
+import { CourseRoomPoolReviewModal } from "@/features/routine/components/CourseRoomPoolReviewModal";
+import { ImportMissingFacultyModal } from "@/features/routine/components/ImportMissingFacultyModal";
 import { fetchBaselineConfigAndBuild } from "@/features/routine/services/buildEngineConfig";
+import {
+  classifyScannedCourses,
+  scanCoursesFromDistributionRows,
+  scanCoursesFromXlsxBytes,
+  summarizeCourseRoomPools,
+  type ScannedWorkbookCourse,
+} from "@/features/routine/services/workbookCourseScanner";
+import {
+  diffScannedTeachersAgainstFaculty,
+  scanTeachersFromDistributionRows,
+  scanTeachersFromXlsxBytes,
+  type ScannedWorkbookTeacher,
+} from "@/features/routine/services/workbookFacultyScanner";
 import {
   buildCourseDistributionFile,
   buildCourseDistributionXlsx,
@@ -167,6 +184,14 @@ export function GenerateRoutineTab({
     readSessionJobId(),
   );
   const [isCheckingJobStatus, setIsCheckingJobStatus] = useState(false);
+  const [importFacultyModalOpen, setImportFacultyModalOpen] = useState(false);
+  const [roomPoolModalOpen, setRoomPoolModalOpen] = useState(false);
+  const [scannedWorkbookTeachers, setScannedWorkbookTeachers] = useState<
+    ScannedWorkbookTeacher[]
+  >([]);
+  const [scannedWorkbookCourses, setScannedWorkbookCourses] = useState<
+    ScannedWorkbookCourse[]
+  >([]);
 
   const [rehearsalOpen, setRehearsalOpen] = useState(false);
   const [validationExpanded, setValidationExpanded] = useState(false);
@@ -186,6 +211,77 @@ export function GenerateRoutineTab({
     queryFn: () => fetchBaselineConfigAndBuild(isDevPreview),
     retry: false,
   });
+
+  const facultyQuery = useQuery({
+    queryKey: ["admin-faculty", isDevPreview],
+    queryFn: () => fetchFaculty(isDevPreview),
+    retry: false,
+  });
+
+  const catalogCoursesQuery = useQuery({
+    queryKey: ["admin-catalog-courses", isDevPreview],
+    queryFn: () => fetchCatalogCourses(isDevPreview),
+    retry: false,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    if (generateInputMode === "sheet") {
+      setScannedWorkbookTeachers(scanTeachersFromDistributionRows(draftRows));
+      setScannedWorkbookCourses(scanCoursesFromDistributionRows(draftRows));
+      return;
+    }
+    if (!selectedWorkbookBytes) {
+      setScannedWorkbookTeachers([]);
+      setScannedWorkbookCourses([]);
+      return;
+    }
+    void Promise.all([
+      scanTeachersFromXlsxBytes(selectedWorkbookBytes),
+      scanCoursesFromXlsxBytes(selectedWorkbookBytes),
+    ]).then(([teachers, courses]) => {
+      if (!cancelled) {
+        setScannedWorkbookTeachers(teachers);
+        setScannedWorkbookCourses(courses);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [generateInputMode, draftRows, selectedWorkbookBytes]);
+
+  const classifiedCourses = useMemo(() => {
+    const rawPhysics =
+      baselineQuery.data?.config.policy_snapshot?.physics_lab_course_codes;
+    const physicsCodes = Array.isArray(rawPhysics)
+      ? rawPhysics.map((c) => String(c))
+      : [];
+    return classifyScannedCourses(
+      scannedWorkbookCourses,
+      catalogCoursesQuery.data?.courses ?? [],
+      physicsCodes,
+    );
+  }, [
+    scannedWorkbookCourses,
+    catalogCoursesQuery.data?.courses,
+    baselineQuery.data?.config.policy_snapshot?.physics_lab_course_codes,
+  ]);
+
+  const courseRoomPoolSummary = useMemo(
+    () => summarizeCourseRoomPools(classifiedCourses),
+    [classifiedCourses],
+  );
+
+  const facultyDiff = useMemo(
+    () =>
+      diffScannedTeachersAgainstFaculty(
+        scannedWorkbookTeachers,
+        facultyQuery.data ?? [],
+      ),
+    [scannedWorkbookTeachers, facultyQuery.data],
+  );
+  const unresolvedFacultyCount =
+    facultyDiff.missing.length + facultyDiff.inactive.length;
 
   const liveRoutinesQuery = useQuery({
     queryKey: ["admin-routines", isDevPreview],
@@ -1110,6 +1206,151 @@ export function GenerateRoutineTab({
           </Button>
         </div>
       </section>
+
+      {/* Missing / Inactive Faculty Preflight Banner (1-Click Review & Import) */}
+      {unresolvedFacultyCount > 0 && (
+        <section
+          role="status"
+          data-testid="missing-faculty-preflight-banner"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-control)] border border-[var(--sem-joint-border)] bg-[var(--sem-joint-bg)] px-4 py-3 text-[12.5px] text-[var(--sem-joint-ink)]"
+        >
+          <div className="flex min-w-0 items-start gap-2.5">
+            <WarningCircle
+              size={17}
+              className="mt-0.5 shrink-0"
+              aria-hidden="true"
+            />
+            <div className="space-y-0.5">
+              <div className="font-semibold">
+                {unresolvedFacultyCount} teacher acronym
+                {unresolvedFacultyCount === 1 ? "" : "s"} in this workbook{" "}
+                {unresolvedFacultyCount === 1 ? "is" : "are"} missing or inactive
+                in Faculty
+              </div>
+              <p className="leading-[1.45]">
+                (
+                {[
+                  ...facultyDiff.missing.map((m) => m.acronym),
+                  ...facultyDiff.inactive.map((i) => i.acronym),
+                ]
+                  .slice(0, 6)
+                  .join(", ")}
+                {unresolvedFacultyCount > 6 ? ", …" : ""}). Add or reactivate
+                them now to prevent{" "}
+                <span className="font-semibold">Unresolved Teachers</span>{" "}
+                validation blocks.
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            data-testid="review-import-faculty-btn"
+            disabled={isDevPreview || isBusy}
+            title={
+              isDevPreview
+                ? "Disabled in Dev Preview mode"
+                : "Review and import missing or inactive faculty"
+            }
+            onClick={() => setImportFacultyModalOpen(true)}
+          >
+            <span>Review &amp; Import Faculty</span>
+          </Button>
+        </section>
+      )}
+
+      <ImportMissingFacultyModal
+        open={importFacultyModalOpen}
+        onOpenChange={setImportFacultyModalOpen}
+        missing={facultyDiff.missing}
+        inactive={facultyDiff.inactive}
+        isDevPreview={isDevPreview}
+        onImported={({ addedCount, reactivatedCount }) => {
+          const parts: string[] = [];
+          if (addedCount > 0) parts.push(`Added ${addedCount}`);
+          if (reactivatedCount > 0) parts.push(`reactivated ${reactivatedCount}`);
+          if (parts.length > 0) {
+            toast.success(`${parts.join(" and ")} faculty`);
+          }
+          void queryClient.invalidateQueries({ queryKey: ["admin-faculty"] });
+          void queryClient.invalidateQueries({
+            queryKey: ["admin-engine-baseline-config"],
+          });
+          void queryClient.invalidateQueries({
+            queryKey: ["admin-dashboard-counts"],
+          });
+        }}
+      />
+
+      {/* Course Room-Pool Preflight Strip */}
+      {courseRoomPoolSummary.total > 0 && (
+        <section
+          role="status"
+          data-testid="course-room-pool-preflight-strip"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-control)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2.5 text-[12.5px] text-[var(--ink-secondary)]"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-[12px] font-medium text-[var(--ink-primary)]">
+              {courseRoomPoolSummary.total} courses scanned
+            </span>
+            <span aria-hidden="true" className="text-[var(--ink-muted)]">
+              ·
+            </span>
+            <span>{courseRoomPoolSummary.theory} Theory</span>
+            <span aria-hidden="true" className="text-[var(--ink-muted)]">
+              ·
+            </span>
+            <span>{courseRoomPoolSummary.cseLab} CSE Labs</span>
+            <span aria-hidden="true" className="text-[var(--ink-muted)]">
+              ·
+            </span>
+            <span>{courseRoomPoolSummary.eclLab} ECL</span>
+            <span aria-hidden="true" className="text-[var(--ink-muted)]">
+              ·
+            </span>
+            <span>{courseRoomPoolSummary.physicsLab} Physics Lab</span>
+            {courseRoomPoolSummary.needsReviewCount > 0 && (
+              <Badge
+                tone="joint"
+                data-testid="borderline-courses-pill"
+                className="ml-1 text-[11px]"
+              >
+                {courseRoomPoolSummary.needsReviewCount} GED/borderline course
+                {courseRoomPoolSummary.needsReviewCount === 1 ? "" : "s"} — Review
+              </Badge>
+            )}
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            data-testid="review-room-pools-btn"
+            disabled={isBusy}
+            onClick={() => setRoomPoolModalOpen(true)}
+          >
+            <span>Review Room Pools</span>
+          </Button>
+        </section>
+      )}
+
+      <CourseRoomPoolReviewModal
+        open={roomPoolModalOpen}
+        onOpenChange={setRoomPoolModalOpen}
+        courses={classifiedCourses}
+        isDevPreview={isDevPreview}
+        onSaved={({ savedCount }) => {
+          toast.success(
+            `Saved ${savedCount} course room-pool override${savedCount === 1 ? "" : "s"}`,
+          );
+          void queryClient.invalidateQueries({
+            queryKey: ["admin-catalog-courses"],
+          });
+          void queryClient.invalidateQueries({
+            queryKey: ["admin-engine-baseline-config"],
+          });
+        }}
+      />
 
       {/* Recoverable Durable Job Banner (after browser reload / tab close) */}
       {solverPhase === "idle" && pendingSessionJobId && (

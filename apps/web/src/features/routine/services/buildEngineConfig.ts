@@ -196,6 +196,7 @@ export function assembleEngineConfigFromRecords({
               is_service: c.is_service,
               is_physics_lab: c.is_physics_lab,
               default_weekly_sessions: c.default_weekly_sessions,
+              notes: c.notes,
             })),
         }
       : {}),
